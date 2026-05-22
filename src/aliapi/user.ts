@@ -170,17 +170,13 @@ export default class AliUser {
     }
     let { uiEnableOpenApiType, uiOpenApiClientId, uiOpenApiClientSecret } = useSettingStore()
     let url = 'https://openapi.alipan.com/oauth/access_token'
-    let client_id = ''
-    let client_secret = ''
-    if (uiEnableOpenApiType === 'custom') {
-      client_id = uiOpenApiClientId
-      client_secret = uiOpenApiClientSecret
-    }
+    let ALIYUN_APP_ID = ''
+    let ALIYUN_APP_SECRET = ''
     const postData = {
       refresh_token: token.open_api_refresh_token,
       grant_type: 'refresh_token',
-      client_id: client_id,
-      client_secret: client_secret
+      client_id: ALIYUN_APP_ID,
+      client_secret: ALIYUN_APP_SECRET
     }
     const resp = await AliHttp.Post(url, postData, '', '')
     OpenApiTokenLockMap.delete(token.user_id)

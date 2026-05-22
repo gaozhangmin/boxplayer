@@ -2,6 +2,7 @@ import type { MediaServerConfig } from '../types/mediaServer'
 import type {
   MediaServerCardItem,
   MediaServerExternalLink,
+  MediaServerDownloadInfo,
   MediaServerHomeData,
   MediaServerHomeLibrarySection,
   MediaServerMediaInfoCard,
@@ -794,6 +795,15 @@ const buildAbsoluteMediaServerUrl = (config: MediaServerConfig, value: string) =
   return new URL(value, `${config.baseUrl.replace(/\/+$/, '')}/`).toString()
 }
 
+const pickFileNameFromSource = (item: MediaServerBaseItem, source?: MediaServerMediaSource) => {
+  const rawName = source?.Path?.split(/[\\/]/).filter(Boolean).pop()
+    || source?.Name
+    || item.Name
+    || item.Id
+    || 'media'
+  return rawName.replace(/[<>:"/\\|?*\f\n\r\t\v]+/g, '').replace(/[ .]+$/g, '').replace(/^\.+/g, '') || 'media'
+}
+
 export const withMediaServerPlaybackAuth = (config: MediaServerConfig, url: string) => {
   const token = (config.accessToken || '').trim()
   if (!url || !token) return url
@@ -972,6 +982,58 @@ export const getMediaServerPlaybackInfo = async (
     videoStreamIndex: typeof videoStreamIndex === 'number' && videoStreamIndex >= 0
       ? videoStreamIndex
       : source.MediaStreams?.find((stream) => (stream.Type || '').toLowerCase() === 'video')?.Index
+  }
+}
+
+export const getMediaServerDownloadInfo = async (
+  config: MediaServerConfig,
+  itemId: string,
+  sourceId?: string
+): Promise<MediaServerDownloadInfo> => {
+  ensureServerContext(config)
+
+  const detailPayload = await mediaServerFetch<MediaServerBaseItem>(
+    config,
+    `/Users/${config.userId}/Items/${encodeURIComponent(itemId)}?EnableUserData=true&Fields=MediaSources,MediaStreams`
+  )
+  const source = (detailPayload.MediaSources || []).find((entry) => sourceId && entry.Id === sourceId) || detailPayload.MediaSources?.[0]
+  if (!source) throw new Error('媒体服务器未返回可下载媒体源')
+
+  let downloadUrl = ''
+  if (config.type === 'plex') {
+    const partKey = source.PartKey || source.DirectStreamUrl || source.XOriginDirectStreamUrl || source.Path
+    if (!partKey) throw new Error('Plex 未返回可下载地址')
+    downloadUrl = buildAbsoluteMediaServerUrl(config, partKey)
+  } else {
+    const directUrl = source.DirectStreamUrl || source.XOriginDirectStreamUrl
+    const isHttpProtocol = (source.Protocol || '').toLowerCase() === 'http'
+    if (isHttpProtocol && directUrl) {
+      downloadUrl = buildAbsoluteMediaServerUrl(config, directUrl)
+    } else if (isHttpProtocol && source.Path) {
+      downloadUrl = source.Path
+    } else if (config.type === 'emby' && directUrl) {
+      downloadUrl = buildAbsoluteMediaServerUrl(config, directUrl)
+    } else {
+      const streamQuery = new URLSearchParams({
+        static: 'true',
+        mediaSourceId: source.Id || sourceId || ''
+      })
+      if (detailPayload.ETag) streamQuery.set('tag', detailPayload.ETag)
+      downloadUrl = `${config.baseUrl.replace(/\/+$/, '')}/Videos/${encodeURIComponent(itemId)}/stream?${streamQuery.toString()}`
+    }
+  }
+
+  if (!downloadUrl) throw new Error('媒体服务器未返回可下载地址')
+
+  return {
+    url: withMediaServerPlaybackAuth(config, downloadUrl),
+    headers: {
+      ...mediaServerHeaders(config),
+      ...(source.RequiredHttpHeaders || {})
+    },
+    fileName: pickFileNameFromSource(detailPayload, source),
+    fileSize: source.Size || 0,
+    sourceId: source.Id
   }
 }
 

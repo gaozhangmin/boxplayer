@@ -4,8 +4,8 @@ import { humanSize } from '../utils/format'
 
 const PIKPAK_API_HOST = 'https://api-drive.mypikpak.com'
 const PIKPAK_USER_HOST = 'https://user.mypikpak.com'
-const CLIENT_ID = ''
-const CLIENT_SECRET = ''
+const PIKPAK_CLIENT_ID = ''
+const PIKPAK_CLIENT_SECRET = ''
 const CLIENT_VERSION = '1.47.1'
 const PACKAGE_NAME = 'com.pikcloud.pikpak'
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
@@ -37,7 +37,7 @@ type PikPakAuthResp = {
 }
 
 export const captchaSign = (deviceId: string, timestamp: string): string => {
-  let sign = CLIENT_ID + CLIENT_VERSION + PACKAGE_NAME + deviceId + timestamp
+  let sign = PIKPAK_CLIENT_ID + CLIENT_VERSION + PACKAGE_NAME + deviceId + timestamp
   for (const salt of CAPTCHA_SALTS) {
     sign = MD5(sign + salt).toString()
   }
@@ -131,7 +131,7 @@ export const loginPikPak = async (username: string, password: string): Promise<I
     method: 'POST',
     headers: buildHeaders(deviceId),
     body: JSON.stringify({
-      client_id: CLIENT_ID,
+      client_id: PIKPAK_CLIENT_ID,
       action: `POST:${loginUrl}`,
       device_id: deviceId,
       meta
@@ -146,8 +146,8 @@ export const loginPikPak = async (username: string, password: string): Promise<I
       'X-Captcha-Token': captcha.captcha_token
     },
     body: JSON.stringify({
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
+      client_id: PIKPAK_CLIENT_ID,
+      client_secret: PIKPAK_CLIENT_SECRET,
       password,
       username,
       captcha_token: captcha.captcha_token
@@ -174,7 +174,7 @@ export const refreshPikPakAccessToken = async (token: ITokenInfo): Promise<IToke
     method: 'POST',
     headers: buildHeaders(token.device_id),
     body: JSON.stringify({
-      client_id: CLIENT_ID,
+      client_id: PIKPAK_CLIENT_ID,
       refresh_token: token.refresh_token,
       grant_type: 'refresh_token'
     })

@@ -110,7 +110,7 @@ const handleImportAsar = () => {
         <a-radio tabindex='-1' value='media'>媒体库</a-radio>
       </a-radio-group>
     </div>
-    <template v-if="['win32', 'darwin'].includes(os.platform())">
+    <template v-if="['win32', 'darwin'].includes(platform)">
       <div class='settingspace'></div>
       <div class='settinghead'>开机自启设置</div>
       <div class='settingrow'>

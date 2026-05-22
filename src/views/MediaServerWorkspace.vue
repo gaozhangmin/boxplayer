@@ -931,6 +931,37 @@
                             <span class="detail-play-glyph">▶</span>
                             <span class="detail-play-label">{{ detailPlayLabel }}</span>
                           </button>
+                          <a-trigger
+                            v-if="detailDownloadOptions.length > 1"
+                            trigger="click"
+                            position="bottom"
+                            auto-fit-popup-width="false"
+                          >
+                            <button class="detail-secondary-download">
+                              <span class="detail-play-glyph">↓</span>
+                              <span class="detail-play-label">下载</span>
+                            </button>
+                            <template #content>
+                              <div class="detail-version-menu">
+                                <button
+                                  v-for="option in detailDownloadOptions"
+                                  :key="option.key"
+                                  type="button"
+                                  class="detail-version-option"
+                                  @click="handleDetailDownload(option.key)"
+                                >
+                                  <div class="detail-version-main">
+                                    <span>{{ option.label }}</span>
+                                    <small v-if="option.description">{{ option.description }}</small>
+                                  </div>
+                                </button>
+                              </div>
+                            </template>
+                          </a-trigger>
+                          <button v-else class="detail-secondary-download" @click="handleDetailDownload('current')">
+                            <span class="detail-play-glyph">↓</span>
+                            <span class="detail-play-label">下载</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1371,7 +1402,7 @@ import MediaServerStatsRow from '../components/media-server/home/MediaServerStat
 import jellyfinIcon from '../assets/media-server/jellyfin.svg'
 import embyIcon from '../assets/media-server/emby.svg'
 import plexIcon from '../assets/media-server/plex.svg'
-import { getMediaServerPlaybackInfo, getMediaServerSimilarItems, updateMediaServerFavoriteState, updateMediaServerPlayedState } from '../media-server/contentGateway'
+import { getMediaServerDownloadInfo, getMediaServerPlaybackInfo, getMediaServerSimilarItems, updateMediaServerFavoriteState, updateMediaServerPlayedState } from '../media-server/contentGateway'
 import { resolveMediaServerImage } from '../media-server/imageSources'
 import { toMsCacheUrl } from '../media-server/imageCache'
 import useMediaServerRegistryStore from '../store/mediaServerRegistry'
@@ -1379,10 +1410,12 @@ import useMediaServerNavigationStore from '../store/mediaServerNavigation'
 import type { MediaServerConfig, MediaServerType } from '../types/mediaServer'
 import message from '../utils/message'
 import { openExternal } from '../utils/electronhelper'
+import { modalDownload } from '../utils/modal'
 import useMediaServerContentStore from '../store/mediaServerContent'
 import type { MediaServerCardItem, MediaServerHomeLibrarySection, MediaServerItemDetail, MediaServerLibraryNode, MediaServerMediaInfoCard, MediaServerSearchData, MediaServerSourceOption } from '../types/mediaServerContent'
 import useMediaServerHomePreferencesStore, { type MediaServerPosterType } from '../store/mediaServerHomePreferences'
 import useSettingStore from '../setting/settingstore'
+import DownDAL from '../down/DownDAL'
 
 const registry = useMediaServerRegistryStore()
 const wrapCacheUrl = (url: string): string => toMsCacheUrl(registry.currentServer?.id, url)
@@ -2032,6 +2065,27 @@ const detailPlayLabel = computed(() => {
   return '开始播放'
 })
 
+type DetailDownloadScope = 'current' | 'season' | 'series'
+
+const detailDownloadOptions = computed<Array<{ key: DetailDownloadScope; label: string; description?: string }>>(() => {
+  const item = detailDisplayedItem.value
+  if (!item.id) return []
+  if (currentDetail.value?.kind === 'series') {
+    return [
+      { key: 'current', label: item.kind === 'episode' ? '下载当前集' : '下载当前选择', description: item.title },
+      { key: 'season', label: '下载当前季', description: activeDetailSeason.value?.title || detailSeasonTitle.value },
+      { key: 'series', label: '下载整部剧集', description: currentDetail.value.title }
+    ]
+  }
+  if (currentDetail.value?.kind === 'season') {
+    return [
+      { key: 'current', label: item.kind === 'episode' ? '下载当前集' : '下载当前选择', description: item.title },
+      { key: 'season', label: '下载本季', description: currentDetail.value.title }
+    ]
+  }
+  return [{ key: 'current', label: '下载', description: item.title }]
+})
+
 const currentOverviewText = computed(() => detailDisplayedItem.value.overview || currentDetail.value?.overview || '')
 
 const detailEpisodeHeading = computed(() => {
@@ -2574,6 +2628,117 @@ const openMediaServerPlayback = async (
   })
 }
 
+const cleanDownloadSegment = (value: string) => {
+  return (value || 'media').replace(/[<>:"/\\|?*\f\n\r\t\v]+/g, '').replace(/[ .]+$/g, '').replace(/^\.+/g, '') || 'media'
+}
+
+const joinDownloadPath = (base: string, ...segments: string[]) => {
+  const sep = base.includes('\\') && !base.includes('/') ? '\\' : '/'
+  const normalizedBase = base.replace(/[\\/]+$/g, '')
+  const normalizedSegments = segments.map(cleanDownloadSegment).filter(Boolean)
+  return [normalizedBase, ...normalizedSegments].join(sep)
+}
+
+const mediaServerDownloadBasePath = () => {
+  const savePath = settingStore.AriaIsLocal ? settingStore.downSavePath : settingStore.ariaSavePath
+  if (!savePath?.trim()) {
+    message.error('未设置保存路径')
+    modalDownload(false)
+    return ''
+  }
+  return savePath
+}
+
+const loadAllMediaServerChildren = async (server: MediaServerConfig, parentId: string, recursiveMedia = false) => {
+  const key = `${server.id}:${parentId}`
+  let guard = 0
+  do {
+    const current = content.currentPagedLibrary(key)
+    const force = !current.items.length && current.currentPage < 0
+    await content.loadLibraryPage(server, parentId, force, recursiveMedia)
+    guard += 1
+  } while (content.currentPagedLibrary(key).hasNextPage && guard < 20)
+  return content.currentLibraryPage(key)
+}
+
+const enqueueMediaServerDownloadItems = async (
+  items: Array<MediaServerCardItem | MediaServerItemDetail | MediaServerLibraryNode>,
+  options?: { folderSegments?: string[]; sourceId?: string }
+) => {
+  const server = registry.currentServer
+  const basePath = mediaServerDownloadBasePath()
+  if (!server || !basePath || items.length === 0) return
+
+  let created = 0
+  for (const item of items) {
+    if (!item.id || item.kind === 'series' || item.kind === 'season' || item.kind === 'folder' || item.kind === 'person') continue
+    const downloadInfo = await getMediaServerDownloadInfo(server, item.id, options?.sourceId)
+    const baseFolders = options?.folderSegments || []
+    const itemFolder = item.kind === 'episode' && item.parentTitle && !baseFolders.includes(item.parentTitle)
+      ? [...baseFolders, item.parentTitle]
+      : baseFolders
+    DownDAL.aAddUrlDownload({
+      user_id: `media_server:${server.id}`,
+      drive_id: 'media_server',
+      file_id: item.id,
+      url: downloadInfo.url,
+      headers: downloadInfo.headers,
+      savePath: itemFolder.length ? joinDownloadPath(basePath, ...itemFolder) : basePath,
+      fileName: downloadInfo.fileName || item.title,
+      fileSize: downloadInfo.fileSize,
+      icon: 'iconfont iconshipin'
+    })
+    created += 1
+  }
+  if (created > 0) message.success(`成功创建 ${created} 个下载任务`)
+  else message.warning('没有找到可以下载的媒体')
+}
+
+const resolveMediaServerDownloadItems = async (scope: DetailDownloadScope) => {
+  const server = registry.currentServer
+  const current = detailDisplayedItem.value
+  if (!server || !current.id) return []
+  if (scope === 'current') return [current]
+
+  if (scope === 'season') {
+    if (detailEpisodeItems.value.length > 0) return detailEpisodeItems.value
+    if (current.kind === 'season') {
+      return (await loadAllMediaServerChildren(server, current.id, false)).filter((item) => item.kind === 'episode')
+    }
+    return [current]
+  }
+
+  if (currentDetail.value?.kind !== 'series') return detailEpisodeItems.value.length > 0 ? detailEpisodeItems.value : [current]
+  const episodes: MediaServerLibraryNode[] = []
+  const seasons = detailSeasonMenu.value
+  if (seasons.length === 0) return detailEpisodeItems.value.length > 0 ? detailEpisodeItems.value : [current]
+  for (const season of seasons) {
+    const seasonEpisodes = (await loadAllMediaServerChildren(server, season.id, false))
+      .filter((item) => item.kind === 'episode')
+      .sort(compareEpisodeItems)
+    episodes.push(...seasonEpisodes)
+  }
+  return episodes
+}
+
+const handleDetailDownload = async (scope: DetailDownloadScope) => {
+  try {
+    const items = await resolveMediaServerDownloadItems(scope)
+    const folderSegments = currentDetail.value?.kind === 'series'
+      ? [currentDetail.value.title, scope === 'series' ? '' : activeDetailSeason.value?.title || '']
+      : currentDetail.value?.kind === 'season'
+        ? [currentDetail.value.parentTitle || currentDetail.value.title, currentDetail.value.title]
+        : []
+    await enqueueMediaServerDownloadItems(items, {
+      folderSegments: folderSegments.filter(Boolean) as string[],
+      sourceId: scope === 'current' ? selectedSourceOption.value?.id : undefined
+    })
+  } catch (error: any) {
+    console.error('媒体服务器下载失败:', error)
+    message.error(error?.message || '创建下载任务失败')
+  }
+}
+
 const resolveSeriesHomePlaybackTarget = async (server: MediaServerConfig, item: MediaServerCardItem | MediaServerLibraryNode) => {
   const children = await content.loadLibraryPage(server, item.id, true, false)
   const seasons = children.filter((child) => child.kind === 'season').sort(compareSeasonItems)
@@ -2632,6 +2797,26 @@ const resolveHomePlaybackTarget = async (server: MediaServerConfig, item: MediaS
   }
 }
 
+const resolveHomeDownloadItems = async (server: MediaServerConfig, item: MediaServerCardItem | MediaServerLibraryNode) => {
+  if (item.kind === 'series') {
+    const children = await loadAllMediaServerChildren(server, item.id, false)
+    const directEpisodes = children.filter((child) => child.kind === 'episode').sort(compareEpisodeItems)
+    if (directEpisodes.length > 0) return directEpisodes
+    const seasons = children.filter((child) => child.kind === 'season').sort(compareSeasonItems)
+    const episodes: MediaServerLibraryNode[] = []
+    for (const season of seasons) {
+      episodes.push(...(await loadAllMediaServerChildren(server, season.id, false)).filter((child) => child.kind === 'episode').sort(compareEpisodeItems))
+    }
+    return episodes
+  }
+
+  if (item.kind === 'season') {
+    return (await loadAllMediaServerChildren(server, item.id, false)).filter((child) => child.kind === 'episode').sort(compareEpisodeItems)
+  }
+
+  return [item]
+}
+
 const playHomeMediaItem = async (item: MediaServerCardItem | MediaServerLibraryNode) => {
   const server = registry.currentServer
   if (!server) return
@@ -2647,10 +2832,15 @@ const playHomeMediaItem = async (item: MediaServerCardItem | MediaServerLibraryN
   }
 }
 
-const handleHomeMediaAction = async (item: MediaServerCardItem | MediaServerLibraryNode, action: 'watched' | 'favorite') => {
+const handleHomeMediaAction = async (item: MediaServerCardItem | MediaServerLibraryNode, action: 'watched' | 'favorite' | 'download') => {
   const server = registry.currentServer
   if (!server || !item.id) return
   try {
+    if (action === 'download') {
+      const downloadItems = await resolveHomeDownloadItems(server, item)
+      await enqueueMediaServerDownloadItems(downloadItems, { folderSegments: item.kind === 'series' || item.kind === 'season' ? [item.title] : item.parentTitle ? [item.parentTitle] : [] })
+      return
+    }
     if (action === 'watched') {
       const wasPlayed = item.isPlayed === true
       await updateMediaServerPlayedState(server, item.id, wasPlayed)
@@ -5868,6 +6058,7 @@ onUnmounted(() => {
 
 .detail-square-action,
 .detail-primary-play,
+.detail-secondary-download,
 .detail-chip-button,
 .detail-chip-link {
   border: 1px solid rgba(255, 255, 255, 0.72);
@@ -5916,6 +6107,27 @@ onUnmounted(() => {
   text-rendering: geometricPrecision;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.detail-secondary-download {
+  width: 100%;
+  min-width: 0;
+  height: 52px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: rgba(22, 22, 22, 0.92);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.detail-secondary-download:hover {
+  background: rgba(255, 255, 255, 0.68);
+  border-color: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 16px 34px rgba(63, 46, 37, 0.12);
 }
 
 .detail-primary-play:hover {
@@ -7159,6 +7371,18 @@ onUnmounted(() => {
   background: linear-gradient(180deg, rgba(59, 130, 246, 0.98), rgba(96, 165, 250, 0.9));
   border-color: rgba(147, 197, 253, 0.48);
   box-shadow: 0 26px 52px rgba(24, 70, 166, 0.42);
+}
+
+[arco-theme='dark'] .detail-secondary-download {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.32);
+}
+
+[arco-theme='dark'] .detail-secondary-download:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 [arco-theme='dark'] .detail-play-label,

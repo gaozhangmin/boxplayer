@@ -83,6 +83,15 @@ export interface MediaServerPlaybackInfo {
   videoStreamIndex?: number
 }
 
+export interface MediaServerDownloadInfo {
+  url: string
+  headers: Record<string, string>
+  fileName: string
+  fileSize: number
+  sourceId?: string
+}
+
+
 export interface MediaServerChapter {
   start: number
   end: number

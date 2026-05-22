@@ -2494,10 +2494,14 @@ const handleLocalHomeNodePlay = (item: MediaServerLibraryNode) => {
   handleLocalHomeNodeSelect(item)
 }
 
-const handleLocalHomeCardAction = async (item: MediaServerCardItem | MediaServerLibraryNode, action: 'watched' | 'favorite') => {
+const handleLocalHomeCardAction = async (item: MediaServerCardItem | MediaServerLibraryNode, action: 'watched' | 'favorite' | 'download') => {
   if (item.id.startsWith('playlist:')) return
   const target = findLocalMediaItemById(item.id)
   if (!target) return
+  if (action === 'download') {
+    message.info('本地媒体不需要下载')
+    return
+  }
   if (action === 'favorite') {
     mediaStore.toggleFavorite(target.id)
     message.success(mediaStore.isFavorite(target.id) ? '已加入收藏' : '已取消收藏')

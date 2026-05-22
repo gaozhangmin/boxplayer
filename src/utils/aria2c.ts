@@ -349,7 +349,8 @@ export async function AriaAddUrl(file: IStateDownFile): Promise<string> {
   try {
     const info = file.Info
     const token = UserDAL.GetUserToken(info.user_id)
-    if (!token || !token.access_token) return '账号失效，操作取消'
+    const hasPresetDownloadUrl = typeof file.Down.DownUrl === 'string' && /^https?:\/\//i.test(file.Down.DownUrl.trim())
+    if ((!token || !token.access_token) && !(info.drive_id === 'media_server' && hasPresetDownloadUrl)) return '账号失效，操作取消'
     if (info.isDir) {
       const dirFull = path.join(info.DownSavePath, info.name)
       if (!info.ariaRemote) {
@@ -468,6 +469,9 @@ export async function AriaAddUrl(file: IStateDownFile): Promise<string> {
       const userAgent = Config.downAgent
       const token = UserDAL.GetUserToken(info.user_id)
       const headers: string[] = []
+      for (const [key, value] of Object.entries(info.downloadHeaders || {})) {
+        if (key && value) headers.push(`${key}: ${value}`)
+      }
       if (token?.access_token && (isCloud123User(token) || isDrive115User(token) || isBaiduUser(token))) {
         headers.push(`Authorization: Bearer ${token.access_token}`)
       }

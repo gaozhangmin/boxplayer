@@ -30,7 +30,7 @@ export interface IServerVerData {
 export default class ServerHttp {
   static baseApi = b64decode('aHR0cDovLzEyMS41LjE0NC44NDo1MjgyLw==')
   static configUrl = b64decode('aHR0cHM6Ly9naXRlZS5jb20vemhhbm5hby9yZXNvdXJjZS9yYXcvbWFzdGVyL3NoYXJlU2l0ZUNvbmZpZy5qc29u')
-  static updateUrl = b64decode('aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9nYW96aGFuZ21pbi9hbGl5dW5wYW4vcmVsZWFzZXMvbGF0ZXN0')
+  static updateUrl = b64decode('aHR0cHM6Ly9hcGkuZ2l0aHViLmNvbS9yZXBvcy9nYW96aGFuZ21pbi9ib3hwbGF5ZXIvcmVsZWFzZXMvbGF0ZXN0')
 
   static compareVer(version1: string, version2: string): number {
     // Split version strings into arrays of numbers

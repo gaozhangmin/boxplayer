@@ -152,19 +152,19 @@ const refreshStatus = () => {
 }
 
 const refreshQrCode = async () => {
-  let client_id = ''
-  let client_secret = ''
+  let ALIYUN_APP_ID = ''
+  let ALIYUN_APP_SECRET = ''
   const { uiEnableOpenApiType, uiOpenApiClientId, uiOpenApiClientSecret } = storeToRefs(settingStore)
   if (uiEnableOpenApiType.value === 'custom') {
     if (!uiOpenApiClientId.value || !uiOpenApiClientSecret.value) {
       message.error('客户端ID或客户端密钥不能为空！')
       return
     }
-    client_id = uiOpenApiClientId.value
-    client_secret = uiOpenApiClientSecret.value
+    ALIYUN_APP_ID = uiOpenApiClientId.value
+    ALIYUN_APP_SECRET = uiOpenApiClientSecret.value
   } else {
-    client_id = ''
-    client_secret = ''
+    ALIYUN_APP_ID = ''
+    ALIYUN_APP_SECRET = ''
   }
   qrCodeLoading.value = true
   const token = await UserDAL.GetUserTokenFromDB(useUserStore().user_id)
@@ -173,7 +173,7 @@ const refreshQrCode = async () => {
     message.error('未登录账号，该功能无法开启')
     return
   }
-  const codeUrl = await AliUser.OpenApiQrCodeUrl(client_id, client_secret)
+  const codeUrl = await AliUser.OpenApiQrCodeUrl(ALIYUN_APP_ID, ALIYUN_APP_SECRET)
   if (!codeUrl) {
     refreshStatus()
     return
@@ -199,7 +199,7 @@ const refreshQrCode = async () => {
       return
     }
     if (authCode && statusCode === 'LoginSuccess') {
-      await AliUser.OpenApiLoginByAuthCode(token, client_id, client_secret, authCode, true)
+      await AliUser.OpenApiLoginByAuthCode(token, ALIYUN_APP_ID, ALIYUN_APP_SECRET, authCode, true)
       clearInterval(intervalId.value)
       refreshStatus()
       message.success('获取OpenApiToken成功')

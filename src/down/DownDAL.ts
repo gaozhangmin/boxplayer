@@ -70,6 +70,7 @@ export interface IStateDownInfo {
   crc64: string
 
   localFilePath?: string
+  downloadHeaders?: Record<string, string>
   offlineProvider?: 'cloud123' | 'pikpak'
   offlineTaskId?: string
   offlineDirId?: string
@@ -95,6 +96,10 @@ const sound = new Howl({
 
 const buildAriaTaskGid = (file: IAliGetFileModel) => {
   const source = `${file.drive_id || ''}|${file.file_id || ''}|${file.size || 0}`
+  return SHA256(source).toString().toLowerCase().replace(/[^0-9a-f]/g, '').slice(0, 16)
+}
+
+const buildUrlTaskGid = (source: string) => {
   return SHA256(source).toString().toLowerCase().replace(/[^0-9a-f]/g, '').slice(0, 16)
 }
 
@@ -240,6 +245,66 @@ export default class DownDAL {
       downlist.push(downitem)
     }
     useDowningStore().mAddDownload({ downlist })
+  }
+
+  static aAddUrlDownload(params: {
+    user_id: string
+    drive_id: string
+    file_id: string
+    url: string
+    headers?: Record<string, string>
+    savePath: string
+    fileName: string
+    fileSize?: number
+    icon?: string
+  }) {
+    const settingStore = useSettingStore()
+    const name = ClearFileName(params.fileName || 'media')
+    const ariaRemote = settingStore.downUseAria2c && settingStore.ariaState == 'remote'
+    let fullPath = params.savePath
+    if (fullPath.endsWith('/') || fullPath.endsWith('\\')) fullPath = fullPath.substr(0, fullPath.length - 1)
+    if (ariaRemote) {
+      const sep = settingStore.ariaSavePath.indexOf('/') >= 0 ? '/' : '\\'
+      fullPath = sep == '/' ? fullPath.replace(/\\/g, '/') : fullPath.replace(/\//g, '\\')
+    }
+    const gid = buildUrlTaskGid(`${params.drive_id}|${params.file_id}|${params.url}|${params.fileSize || 0}`)
+    const downitem: IStateDownFile = {
+      DownID: `${params.user_id}|${params.drive_id}|${params.file_id}|${gid}`,
+      Info: {
+        GID: gid,
+        user_id: params.user_id,
+        DownSavePath: fullPath,
+        ariaRemote,
+        file_id: params.file_id,
+        drive_id: params.drive_id,
+        name,
+        size: params.fileSize || 0,
+        sizestr: params.fileSize ? humanSize(params.fileSize) : '',
+        isDir: false,
+        icon: params.icon || 'iconfont iconcloud-download',
+        encType: '',
+        sha1: '',
+        crc64: '',
+        downloadHeaders: params.headers || {}
+      },
+      Down: {
+        DownState: '队列中',
+        DownTime: Date.now(),
+        DownSize: 0,
+        DownSpeed: 0,
+        DownSpeedStr: '',
+        DownProcess: 0,
+        IsStop: false,
+        IsDowning: false,
+        IsCompleted: false,
+        IsFailed: false,
+        FailedCode: 0,
+        FailedMessage: '',
+        AutoTry: 0,
+        DownUrl: params.url
+      }
+    }
+    useDowningStore().mAddDownload({ downlist: [downitem] })
   }
 
   /**

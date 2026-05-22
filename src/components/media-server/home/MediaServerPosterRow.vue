@@ -62,6 +62,10 @@
               <span class="home-card-context-icon">▷</span>
               <span>播放</span>
             </button>
+            <button type="button" class="home-card-context-item" @click="$emit('action', item, 'download')">
+              <span class="home-card-context-icon">↓</span>
+              <span>下载</span>
+            </button>
             <button type="button" class="home-card-context-item" @click="$emit('action', item, 'favorite')">
               <span class="home-card-context-icon">{{ item.isFavorite ? '♥' : '♡' }}</span>
               <span>{{ item.isFavorite ? '从收藏夹移除' : '添加到收藏夹' }}</span>
@@ -143,7 +147,7 @@ const props = withDefaults(defineProps<{
 defineEmits<{
   (e: 'select', item: MediaServerLibraryNode): void
   (e: 'play', item: MediaServerLibraryNode): void
-  (e: 'action', item: MediaServerLibraryNode, action: 'watched' | 'favorite'): void
+  (e: 'action', item: MediaServerLibraryNode, action: 'watched' | 'favorite' | 'download'): void
   (e: 'see-all'): void
   (e: 'retry'): void
 }>()
