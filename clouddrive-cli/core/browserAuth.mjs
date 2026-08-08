@@ -404,8 +404,9 @@ async function exchangeAliyunAuthCodeForToken({ authCode, clientId = ALIYUN_OPEN
   let userInfo = {}
   try {
     userInfo = await fetchJson('https://openapi.alipan.com/adrive/v1.0/user/getDriveInfo', {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token.access_token}` },
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token.access_token}`, 'Content-Type': 'application/json' },
+      body: '{}',
     }, 'Get Aliyun user info failed')
     userInfo = userInfo?.body || userInfo?.data || userInfo
   } catch { /* ignore - fall back to placeholder */ }
@@ -416,6 +417,7 @@ async function exchangeAliyunAuthCodeForToken({ authCode, clientId = ALIYUN_OPEN
 
   if (!userId) throw new Error('Aliyun login: could not retrieve user_id from API. Login failed.')
 
+  const expiresAt = token.expires_in ? Date.now() + Number(token.expires_in) * 1000 : 0
   return {
     provider: 'aliyun',
     accountId: `aliyun_${userId}`,
@@ -427,7 +429,7 @@ async function exchangeAliyunAuthCodeForToken({ authCode, clientId = ALIYUN_OPEN
       open_api_token_type: token.token_type || 'Bearer',
       open_api_access_token: token.access_token || '',
       open_api_refresh_token: token.refresh_token || '',
-      open_api_expires_in: token.expires_in ? Date.now() + Number(token.expires_in) * 1000 : 0,
+      open_api_expires_in: expiresAt,
       expires_in: token.expires_in || 0,
       token_type: token.token_type || 'Bearer',
       user_id: userId,
@@ -436,7 +438,7 @@ async function exchangeAliyunAuthCodeForToken({ authCode, clientId = ALIYUN_OPEN
       name: nickName,
       device_id: clientId,
       default_drive_id: defaultDriveId,
-      expire_time: token.expires_in ? new Date(Date.now() + Number(token.expires_in) * 1000).toISOString() : undefined,
+      expire_time: expiresAt ? new Date(expiresAt).toISOString() : undefined,
     },
   }
 }

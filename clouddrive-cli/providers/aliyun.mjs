@@ -30,9 +30,7 @@ export function createAliyunProvider() {
         throw err
       },
 
-      async refresh(token) {
-        return aliRefreshToken(token)
-      },
+      refresh: aliRefreshToken,
 
       async listAccounts() {
         return []

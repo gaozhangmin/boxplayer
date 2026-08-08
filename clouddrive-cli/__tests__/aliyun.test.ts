@@ -26,18 +26,21 @@ describe('aliyunHttp - aliPost', () => {
   beforeEach(() => { vi.stubGlobal('fetch', undefined) })
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('posts to api.aliyundrive.com for regular paths', async () => {
+  it('maps legacy v3/file/list to openapi.alipan.com openFile/list', async () => {
     const fetchMock = mockFetch({ items: [], next_marker: '' })
     vi.stubGlobal('fetch', fetchMock)
 
-    await aliPost('adrive/v3/file/list', { drive_id: 'x' }, MOCK_TOKEN)
+    await aliPost('adrive/v3/file/list', { drive_id: 'x' }, {
+      ...MOCK_TOKEN,
+      open_api_access_token: 'open-token',
+      open_api_token_type: 'Bearer',
+    })
 
     const [url, opts] = fetchMock.mock.calls[0]
-    expect(url).toContain('api.aliyundrive.com')
-    expect(opts.headers['Authorization']).toBe('Bearer test-access-token')
-    expect(opts.headers['x-device-id']).toBe('test-device-id')
-    expect(opts.headers['x-signature']).toBe('test-signature')
-    expect(opts.headers['x-request-id']).toBeTruthy()
+    expect(url).toContain('openapi.alipan.com')
+    expect(url).toContain('openFile/list')
+    expect(opts.headers['Authorization']).toBe('Bearer open-token')
+    expect(opts.headers['x-device-id']).toBeUndefined()
   })
 
   it('posts to openapi.alipan.com for v1.0 paths', async () => {
@@ -58,14 +61,17 @@ describe('aliyunHttp - aliPost', () => {
 
   it('throws on non-2xx response', async () => {
     vi.stubGlobal('fetch', mockFetch({ message: 'Unauthorized' }, 401))
-    await expect(aliPost('adrive/v3/file/list', {}, MOCK_TOKEN)).rejects.toThrow('401')
+    await expect(aliPost('adrive/v3/file/list', {}, {
+      ...MOCK_TOKEN,
+      open_api_access_token: 'open-token',
+    })).rejects.toThrow('401')
   })
 })
 
 describe('aliyunHttp - aliRefreshToken', () => {
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('calls auth.aliyundrive.com with refresh_token grant', async () => {
+  it('calls openapi.alipan.com oauth with refresh_token grant', async () => {
     const fetchMock = mockFetch({
       access_token: 'new-access',
       refresh_token: 'new-refresh',
@@ -78,12 +84,15 @@ describe('aliyunHttp - aliRefreshToken', () => {
     const result = await aliRefreshToken(MOCK_TOKEN)
 
     const [url, opts] = fetchMock.mock.calls[0]
-    expect(url).toContain('auth.aliyundrive.com')
+    expect(url).toContain('openapi.alipan.com/oauth/access_token')
     const body = JSON.parse(opts.body)
     expect(body.grant_type).toBe('refresh_token')
     expect(body.refresh_token).toBe('test-refresh-token')
+    expect(body).toHaveProperty('client_id')
+    expect(body).toHaveProperty('client_secret')
     expect(result.access_token).toBe('new-access')
     expect(result.refresh_token).toBe('new-refresh')
+    expect(result.open_api_access_token).toBe('new-access')
   })
 
   it('preserves existing token fields that are missing from response', async () => {
@@ -184,58 +193,46 @@ describe('aliyunFiles - aliListAll', () => {
 describe('aliyunFiles - aliRenameBatch', () => {
   afterEach(() => { vi.unstubAllGlobals() })
 
-  it('sends batch request with correct structure', async () => {
-    const fetchMock = mockFetch({
-      responses: [
-        { id: 'f1', status: 200, body: { name: 'New Name.mkv' } },
-      ],
-    })
+  it('calls openFile/update per file (no v4/batch)', async () => {
+    const fetchMock = mockFetch({ name: 'New Name.mkv', file_id: 'f1' })
     vi.stubGlobal('fetch', fetchMock)
 
     const results = await aliRenameBatch(MOCK_TOKEN, 'drive-001', [
       { fileId: 'f1', newName: 'New Name.mkv' },
     ])
 
-    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
-    expect(body.requests).toHaveLength(1)
-    expect(body.requests[0].url).toBe('/file/update')
-    expect(body.requests[0].body.name).toBe('New Name.mkv')
-    expect(body.requests[0].body.check_name_mode).toBe('refuse')
+    const [url, opts] = fetchMock.mock.calls[0]
+    expect(url).toContain('openapi.alipan.com')
+    expect(url).toContain('openFile/update')
+    const body = JSON.parse(opts.body)
+    expect(body.name).toBe('New Name.mkv')
+    expect(body.check_name_mode).toBe('refuse')
+    expect(body.file_id).toBe('f1')
     expect(results[0]).toMatchObject({ fileId: 'f1', status: 'success', newName: 'New Name.mkv' })
   })
 
-  it('reports error status for failed batch items', async () => {
-    vi.stubGlobal('fetch', mockFetch({
-      responses: [
-        { id: 'f2', status: 409, body: { code: 'AlreadyExist', message: 'name conflict' } },
-      ],
-    }))
+  it('reports error status for failed items', async () => {
+    vi.stubGlobal('fetch', mockFetch({ message: 'name conflict', code: 'AlreadyExist' }, 409))
 
     const results = await aliRenameBatch(MOCK_TOKEN, 'drive-001', [
       { fileId: 'f2', newName: 'Conflict.mkv' },
     ])
-    expect(results[0]).toMatchObject({ fileId: 'f2', status: 'error', code: 'AlreadyExist' })
+    expect(results[0]).toMatchObject({ fileId: 'f2', status: 'error' })
+    expect(results[0].message).toMatch(/409|conflict|AlreadyExist/i)
   })
 
-  it('splits into chunks of 100', async () => {
+  it('loops one request per rename (no batch chunking)', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({
-        responses: Array.from({ length: 100 }, (_, i) => ({
-          id: `f${i}`, status: 200, body: { name: `file${i}.mkv` },
-        })),
-      }),
+      json: async () => ({ name: 'ok' }),
+      text: async () => '{}',
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const renames = Array.from({ length: 150 }, (_, i) => ({ fileId: `f${i}`, newName: `file${i}.mkv` }))
+    const renames = Array.from({ length: 3 }, (_, i) => ({ fileId: `f${i}`, newName: `file${i}.mkv` }))
     await aliRenameBatch(MOCK_TOKEN, 'drive-001', renames)
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    const firstBody = JSON.parse(fetchMock.mock.calls[0][1].body)
-    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
-    expect(firstBody.requests).toHaveLength(100)
-    expect(secondBody.requests).toHaveLength(50)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 })
 

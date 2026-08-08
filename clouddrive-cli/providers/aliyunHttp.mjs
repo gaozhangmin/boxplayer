@@ -3,10 +3,23 @@ import { randomUUID } from 'node:crypto'
 const BASE_API = 'https://api.aliyundrive.com/'
 const BASE_OPEN_API = 'https://openapi.alipan.com/'
 
+// Map legacy aliyundrive API paths (v2/v3/v4, api.aliyundrive.com) to the
+// current OpenAPI paths (openapi.alipan.com/adrive/v1.0/openFile/*).
+// The legacy API domain is shut down (returns 401 AccessTokenInvalid).
+const LEGACY_PATH_MAP = {
+  'adrive/v3/file/list': 'adrive/v1.0/openFile/list',
+  'adrive/v3/file/search': 'adrive/v1.0/openFile/search',
+  'adrive/v3/file/create': 'adrive/v1.0/openFile/create',
+  'adrive/v3/file/recyclebin/trash': 'adrive/v1.0/openFile/recyclebin/trash',
+  'adrive/v3/file/recyclebin/restore': 'adrive/v1.0/openFile/recyclebin/restore',
+  'v2/file/get': 'adrive/v1.0/openFile/get',
+}
+
 function resolveUrl(path) {
   if (path.startsWith('http')) return path
-  if (path.includes('adrive/v1.0') || path.includes('adrive/v1.1')) return BASE_OPEN_API + path
-  return BASE_API + path
+  const mapped = LEGACY_PATH_MAP[path] || path
+  if (mapped.includes('adrive/v1.0') || mapped.includes('adrive/v1.1')) return BASE_OPEN_API + mapped
+  return BASE_API + mapped
 }
 
 function buildHeaders(token, url) {
@@ -41,10 +54,20 @@ export async function aliPost(path, body, token) {
 }
 
 export async function aliRefreshToken(token) {
-  const resp = await fetch('https://auth.aliyundrive.com/v2/account/token', {
+  // Legacy auth.aliyundrive.com is shut down; use OpenAPI oauth (same as browserAuth).
+  // Keep empty-string defaults like HEAD browserAuth (do not hardcode client secrets).
+  const clientId = process.env.CLOUDDRIVE_ALIYUN_CLIENT_ID || process.env.CLOUDDRIVE_ALIPAN_CLIENT_ID || ''
+  const clientSecret = process.env.CLOUDDRIVE_ALIYUN_CLIENT_SECRET || process.env.CLOUDDRIVE_ALIPAN_CLIENT_SECRET || ''
+  const refreshToken = token.open_api_refresh_token || token.refresh_token
+  const resp = await fetch('https://openapi.alipan.com/oauth/access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: token.refresh_token, grant_type: 'refresh_token' }),
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    }),
   })
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
@@ -53,18 +76,17 @@ export async function aliRefreshToken(token) {
     throw err
   }
   const data = await resp.json()
+  const expiresAt = data.expires_in ? Date.now() + Number(data.expires_in) * 1000 : 0
   return {
     ...token,
     access_token: data.access_token,
-    refresh_token: data.refresh_token,
+    refresh_token: data.refresh_token || refreshToken,
     expires_in: data.expires_in,
-    expire_time: data.expire_time,
+    expire_time: expiresAt ? new Date(expiresAt).toISOString() : token.expire_time,
     token_type: data.token_type || 'Bearer',
-    default_drive_id: data.default_drive_id || token.default_drive_id,
-    backup_drive_id: data.backup_drive_id || token.backup_drive_id,
-    resource_drive_id: data.resource_drive_id || token.resource_drive_id,
-    user_id: data.user_id || token.user_id,
-    user_name: data.user_name || token.user_name,
-    nick_name: data.nick_name || token.nick_name,
+    open_api_access_token: data.access_token,
+    open_api_refresh_token: data.refresh_token || refreshToken,
+    open_api_token_type: data.token_type || 'Bearer',
+    open_api_expires_in: expiresAt || token.open_api_expires_in,
   }
 }
