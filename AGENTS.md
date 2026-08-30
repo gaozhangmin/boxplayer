@@ -75,6 +75,19 @@ Cloud provider API modules in `src/`: `aliapi/`, `cloudbaidu/`, `cloud123/`, `cl
 
 ## Testing: Vitest, Node environment, selective includes
 
+### Mandatory Playwright bug-fix acceptance gate
+
+Every bug fix must be verified through Playwright against an actually launched Electron application. Unit tests, type checks, source inspection, and `pnpm run dev` are supporting checks, but none of them can replace this gate.
+
+1. Add or update a Playwright regression test that reproduces the reported failure through the user-visible application flow.
+2. Build the production Electron entry with `pnpm run pretest:e2e`; do not test stale `dist/` output or an installed older BoxPlayer build.
+3. Run the focused Playwright regression test and record the exact command and result.
+4. For cloud-drive bugs, use the configured real account and exercise the real provider API. Do not skip the relevant real-account case or replace it with mocks.
+5. For platform-specific behavior that cannot execute on the current host, run Playwright on the target platform before calling the bug fixed. If that is unavailable, report the fix as unverified/blocked rather than complete.
+6. A failed, skipped, or unexecuted Playwright regression test blocks declaring the bug fixed and blocks release publication.
+
+Keep the regression test after the fix so the same bug cannot silently return.
+
 Tests run in Node environment (not jsdom). The `vitest.config.ts` lists explicit test directories — not a glob over `**/*.test.ts`. Tests outside these paths are not picked up:
 
 - `electron/main/core/__tests__/`, `electron/main/aria/__tests__/`

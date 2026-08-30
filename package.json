@@ -1,7 +1,7 @@
 {
   "name": "boxplayer",
   "description": "BoxPlayer",
-  "version": "5.0.25",
+  "version": "5.0.26",
   "main": "dist/electron/main/index.js",
   "packageManager": "pnpm@10.32.1",
   "author": {
@@ -33,6 +33,12 @@
     "build:clouddrive-cli": "node scripts/build-clouddrive-cli-package.mjs",
     "pretest": "node scripts/generate-secrets.mjs --mode=local",
     "test": "vitest run electron/main/aria/__tests__ src/down/motrix-integration src/utils/__tests__/aria2EnginePolicy.test.ts src/utils/__tests__/aria2Rpc.test.ts",
+    "pretest:e2e": "node scripts/generate-secrets.mjs --mode=local && vite build",
+    "test:e2e": "playwright test --workers=1",
+    "pretest:e2e:real": "pnpm run pretest:e2e",
+    "test:e2e:real": "playwright test e2e/realCloud.spec.ts --workers=1",
+    "pretest:e2e:isolated": "pnpm run pretest:e2e",
+    "test:e2e:isolated": "playwright test e2e/coreNavigation.spec.ts e2e/mainWindow.spec.ts e2e/settingsPersistence.spec.ts --workers=1",
     "test:mpv-integration": "BOXPLAYER_MPV_INTEGRATION=1 vitest run src/utils/__tests__/mpvRuntime.integration.test.ts",
     "test:clouddrive-cli": "vitest run clouddrive-cli/__tests__"
   },
@@ -50,6 +56,7 @@
     "@electron/rebuild": "^4.2.0",
     "@motrix/nat-api": "0.3.4",
     "@opendataloader/pdf": "^2.4.7",
+    "@playwright/test": "^1.62.1",
     "@supabase/supabase-js": "^2.108.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/crypto-js": "^4.2.2",

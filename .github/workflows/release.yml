@@ -15,6 +15,28 @@ jobs:
     name: Verify Linux MPV
     uses: ./.github/workflows/mpv-linux.yml
 
+  electron-e2e:
+    name: Verify packaged Electron UI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.32.1
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify file renderer in Electron
+        run: xvfb-run -a pnpm run test:e2e:isolated
+
   create-release:
     name: Create Release Draft
     runs-on: ubuntu-latest
@@ -32,7 +54,7 @@ jobs:
 
   release:
     name: Build Release
-    needs: [linux-mpv-test, create-release]
+    needs: [linux-mpv-test, electron-e2e, create-release]
     strategy:
       fail-fast: false
       matrix:

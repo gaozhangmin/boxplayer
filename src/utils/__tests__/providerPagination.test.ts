@@ -123,4 +123,11 @@ describe('统一分页状态机', () => {
     expect(source.default).toContain("import { iterateProviderPages } from '../drive/providerPagination'")
     expect(source.default).toContain('skipThumbnailHydration: true')
   })
+
+  it('文件夹下载保留第三方网盘的下一页 cursor', async () => {
+    const source = await import('../../aliapi/trash.ts?raw')
+
+    expect(source.default).toContain('dir.dirID, true, dir.next_marker')
+    expect(source.default).toContain("dir.next_marker = result.nextCursor || ''")
+  })
 })

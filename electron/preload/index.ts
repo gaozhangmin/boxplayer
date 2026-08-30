@@ -3,6 +3,8 @@ import Electron, { ipcRenderer, webUtils } from 'electron'
 window.Electron = Electron
 process.noAsar = true
 window.platform = process.platform
+window.WebIsE2E = process.env.BOXPLAYER_E2E === '1'
+window.WebE2EAllowTransfers = process.env.BOXPLAYER_E2E_TRANSFERS === '1'
 window.WebGetPathForFile = function(file: File) {
   try {
     return webUtils.getPathForFile(file)

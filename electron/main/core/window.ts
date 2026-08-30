@@ -4,7 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs'
 import is from 'electron-is'
 import { ShowErrorAndRelaunch } from './dialog'
 
-const DEBUGGING = !app.isPackaged
+const DEBUGGING = !app.isPackaged && process.env.BOXPLAYER_E2E !== '1'
 export const ua = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) aDrive/4.12.0 Chrome/108.0.5359.215 Electron/22.3.24 Safari/537.36'
 export const Referer = 'https://www.aliyundrive.com/'
 export const AppWindow: {

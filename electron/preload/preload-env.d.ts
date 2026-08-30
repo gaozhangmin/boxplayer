@@ -9,6 +9,8 @@ declare namespace NodeJS {
 declare interface Window {
   Electron: any
   platform: any
+  WebIsE2E: boolean
+  WebE2EAllowTransfers: boolean
   WebGetPathForFile: (file: File) => string
   WinMsg: any
   WebToElectron: any

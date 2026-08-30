@@ -152,10 +152,10 @@ export default class AliTrash {
     const route = resolveDriveProvider(dir.m_user_id, dir.m_drive_id, UserDAL.GetUserToken(dir.m_user_id)?.tokenfrom)
     if (!route.isValid) return false
     if (route.provider !== 'aliyun' && route.provider !== 'webdav' && route.provider !== 'alist') {
-      const result = await listProviderItems(route.provider, dir.m_user_id, dir.m_drive_id, dir.dirID, true)
+      const result = await listProviderItems(route.provider, dir.m_user_id, dir.m_drive_id, dir.dirID, true, dir.next_marker)
       if (!result) return false
       AliTrash.appendProviderItems(dir, result.items)
-      dir.next_marker = ''
+      dir.next_marker = result.nextCursor || ''
       return true
     }
     const url = 'adrive/v3/file/list'

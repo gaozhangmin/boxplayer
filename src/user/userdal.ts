@@ -24,7 +24,7 @@ import { supportsAliyunAutoSign } from './autoSignPolicy'
 import { getStoredTokenProvider } from '../utils/driveProvider'
 import { captureProviderLogin } from '../analytics/posthog'
 import { withStartupTimeout } from '../utils/startupTask'
-import { loadInitialProviderRoot, shouldRetryInitialRootLoad } from './startupProviderRootLoad'
+import { loadInitialProviderRoot, selectInitialAliyunRoot, shouldRetryInitialRootLoad } from './startupProviderRootLoad'
 
 export const UserTokenMap = new Map<string, ITokenInfo>()
 
@@ -492,21 +492,15 @@ export default class UserDAL {
       await loadSingleRootDrive(() => PanDAL.aReLoadWebDavDrive(token))
       return
     }
-    // 刷新网盘数据
-    if (!useSettingStore().securityHideResourceDrive) {
-      await PanDAL.aReLoadResourceDrive(token)
-    }
-    if (!useSettingStore().securityHideBackupDrive) {
-      await PanDAL.aReLoadBackupDrive(token)
-    }
-    if (useSettingStore().uiShowPanRootFirst === 'resource') {
-      await PanDAL.aReLoadOneDirToShow(token.resource_drive_id, 'resource_root', true)
-    } else if (useSettingStore().uiShowPanRootFirst === 'backup')  {
-      await PanDAL.aReLoadOneDirToShow(token.backup_drive_id, 'backup_root', true)
-    } else {
-      await PanDAL.aReLoadOneDirToShow(token.resource_drive_id, 'resource_root', true)
-      await PanDAL.aReLoadOneDirToShow(token.backup_drive_id, 'backup_root', true)
-    }
+    const setting = useSettingStore()
+    const backupDriveId = setting.securityHideBackupDrive ? '' : token.backup_drive_id
+    const resourceDriveId = setting.securityHideResourceDrive ? '' : token.resource_drive_id
+    const rootLoads: Promise<void>[] = []
+    if (backupDriveId) rootLoads.push(PanDAL.aReLoadBackupDrive(token))
+    if (resourceDriveId) rootLoads.push(PanDAL.aReLoadResourceDrive(token))
+    await Promise.all(rootLoads)
+    const initialRoot = selectInitialAliyunRoot(setting.uiShowPanRootFirst, backupDriveId, resourceDriveId)
+    if (initialRoot.driveId) await PanDAL.aReLoadOneDirToShow(initialRoot.driveId, initialRoot.rootId, true)
   }
 
   static async UserLogOff(user_id: string): Promise<boolean> {

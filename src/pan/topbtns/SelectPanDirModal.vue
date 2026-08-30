@@ -272,7 +272,15 @@ const treeData = ref<TreeNodeData[]>([{
 const treeExpandedKeys = ref<string[]>([])
 const treeSelectedKeys = ref<string[]>([])
 
-const handleTreeSelect = (keys: any[], info: {
+const replaceTreeNodeChildren = (nodes: TreeNodeData[], key: string, children: TreeNodeData[]): TreeNodeData[] => {
+  return nodes.map((node) => {
+    if (String(node.key) === key) return { ...node, isLeaf: false, children }
+    if (!node.children?.length) return node
+    return { ...node, children: replaceTreeNodeChildren(node.children, key, children) }
+  })
+}
+
+const handleTreeSelect = async (keys: any[], info: {
   event: string;
   selected: Boolean;
   nativeEvent: MouseEvent;
@@ -297,6 +305,13 @@ const handleTreeSelect = (keys: any[], info: {
     isDir: props.selecttype === 'selectdir' || (typeof isDir === 'boolean' ? isDir : !isLeaf)
   }
   treeSelectedKeys.value = [key]
+  const shouldLoadSingleRootChildren = isSingleRootDriveUser(user_id.value) && (props.selecttype !== 'select' || isDir === true || isLeaf === false)
+  if (shouldLoadSingleRootChildren) {
+    const children = await apiLoad(key)
+    treeData.value = replaceTreeNodeChildren(treeData.value, String(key), children)
+    if (!treeExpandedKeys.value.includes(key)) treeExpandedKeys.value = treeExpandedKeys.value.concat(key)
+    return
+  }
   treeSelectToExpand(keys, info)
 }
 

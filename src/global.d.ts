@@ -7,6 +7,8 @@ declare global {
     require: any
     Electron: any
     openDatabase: any
+    WebIsE2E: boolean
+    WebE2EAllowTransfers: boolean
     WebRelaunchAria: () => Promise<number>
     platform: string
     WebGetPathForFile: (file: File) => string

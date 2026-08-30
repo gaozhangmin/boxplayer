@@ -7,23 +7,6 @@
       "schemes": ["xbyboxplayer-oauth", "boxplayer-onedriveoauth"]
     }
   ],
-  "fileAssociations": [
-    {
-      "ext": ["mp4", "mkv", "avi", "mov", "webm", "ts", "m2ts", "flv", "wmv", "mpg", "mpeg"],
-      "name": "BoxPlayer Video",
-      "description": "Video file"
-    },
-    {
-      "ext": ["mp3", "flac", "m4a", "aac", "wav", "ogg", "opus", "wma", "aiff", "ape"],
-      "name": "BoxPlayer Audio",
-      "description": "Audio file"
-    },
-    {
-      "ext": ["epub", "pdf", "mobi", "azw", "azw3", "fb2", "md", "markdown", "html", "htm", "cbz", "cbr", "cbt", "cb7"],
-      "name": "BoxPlayer Book",
-      "description": "Book or comic file"
-    }
-  ],
   "copyright": "copyright ©2026 GaoZhangMin",
   "asar": true,
   "compression": "maximum",
@@ -109,7 +92,8 @@
     "perMachine": true,
     "allowElevation": true,
     "allowToChangeInstallationDirectory": true,
-    "deleteAppDataOnUninstall": false
+    "deleteAppDataOnUninstall": false,
+    "include": "build/installer.nsh"
   },
   "publish": [
     {

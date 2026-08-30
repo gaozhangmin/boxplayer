@@ -1,0 +1,50 @@
+!macro RemoveLegacyBoxPlayerAssociation EXT FILECLASS
+  ReadRegStr $R0 SHELL_CONTEXT "Software\Classes\.${EXT}" ""
+  ${If} $R0 == "${FILECLASS}"
+    DeleteRegValue SHELL_CONTEXT "Software\Classes\.${EXT}" ""
+  ${EndIf}
+  DeleteRegValue SHELL_CONTEXT "Software\Classes\.${EXT}\OpenWithProgids" "${FILECLASS}"
+  DeleteRegKey SHELL_CONTEXT "Software\Classes\${FILECLASS}"
+!macroend
+
+!macro customInstall
+  !insertmacro RemoveLegacyBoxPlayerAssociation "mp4" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "mkv" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "avi" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "mov" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "webm" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "ts" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "m2ts" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "flv" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "wmv" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "mpg" "BoxPlayer Video"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "mpeg" "BoxPlayer Video"
+
+  !insertmacro RemoveLegacyBoxPlayerAssociation "mp3" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "flac" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "m4a" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "aac" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "wav" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "ogg" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "opus" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "wma" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "aiff" "BoxPlayer Audio"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "ape" "BoxPlayer Audio"
+
+  !insertmacro RemoveLegacyBoxPlayerAssociation "epub" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "pdf" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "mobi" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "azw" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "azw3" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "fb2" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "md" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "markdown" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "html" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "htm" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "cbz" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "cbr" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "cbt" "BoxPlayer Book"
+  !insertmacro RemoveLegacyBoxPlayerAssociation "cb7" "BoxPlayer Book"
+
+  System::Call "shell32::SHChangeNotify(i,i,i,i) (0x08000000, 0x1000, 0, 0)"
+!macroend

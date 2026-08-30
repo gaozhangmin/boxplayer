@@ -225,9 +225,11 @@ function timeEvent() {
   }
 
   // 刷新下载速度
-  DownDAL.aSpeedEvent().catch((err: any) => {
-    DebugLog.mSaveDanger('aSpeedEvent', err)
-  })
+  if (!window.WebIsE2E || window.WebE2EAllowTransfers) {
+    DownDAL.aSpeedEvent().catch((err: any) => {
+      DebugLog.mSaveDanger('aSpeedEvent', err)
+    })
+  }
 
   // 没有下载和上传时触发自动关闭
   if (settingStore.downAutoShutDown == 2) {

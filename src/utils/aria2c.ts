@@ -104,7 +104,7 @@ export async function AriaTest(https: boolean, host: string, port: number, secre
     .catch(function(error) {
       if (error.response && error.response.data && error.response.data.error) {
         if (error.response.data.error.message == 'Unauthorized') {
-          message.error('连接失败 密码错误 ' + url + ' secret=' + secret)
+          message.error('连接失败 密码错误 ' + url)
           return false
         }
       }
@@ -112,7 +112,7 @@ export async function AriaTest(https: boolean, host: string, port: number, secre
         message.error('连接失败 网络连接超时 ' + url)
         return false
       }
-      message.error('连接失败 ' + (error.message ? error.message : '') + ' ' + url + ' secret=' + secret)
+      message.error('连接失败 ' + (error.message ? error.message : '') + ' ' + url)
       return false
     })
 }
@@ -178,7 +178,7 @@ export async function AriaChangeToRemote() {
       })
 
     if (!IsAria2cOnlineRemote) {
-      const url = host + ':' + port + ' secret=' + secret
+      const url = host + ':' + port
       if (!settingStore.AriaIsLocal && Aria2cRemoteRetryTime % 10 == 1) message.error('无法连接到远程Aria2 ' + url)
     } else {
       await AriaGlobalSpeed(); await AriaApplyAdvancedOptions()
@@ -239,7 +239,7 @@ export async function AriaChangeToLocal() {
           }
         })
       if (!IsAria2cOnlineLocal) {
-        const url = `127.0.0.1:${port} secret=${localPwd}`
+        const url = `127.0.0.1:${port}`
         if (Aria2cLocalRelaunchTime < 2) message.error('无法连接到本地Aria2 ' + url)
       } else {
         await AriaGlobalSpeed(); await AriaApplyAdvancedOptions()

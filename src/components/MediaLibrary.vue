@@ -670,7 +670,7 @@
                 @error="handleImageError"
               />
               <div class="poster-placeholder">
-                <img class="poster-placeholder-app-icon" src="/icon.svg" alt="BoxPlayer" />
+                <img class="poster-placeholder-app-icon" :src="appIconUrl" alt="BoxPlayer" />
               </div>
 
               <div v-if="isContinueWatchingView && item.watchProgress !== undefined" class="watch-progress">
@@ -737,7 +737,7 @@
                 @error="handleImageError"
               />
               <div class="poster-placeholder">
-                <img class="poster-placeholder-app-icon" src="/icon.svg" alt="BoxPlayer" />
+                <img class="poster-placeholder-app-icon" :src="appIconUrl" alt="BoxPlayer" />
               </div>
               <div class="type-badge">
                 {{ getItemTypeLabel(item) }}
@@ -916,6 +916,7 @@ import useLocalMediaHomePreferencesStore from '../store/localMediaHomePreference
 import { getMediaCoverage } from '../utils/mediaCoverage'
 import type { LocalMediaHomePosterType, LocalMediaHomeSectionKey } from '../store/localMediaHomePreferences'
 import { t } from '../i18n'
+import { appIconUrl } from '../utils/appAssets'
 
 type MediaListItem = MediaLibraryItem & {
   continueEpisodeLabel?: string

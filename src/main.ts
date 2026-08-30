@@ -13,6 +13,8 @@ import { setLocale } from './i18n'
 import UserDAL from './user/userdal'
 import { startAnalytics } from './analytics/posthog'
 
+document.documentElement.style.setProperty('--app-icon-image', `url("${new URL('icon.svg', document.baseURI).toString()}")`)
+
 window.onerror = function (errorMessage, scriptURI, lineNo, columnNo, error) {
   try {
     if (errorMessage

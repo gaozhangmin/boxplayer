@@ -154,6 +154,11 @@ export default class launch extends EventEmitter {
   }
 
   loadUserData() {
+    const e2eUserData = process.env.BOXPLAYER_E2E_USER_DATA
+    if (e2eUserData) {
+      app.setPath('userData', e2eUserData)
+      return
+    }
     const userData = getResourcesPath('userdir.config')
     try {
       if (existsSync(userData)) {
@@ -289,25 +294,28 @@ export default class launch extends EventEmitter {
         })
         createMainWindow()
         registerExternalFileProtocol(() => AppWindow.mainWindow)
-        startMediaAcquisitionWakeScheduler()
-        startAgentCliExecutionScheduler()
-        createTray()
-        registerAutoUpdate()
+        if (process.env.BOXPLAYER_E2E !== '1') {
+          startMediaAcquisitionWakeScheduler()
+          startAgentCliExecutionScheduler()
+          createTray()
+          registerAutoUpdate()
+        }
         if (this.pendingOAuthUrl) {
           this.dispatchOAuthUrl(this.pendingOAuthUrl)
           this.pendingOAuthUrl = null
         }
-        setTimeout(() => {
-          this.motrixApp = new MotrixApplication()
-          this.motrixApp.init().catch((err: any) => console.error('[MotrixApp] init failed', err))
-        }, 3000)
-
-        const defaultSessionExtensions = session.defaultSession.extensions
-        const loadCrxExtension = defaultSessionExtensions?.loadExtension ? defaultSessionExtensions.loadExtension.bind(defaultSessionExtensions) : session.defaultSession.loadExtension.bind(session.defaultSession)
-        loadCrxExtension(getStaticPath('crx'), { allowFileAccess: true })
-          .catch((err: any) => {
-            console.error('[launch] load crx extension failed', err)
-          })
+        if (process.env.BOXPLAYER_E2E !== '1') {
+          setTimeout(() => {
+            this.motrixApp = new MotrixApplication()
+            this.motrixApp.init().catch((err: any) => console.error('[MotrixApp] init failed', err))
+          }, 3000)
+          const defaultSessionExtensions = session.defaultSession.extensions
+          const loadCrxExtension = defaultSessionExtensions?.loadExtension ? defaultSessionExtensions.loadExtension.bind(defaultSessionExtensions) : session.defaultSession.loadExtension.bind(session.defaultSession)
+          loadCrxExtension(getStaticPath('crx'), { allowFileAccess: true })
+            .catch((err: any) => {
+              console.error('[launch] load crx extension failed', err)
+            })
+        }
       })
       .catch((err: any) => {
         console.log(err)

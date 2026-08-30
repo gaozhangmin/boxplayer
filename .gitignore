@@ -68,6 +68,8 @@ boxplayer-api/
 OpenList/
 tmp_video_frames/
 tmp_video_xhs/
+test-results/
+playwright-report/
 
 # stale tsc compile output for ts source files (must be regenerated only via vite-plugin-electron)
 electron/**/*.js
@@ -81,6 +83,9 @@ electron/**/*.d.ts.map
 *.md
 !README*.md
 !**/README*.md
+!docs/
+!docs/releases/
+!docs/releases/v*.md
 *.html
 *.mp4
 *.mov

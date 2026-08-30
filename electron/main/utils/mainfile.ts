@@ -7,6 +7,8 @@ let NewCopyed = false
 let NewSaved = false
 
 export function getAsarPath(fileName: string) {
+  const e2eProjectPath = process.env.BOXPLAYER_E2E_PROJECT_PATH
+  if (e2eProjectPath) return path.join(e2eProjectPath, fileName)
   if (is.dev()) {
     const basePath = path.resolve(app.getAppPath())
     return path.join(basePath, fileName)
