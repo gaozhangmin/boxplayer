@@ -471,6 +471,7 @@ onUnmounted(() => {
           <a-menu-item
             v-for='item in topNavTabs'
             :key='item.key'
+            :data-testid='`top-nav-${item.key}`'
             :title='item.title'
           >
             {{ t(item.labelKey as Parameters<typeof t>[0]) }}
@@ -484,7 +485,7 @@ onUnmounted(() => {
           <IconFont name="iconnight" v-if="appStore.appTheme === 'dark' || (appStore.appTheme == 'system' && appStore.appDark)" />
           <IconFont name="iconday" v-else />
         </a-button>
-        <a-button type='text' tabindex='-1' :title="`${t('common.settings')} Alt+7`" :class="appStore.appTab == 'setting' ? 'active' : ''"
+        <a-button type='text' tabindex='-1' data-testid='open-settings' :title="`${t('common.settings')} Alt+7`" :class="appStore.appTab == 'setting' ? 'active' : ''"
                   @click="appStore.toggleTab('setting')">
           <IconFont name="iconsetting" />
         </a-button>

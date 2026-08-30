@@ -14,16 +14,16 @@ test('application settings persist after the production renderer reloads', async
         if (await loginDialog.isVisible()) await loginDialog.getByRole('button', { name: 'Close' }).click({ force: true })
       })
     }
-    await page.getByTitle('设置 Alt+7').click()
+    await page.getByTestId('open-settings').click()
     const settings = page.locator('#SettingUI')
     await expect(settings).toBeVisible()
     return settings
   }
 
   let settings = await openApplicationSettings()
-  const maximizeSetting = () => settings.locator('.myswitch').filter({ hasText: '启动时自动最大化主窗口' })
+  const maximizeSetting = () => settings.getByTestId('launch-maximized-setting').locator('.myswitch')
   const initialChecked = await maximizeSetting().locator('.arco-switch').getAttribute('aria-checked')
-  await maximizeSetting().getByText('启动时自动最大化主窗口', { exact: true }).click()
+  await maximizeSetting().click()
   await expect(maximizeSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
 
   await page.reload()
@@ -31,7 +31,7 @@ test('application settings persist after the production renderer reloads', async
   settings = await openApplicationSettings()
   await expect(maximizeSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
 
-  await maximizeSetting().getByText('启动时自动最大化主窗口', { exact: true }).click()
+  await maximizeSetting().click()
   await expect(maximizeSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked || 'false')
   expect(pageErrors).toEqual([])
   expect(consoleErrors).toEqual([])

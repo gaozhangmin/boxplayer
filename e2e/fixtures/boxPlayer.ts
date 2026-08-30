@@ -117,7 +117,12 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       if (await loginDialog.isVisible()) await loginDialog.getByRole('button', { name: 'Close' }).click()
       await use({ app, page, pageErrors, consoleErrors })
     } finally {
-      await app.close()
+      const electronProcess = app.process()
+      await Promise.race([
+        app.close(),
+        new Promise<void>((resolve) => setTimeout(resolve, 5_000))
+      ])
+      if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
       ariaProcess?.kill()
       rmSync(userData, { recursive: true, force: true })
     }
