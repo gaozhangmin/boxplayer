@@ -483,7 +483,7 @@ const handleImportAsar = () => {
     </template>
     <div class='settingspace'></div>
     <div class='settinghead'>{{ t('settings.update') }}</div>
-    <div class='settingrow'>
+    <div class='settingrow' data-testid='check-updates-setting'>
       <MySwitch :value='settingStore.uiLaunchAutoCheckUpdate'
                 @update:value='cb({ uiLaunchAutoCheckUpdate: $event })'>
         {{ t('settings.checkOnStart') }}

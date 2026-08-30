@@ -21,18 +21,18 @@ test('application settings persist after the production renderer reloads', async
   }
 
   let settings = await openApplicationSettings()
-  const maximizeSetting = () => settings.getByTestId('launch-maximized-setting').locator('.myswitch')
-  const initialChecked = await maximizeSetting().locator('.arco-switch').getAttribute('aria-checked')
-  await maximizeSetting().click()
-  await expect(maximizeSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
+  const persistentSetting = () => settings.getByTestId('check-updates-setting').locator('.myswitch')
+  const initialChecked = await persistentSetting().locator('.arco-switch').getAttribute('aria-checked')
+  await persistentSetting().click()
+  await expect(persistentSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
 
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
   settings = await openApplicationSettings()
-  await expect(maximizeSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
+  await expect(persistentSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
 
-  await maximizeSetting().click()
-  await expect(maximizeSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked || 'false')
+  await persistentSetting().click()
+  await expect(persistentSetting().locator('.arco-switch')).toHaveAttribute('aria-checked', initialChecked || 'false')
   expect(pageErrors).toEqual([])
   expect(consoleErrors).toEqual([])
 })
