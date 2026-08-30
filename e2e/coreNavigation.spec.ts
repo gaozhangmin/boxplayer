@@ -2,11 +2,12 @@ import { expect, test } from './fixtures/boxPlayer'
 
 test('top navigation opens every core workspace', async ({ boxPlayer }) => {
   const { page, pageErrors, consoleErrors } = boxPlayer
+  await page.setViewportSize({ width: 1600, height: 900 })
   const workspaces = ['media-server', 'search', 'ai-workspace', 'media', 'music', 'book', 'down', 'share', 'rss']
 
   for (const workspace of workspaces) {
     await test.step(workspace, async () => {
-      const navItem = page.getByTestId(`top-nav-${workspace}`)
+      const navItem = page.locator('#xbyhead2').getByTestId(`top-nav-${workspace}`)
       await navItem.click()
       await expect(navItem).toHaveClass(/arco-menu-selected/)
       await expect(page.locator('#xbybody')).toBeVisible()
