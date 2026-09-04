@@ -27,7 +27,7 @@ function copyRealProfile(target: string, enabled: boolean): void {
   const source = process.env.BOXPLAYER_E2E_REAL_USER_DATA || defaultRealProfilePath()
   if (!existsSync(source)) throw new Error(`BoxPlayer real profile is missing: ${source}`)
 
-  for (const relative of ['IndexedDB/file__0.indexeddb.leveldb', 'Local Storage/leveldb', 'setting.config']) {
+  for (const relative of ['IndexedDB/file__0.indexeddb.leveldb', 'IndexedDB/http_localhost_5173.indexeddb.leveldb', 'IndexedDB/http_127.0.0.1_5173.indexeddb.leveldb', 'Local Storage/leveldb', 'setting.config']) {
     const sourcePath = path.join(source, relative)
     if (!existsSync(sourcePath)) continue
     const targetPath = path.join(target, relative)
@@ -62,6 +62,22 @@ async function waitForPort(port: number, timeout = 10_000): Promise<void> {
   throw new Error(`Timed out waiting for the isolated Aria2 process on port ${port}`)
 }
 
+async function isPortOpen(port: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    const socket = connect({ host: '127.0.0.1', port })
+    socket.once('connect', () => { socket.destroy(); resolve(true) })
+    socket.once('error', () => { socket.destroy(); resolve(false) })
+  })
+}
+
+async function startRealAccountRenderer(): Promise<ChildProcess | undefined> {
+  if (await isPortOpen(5173)) return undefined
+  const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+  const child = spawn(command, ['exec', 'vite', 'preview', '--host', 'localhost', '--port', '5173', '--strictPort'], { cwd: process.cwd(), stdio: 'ignore' })
+  await waitForPort(5173)
+  return child
+}
+
 async function startIsolatedAria(userData: string): Promise<ChildProcess> {
   const executable = process.platform === 'win32' ? 'aria2c.exe' : 'aria2c'
   const binary = path.resolve('static/engine', process.platform, process.arch, executable)
@@ -88,6 +104,8 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
     const realAccountTest = path.basename(testInfo.file) === 'realCloud.spec.ts'
     copyRealProfile(userData, realAccountTest || process.env.BOXPLAYER_E2E_REAL === '1')
     let ariaProcess: ChildProcess | undefined
+    let rendererProcess: ChildProcess | undefined
+    if (realAccountTest) rendererProcess = await startRealAccountRenderer()
     if (realAccountTest) ariaProcess = await startIsolatedAria(userData)
     const app = await electron.launch({
       args: [entry],
@@ -96,7 +114,8 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
         BOXPLAYER_E2E: '1',
         BOXPLAYER_E2E_TRANSFERS: realAccountTest ? '1' : '0',
         BOXPLAYER_E2E_PROJECT_PATH: process.cwd(),
-        BOXPLAYER_E2E_USER_DATA: userData
+        BOXPLAYER_E2E_USER_DATA: userData,
+        BOXPLAYER_E2E_RENDERER_URL: realAccountTest ? 'http://localhost:5173' : ''
       }
     })
 
@@ -124,6 +143,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       ])
       if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
       ariaProcess?.kill()
+      rendererProcess?.kill()
       rmSync(userData, { recursive: true, force: true })
     }
   }

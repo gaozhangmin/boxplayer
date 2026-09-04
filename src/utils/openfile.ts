@@ -124,7 +124,8 @@ export async function menuOpenFile(
   // inside BookReaderModal, so they work for every supported cloud drive.
   // Keep PDF on its dedicated viewer because it provides page navigation and
   // the document AI sidebar.
-  if (getBookFileExt(file) !== 'pdf' && isReaderFormat(getBookFileExt(file))) {
+  const bookFileExt = getBookFileExt(file)
+  if (bookFileExt !== 'pdf' && bookFileExt !== 'docx' && isReaderFormat(bookFileExt)) {
     await Book(file)
     return
   }

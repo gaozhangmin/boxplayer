@@ -63,6 +63,8 @@ async function clearFileSelection(page: Page): Promise<void> {
 async function openCloudRoot(page: Page): Promise<void> {
   const cloudNav = page.locator('#xbyhead2 .arco-menu-item').getByText('\u7f51\u76d8', { exact: true })
   if (await cloudNav.isVisible()) await cloudNav.click()
+  const currentBreadcrumb = page.locator('.toppannavitem:visible').last()
+  if (await currentBreadcrumb.isVisible() && (await currentBreadcrumb.getAttribute('title')) === '\u6839\u76ee\u5f55') return
   const rootNode = page.locator('.dirtree:visible .dirtitle').getByText('\u6839\u76ee\u5f55', { exact: true })
   if (await rootNode.isVisible()) {
     await rootNode.click()
@@ -73,6 +75,18 @@ async function openCloudRoot(page: Page): Promise<void> {
   await expect(firstBreadcrumb).toBeVisible({ timeout: 45_000 })
   await firstBreadcrumb.locator('span').first().click()
   await expect.poll(() => page.locator('.toppannavitem:visible').count(), { timeout: 45_000 }).toBe(1)
+}
+
+async function switchToRealProvider(page: Page, providerLabel: string): Promise<void> {
+  const accountTrigger = page.locator('.user-avatar-trigger')
+  await expect(accountTrigger).toBeVisible({ timeout: 45_000 })
+  await accountTrigger.hover()
+  const accountRows = page.locator('.userlist .user-list-row').filter({ hasText: providerLabel })
+  await expect(accountRows, `真实账号配置中必须包含${providerLabel}账号`).not.toHaveCount(0, { timeout: 10_000 })
+  const accountSwitch = accountRows.first().locator('.arco-switch')
+  if (!(await accountSwitch.getAttribute('class'))?.includes('arco-switch-checked')) await accountSwitch.click()
+  await expect(accountTrigger).toHaveAttribute('title', providerLabel, { timeout: 45_000 })
+  await page.keyboard.press('Escape')
 }
 
 async function ensureCloudTestFileTrashed(page: Page, folderName: string, fileName: string): Promise<void> {
@@ -274,6 +288,52 @@ test('uploads, scrapes and trashes a test media file in the isolated E2E folder'
     rmSync(tempDir, { recursive: true, force: true })
   }
 
+  expect(pageErrors).toEqual([])
+  expect(unexpectedCloudErrors(consoleErrors)).toEqual([])
+})
+
+test('opens Aliyun Word with the native Office preview instead of the book reader (BP-000080)', async ({ boxPlayer }) => {
+  const { app, page, pageErrors, consoleErrors } = boxPlayer
+  await switchToRealProvider(page, '阿里云盘')
+  await openCloudRoot(page)
+  const search = page.getByPlaceholder('全盘搜索')
+  await search.fill('docx')
+  await search.press('Enter')
+  const wordRow = page.locator('#panfilelist:visible .fileitem, #panfilelist:visible .griditem').filter({ hasText: /\.docx/i }).first()
+  await expect(wordRow, '真实阿里云盘账号中必须存在可用于回归的 DOCX').toBeVisible({ timeout: 45_000 })
+
+  const previewPromise = app.waitForEvent('window')
+  await wordRow.click()
+  const preview = await previewPromise
+  try {
+    await preview.waitForLoadState('domcontentloaded')
+    await expect(preview.locator('#doc-preview'), '阿里云盘 Word 应进入原生 Office 版式预览').toBeVisible({ timeout: 60_000 })
+    await expect(preview.getByText('Search in the Book')).toHaveCount(0)
+  } finally {
+    if (!preview.isClosed()) await preview.close()
+  }
+
+  expect(pageErrors).toEqual([])
+  expect(unexpectedCloudErrors(consoleErrors).filter((error) => !(error.includes('openapi.alipan.com/adrive/v1.0/openFile/search') && error.includes('401')))).toEqual([])
+})
+
+test('loads the real Tianyi Cloud root with the signed Date header (BP-000081)', async ({ boxPlayer }) => {
+  const { page, pageErrors, consoleErrors } = boxPlayer
+  await switchToRealProvider(page, '天翼云盘')
+  await expect(page.locator('#panfilelist:visible')).toBeVisible({ timeout: 45_000 })
+
+  const responsePromise = page.waitForResponse((response) => response.url().startsWith('https://api.cloud.189.cn/listFiles.action'))
+  await page.locator('#xbybody').getByTitle('刷新 F5').click()
+  const response = await responsePromise
+  const headers = await response.request().allHeaders()
+  const payload = await response.json().catch(() => ({}))
+
+  expect(response.status(), JSON.stringify(payload)).toBe(200)
+  expect(headers.date).toBeTruthy()
+  expect(headers.signature).toBeTruthy()
+  expect(headers.sessionkey).toBeTruthy()
+  expect(payload?.errorCode).not.toBe('InvalidArgument')
+  await expect(page.getByText(/date\/signature is null/i)).toHaveCount(0)
   expect(pageErrors).toEqual([])
   expect(unexpectedCloudErrors(consoleErrors)).toEqual([])
 })

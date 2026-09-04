@@ -1,4 +1,5 @@
 import { HmacSHA1 } from 'crypto-js'
+import { CLOUD189_DATE_TRANSPORT_HEADER } from '@shared/cloud189RequestHeaders'
 import type { ITokenInfo } from '../user/userstore'
 import { CLOUD189_APP_ID } from '../secrets.generated'
 import { tokenRefreshKey, withTokenRefreshLock } from '../user/tokenRefresh'
@@ -57,6 +58,7 @@ export const cloud189SignatureHeaders = (sessionKey: string, sessionSecret: stri
   if (params) text += `&params=${params}`
   return {
     Date: date,
+    [CLOUD189_DATE_TRANSPORT_HEADER]: date,
     SessionKey: sessionKey,
     'X-Request-ID': crypto.randomUUID(),
     Signature: HmacSHA1(text, sessionSecret).toString().toUpperCase()

@@ -17,6 +17,7 @@ import MotrixApplication from './aria/MotrixApplication'
 import { extractExternalFileArg, openExternalFile, registerExternalDownloadProtocol, registerExternalFileProtocol } from './core/protocol'
 import { destroyDb } from './reedy/ReedyService'
 import { DRIVE115_DOWN_AGENT } from '@shared/drive115'
+import { restoreCloud189DateHeader } from '@shared/cloud189RequestHeaders'
 import { Drive115PlaybackAuthRegistry } from './drive115PlaybackAuth'
 
 const OAUTH_PROTOCOLS = ['xbyboxplayer-oauth', 'boxplayer-onedriveoauth', 'boxplayer-auth']
@@ -223,7 +224,7 @@ export default class launch extends EventEmitter {
           const quarkCookieHeader = shouldQuark
             ? mergeCookieHeader(fallbackQuarkCookie, mergeCookieHeader(quarkSessionCookie, getHeaderValue(details.requestHeaders || {}, 'cookie')))
             : ''
-          const baseRequestHeaders = { ...details.requestHeaders }
+          const baseRequestHeaders = restoreCloud189DateHeader(details.url, details.requestHeaders || {})
           if (shouldQuark && quarkCookieHeader) {
             Object.keys(baseRequestHeaders).forEach((key) => {
               if (key.toLowerCase() === 'cookie') delete baseRequestHeaders[key]

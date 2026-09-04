@@ -3,10 +3,12 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('cloud book open contracts', () => {
-  it('opens every reader-supported cloud book format through the provider-neutral reader', () => {
+  it('opens reflowable cloud books through the provider-neutral reader without stealing PDF or DOCX previews', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/utils/openfile.ts'), 'utf8')
 
-    expect(source).toContain("if (getBookFileExt(file) !== 'pdf' && isReaderFormat(getBookFileExt(file))) {")
+    expect(source).toContain('const bookFileExt = getBookFileExt(file)')
+    expect(source).toContain("if (bookFileExt !== 'pdf' && bookFileExt !== 'docx' && isReaderFormat(bookFileExt)) {")
+    expect(source.indexOf("bookFileExt !== 'docx'")).toBeLessThan(source.indexOf("if (file.category.startsWith('doc'))"))
     expect(source).toContain("window.WebOpenWindow({ page: 'PageBookReader', data: book, theme: 'dark' })")
     const readerSource = readFileSync(resolve(process.cwd(), 'src/layout/BookReaderModal.vue'), 'utf8')
     expect(readerSource).toContain("getRawUrl(book.user_id, book.drive_id, book.file_id")
