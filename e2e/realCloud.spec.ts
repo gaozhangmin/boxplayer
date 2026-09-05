@@ -1,5 +1,6 @@
 import { expect, test } from './fixtures/boxPlayer'
-import { mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { mkdtempSync, rmSync, writeFileSync, readdirSync, readFileSync, statSync } from 'fs'
+import { createHash } from 'crypto'
 import os from 'os'
 import path from 'path'
 import type { Page } from '@playwright/test'
@@ -32,7 +33,7 @@ async function scrollFileListToBottom(page: import('@playwright/test').Page): Pr
 }
 
 function fileListItem(page: Page, name: string) {
-  return page.locator('#panfilelist:visible .fileitem, #panfilelist:visible .griditem').filter({ hasText: name }).first()
+  return page.locator('#panfilelist:visible .fileitem, #panfilelist:visible .griditem').filter({ has: page.getByText(name, { exact: true }) }).first()
 }
 
 async function openListedFolder(page: Page, name: string): Promise<void> {
@@ -63,18 +64,19 @@ async function clearFileSelection(page: Page): Promise<void> {
 async function openCloudRoot(page: Page): Promise<void> {
   const cloudNav = page.locator('#xbyhead2 .arco-menu-item').getByText('\u7f51\u76d8', { exact: true })
   if (await cloudNav.isVisible()) await cloudNav.click()
-  const currentBreadcrumb = page.locator('.toppannavitem:visible').last()
+  const breadcrumbs = page.locator('#xbybody > .arco-tabs > .arco-tabs-content > .arco-tabs-content-list > .arco-tabs-content-item-active .toppannavitem:visible')
+  const currentBreadcrumb = breadcrumbs.last()
   if (await currentBreadcrumb.isVisible() && (await currentBreadcrumb.getAttribute('title')) === '\u6839\u76ee\u5f55') return
   const rootNode = page.locator('.dirtree:visible .dirtitle').getByText('\u6839\u76ee\u5f55', { exact: true })
   if (await rootNode.isVisible()) {
     await rootNode.click()
-    await expect.poll(() => page.locator('.toppannavitem:visible').last().getAttribute('title'), { timeout: 45_000 }).toBe('\u6839\u76ee\u5f55')
+    await expect.poll(() => breadcrumbs.last().getAttribute('title'), { timeout: 45_000 }).toBe('\u6839\u76ee\u5f55')
     return
   }
-  const firstBreadcrumb = page.locator('.toppannavitem:visible').first()
+  const firstBreadcrumb = breadcrumbs.first()
   await expect(firstBreadcrumb).toBeVisible({ timeout: 45_000 })
   await firstBreadcrumb.locator('span').first().click()
-  await expect.poll(() => page.locator('.toppannavitem:visible').count(), { timeout: 45_000 }).toBe(1)
+  await expect.poll(() => breadcrumbs.count(), { timeout: 45_000 }).toBe(1)
 }
 
 async function switchToRealProvider(page: Page, providerLabel: string): Promise<void> {
@@ -94,8 +96,10 @@ async function ensureCloudTestFileTrashed(page: Page, folderName: string, fileNa
     if (page.isClosed()) return
     await page.keyboard.press('Escape')
     await openCloudRoot(page)
-    if (!(await fileListItem(page, folderName).count())) return
-    await openListedFolder(page, folderName)
+    if (folderName) {
+      if (!(await fileListItem(page, folderName).count())) return
+      await openListedFolder(page, folderName)
+    }
     await page.locator('#xbybody').getByTitle('\u5237\u65b0 F5').click()
     await page.waitForTimeout(1_000)
     const uploadedRow = fileListItem(page, fileName)
@@ -234,6 +238,91 @@ test('downloading a real 123 folder enumerates every provider page', async ({ bo
   expect(cursors[0]).toBe('')
   expect(new Set(cursors).size).toBeGreaterThan(1)
   expect(pageErrors).toEqual([])
+})
+
+test('downloads every file in a real cloud folder (BP-000077 BP-000084)', async ({ boxPlayer }) => {
+  test.setTimeout(180_000)
+  const { app, page } = boxPlayer
+  page.setDefaultTimeout(15_000)
+  await switchToRealProvider(page, '123网盘')
+  await openCloudRoot(page)
+  const folderName = `BoxPlayer-E2E-download-${Date.now()}`
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-folder-download-'))
+  const names = ['first.txt', 'second.txt', 'third.txt']
+  for (const name of names) writeFileSync(path.join(tempDir, name), `Folder download regression: ${name}`)
+  try {
+    await page.getByRole('button', { name: /新建/ }).hover()
+    await page.getByText('新建文件夹', { exact: true }).click()
+    await page.locator('#CreatNewDirInput').fill(folderName)
+    await page.getByRole('button', { name: '创建', exact: true }).click()
+    await refreshUntilListed(page, folderName)
+    await openListedFolder(page, folderName)
+    await page.evaluate((paths) => {
+      window.WebShowOpenDialogSync = (_options, callback) => callback(paths)
+    }, names.map(name => path.join(tempDir, name)))
+    await page.keyboard.press('Control+u')
+    await startPendingUpload(page)
+    for (const name of names) await refreshUntilListed(page, name)
+    await openCloudRoot(page)
+    await fileListItem(page, folderName).locator('button.select').click()
+    await page.locator('#xbybody').getByRole('button', { name: '下载', exact: true }).click()
+    await page.locator('#xbyhead2 .arco-menu-item').getByText('传输', { exact: true }).click()
+    await page.getByRole('button', { name: '开始全部', exact: true }).first().click()
+    const userData = await app.evaluate(({ app }) => app.getPath('userData'))
+    const downloadRoot = path.join(userData, 'E2E Downloads')
+    await expect.poll(() => readdirSync(downloadRoot, { recursive: true }).map(String).filter(name => names.some(file => name.endsWith(path.sep + file))).length,
+      { timeout: 60_000, message: 'All three folder files must finish downloading, not only the first' }).toBe(3)
+    for (const name of names) {
+      const relative = readdirSync(downloadRoot, { recursive: true }).map(String).find(file => file.endsWith(path.sep + name))!
+      expect(readFileSync(path.join(downloadRoot, relative), 'utf8')).toBe(`Folder download regression: ${name}`)
+    }
+  } finally {
+    await page.keyboard.press('Escape')
+    const closeModal = page.locator('.arco-modal:visible').getByRole('button', { name: 'Close', exact: true })
+    if (await closeModal.count()) await closeModal.first().click()
+    await page.locator('#xbyhead2 .arco-menu-item').getByText('网盘', { exact: true }).click()
+    await expect(page.locator('#panfilelist:visible')).toBeVisible()
+    await ensureCloudTestFileTrashed(page, '', folderName)
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+})
+
+test('queues every existing Aliyun folder file and downloads more than the first (BP-000077 BP-000084)', async ({ boxPlayer }) => {
+  test.setTimeout(180_000)
+  const { app, page } = boxPlayer
+  await switchToRealProvider(page, '阿里云盘')
+  await openCloudRoot(page)
+  await page.locator('.dirtree:visible .dirtitle').getByText('资源盘', { exact: true }).click()
+  const folderName = process.env.BOXPLAYER_E2E_ALIYUN_DOWNLOAD_FOLDER || '口语3'
+  await expect(fileListItem(page, folderName)).toBeVisible({ timeout: 45_000 })
+  await openListedFolder(page, folderName)
+  const listing = page.waitForResponse(response => response.url().includes('api.aliyundrive.com/adrive/v3/file/list') && response.request().postDataJSON()?.type !== 'folder')
+  await page.locator('#xbybody').getByTitle('刷新 F5').click()
+  const body = await (await listing).json()
+  const files = body.items as Array<{ name: string; type: string; size: number; content_hash?: string; content_hash_name?: string }>
+  expect(body.next_marker || '').toBe('')
+  expect(files.length).toBeGreaterThan(1)
+  expect(files.every(file => file.type === 'file')).toBe(true)
+  expect(files.reduce((sum, file) => sum + file.size, 0)).toBeLessThan(100 * 1024 * 1024)
+  await expect.poll(async () => (await page.locator('#panfilelist .filename').allTextContents()).map(name => name.trim()).sort()).toEqual(files.map(file => file.name).sort())
+  await openCloudRoot(page)
+  await fileListItem(page, folderName).locator('button.select').click()
+  await page.locator('#xbybody').getByRole('button', { name: '下载', exact: true }).click()
+  await page.locator('#xbyhead2 .arco-menu-item').getByText('传输', { exact: true }).click()
+  await expect(page.getByTitle('总共文件数量')).toHaveText(`总数 ${files.length}`)
+  await page.getByRole('button', { name: '开始全部', exact: true }).first().click()
+  const userData = await app.evaluate(({ app }) => app.getPath('userData'))
+  const downloadRoot = path.join(userData, 'E2E Downloads')
+  const downloaded = () => readdirSync(downloadRoot, { recursive: true }).map(String)
+  await expect.poll(() => files.filter(file => downloaded().some(name => name.endsWith(path.sep + file.name))).length,
+    { timeout: 120_000, message: 'Aliyun folder download must continue beyond the first file' }).toBeGreaterThan(1)
+  for (const file of files.filter(item => downloaded().some(name => name.endsWith(path.sep + item.name)))) {
+    const target = path.join(downloadRoot, downloaded().find(name => name.endsWith(path.sep + file.name))!)
+    expect(statSync(target).size).toBe(file.size)
+    if (file.content_hash && file.content_hash_name?.toLowerCase() === 'sha1') {
+      expect(createHash('sha1').update(readFileSync(target)).digest('hex').toLowerCase()).toBe(file.content_hash.toLowerCase())
+    }
+  }
 })
 
 test('uploads, scrapes and trashes a test media file in the isolated E2E folder', async ({ boxPlayer }) => {

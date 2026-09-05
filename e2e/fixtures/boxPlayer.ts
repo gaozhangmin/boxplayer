@@ -59,7 +59,7 @@ async function waitForPort(port: number, timeout = 10_000): Promise<void> {
     if (connected) return
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
-  throw new Error(`Timed out waiting for the isolated Aria2 process on port ${port}`)
+  throw new Error(`Timed out waiting for the test service on port ${port}`)
 }
 
 async function isPortOpen(port: number): Promise<boolean> {
@@ -73,7 +73,7 @@ async function isPortOpen(port: number): Promise<boolean> {
 async function startRealAccountRenderer(): Promise<ChildProcess | undefined> {
   if (await isPortOpen(5173)) return undefined
   const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-  const child = spawn(command, ['exec', 'vite', 'preview', '--host', 'localhost', '--port', '5173', '--strictPort'], { cwd: process.cwd(), stdio: 'ignore' })
+  const child = spawn(command, ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], { cwd: process.cwd(), stdio: 'ignore' })
   await waitForPort(5173)
   return child
 }
@@ -112,7 +112,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       env: {
         ...process.env,
         BOXPLAYER_E2E: '1',
-        BOXPLAYER_E2E_TRANSFERS: realAccountTest ? '1' : '0',
+        BOXPLAYER_E2E_TRANSFERS: '0',
         BOXPLAYER_E2E_PROJECT_PATH: process.cwd(),
         BOXPLAYER_E2E_USER_DATA: userData,
         BOXPLAYER_E2E_RENDERER_URL: realAccountTest ? 'http://localhost:5173' : ''
@@ -131,10 +131,38 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
         if (message.type() === 'error' && !expectedMissingAria) consoleErrors.push(location ? `${text} (${location})` : text)
       })
       await page.waitForLoadState('domcontentloaded')
+      if (realAccountTest) {
+        await page.locator('.user-avatar-trigger').waitFor({ state: 'visible', timeout: 45_000 })
+        // The copied profile may contain pending transfers targeting the user's real disk.
+        // Clear only transfer databases in this isolated profile before enabling workers.
+        await page.evaluate(async () => {
+          for (const name of ['XBYDB3Down', 'XBYDB3Upload']) {
+            await new Promise<void>((resolve, reject) => {
+              const request = indexedDB.open(name)
+              request.onerror = () => reject(request.error)
+              request.onsuccess = () => {
+                const db = request.result
+                const stores = Array.from(db.objectStoreNames)
+                if (!stores.length) { db.close(); resolve(); return }
+                const tx = db.transaction(stores, 'readwrite')
+                for (const store of stores) tx.objectStore(store).clear()
+                tx.oncomplete = () => { db.close(); resolve() }
+                tx.onabort = () => { db.close(); reject(tx.error) }
+              }
+            })
+          }
+        })
+        await page.reload()
+        await page.waitForLoadState('domcontentloaded')
+        await page.evaluate(() => { window.WebE2EAllowTransfers = true })
+      }
       const loginDialog = page.locator('.userloginmodal')
       await loginDialog.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined)
       if (await loginDialog.isVisible()) await loginDialog.getByRole('button', { name: 'Close' }).click()
       await use({ app, page, pageErrors, consoleErrors })
+      if (testInfo.status !== testInfo.expectedStatus) {
+        await testInfo.attach('renderer-errors', { body: JSON.stringify({ url: page.url(), pageErrors, consoleErrors }), contentType: 'application/json' })
+      }
     } finally {
       const electronProcess = app.process()
       await Promise.race([

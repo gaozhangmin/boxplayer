@@ -18,8 +18,8 @@ const electronMainExternal = [...Object.keys('dependencies' in pkg ? pkg.depende
 
 // https://vitejs.dev/config/
 // @ts-ignore
-export default defineConfig(({ command }) => {
-  rmSync('dist', { recursive: true, force: true })
+export default defineConfig(({ command, isPreview }) => {
+  if (!isPreview) rmSync('dist', { recursive: true, force: true })
   if (command === 'build') {
     rmSync('release', { recursive: true, force: true })
   }

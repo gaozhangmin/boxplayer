@@ -163,7 +163,7 @@ export async function menuDownload(istree: boolean, tips: boolean = true) {
         if (zip.error) throw new Error(zip.error)
         DownDAL.aAddUrlDownload({ user_id: selectedData.user_id, drive_id: 'dropbox', file_id: `zip:${files[0].file_id}`, url: zip.url, headers: zip.headers, savePath, fileName: `${files[0].name || 'Dropbox'}.zip`, icon: 'iconfile-zip' })
       } else {
-      DownDAL.aAddDownload(files, savePath, savePathFull)
+        await DownDAL.aAddDownload(files, savePath, savePathFull)
       }
       if (useDowningStore().ListDataRaw.length > 0) {
         message.success(`成功创建下载任务`)

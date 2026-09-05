@@ -447,7 +447,7 @@ export async function AriaAddUrl(file: IStateDownFile): Promise<string> {
           return '已暂停'
         }
         if (dirInfo.items.length > 0) {
-          DownDAL.aAddDownload(dirInfo.items, dirFull, false)
+          await DownDAL.aAddDownload(dirInfo.items, dirFull, false)
           dirInfo.items.length = 0
         }
       } while (dirInfo.next_marker)
