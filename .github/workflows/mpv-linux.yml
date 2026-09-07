@@ -12,9 +12,6 @@ on:
       - 'src/utils/mpvPlayerPolicy.ts'
       - 'src/utils/__tests__/mpvRuntime.integration.test.ts'
       - '.github/workflows/mpv-linux.yml'
-  push:
-    branches:
-      - main
 
 jobs:
   mpv-integration:
