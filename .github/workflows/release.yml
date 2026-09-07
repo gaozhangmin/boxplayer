@@ -49,8 +49,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1 || \
-            gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft --title "BoxPlayer ${GITHUB_REF_NAME}"
+          if ! gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            notes="docs/releases/${GITHUB_REF_NAME#v}.md"
+            if [[ -f "$notes" ]]; then
+              gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft \
+                --title "BoxPlayer ${GITHUB_REF_NAME}" --notes-file "$notes"
+            else
+              gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --draft \
+                --title "BoxPlayer ${GITHUB_REF_NAME}" --generate-notes
+            fi
+          fi
 
   release:
     name: Build Release
