@@ -60,7 +60,7 @@ test('logging out resets the email verification flow', async ({ boxPlayer }) => 
   const settings = page.locator('#SettingUI')
   await expect(settings).toBeVisible()
   await settings.locator('.setting-icon-btn.danger').click()
-  const emailLogin = page.locator('button[title="邮箱"]')
+  const emailLogin = settings.locator('button.sa-provider.sa-em')
   await expect(emailLogin).toBeVisible()
   await emailLogin.click()
   await expect(settings.locator('input[type="email"]')).toBeVisible()
