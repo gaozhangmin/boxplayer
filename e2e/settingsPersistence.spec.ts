@@ -39,12 +39,23 @@ test('application settings persist after the production renderer reloads', async
 
 test('logging out resets the email verification flow', async ({ boxPlayer }) => {
   const { page, pageErrors, consoleErrors } = boxPlayer
+  const dismissLoginDialog = async () => {
+    const loginDialog = page.locator('.userloginmodal')
+    await loginDialog.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined)
+    if (!(await loginDialog.isVisible())) return
+    await page.keyboard.press('Escape')
+    await loginDialog.waitFor({ state: 'hidden', timeout: 3_000 }).catch(async () => {
+      if (await loginDialog.isVisible()) await loginDialog.getByRole('button', { name: 'Close' }).click({ force: true })
+    })
+  }
+
   await page.evaluate(() => {
     localStorage.setItem('app_user_authed', '1')
     localStorage.setItem('app_user_email', 'e2e@example.com')
   })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
+  await dismissLoginDialog()
   await page.getByTestId('open-settings').click()
   const settings = page.locator('#SettingUI')
   await expect(settings).toBeVisible()
