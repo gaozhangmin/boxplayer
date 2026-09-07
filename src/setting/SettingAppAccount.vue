@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { Github, Chrome, Mail, Loader2, LogOut, X, Gift } from 'lucide-vue-next'
 import message from '../utils/message'
 import { openExternal } from '../utils/electronhelper'
-import { BOXPLAYER_SITE_URL, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
+import { BOXPLAYER_SITE_URL, buildProPurchaseUrlForCurrentSession, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
 
 const loading = ref(false)
 const emailInput = ref('')
@@ -24,7 +24,6 @@ const redeemCode = ref('')
 const showUpgradeModal = ref(false)
 
 const CALLBACK_URL = 'boxplayer-auth://callback'
-const PRICING_URL = `${BOXPLAYER_SITE_URL}/pricing/`
 
 const supabase = getBoxPlayerSupabase()
 
@@ -39,6 +38,7 @@ function handleLogout() {
   localStorage.removeItem('app_user_email')
   localStorage.removeItem('app_user_authed')
   localStorage.removeItem('app_user_pro')
+  clearBoxPlayerAppSession()
   supabase?.auth.signOut().catch(() => {})
   userEmail.value = ''
   isLoggedIn.value = false
@@ -82,14 +82,14 @@ async function handleEmailVerify() {
   try {
     const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
     if (error) message.error(error.message)
-    else if (data.user) { saveLogin(data.user.email || email); message.success('登录成功') }
+    else if (data.user) { clearBoxPlayerAppSession(); saveLogin(data.user.email || email); message.success('登录成功') }
   } finally { loading.value = false }
 }
 
 async function handleUpgrade() {
   upgrading.value = true
   try {
-    openExternal(PRICING_URL)
+    openExternal(await buildProPurchaseUrlForCurrentSession())
   } catch (e: any) { message.error(e?.message || '打开官网购买页面失败') }
   finally { upgrading.value = false }
 }
@@ -164,17 +164,14 @@ function setupPaymentCallback() {
 }
 
 function setupCallbackListener() {
-  if (!window.Electron?.ipcRenderer) return
-  const handler = async (_e: any, params: { access_token?: string; refresh_token?: string }) => {
-    if (!params.access_token || !supabase) return
-    const { data, error } = await supabase.auth.setSession({
-      access_token: params.access_token,
-      refresh_token: params.refresh_token || '',
-    })
-    if (!error && data.user) { saveLogin(data.user.email || ''); message.success('登录成功') }
+  const handler = async (event: Event) => {
+    const result = (event as CustomEvent<{ email?: string }>).detail
+    saveLogin(result?.email || '')
+    message.success('登录成功')
+    await refreshSubscription()
   }
-  window.Electron.ipcRenderer.on('auth-callback', handler)
-  onUnmounted(() => window.Electron.ipcRenderer?.removeListener('auth-callback', handler))
+  window.addEventListener('boxplayer-auth-restored', handler)
+  onUnmounted(() => window.removeEventListener('boxplayer-auth-restored', handler))
 }
 
 onMounted(() => {
@@ -282,10 +279,10 @@ onMounted(() => {
         </div>
 
         <button v-if="isLoggedIn" class="upg-btn" :disabled="upgrading" @click="handleUpgrade">
-          <Loader2 v-if="upgrading" :size="14" class="spin" /> <span v-else>去官网购买终身专业版</span>
+          <Loader2 v-if="upgrading" :size="14" class="spin" /> <span v-else>官网登录并购买</span>
         </button>
         <button v-else class="upg-btn upg-btn-login" @click="handleUpgrade">
-          去官网购买
+          官网登录并购买
         </button>
       </div>
     </div>

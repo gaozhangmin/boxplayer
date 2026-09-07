@@ -9,10 +9,9 @@ import type { OpenRouterModelInfo } from '../services/ai/providers/OpenRouterPro
 import { GATEWAY_MODELS } from '../services/ai/constants'
 import { isPro } from '../utils/usageLimit'
 import { openExternal } from '../utils/electronhelper'
-import { BOXPLAYER_SITE_URL } from '../utils/boxplayerAuth'
+import { buildProPurchaseUrlForCurrentSession } from '../utils/boxplayerAuth'
 import { t } from '../i18n'
 
-const PRICING_URL = `${BOXPLAYER_SITE_URL}/pricing/`
 const tn = (key: Parameters<typeof t>[0], name: string) => t(key).replace('{name}', name)
 
 const settingStore = useSettingStore()
@@ -166,7 +165,7 @@ async function handleUpgradeToPro() {
     try { localStorage.setItem('boxplayer_show_pricing', '1') } catch {}
   }
   try {
-    openExternal(PRICING_URL)
+    openExternal(await buildProPurchaseUrlForCurrentSession())
   } catch (e: any) { message.error(e?.message || t('settings.upgradeOpening')) }
 }
 

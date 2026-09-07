@@ -12,6 +12,7 @@ import { startMediaAcquisitionWorkflowRunner, wakeMediaAcquisitionWorkflowRunner
 import { setLocale } from './i18n'
 import UserDAL from './user/userdal'
 import { startAnalytics } from './analytics/posthog'
+import { restoreBoxPlayerAuth } from './utils/boxplayerAuth'
 
 document.documentElement.style.setProperty('--app-icon-image', `url("${new URL('icon.svg', document.baseURI).toString()}")`)
 
@@ -211,6 +212,17 @@ window.Electron.ipcRenderer.on('showUpdateModal', () => {
 window.Electron.ipcRenderer.on('cloud123-oauth-callback', (_event: any, url: string) => {
   if (!url) return
   window.dispatchEvent(new CustomEvent('cloud123-oauth-callback', { detail: url }))
+})
+
+window.Electron.ipcRenderer.on('auth-callback', async (_event: any, params: { code?: string; access_token?: string; refresh_token?: string }) => {
+  try {
+    const result = await restoreBoxPlayerAuth(params)
+    localStorage.setItem('app_user_email', result.email)
+    localStorage.setItem('app_user_authed', '1')
+    window.dispatchEvent(new CustomEvent('boxplayer-auth-restored', { detail: result }))
+  } catch (error: any) {
+    message.error(error?.message || '登录失败')
+  }
 })
 try {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'

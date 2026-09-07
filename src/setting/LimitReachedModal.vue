@@ -3,10 +3,9 @@ import { ref, watch } from 'vue'
 import { X, Loader2, Sparkles } from 'lucide-vue-next'
 import { openExternal } from '../utils/electronhelper'
 import message from '../utils/message'
-import { BOXPLAYER_SITE_URL } from '../utils/boxplayerAuth'
+import { buildProPurchaseUrlForCurrentSession } from '../utils/boxplayerAuth'
 import { t } from '../i18n'
 
-const PRICING_URL = `${BOXPLAYER_SITE_URL}/pricing/`
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ 'update:visible': [v: boolean] }>()
@@ -20,7 +19,7 @@ watch(() => props.visible, (v) => {
 async function handleUpgrade() {
   upgrading.value = true
   try {
-    openExternal(PRICING_URL)
+    openExternal(await buildProPurchaseUrlForCurrentSession())
   } catch (error: any) {
     message.error(error?.message || t('settings.upgradeOpening'))
   } finally {
@@ -65,7 +64,7 @@ async function handleUpgrade() {
 
       <button v-if="isLoggedIn" class="lim-btn" :disabled="upgrading" @click="handleUpgrade">
         <Loader2 v-if="upgrading" :size="16" class="lim-spin" />
-        <span v-else>{{ t('settings.buyLifetimePro') }}</span>
+        <span v-else>官网登录并购买</span>
       </button>
       <button v-else class="lim-btn" @click="handleUpgrade">
         {{ t('upgrade.buyOnWebsite') }}

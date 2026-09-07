@@ -36,3 +36,22 @@ test('application settings persist after the production renderer reloads', async
   expect(pageErrors).toEqual([])
   expect(consoleErrors).toEqual([])
 })
+
+test('logging out resets the email verification flow', async ({ boxPlayer }) => {
+  const { page, pageErrors, consoleErrors } = boxPlayer
+  await page.evaluate(() => {
+    localStorage.setItem('app_user_authed', '1')
+    localStorage.setItem('app_user_email', 'e2e@example.com')
+  })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  await page.getByTestId('open-settings').click()
+  const settings = page.locator('#SettingUI')
+  await expect(settings).toBeVisible()
+  await settings.locator('.setting-icon-btn.danger').click()
+  await settings.locator('button[title="邮箱"]').click()
+  await expect(settings.locator('input[type="email"]')).toBeVisible()
+  await expect(settings.getByText('验证码', { exact: true })).toHaveCount(0)
+  expect(pageErrors).toEqual([])
+  expect(consoleErrors).toEqual([])
+})

@@ -467,11 +467,14 @@ export default class launch extends EventEmitter {
         } catch {}
       } else if (url.startsWith('boxplayer-auth://')) {
         try {
-          const hash = url.includes('#') ? url.split('#')[1] : ''
-          const params = new URLSearchParams(hash)
+          const parsed = new URL(url)
+          const params = new URLSearchParams(parsed.search)
+          const hash = parsed.hash.startsWith('#') ? parsed.hash.slice(1) : parsed.hash
+          const hashParams = new URLSearchParams(hash)
           AppWindow.mainWindow.webContents.send('auth-callback', {
-            access_token: params.get('access_token') || '',
-            refresh_token: params.get('refresh_token') || '',
+            code: params.get('code') || hashParams.get('code') || '',
+            access_token: params.get('access_token') || hashParams.get('access_token') || '',
+            refresh_token: params.get('refresh_token') || hashParams.get('refresh_token') || '',
           })
         } catch {}
       } else {

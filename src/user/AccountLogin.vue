@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { X, Loader2, Github, Chrome, Mail } from 'lucide-vue-next'
 import { openExternal } from '../utils/electronhelper'
 import message from '../utils/message'
-import { getBoxPlayerSupabase } from '../utils/boxplayerAuth'
+import { clearBoxPlayerAppSession, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ 'update:visible': [v: boolean]; login: [user: { email: string }] }>()
@@ -71,6 +71,7 @@ async function handleEmailVerify() {
     })
     if (error) { message.error(error.message) }
     else if (data.user) {
+      clearBoxPlayerAppSession()
       saveUser(data.user.email || email)
       message.success('登录成功')
       emit('update:visible', false)
@@ -81,21 +82,14 @@ async function handleEmailVerify() {
 
 // ── OAuth callback from Electron ──
 function setupCallbackListener() {
-  if (!window.Electron?.ipcRenderer) return
-  const handler = async (_e: any, params: { access_token?: string; refresh_token?: string }) => {
-    if (!params.access_token || !supabase) return
-    const { data, error } = await supabase.auth.setSession({
-      access_token: params.access_token,
-      refresh_token: params.refresh_token || '',
-    })
-    if (!error && data.user) {
-      saveUser(data.user.email || '')
-      message.success('登录成功')
-      emit('update:visible', false)
-    }
+  const handler = (event: Event) => {
+    const result = (event as CustomEvent<{ email?: string }>).detail
+    saveUser(result?.email || '')
+    message.success('登录成功')
+    emit('update:visible', false)
   }
-  window.Electron.ipcRenderer.on('auth-callback', handler)
-  onUnmounted(() => window.Electron.ipcRenderer?.removeListener('auth-callback', handler))
+  window.addEventListener('boxplayer-auth-restored', handler)
+  onUnmounted(() => window.removeEventListener('boxplayer-auth-restored', handler))
 }
 
 onMounted(setupCallbackListener)

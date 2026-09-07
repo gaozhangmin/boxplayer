@@ -10,7 +10,7 @@ import { modalUpdateLog } from '../utils/modal'
 import fs from 'node:fs'
 import message from '../utils/message'
 import { Sleep } from '../utils/format'
-import { BOXPLAYER_SITE_URL, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
+import { BOXPLAYER_SITE_URL, buildProPurchaseUrlForCurrentSession, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
 import { t } from '../i18n'
 
 const platform = window.platform
@@ -53,8 +53,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (!window.Electron?.ipcRenderer) return
-  if (authCallbackHandler) window.Electron.ipcRenderer.removeListener('auth-callback', authCallbackHandler)
+  if (authCallbackHandler) window.removeEventListener('boxplayer-auth-restored', authCallbackHandler)
   if (paymentCallbackHandler) window.Electron.ipcRenderer.removeListener('payment-callback', paymentCallbackHandler)
 })
 
@@ -62,9 +61,14 @@ function handleLogout() {
   localStorage.removeItem('app_user_email')
   localStorage.removeItem('app_user_authed')
   localStorage.removeItem('app_user_pro')
+  clearBoxPlayerAppSession()
   isLoggedIn.value = false
   isPro.value = false
   accountEmail.value = ''
+  showEmail.value = false
+  codeSent.value = false
+  authEmail.value = ''
+  emailCode.value = ''
   supabase?.auth.signOut().catch(() => {})
   message.success(t('user.logout'))
 }
@@ -79,7 +83,6 @@ const redeeming = ref(false)
 const redeemCode = ref('')
 
 const CALLBACK_URL = 'boxplayer-auth://callback'
-const PRICING_URL = `${BOXPLAYER_SITE_URL}/pricing/`
 const PAYMENT_POLL_DELAYS = [0, 2000, 5000, 10000, 20000]
 
 const supabase = getBoxPlayerSupabase()
@@ -161,14 +164,14 @@ async function handleEmailVerify() {
   try {
     const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' })
     if (error) message.error(error.message)
-    else if (data.user) { saveLogin(data.user.email || email); message.success(t('user.login')) }
+    else if (data.user) { clearBoxPlayerAppSession(); saveLogin(data.user.email || email); message.success(t('user.login')) }
   } finally { loading.value = false }
 }
 
 async function handleUpgrade() {
   upgrading.value = true
   try {
-    openExternal(PRICING_URL)
+    openExternal(await buildProPurchaseUrlForCurrentSession())
   } catch (e: any) { message.error(e?.message || t('settings.upgradeOpening')) }
   finally { upgrading.value = false }
 }
@@ -215,17 +218,16 @@ async function handleRedeemCode() {
   }
 }
 
-let authCallbackHandler: ((_e: any, params: { access_token?: string; refresh_token?: string }) => void) | null = null
+let authCallbackHandler: ((event: Event) => void) | null = null
 let paymentCallbackHandler: ((_e: any, params?: { status?: string; checkout_id?: string; reason?: string }) => void) | null = null
 
 function setupAuthCallback() {
-  if (!window.Electron?.ipcRenderer) return
-  authCallbackHandler = async (_e: any, params: { access_token?: string; refresh_token?: string }) => {
-    if (!params.access_token || !supabase) return
-    const { data, error } = await supabase.auth.setSession({ access_token: params.access_token, refresh_token: params.refresh_token || '' })
-    if (!error && data.user) { saveLogin(data.user.email || ''); message.success(t('user.login')) }
+  authCallbackHandler = (event: Event) => {
+    const result = (event as CustomEvent<{ email?: string }>).detail
+    saveLogin(result?.email || '')
+    message.success(t('user.login'))
   }
-  window.Electron.ipcRenderer.on('auth-callback', authCallbackHandler)
+  window.addEventListener('boxplayer-auth-restored', authCallbackHandler)
 }
 
 function setupPaymentCallback() {
@@ -362,7 +364,7 @@ const handleImportAsar = () => {
           <button v-if="!isPro" class='setting-upgrade-btn' :disabled='upgrading' @click='handleUpgrade'>
             <Loader2 v-if="upgrading" :size='15' class='spin' />
             <Crown v-else :size='15' />
-            <span>{{ upgrading ? t('settings.upgradeOpening') : t('settings.buyLifetimePro') }}</span>
+            <span>{{ upgrading ? t('settings.upgradeOpening') : '官网登录并购买' }}</span>
           </button>
 
           <div class='setting-redeem-box'>
