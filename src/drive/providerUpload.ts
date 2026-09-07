@@ -8,11 +8,15 @@ import GuangyaUploadDisk from '../guangya/uploaddisk'
 import QuarkUploadDisk from '../quark/uploaddisk'
 import BoxUploadDisk from '../box/upload'
 import GoogleUploadDisk from '../google/upload'
+import Cloud139UploadDisk from '../cloud139/uploaddisk'
+import Cloud189UploadDisk from '../cloud189/uploaddisk'
 import type { DriveProvider } from '../utils/driveProvider'
 
 /** Thin local-upload registry. Provider upload implementations stay in their own directories. */
 export const uploadProviderFile = (provider: DriveProvider, file: IUploadingUI): Promise<string> | undefined => {
   switch (provider) {
+    case '139': return Cloud139UploadDisk.UploadOneFile(file)
+    case '189': return Cloud189UploadDisk.UploadOneFile(file)
     case 'cloud123': return Cloud123UploadDisk.UploadOneFile(file)
     case 'baidu': return BaiduUploadDisk.UploadOneFile(file)
     case '115': return Drive115UploadDisk.UploadOneFile(file)

@@ -32,6 +32,7 @@ export default defineConfig({
       'src/cloud123/__tests__/**/*.test.ts',
       'src/cloudbaidu/__tests__/**/*.test.ts',
       'src/cloud139/__tests__/**/*.test.ts',
+      'src/cloud189/__tests__/**/*.test.ts',
       'src/dropbox/__tests__/**/*.test.ts',
       'src/onedrive/__tests__/**/*.test.ts',
       'src/box/__tests__/**/*.test.ts',

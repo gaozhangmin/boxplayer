@@ -15,6 +15,9 @@ describe('Tianyi Cloud signed request headers', () => {
       Signature: 'signature'
     })
     expect(restoreCloud189DateHeader('https://example.com/listFiles.action', headers)).toEqual(headers)
+    expect(restoreCloud189DateHeader('https://upload.cloud.189.cn/person/initMultiUpload', headers)).toEqual({
+      Date: 'Thu, 04 Sep 2026 01:02:03 GMT', SessionKey: 'session-key', Signature: 'signature'
+    })
   })
 
   it('does not invent a Date header when the transport header is absent', () => {

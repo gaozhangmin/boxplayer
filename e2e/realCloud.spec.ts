@@ -8,6 +8,47 @@ import type { Page } from '@playwright/test'
 test.describe.configure({ mode: 'serial' })
 test.setTimeout(90_000)
 
+for (const provider of ['天翼云盘', '139云盘']) {
+  test(`multipart upload to a real ${provider} child directory`, async ({ boxPlayer }) => {
+    test.setTimeout(240_000)
+    const { page } = boxPlayer
+    page.on('response', async response => {
+      const url = new URL(response.url())
+      if (url.hostname.endsWith('189.cn') || url.hostname.endsWith('139.com')) {
+        console.log(`[upload-smoke] ${response.status()} ${url.hostname}${url.pathname}`)
+      }
+    })
+    const folder = 'BoxPlayer-E2E'
+    const name = `上传回归-${Date.now()}.bin`
+    const temp = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-multipart-'))
+    const local = path.join(temp, name)
+    // Cross both providers' part boundary with non-deduplicated content.
+    const bytes = Buffer.alloc(17 * 1024 * 1024, 97)
+    bytes.write(String(Date.now()))
+    writeFileSync(local, bytes)
+    try {
+      await switchToRealProvider(page, provider)
+      await openCloudRoot(page)
+      if (!(await fileListItem(page, folder).count())) {
+        await page.getByRole('button', { name: /新建/ }).hover()
+        await page.getByText('新建文件夹', { exact: true }).click({ force: true })
+        await page.locator('#CreatNewDirInput').fill(folder)
+        await page.getByRole('button', { name: '创建', exact: true }).click()
+        await refreshUntilListed(page, folder)
+      }
+      await openListedFolder(page, folder)
+      await page.evaluate((uploadPath) => { window.WebShowOpenDialogSync = (_options, callback) => callback([uploadPath]) }, local)
+      await page.keyboard.press('Control+u')
+      await startPendingUpload(page)
+      await refreshUntilListed(page, name)
+      await expect(fileListItem(page, name)).toContainText('17.00MB')
+    } finally {
+      await ensureCloudTestFileTrashed(page, folder, name)
+      rmSync(temp, { recursive: true, force: true })
+    }
+  })
+}
+
 function unexpectedCloudErrors(errors: string[]): string[] {
   return errors.filter((error) => {
     if (error.includes('api.aliyundrive.com/v2/file/download') && error.includes('office_thumbnail_process=')) return false

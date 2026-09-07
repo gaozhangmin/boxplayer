@@ -9,7 +9,7 @@ export function restoreCloud189DateHeader(url: string, headers: RequestHeaders):
   } catch {
     return headers
   }
-  if (hostname !== 'api.cloud.189.cn') return headers
+  if (hostname !== 'api.cloud.189.cn' && hostname !== 'upload.cloud.189.cn') return headers
 
   const transportEntry = Object.entries(headers).find(([name]) => name.toLowerCase() === CLOUD189_DATE_TRANSPORT_HEADER.toLowerCase())
   if (!transportEntry) return headers

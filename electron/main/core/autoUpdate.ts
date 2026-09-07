@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import type { UpdateInfo } from 'electron-updater'
 import is from 'electron-is'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const UPDATE_CHECK_DELAY_MS = 1000
@@ -42,11 +42,12 @@ type AutoUpdateControllerOptions = {
   isPackaged: boolean
   isMas?: boolean
   updateProxy?: UpdateProxyPreferences
+  updateStatePath?: string
   onStateChange?: (state: AutoUpdateState) => void
 }
 
 export function createAutoUpdateController(options: AutoUpdateControllerOptions) {
-  const { updater, dialog, logger, currentVersion, isPackaged, isMas = false, updateProxy = { enabled: false, url: '', autoCheckOnLaunch: true }, onStateChange } = options
+  const { updater, dialog, logger, currentVersion, isPackaged, isMas = false, updateProxy = { enabled: false, url: '', autoCheckOnLaunch: true }, updateStatePath, onStateChange } = options
 
   let state: AutoUpdateState = { status: isMas || !isPackaged ? 'unsupported' : 'idle' }
   const getState = () => ({ ...state })
@@ -75,6 +76,15 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
   let hasStartedFallback = false
   let hasChecked = false
   let activeCheck: Promise<AutoUpdateState> | null = null
+  const readPendingVersion = () => {
+    if (!updateStatePath || !existsSync(updateStatePath)) return ''
+    try { return String(JSON.parse(readFileSync(updateStatePath, 'utf8'))?.version || '') } catch { return '' }
+  }
+  const clearPendingVersion = () => {
+    if (updateStatePath) unlinkSync(updateStatePath, { force: true })
+  }
+  const pendingVersion = readPendingVersion()
+  if (pendingVersion && pendingVersion === currentVersion) clearPendingVersion()
 
   const checkNow = async (force = false) => {
     if (state.status === 'checking' && activeCheck) return activeCheck
@@ -110,7 +120,10 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
   }
 
   updater.on('update-available', (info: UpdateInfo) => {
-    if (downloadInProgress || hasDownloaded) return
+    if (downloadInProgress || hasDownloaded || (pendingVersion && pendingVersion === info.version)) {
+      logger.info('[auto-update] update already downloaded, skipping duplicate download', info.version)
+      return
+    }
     downloadInProgress = true
     setState({ status: 'downloading', version: info.version, percent: 0 })
     logger.info('[auto-update] update available, downloading in background', info.version)
@@ -137,6 +150,9 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
     hasDownloaded = true
     downloadInProgress = false
     setState({ status: 'downloaded', version: info.version, percent: 100 })
+    if (updateStatePath) {
+      try { writeFileSync(updateStatePath, JSON.stringify({ version: info.version, downloadedAt: Date.now() })) } catch (err) { logger.warn('[auto-update] unable to persist downloaded version', err) }
+    }
     if (hasPromptedRestart) return
     hasPromptedRestart = true
     dialog.showMessageBox({
@@ -207,6 +223,7 @@ function normalizeUpdateProxyUrl(url: string) {
 }
 
 export function registerAutoUpdate() {
+  const updateStatePath = join(app.getPath('userData'), 'pending-update.json')
   const controller = createAutoUpdateController({
     updater: autoUpdater,
     dialog,
@@ -214,6 +231,7 @@ export function registerAutoUpdate() {
     currentVersion: app.getVersion(),
     isPackaged: app.isPackaged,
     isMas: is.mas(),
+    updateStatePath,
     updateProxy: readUpdateProxyPreferences(app.getPath('userData')),
     onStateChange: (state) => {
       for (const window of BrowserWindow.getAllWindows()) {

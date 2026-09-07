@@ -1,4 +1,5 @@
 import { HmacSHA1 } from 'crypto-js'
+import crypto from 'crypto'
 import { CLOUD189_DATE_TRANSPORT_HEADER } from '@shared/cloud189RequestHeaders'
 import type { ITokenInfo } from '../user/userstore'
 import { CLOUD189_APP_ID } from '../secrets.generated'
@@ -41,6 +42,13 @@ export const cloud189ClientSuffix = () => ({
   channelId: CLOUD189_CHANNEL_ID,
   rand: `${Math.floor(Math.random() * 100000)}_${Math.floor(Math.random() * 10000000000)}`
 })
+
+/** Tianyi's signed APIs require the business parameters to be AES-ECB encrypted. */
+export const cloud189EncryptParams = (values: Record<string, string>, sessionSecret: string) => {
+  const cipher = crypto.createCipheriv('aes-128-ecb', Buffer.from(sessionSecret.slice(0, 16)), null)
+  const plain = Object.keys(values).sort().map(key => `${key}=${values[key]}`).join('&')
+  return Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]).toString('hex').toUpperCase()
+}
 
 const httpDate = () => new Date().toUTCString()
 
