@@ -40,8 +40,21 @@ describe('BoxPlayer PI Agent runtime', () => {
     expect(inferToolPermission('deleteFiles')).toBe('destructive')
   })
 
-  it('maps a body-less cloud quota error before emitting it to a surface', () => {
-    expect(formatAgentModelError({ endpoint: '', modelId: 'cloud', apiKey: '', providerName: 'boxplayer-cloud' }, '500 status code (no body)')).toContain('本月内置 AI 额度已用完')
+  it('maps a body-less cloud model error before emitting it to a surface', () => {
+    expect(formatAgentModelError({ endpoint: '', modelId: 'cloud', apiKey: '', providerName: 'boxplayer-cloud' }, '500 status code (no body)')).toContain('模型服务执行失败')
+  })
+
+  it('rejects after reporting a model failure so visible surfaces can stop loading and show its cause', async () => {
+    const events: any[] = []
+    await expect(runBoxPlayerAgent({
+      surface: 'document',
+      model: { endpoint: '', modelId: 'cloud', apiKey: '', providerName: 'boxplayer-cloud' },
+      systemPrompt: 'Answer from the document.',
+      prompt: '总结文档',
+      streamFn: () => { throw new Error('500 status code (no body)') },
+      onEvent: event => { events.push(event) }
+    })).rejects.toThrow('模型服务执行失败')
+    expect(events).toContainEqual({ type: 'error', message: expect.stringContaining('模型服务执行失败') })
   })
 
   it('stops only repeated action-observation pairs, including A/B ping-pong', () => {

@@ -286,7 +286,7 @@ const aiIndexingText = ref('')
 const aiConvId = ref(String(Date.now()))
 const aiConvList = ref<Array<{ id: string; title: string; mode: 'ask' | 'chat'; createdAt: number }>>([])
 const aiShowConvList = ref(false)
-const aiShowSidebar = ref(true)
+const aiShowSidebar = ref(false)
 
 const transProvider = ref(translators.defaultName)
 const fullTranslationLoading = ref(false)
@@ -2358,6 +2358,13 @@ const currentAIModelLabel = computed(() => {
   return modelId || provider
 })
 
+const currentAIContextLabel = computed(() => {
+  const position = bookReader?.getPosition?.()
+  return selectedBookChapter.value != null
+    ? bookChapters.value[selectedBookChapter.value]?.label || t('unknown.chapter')
+    : position?.chapterTitle || t('unknown.chapter')
+})
+
 function handleAIKeydown(e: KeyboardEvent) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -4146,6 +4153,7 @@ onBeforeUnmount(() => {
               <Sparkles :size="14" :stroke-width="1.8" />
               <span class="chat-header-title">{{ t('ai.reader.assistant') }}</span>
               <span class="pro-pill">Pro</span>
+              <span class="chat-header-mode">{{ aiMode === 'ask' ? t('reading.qa') : t('free.chat') }}</span>
               <span v-if="currentAIModelLabel" class="chat-header-model">{{ currentAIModelLabel }}</span>
             </div>
             <div class="chat-header-right">
@@ -4179,17 +4187,25 @@ onBeforeUnmount(() => {
               </div>
               <template v-else>
                 <div class="chat-viewport">
-                  <div v-if="aiStatusText" class="chat-status">{{ aiStatusText }}</div>
+                  <div class="chat-context-bar">
+                    <BookOpen :size="14" :stroke-width="1.8" />
+                    <span class="chat-context-label">{{ currentAIContextLabel }}</span>
+                    <span class="chat-context-rule">{{ aiMode === 'ask' ? t('ask.book') : t('chat.book') }}</span>
+                  </div>
+                  <div v-if="aiStatusText" class="chat-status"><span class="chat-status-dot"></span>{{ aiStatusText }}</div>
                   <div v-if="!aiMessages.length && !aiAnswer" class="thread-empty">
-                    <div class="thread-empty-icon"><BookOpen :size="24" :stroke-width="1.5" /></div>
+                    <div class="thread-empty-icon"><Sparkles :size="24" :stroke-width="1.5" /></div>
                     <h3>{{ aiMode === 'ask' ? t('ask.book') : t('chat.book') }}</h3>
                     <p>{{ aiMode === 'ask' ? t('ask.book.desc') : t('chat.book.desc') }}</p>
-                    <div class="thread-samples">
-                      <button v-for="q in aiSampleQuestions.filter((s) => s.mode === aiMode)" :key="q.textKey" class="thread-sample-btn" @click="askAI(t(q.textKey))">{{ q.emoji }} {{ t(q.textKey) }}</button>
+                    <div class="thread-samples" data-testid="reader-ai-suggestions">
+                      <button v-for="q in aiSampleQuestions.filter((s) => s.mode === aiMode)" :key="q.textKey" class="thread-sample-btn" @click="askAI(t(q.textKey))">
+                        <span class="thread-sample-icon">{{ q.emoji }}</span><span>{{ t(q.textKey) }}</span><ChevronRight :size="13" :stroke-width="1.8" />
+                      </button>
                     </div>
                   </div>
                   <div v-else class="chat-messages">
                     <div v-for="(msg, idx) in aiMessages" :key="idx" :class="['chat-msg', msg.role]">
+                      <div v-if="msg.role === 'assistant'" class="chat-message-meta"><Sparkles :size="12" :stroke-width="1.8" /><span>BoxPlayer AI</span></div>
                       <div :class="['chat-bubble', msg.role]">
                         <div class="chat-bubble-content" v-html="renderAIMarkdown(msg.content)"></div>
                       </div>
@@ -4206,6 +4222,7 @@ onBeforeUnmount(() => {
                       </div>
                     </div>
                     <div v-if="aiAnswer" class="chat-msg assistant">
+                      <div class="chat-message-meta"><Sparkles :size="12" :stroke-width="1.8" /><span>BoxPlayer AI</span></div>
                       <div class="chat-bubble assistant">
                         <div class="chat-bubble-content">
                           <span v-html="renderAIMarkdown(aiAnswer)"></span>
@@ -4227,8 +4244,8 @@ onBeforeUnmount(() => {
                           </span>
                         </a-option>
                       </a-select>
-                      <button class="composer-mode-btn" :class="{ active: aiMode === 'ask' }" :title="t('reading.qa')" @click="toggleAIMode('ask')">📖</button>
-                      <button class="composer-mode-btn" :class="{ active: aiMode === 'chat' }" :title="t('free.chat')" @click="toggleAIMode('chat')">💡</button>
+                      <button class="composer-mode-btn" :class="{ active: aiMode === 'ask' }" :title="t('reading.qa')" @click="toggleAIMode('ask')"><BookOpen :size="13" :stroke-width="1.8" /></button>
+                      <button class="composer-mode-btn" :class="{ active: aiMode === 'chat' }" :title="t('free.chat')" @click="toggleAIMode('chat')"><Sparkles :size="13" :stroke-width="1.8" /></button>
                       <button class="composer-clear-btn" :title="t('clear.history')" @click="clearAIHistory"><Trash2 :size="13" /></button>
                     </div>
                     <div class="chat-composer-input-row">
@@ -4238,6 +4255,7 @@ onBeforeUnmount(() => {
                         <ChevronRight v-else :size="18" :stroke-width="2" />
                       </button>
                     </div>
+                    <div class="composer-hint"><span>{{ aiMode === 'ask' ? t('ask.book.desc') : t('chat.book.desc') }}</span><kbd>↵</kbd><span>{{ t('ai.send') }}</span><kbd>⇧↵</kbd><span>{{ t('ai.newline') }}</span></div>
                   </div>
                 </div>
               </template>
@@ -4249,24 +4267,31 @@ onBeforeUnmount(() => {
       <!-- koodo-style Bottom Panel (ProgressPanel) -->
       <div :class="['edge-panel', 'panel-bottom', isBottomPanelVisible ? 'open' : '']" @mouseleave="hidePanel('bottom')">
         <div class="progress-panel-inner">
-          <p class="progress-context">
-            <template v-if="!readerIsFixedLayout">
-              <span class="progress-label">Chapter</span>
-              <input type="text" class="progress-jump-input" :value="chapterJumpText || (selectedBookChapter ?? 0) + 1" inputmode="numeric" @focus="isChapterJumpEditing = true; ($event.target as HTMLInputElement).select()" @input="chapterJumpText = ($event.target as HTMLInputElement).value" @blur="jumpToChapter" @keydown.enter.prevent="($event.target as HTMLInputElement).blur()" />
-              <span>/ {{ bookChapters.length || '-' }}</span>
-              <span class="progress-divider">·</span>
-            </template>
-            <span class="progress-label">{{ readerIsFixedLayout ? 'Page' : 'Chapter page' }}</span>
-            <input type="text" class="progress-jump-input" :value="pageJumpText || currentPage || ''" inputmode="numeric" @focus="isPageJumpEditing = true; ($event.target as HTMLInputElement).select()" @input="pageJumpText = ($event.target as HTMLInputElement).value" @blur="jumpToPage" @keydown.enter.prevent="($event.target as HTMLInputElement).blur()" />
-            <span>/ {{ totalPage || currentPage || '-' }}</span>
-          </p>
+          <div class="progress-context" aria-label="阅读位置">
+            <div v-if="!readerIsFixedLayout" class="progress-position-group">
+              <span class="progress-label">章节</span>
+              <div class="progress-position-value">
+                <input type="text" class="progress-jump-input" :value="chapterJumpText || (selectedBookChapter ?? 0) + 1" inputmode="numeric" aria-label="跳转章节" @focus="isChapterJumpEditing = true; ($event.target as HTMLInputElement).select()" @input="chapterJumpText = ($event.target as HTMLInputElement).value" @blur="jumpToChapter" @keydown.enter.prevent="($event.target as HTMLInputElement).blur()" />
+                <span class="progress-position-total">/ {{ bookChapters.length || '-' }}</span>
+              </div>
+            </div>
+            <span v-if="!readerIsFixedLayout" class="progress-divider" aria-hidden="true"></span>
+            <div class="progress-position-group">
+              <span class="progress-label">{{ readerIsFixedLayout ? '页码' : '本章' }}</span>
+              <div class="progress-position-value">
+                <input type="text" class="progress-jump-input" :value="pageJumpText || currentPage || ''" inputmode="numeric" aria-label="跳转页面" @focus="isPageJumpEditing = true; ($event.target as HTMLInputElement).select()" @input="pageJumpText = ($event.target as HTMLInputElement).value" @blur="jumpToPage" @keydown.enter.prevent="($event.target as HTMLInputElement).blur()" />
+                <span class="progress-position-total">/ {{ totalPage || currentPage || '-' }}</span>
+              </div>
+            </div>
+          </div>
           <div class="progress-controls">
             <button type="button" class="chapter-btn prev-chapter-btn" :title="t('previous.page')" :aria-label="t('previous.page')" @click="prevPage()">
               <ChevronLeft :size="14" :stroke-width="2.5" />
             </button>
             <div class="progress-range-wrap">
+              <span class="progress-range-label">进度</span>
               <input :value="readingProgressValue" type="range" class="progress-range" min="0" max="100" step="1" aria-label="Reading progress" :aria-valuetext="`${readingProgressValue}%`" :style="{ '--progress-fill': `${readingProgressValue}%` }" @input="readingProgressValue = Number(($event.target as HTMLInputElement).value)" @change="seekReaderProgress(readingProgressValue)" />
-              <span class="progress-range-value">{{ readingProgressValue }}%</span>
+              <span class="progress-range-value" aria-label="当前阅读进度">{{ readingProgressValue }}%</span>
             </div>
             <button type="button" class="chapter-btn next-chapter-btn" :title="t('next.page')" :aria-label="t('next.page')" @click="nextPage()">
               <ChevronRight :size="14" :stroke-width="2.5" />
@@ -5654,14 +5679,15 @@ onBeforeUnmount(() => {
 
 /* === BOTTOM PANEL (koodo progress-panel) === */
 .panel-bottom {
-  width: min(680px, calc(100vw - 32px));
-  height: 52px;
+  width: min(760px, calc(100vw - 32px));
+  height: 58px;
   bottom: 0;
-  left: max(16px, calc(50% - 340px));
-  border-radius: 12px 12px 0 0;
+  left: max(16px, calc(50% - 380px));
+  border-radius: 14px 14px 0 0;
   border: 1px solid var(--panel-border);
   border-bottom: 0;
-  box-shadow: 0 -5px 18px rgba(32, 28, 20, 0.08);
+  background: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  box-shadow: 0 -10px 30px rgba(20, 18, 14, 0.16);
   transition: transform 0.5s ease;
   transition:
     transform 0.35s ease,
@@ -5682,8 +5708,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 12px 0 14px;
-  gap: 10px;
+  padding: 0 12px;
+  gap: 12px;
 }
 
 .progress-heading,
@@ -5709,54 +5735,86 @@ onBeforeUnmount(() => {
 }
 .progress-context {
   flex-shrink: 0;
-  min-height: 26px;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--panel-border);
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--reader-page) 72%, transparent);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+  gap: 8px;
 }
-.progress-context span {
-  opacity: 0.7;
-  font-size: 11px;
+.progress-position-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 .progress-label {
+  color: var(--panel-fg);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.62;
+}
+.progress-position-value {
+  display: inline-flex;
+  align-items: center;
+  color: var(--panel-fg);
+  font-size: 12px;
   font-weight: 600;
 }
+.progress-position-total {
+  margin-left: 2px;
+  color: var(--panel-fg);
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.66;
+}
 .progress-divider {
-  margin: 0 3px;
+  width: 1px;
+  height: 18px;
+  background: var(--panel-border);
 }
 .progress-jump-input {
-  width: 32px;
-  height: 24px;
-  border: 1px solid var(--panel-border);
-  border-radius: 6px;
+  width: 27px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
   outline: none;
   text-align: center;
   font-size: 12px;
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
-  background: color-mix(in srgb, var(--reader-page) 76%, transparent);
+  background: color-mix(in srgb, var(--reader-page) 54%, transparent);
   color: var(--panel-fg);
 }
 .progress-jump-input:focus {
-  border-color: var(--reader-text);
+  box-shadow: 0 0 0 2px color-mix(in srgb, rgb(var(--primary-6)) 35%, transparent);
 }
 
 .chapter-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
   cursor: pointer;
   border: 1px solid var(--panel-border);
-  background: color-mix(in srgb, var(--reader-page) 88%, transparent);
+  background: color-mix(in srgb, var(--reader-page) 76%, transparent);
   flex-shrink: 0;
-  color: rgba(112, 112, 112, 1);
+  color: var(--panel-fg);
+  opacity: 0.78;
 }
 .chapter-btn.disabled {
   opacity: 0.3;
   cursor: default;
 }
 .chapter-btn:hover:not(.disabled) {
-  border-color: rgba(112, 112, 112, 0.8);
+  border-color: rgb(var(--primary-6));
+  color: rgb(var(--primary-6));
+  background: color-mix(in srgb, rgb(var(--primary-6)) 11%, var(--reader-page));
 }
 
 .progress-controls {
@@ -5765,14 +5823,22 @@ onBeforeUnmount(() => {
   align-items: center;
   min-width: 0;
   flex: 1;
-  gap: 8px;
+  gap: 7px;
 }
 .progress-range-wrap {
   display: flex;
   align-items: center;
   flex: 1;
   min-width: 0;
-  gap: 9px;
+  gap: 10px;
+}
+.progress-range-label {
+  flex-shrink: 0;
+  color: var(--panel-fg);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.62;
 }
 .progress-range {
   -webkit-appearance: none;
@@ -5783,20 +5849,26 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .progress-range-value {
-  width: 34px;
-  color: var(--panel-fg);
+  min-width: 42px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 7px;
+  color: rgb(var(--primary-6));
+  background: color-mix(in srgb, rgb(var(--primary-6)) 12%, transparent);
   font-size: 12px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  line-height: 26px;
 }
 .progress-pin {
-  width: 28px;
-  min-width: 28px;
-  height: 28px;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
   padding: 0;
   gap: 0;
   border: 1px solid var(--panel-border);
-  border-radius: 7px;
+  border-radius: 8px;
   color: var(--panel-fg);
   font-size: 0;
 }
@@ -5826,23 +5898,49 @@ onBeforeUnmount(() => {
 }
 .progress-range::-webkit-slider-runnable-track {
   width: 100%;
-  height: 3px;
+  height: 4px;
   border-radius: 999px;
   cursor: pointer;
-  background: linear-gradient(to right, var(--reader-text) var(--progress-fill), rgba(112, 112, 112, 0.32) var(--progress-fill));
+  background: linear-gradient(to right, rgb(var(--primary-6)) var(--progress-fill), color-mix(in srgb, var(--panel-fg) 22%, transparent) var(--progress-fill));
 }
 .progress-range::-moz-range-track {
   width: 100%;
-  height: 3px;
+  height: 4px;
   border-radius: 999px;
   border: 0;
   cursor: pointer;
-  background: rgba(112, 112, 112, 0.32);
+  background: color-mix(in srgb, var(--panel-fg) 22%, transparent);
 }
 .progress-range::-moz-range-progress {
-  height: 3px;
+  height: 4px;
   border-radius: 999px;
-  background: var(--reader-text);
+  background: rgb(var(--primary-6));
+}
+
+@media (max-width: 660px) {
+  .panel-bottom {
+    width: calc(100vw - 16px);
+    left: 8px;
+  }
+  .progress-panel-inner {
+    gap: 7px;
+    padding: 0 8px;
+  }
+  .progress-context {
+    gap: 5px;
+    padding: 0 6px;
+  }
+  .progress-label,
+  .progress-range-label {
+    display: none;
+  }
+  .progress-position-group {
+    gap: 2px;
+  }
+  .progress-range-value {
+    min-width: 37px;
+    padding: 0 5px;
+  }
 }
 
 /* === POPUPS (keep existing) === */
@@ -6303,7 +6401,7 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 10px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--color-border-2);
   flex-shrink: 0;
 }
@@ -6314,7 +6412,16 @@ onBeforeUnmount(() => {
   color: var(--color-text-2);
 }
 .chat-header-title {
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.chat-header-mode {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(var(--primary-6), 0.1);
+  color: rgb(var(--primary-6));
+  font-size: 10px;
   font-weight: 600;
 }
 .chat-header-model {
@@ -6407,16 +6514,56 @@ onBeforeUnmount(() => {
 .chat-viewport {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 4px;
+  padding: 12px 14px 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 .chat-status {
-  text-align: center;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
+  color: rgb(var(--primary-6));
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(var(--primary-6), 0.08);
+}
+.chat-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: chatStatusPulse 1.4s ease-in-out infinite;
+}
+@keyframes chatStatusPulse {
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+.chat-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--color-border-2);
+  border-radius: 9px;
   color: var(--color-text-3);
-  padding: 4px 0;
+  background: color-mix(in srgb, var(--color-bg-2) 82%, transparent);
+  font-size: 11px;
+}
+.chat-context-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-2);
+  font-weight: 600;
+}
+.chat-context-rule {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: rgb(var(--primary-6));
+  font-size: 10px;
 }
 .chat-disclaimer {
   text-align: center;
@@ -6432,52 +6579,74 @@ onBeforeUnmount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 46px 18px 30px;
   text-align: center;
   gap: 6px;
 }
 .thread-empty-icon {
-  color: var(--color-text-3);
-  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 6px;
+  border-radius: 14px;
+  color: rgb(var(--primary-6));
+  background: rgba(var(--primary-6), 0.12);
 }
 .thread-empty h3 {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 650;
   color: var(--color-text-2);
   margin: 0;
 }
 .thread-empty p {
+  max-width: 330px;
   font-size: 12px;
+  line-height: 1.65;
   color: var(--color-text-3);
   margin: 0;
 }
 .thread-samples {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
-  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 430px);
+  gap: 8px;
+  margin-top: 14px;
 }
 .thread-sample-btn {
-  padding: 5px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 7px 10px;
   border: 1px solid var(--color-border-2);
-  border-radius: 14px;
+  border-radius: 9px;
   background: var(--color-bg-2);
   color: var(--color-text-2);
   font-size: 12px;
+  text-align: left;
   cursor: pointer;
   white-space: nowrap;
 }
 .thread-sample-btn:hover {
   border-color: rgb(var(--primary-6));
   color: rgb(var(--primary-6));
+  background: rgba(var(--primary-6), 0.05);
+}
+.thread-sample-btn svg {
+  margin-left: auto;
+  opacity: 0.55;
+}
+.thread-sample-icon {
+  font-size: 14px;
 }
 
 /* Chat messages */
 .chat-messages {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 16px;
 }
 .chat-msg {
   display: flex;
@@ -6491,25 +6660,58 @@ onBeforeUnmount(() => {
   align-items: flex-start;
 }
 .chat-bubble {
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 13px;
-  line-height: 1.55;
+  max-width: min(100%, 680px);
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.78;
+  letter-spacing: 0.005em;
   word-break: break-word;
 }
 .chat-bubble.user {
+  max-width: 78%;
   background: rgb(var(--primary-6));
   color: #fff;
   border-radius: 10px 10px 2px 10px;
 }
 .chat-bubble.assistant {
-  background: var(--color-fill-2);
-  color: var(--color-text-2);
-  border-radius: 10px 10px 10px 2px;
+  border: 1px solid var(--color-border-2);
+  background: var(--color-bg-2);
+  color: var(--color-text-1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border-radius: 4px 12px 12px 12px;
 }
 .chat-bubble-content :deep(p) {
-  margin: 2px 0;
+  margin: 0 0 12px;
+}
+.chat-bubble-content :deep(p:last-child) {
+  margin-bottom: 0;
+}
+.chat-bubble-content :deep(h1),
+.chat-bubble-content :deep(h2),
+.chat-bubble-content :deep(h3) {
+  margin: 18px 0 8px;
+  color: var(--color-text-1);
+  font-weight: 650;
+  line-height: 1.4;
+}
+.chat-bubble-content :deep(h1) { font-size: 18px; }
+.chat-bubble-content :deep(h2) { font-size: 16px; }
+.chat-bubble-content :deep(h3) { font-size: 14px; }
+.chat-bubble-content :deep(ul), .chat-bubble-content :deep(ol) {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+}
+.chat-bubble-content :deep(li + li) {
+  margin-top: 4px;
+}
+.chat-bubble-content :deep(blockquote) {
+  margin: 12px 0;
+  padding: 8px 12px;
+  border-left: 3px solid rgb(var(--primary-6));
+  border-radius: 0 7px 7px 0;
+  background: rgba(var(--primary-6), 0.06);
+  color: var(--color-text-2);
 }
 .chat-bubble-content :deep(code) {
   font-size: 11px;
@@ -6531,7 +6733,16 @@ onBeforeUnmount(() => {
 .chat-msg-actions {
   display: flex;
   gap: 4px;
-  padding: 2px 4px;
+  padding: 3px 4px 0;
+}
+.chat-message-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 5px 2px;
+  color: var(--color-text-3);
+  font-size: 11px;
+  font-weight: 600;
 }
 .chat-msg-actions button {
   border: none;
@@ -6596,7 +6807,8 @@ onBeforeUnmount(() => {
 .chat-composer {
   flex-shrink: 0;
   border-top: 1px solid var(--color-border-2);
-  padding: 8px 8px 6px;
+  padding: 10px 12px 8px;
+  background: color-mix(in srgb, var(--color-bg-1) 92%, transparent);
 }
 .chat-composer-inner {
   display: flex;
@@ -6606,7 +6818,7 @@ onBeforeUnmount(() => {
 .chat-composer-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 .composer-footer {
   display: flex;
@@ -6635,8 +6847,8 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 .composer-mode-btn {
-  width: 26px;
-  height: 22px;
+  width: 28px;
+  height: 25px;
   border: 1px solid var(--color-border-2);
   border-radius: 4px;
   background: transparent;
@@ -6677,14 +6889,14 @@ onBeforeUnmount(() => {
 .composer-input {
   flex: 1;
   resize: none;
-  padding: 7px 10px;
+  padding: 9px 11px;
   border: 1px solid var(--color-border-2);
   border-radius: 8px;
   background: var(--color-bg-2);
   color: var(--color-text-2);
-  font-size: 13px;
-  line-height: 1.4;
-  min-height: 34px;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 40px;
   max-height: 120px;
   font-family: inherit;
 }
@@ -6716,6 +6928,38 @@ onBeforeUnmount(() => {
 .composer-send-stop {
   font-size: 12px;
   font-weight: 700;
+}
+.composer-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 1px 2px 0;
+  color: var(--color-text-4);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.composer-hint > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: auto;
+}
+.composer-hint kbd {
+  min-width: 15px;
+  padding: 0 3px;
+  border: 1px solid var(--color-border-2);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  color: var(--color-text-3);
+  font: inherit;
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .thread-samples { grid-template-columns: 1fr; }
+  .chat-header-model { display: none; }
+  .chat-bubble { font-size: 13px; line-height: 1.7; }
+  .composer-hint > span:first-child { display: none; }
 }
 
 /* === TRANSLATION POPUP === */

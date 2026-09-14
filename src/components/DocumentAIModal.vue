@@ -53,6 +53,8 @@ const extraSources = ref<DocumentInsightSourceInput[]>([])
 const removedSourceIds = ref(new Set<string>())
 const abortController = ref<AbortController | null>(null)
 const expanded = ref(false)
+const sidebarWidth = ref(420)
+const resizing = ref(false)
 const feedback = ref('')
 const sourcesOpen = ref(false)
 const pickerOpen = ref(false)
@@ -94,6 +96,7 @@ const isMultiSource = computed(() => allSourceInputs.value.length > 1)
 // the workspace. Keeping the sidebar layout here leaves the composer pinned
 // to the old 340px column after the overlay expands.
 const layout = computed(() => props.mode === 'workspace' || isMultiSource.value || expanded.value ? 'workspace' : 'sidebar')
+const documentAiStyle = computed(() => layout.value === 'sidebar' ? { width: `${sidebarWidth.value}px` } : undefined)
 const sourceHeading = computed(() => {
   const count = allSourceInputs.value.length
   if (count === 1) return `Ask questions about “${allSourceInputs.value[0]?.file?.name || allSourceInputs.value[0]?.file?.file_name || '文档'}”`
@@ -134,6 +137,41 @@ const singlePdfSource = computed(() => readySources.value.length === 1 && /\.pdf
 const readingCompleted = computed(() => readingJob.value?.units.filter(unit => unit.status === 'completed' || unit.status === 'skipped').length || 0)
 const completedReadingUnits = computed(() => readingJob.value?.units.filter(unit => unit.status === 'completed' && unit.summary) || [])
 const hasReadingNotes = computed(() => completedReadingUnits.value.length > 0)
+
+try {
+  const savedWidth = Number(localStorage.getItem('boxplayer.documentAi.sidebarWidth'))
+  if (Number.isFinite(savedWidth) && savedWidth >= 300 && savedWidth <= 760) sidebarWidth.value = savedWidth
+} catch {}
+
+let resizeStartX = 0
+let resizeStartWidth = 0
+function stopSidebarResize() {
+  if (!resizing.value) return
+  resizing.value = false
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  window.removeEventListener('pointermove', resizeSidebar)
+  window.removeEventListener('pointerup', stopSidebarResize)
+  window.removeEventListener('pointercancel', stopSidebarResize)
+  try { localStorage.setItem('boxplayer.documentAi.sidebarWidth', String(sidebarWidth.value)) } catch {}
+}
+function resizeSidebar(event: PointerEvent) {
+  if (!resizing.value) return
+  const maxWidth = Math.max(300, Math.min(760, window.innerWidth - 320))
+  sidebarWidth.value = Math.min(maxWidth, Math.max(300, resizeStartWidth + resizeStartX - event.clientX))
+}
+function startSidebarResize(event: PointerEvent) {
+  if (layout.value !== 'sidebar' || expanded.value || event.button !== 0) return
+  event.preventDefault()
+  resizeStartX = event.clientX
+  resizeStartWidth = sidebarWidth.value
+  resizing.value = true
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('pointermove', resizeSidebar)
+  window.addEventListener('pointerup', stopSidebarResize)
+  window.addEventListener('pointercancel', stopSidebarResize)
+}
 
 function errorMessage(error: unknown): string {
   if (error instanceof Error && error.message.includes('document_has_no_text')) return '此 PDF 不包含可检索文字，暂不支持图片型 PDF'
@@ -414,8 +452,9 @@ async function ask(promptOverride?: string) {
       if (!assistantMessage.text) assistantMessage.text = answerTimedOut.value ? '回答超过 90 秒仍未完成，已停止本次请求。' : '已停止本次回答。'
     } else {
       console.error('文档问答失败:', error)
-      status.value = '文档问答失败，请重试。'
-      if (!assistantMessage.text) assistantMessage.text = '暂时无法生成回答，请重试。'
+      const message = errorMessage(error)
+      status.value = `文档问答失败：${message}`
+      if (!assistantMessage.text) assistantMessage.text = `暂时无法生成回答：${message}`
     }
   } finally {
     window.clearTimeout(timeout)
@@ -596,13 +635,15 @@ watch(() => `${browserUserId.value}:${browserDriveId.value}`, () => {
 })
 if (props.visible) startSession()
 onBeforeUnmount(() => {
+  stopSidebarResize()
   abortController.value?.abort()
   clearTemporaryIndexes()
 })
 </script>
 
 <template>
-  <aside v-show='visible' :class="['document-ai', `document-ai--${layout}`, { 'document-ai--expanded': expanded }]">
+  <aside v-show='visible' :class="['document-ai', `document-ai--${layout}`, { 'document-ai--expanded': expanded, 'document-ai--resizing': resizing }]" :style='documentAiStyle'>
+    <div v-if="layout === 'sidebar' && !expanded" class='document-ai__resize-handle' data-testid='document-ai-resize-handle' role='separator' aria-orientation='vertical' aria-label='调整 AI 对话框宽度' @pointerdown='startSidebarResize'></div>
     <header class='document-ai__header'>
       <div class='document-ai__brand'><span class='document-ai__brand-icon'><Sparkles :size='18' /></span><span v-if="layout === 'workspace'" class='document-ai__agent'>AGENT</span><span>BoxPlayer AI</span><ChevronDown :size='14' /></div>
       <div class='document-ai__header-actions'>
@@ -613,7 +654,7 @@ onBeforeUnmount(() => {
     </header>
 
     <section class='document-ai__body'>
-      <div class='document-ai__context'>
+      <div class='document-ai__context' data-testid='document-ai-context'>
         <FileText :size='18' />
         <div>
           <strong>{{ sourceHeading }}</strong>
@@ -661,6 +702,7 @@ onBeforeUnmount(() => {
 
       <div v-else class='document-ai__conversation'>
         <article v-for='item in messages' :key='item.id' :class="['document-ai__message', `document-ai__message--${item.role}`]">
+          <div v-if="item.role === 'assistant'" class='document-ai__message-meta'><Sparkles :size='13' /><span>BoxPlayer AI</span><span class='document-ai__message-rule'>基于文档</span></div>
           <div v-if="item.role === 'assistant' && item.text" class='document-ai__message-text document-ai__message-markdown' v-html='renderDocumentMarkdown(item.text)' />
           <div v-else class='document-ai__message-text'>{{ item.text || (asking && item.role === 'assistant' ? '正在生成回答…' : '') }}</div>
           <div v-if="item.role === 'assistant' && item.citations.length" class='document-ai__citations'>
@@ -700,6 +742,7 @@ onBeforeUnmount(() => {
       <textarea v-model='question' :disabled='asking' placeholder='Ask BoxPlayer AI · 输入 @ 提及文件' rows='1' @keydown.meta.enter.prevent='ask()' @keydown.ctrl.enter.prevent='ask()' @keydown.enter.exact.prevent='ask()'></textarea>
       <button v-if='asking' type='button' class='document-ai__stop-answer' title='停止回答' @click='stopAnswer'><X :size='18' /></button>
       <button v-else type='button' :disabled='!question.trim()' title='发送' @click='ask()'><ArrowUp :size='18' /></button>
+      <div class='document-ai__composer-hint'><span>仅基于已选文档回答</span><kbd>↵</kbd><span>发送</span><kbd>⇧↵</kbd><span>换行</span></div>
     </footer>
   </aside>
   <LimitReachedModal :visible="showUpgradeModal" @update:visible="showUpgradeModal = $event" />
@@ -752,4 +795,107 @@ onBeforeUnmount(() => {
 .document-ai__reading-map { max-width:820px; padding:4px 48px 12px; font-size:12px; }.document-ai__reading-map strong { font-size:13px; }.document-ai__reading-map ol { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }.document-ai__reading-map li { padding:7px 9px; }.document-ai__reading-notes { max-width:820px; padding:8px 48px 26px; }.document-ai__reading-notes-heading strong { font-size:14px; }.document-ai__reading-notes-heading span,.document-ai__reading-note>small { font-size:12px; }.document-ai__reading-note { padding:15px 16px; border-radius:9px; }
 :deep(.document-ai__message-markdown h1) { font-size:22px; }.document-ai__message-markdown h2 { font-size:18px; }.document-ai__message-markdown h3 { font-size:16px; }.document-ai__message-markdown h4 { font-size:15px; }:deep(.document-ai__message-markdown h1),:deep(.document-ai__message-markdown h2),:deep(.document-ai__message-markdown h3),:deep(.document-ai__message-markdown h4) { margin:28px 0 11px; font-weight:700; }.document-ai__message-markdown p { margin-bottom:15px; }
 @media (max-width:760px) { .document-ai__header { padding:0 16px; }.document-ai__context,.document-ai__empty,.document-ai__conversation,.document-ai__reading-map,.document-ai__reading-notes { padding-right:20px !important; padding-left:20px !important; }.document-ai__empty { padding-top:42px; }.document-ai__suggestions { grid-template-columns:1fr; }.document-ai__conversation { padding-top:24px; }.document-ai__composer { padding-right:16px; padding-left:16px; }.document-ai__message-text,.document-ai__message-markdown { font-size:14px; } }
+
+/* Keep PDF question-answering visually aligned with the book reader while
+   preserving its page-level citations and source controls. */
+.document-ai__context {
+  margin:12px auto 0;
+  border:1px solid var(--document-ai-line);
+  border-radius:9px;
+  background:var(--document-ai-surface);
+}
+.document-ai__resize-handle {
+  position:absolute;
+  z-index:20;
+  top:0;
+  bottom:0;
+  left:-5px;
+  width:10px;
+  cursor:col-resize;
+  touch-action:none;
+}
+.document-ai__resize-handle::after {
+  position:absolute;
+  top:50%;
+  left:3px;
+  width:3px;
+  height:42px;
+  border-radius:999px;
+  background:transparent;
+  content:'';
+  transform:translateY(-50%);
+  transition:background .16s ease, height .16s ease;
+}
+.document-ai__resize-handle:hover::after,
+.document-ai--resizing .document-ai__resize-handle::after {
+  height:58px;
+  background:rgb(var(--primary-6));
+}
+.document-ai--resizing {
+  transition:none !important;
+}
+.document-ai--sidebar .document-ai__context {
+  margin:10px 12px 0;
+  padding:11px 12px !important;
+}
+.document-ai__message-meta {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  color:var(--document-ai-muted);
+  font-size:11px;
+  font-weight:650;
+}
+.document-ai__message-rule {
+  padding:2px 6px;
+  border-radius:999px;
+  color:rgb(var(--primary-6));
+  background:rgba(var(--primary-6),.09);
+  font-size:10px;
+  font-weight:600;
+}
+.document-ai__message--assistant .document-ai__message-text {
+  box-sizing:border-box;
+  padding:13px 15px;
+  border:1px solid var(--document-ai-line);
+  border-radius:4px 12px 12px 12px;
+  background:var(--document-ai-surface);
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+.document-ai__message--assistant .document-ai__citations {
+  margin-top:-2px;
+}
+.document-ai__composer {
+  padding-bottom:33px;
+}
+.document-ai__composer-hint {
+  display:flex;
+  position:absolute;
+  right:24px;
+  bottom:8px;
+  left:24px;
+  align-items:center;
+  gap:5px;
+  color:var(--document-ai-muted);
+  font-size:10px;
+  line-height:1.35;
+  pointer-events:none;
+}
+.document-ai__composer-hint > span:first-child {
+  margin-right:auto;
+}
+.document-ai__composer-hint kbd {
+  min-width:15px;
+  padding:0 3px;
+  border:1px solid var(--document-ai-line);
+  border-bottom-width:2px;
+  border-radius:3px;
+  color:var(--document-ai-muted);
+  font:inherit;
+  text-align:center;
+}
+@media (max-width:760px) {
+  .document-ai__composer-hint { right:16px; left:16px; }
+  .document-ai__composer-hint > span:first-child { display:none; }
+}
 </style>

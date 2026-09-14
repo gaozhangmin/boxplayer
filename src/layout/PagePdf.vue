@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.js?url'
-import { Sparkles } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Minus, Plus, Sparkles } from 'lucide-vue-next'
 import DocumentAIModal from '../components/DocumentAIModal.vue'
 import LimitReachedModal from '../setting/LimitReachedModal.vue'
 import { KeyboardState, useAppStore, useKeyboardStore } from '../store'
@@ -186,19 +186,17 @@ onBeforeUnmount(() => {
         </a-button>
         <div class="title">{{ appStore.pagePdf?.file_name || 'PDF 预览' }}</div>
         <div class="pdf-toolbar q-electron-drag--exception">
-          <a-button type="outline" size="mini" :disabled="pageNum <= 1" @click="prevPage">上一页</a-button>
-          <span class="pdf-page-text">{{ pageNum }} / {{ pageCount || '-' }}</span>
-          <a-button type="outline" size="mini" :disabled="pageNum >= pageCount" @click="nextPage">下一页</a-button>
-          <a-button type="outline" size="mini" @click="zoomOut">-</a-button>
-          <span class="pdf-page-text">{{ Math.round(scale * 100) }}%</span>
-          <a-button type="outline" size="mini" @click="zoomIn">+</a-button>
-          <a-dropdown trigger="hover">
-            <a-button class="pdf-ai-button" type="outline" size="mini"><Sparkles :size="14" /> BoxPlayer AI</a-button>
-            <template #content>
-              <a-doption @click="openDocumentAI('总结这份文档')">总结这份文档</a-doption>
-              <a-doption @click="openDocumentAI()">询问这份文档</a-doption>
-            </template>
-          </a-dropdown>
+          <div class="pdf-toolbar-group" aria-label="翻页控制">
+            <a-button class="pdf-toolbar-button" type="text" size="mini" :disabled="pageNum <= 1" title="上一页" @click="prevPage"><ChevronLeft :size="15" /><span>上一页</span></a-button>
+            <span class="pdf-toolbar-status" :title="`第 ${pageNum} 页，共 ${pageCount || '-'} 页`">{{ pageNum }} <i>/</i> {{ pageCount || '-' }}</span>
+            <a-button class="pdf-toolbar-button" type="text" size="mini" :disabled="pageNum >= pageCount" title="下一页" @click="nextPage"><span>下一页</span><ChevronRight :size="15" /></a-button>
+          </div>
+          <div class="pdf-toolbar-group" aria-label="缩放控制">
+            <a-button class="pdf-toolbar-icon-button" type="text" size="mini" title="缩小" @click="zoomOut"><Minus :size="15" /></a-button>
+            <span class="pdf-toolbar-status pdf-zoom-status">{{ Math.round(scale * 100) }}%</span>
+            <a-button class="pdf-toolbar-icon-button" type="text" size="mini" title="放大" @click="zoomIn"><Plus :size="15" /></a-button>
+          </div>
+          <a-button class="pdf-ai-button" type="primary" size="mini" title="打开文档 AI 对话" @click="openDocumentAI()"><Sparkles :size="15" /> <span>AI 问答</span></a-button>
         </div>
         <div class="flexauto"></div>
         <a-button type='text' tabindex='-1' title='最小化 Alt+M' @click='handleMinClick'>
@@ -235,16 +233,78 @@ onBeforeUnmount(() => {
 .pdf-toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-left: 12px;
+  gap: 10px;
+  margin-left: 16px;
+}
+
+.pdf-toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border: 1px solid var(--color-border-2);
+  border-radius: 8px;
+  background: var(--color-bg-2);
+  overflow: hidden;
+}
+
+.pdf-toolbar-button,
+.pdf-toolbar-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  color: var(--color-text-2);
+  font-size: 12px;
+}
+
+.pdf-toolbar-icon-button {
+  padding: 0;
+}
+
+.pdf-toolbar-button:hover:not(:disabled),
+.pdf-toolbar-icon-button:hover:not(:disabled) {
+  color: rgb(var(--primary-6));
+  background: rgba(var(--primary-6), 0.1);
+}
+
+.pdf-toolbar-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  height: 30px;
+  padding: 0 7px;
+  border-right: 1px solid var(--color-border-2);
+  border-left: 1px solid var(--color-border-2);
+  color: var(--color-text-1);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.pdf-toolbar-status i {
+  margin: 0 4px;
+  color: var(--color-text-4);
+  font-style: normal;
+  font-weight: 400;
+}
+
+.pdf-zoom-status {
+  min-width: 52px;
 }
 
 .pdf-ai-button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-left: 4px;
-  color: #6558e8;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
 }
 
 .pdf-content {

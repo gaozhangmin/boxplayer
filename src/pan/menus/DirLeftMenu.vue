@@ -124,20 +124,6 @@ const handleStartScan = async () => {
   await Promise.allSettled(tasks)
 }
 
-// AI 批量刮削
-const handleAIBatchScrape = async () => {
-  const folder = buildSelectedFolder()
-  if (!folder) return
-  if (mediaScanner.isCurrentlyScanning) { message.warning('正在扫描中，请稍后...'); return }
-  try {
-    appStore.toggleTab('media')
-    await mediaScanner.batchAIScrapeFolder(folder, pantreeStore.drive_id)
-  } catch (error) {
-    console.error('AI 批量刮削失败:', error)
-    message.error('AI 批量刮削失败，请稍后重试')
-  }
-}
-
 // 检查是否选中了有效的文件夹
 const isSelectedFolder = computed(() => {
   return pantreeStore.selectDir && pantreeStore.selectDir.file_id && pantreeStore.selectDir.file_id !== ''
@@ -215,10 +201,6 @@ const isSelectedFolder = computed(() => {
           <a-doption @click="handleStartScan">
             <template #icon><IconFont name="iconstart" /></template>
             <template #default>{{ t('file.startScan') }}</template>
-          </a-doption>
-          <a-doption @click="handleAIBatchScrape">
-            <template #icon><IconFont name="iconscan" /></template>
-            <template #default>AI 重刮削 <span class="ai-pro-badge">Pro</span></template>
           </a-doption>
         </template>
       </a-dsubmenu>

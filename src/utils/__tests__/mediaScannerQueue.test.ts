@@ -16,6 +16,10 @@ const mediaStore = {
 }
 
 const storage = new Map<string, string>()
+const settingStore = {
+  mediaLibrarySubtitleScope: 'same-folder' as const,
+  apiAIMediaScrapeEnabled: false
+}
 const mediaDb = {
   getIndexedMediaFileIds: vi.fn().mockResolvedValue(new Set()),
   getMediaLibraryFolderFileIds: vi.fn().mockResolvedValue([]),
@@ -24,7 +28,7 @@ const mediaDb = {
 
 vi.mock('../../store/medialibrary', () => ({ useMediaLibraryStore: () => mediaStore }))
 vi.mock('../../store', () => ({ usePanTreeStore: () => ({ drive_id: 'quark', user_id: 'quark_user' }) }))
-vi.mock('../../setting/settingstore', () => ({ default: () => ({ mediaLibrarySubtitleScope: 'same-folder' }) }))
+vi.mock('../../setting/settingstore', () => ({ default: () => settingStore }))
 vi.mock('../message', () => ({ default: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }))
 vi.mock('../libraryScanRateLimiter', () => ({
   libraryScanRateLimitScope: vi.fn(() => 'test-scope'),
@@ -77,6 +81,7 @@ describe('MediaScanner scan queue', () => {
     storage.clear()
     mediaStore.mediaItems = []
     mediaStore.folders = []
+    settingStore.apiAIMediaScrapeEnabled = false
     mediaDb.getMediaLibraryFolderFileIds.mockResolvedValue([])
   })
 
@@ -197,6 +202,34 @@ describe('MediaScanner scan queue', () => {
 
     expect(mediaStore.setScanProgress).toHaveBeenCalledWith(1, 2)
     expect(mediaStore.setScanProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('sends unmatched videos to AI only after regular scraping has finished', async () => {
+    settingStore.apiAIMediaScrapeEnabled = true
+    const scanner = new MediaScanner()
+    const rootVideo = { drive_id: 'quark', file_id: 'root-video', parent_file_id: 'root-folder', name: 'Root.Movie.2026.mkv', path: '/Root.Movie.2026.mkv', isDir: false, size: 1 } as any
+    const childFolder = { drive_id: 'quark', file_id: 'child-folder', parent_file_id: 'root-folder', name: 'Child', path: '/Child', isDir: true } as any
+    const childVideo = { drive_id: 'quark', file_id: 'child-video', parent_file_id: 'child-folder', name: 'Child.Movie.2026.mkv', path: '/Child/Child.Movie.2026.mkv', isDir: false, size: 1 } as any
+    const events: string[] = []
+
+    ;(scanner as any).getFolderItemsWithRetry = vi.fn()
+      .mockResolvedValueOnce([rootVideo, childFolder])
+      .mockResolvedValueOnce([childVideo])
+    vi.spyOn(scanner as any, 'canRunInternalAIScrape').mockResolvedValue(true)
+    vi.spyOn(scanner as any, 'processVideoFileWithoutAI').mockImplementation(async (file: any) => {
+      events.push(`tmdb:${file.id}`)
+      return file
+    })
+    const applyAI = vi.spyOn(scanner as any, 'applyBatchAIScrapeResults').mockImplementation(async (...args: unknown[]) => {
+      const files = args[0] as any[]
+      events.push(`ai:${files.map(file => file.id).join(',')}`)
+      return 0
+    })
+
+    await scanner.scanFolder(folder('root-folder'), 'quark', { silent: true })
+
+    expect(events).toEqual(['tmdb:root-video', 'tmdb:child-video', 'ai:root-video,child-video'])
+    expect(applyAI).toHaveBeenCalledTimes(1)
   })
 
   it('uses the shared scrape result pipeline for local video files', async () => {

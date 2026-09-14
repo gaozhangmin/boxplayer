@@ -206,9 +206,10 @@ export function mapBoxPlayerCloudAIError(error: unknown): string {
   // Pi's OpenAI-compatible stream reports body-less HTTP failures as a status
   // string. The cloud worker reserves 429 exclusively for the monthly credit limit.
   if (/\b429\b/.test(code)) return '本月内置 AI 额度已用完。你可以等待下月重置，或在设置中改用自己的 AI API Key。'
-  // The current Cloudflare streaming bridge can surface the same rejected
-  // request as a body-less 500 even though the Worker records the quota code.
-  if (/\b500 status code \(no body\)/.test(code)) return '本月内置 AI 额度已用完。你可以等待下月重置，或在设置中改用自己的 AI API Key。'
+  // A body-less 500 is an upstream model/bridge failure, not evidence that a
+  // user's quota was exhausted. Quota exhaustion is always returned as a 429
+  // or an explicit quota code by our Worker.
+  if (/\b500 status code \(no body\)/.test(code)) return '内置 AI 模型服务执行失败，请稍后重试。'
   return code
 }
 

@@ -40,7 +40,14 @@ const apiParentId = (parentId: string | number) => {
   return id === 'cloud189_root' || id === '0' || id === '/' || id === '' ? '-11' : id
 }
 
-const signedRequest = async (user_id: string, method: 'GET' | 'POST', action: string, params: Record<string, string>) => {
+const renewSession = async (user_id: string) => {
+  const token = await getProviderTokenForUser(user_id, '189')
+  const refreshed = token && await refreshCloud189Token(token)
+  if (!refreshed?.open_api_access_token || !refreshed?.open_api_refresh_token) throw new Error('天翼云盘会话已失效，自动刷新失败，请重新登录')
+  UserDAL.SaveUserToken(refreshed)
+}
+
+const signedRequest = async (user_id: string, method: 'GET' | 'POST', action: string, params: Record<string, string>, retried = false): Promise<any> => {
   const token = await getToken(user_id)
   if (!token?.open_api_access_token || !token?.open_api_refresh_token) throw new Error('天翼云盘登录态无效，请重新登录')
   const url = `${CLOUD189_API_URL}/${action}`
@@ -55,7 +62,11 @@ const signedRequest = async (user_id: string, method: 'GET' | 'POST', action: st
     }
   })
   const data = await resp.json().catch(() => undefined)
-  if (!resp.ok || Number(data?.res_code || 0) !== 0) throw new Error(data?.res_message || data?.message || `天翼云盘请求失败 HTTP ${resp.status}`)
+  if (data?.errorCode === 'InvalidSessionKey' && !retried) {
+    await renewSession(user_id)
+    return signedRequest(user_id, method, action, params, true)
+  }
+  if (!resp.ok || data?.errorCode || data?.success === false || Number(data?.res_code || 0) !== 0) throw new Error(data?.errorMsg || data?.res_message || data?.message || `天翼云盘请求失败 HTTP ${resp.status}`)
   return data
 }
 
@@ -63,7 +74,7 @@ const signedGet = (user_id: string, action: string, params: Record<string, strin
 
 const signedPost = (user_id: string, action: string, params: Record<string, string>) => signedRequest(user_id, 'POST', action, params)
 
-const signedForm = async (user_id: string, action: string, form: Record<string, string>) => {
+const signedForm = async (user_id: string, action: string, form: Record<string, string>, retried = false): Promise<any> => {
   const token = await getToken(user_id)
   if (!token?.open_api_access_token || !token?.open_api_refresh_token) throw new Error('天翼云盘登录态无效，请重新登录')
   const url = `${CLOUD189_API_URL}/${action}`
@@ -80,8 +91,12 @@ const signedForm = async (user_id: string, action: string, form: Record<string, 
     body: new URLSearchParams(form)
   })
   const data = await resp.json().catch(() => undefined)
-  if (!resp.ok || ![undefined, '', 0, '0'].includes(data?.res_code) || (data?.code && data.code !== 'SUCCESS')) {
-    throw new Error(data?.res_message || data?.message || `天翼云盘请求失败 HTTP ${resp.status}`)
+  if (data?.errorCode === 'InvalidSessionKey' && !retried) {
+    await renewSession(user_id)
+    return signedForm(user_id, action, form, true)
+  }
+  if (!resp.ok || data?.errorCode || data?.success === false || ![undefined, '', 0, '0'].includes(data?.res_code) || (data?.code && data.code !== 'SUCCESS')) {
+    throw new Error(data?.errorMsg || data?.res_message || data?.message || `天翼云盘请求失败 HTTP ${resp.status}`)
   }
   return data
 }

@@ -230,6 +230,7 @@ export interface SettingState {
   apiAIIndexingMode: 'on-demand' | 'background'
   apiAIReedyEnabled: boolean
   apiAIReedyRuntime: 'mvp' | 'agent'
+  apiAIMediaScrapeEnabled: boolean
   mediaAcquisitionPreferredQuality: 'auto' | '2160p' | '1080p' | '720p' | '480p'
   mediaAcquisitionFetchSubtitles: boolean
   mediaAcquisitionSubtitleLanguage: 'zh-CN' | 'zh-Hant' | 'en' | 'ja' | 'ko' | 'auto'
@@ -454,6 +455,7 @@ const setting: SettingState = {
   apiAIIndexingMode: 'on-demand',
   apiAIReedyEnabled: false,
   apiAIReedyRuntime: 'mvp',
+  apiAIMediaScrapeEnabled: false,
   mediaAcquisitionPreferredQuality: 'auto',
   mediaAcquisitionFetchSubtitles: true,
   mediaAcquisitionSubtitleLanguage: 'zh-CN',
@@ -693,6 +695,7 @@ function _loadSetting(val: any) {
   setting.apiAIIndexingMode = defaultValue(val.apiAIIndexingMode, ['on-demand', 'background'])
   setting.apiAIReedyEnabled = defaultBool(val.apiAIReedyEnabled, false)
   setting.apiAIReedyRuntime = defaultValue(val.apiAIReedyRuntime, ['mvp', 'agent']) as 'mvp' | 'agent'
+  setting.apiAIMediaScrapeEnabled = defaultBool(val.apiAIMediaScrapeEnabled, false)
   setting.mediaAcquisitionPreferredQuality = defaultValue(val.mediaAcquisitionPreferredQuality, ['auto', '2160p', '1080p', '720p', '480p']) as SettingState['mediaAcquisitionPreferredQuality']
   setting.mediaAcquisitionFetchSubtitles = defaultBool(val.mediaAcquisitionFetchSubtitles, true)
   setting.mediaAcquisitionSubtitleLanguage = defaultValue(val.mediaAcquisitionSubtitleLanguage, ['zh-CN', 'zh-Hant', 'en', 'ja', 'ko', 'auto']) as SettingState['mediaAcquisitionSubtitleLanguage']

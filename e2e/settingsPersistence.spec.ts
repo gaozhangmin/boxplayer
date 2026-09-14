@@ -37,6 +37,29 @@ test('application settings persist after the production renderer reloads', async
   expect(consoleErrors).toEqual([])
 })
 
+test('AI scraping preference persists after the production renderer reloads', async ({ boxPlayer }) => {
+  const { page, pageErrors, consoleErrors } = boxPlayer
+  await page.getByTestId('open-settings').click()
+  const setting = page.getByTestId('ai-media-scrape-setting')
+  await setting.scrollIntoViewIfNeeded()
+  await expect(setting).toBeVisible()
+
+  const toggle = setting.locator('.arco-switch')
+  const initialChecked = await toggle.getAttribute('aria-checked')
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
+
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  await page.getByTestId('open-settings').click()
+  const reloadedToggle = page.getByTestId('ai-media-scrape-setting').locator('.arco-switch')
+  await expect(reloadedToggle).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')
+
+  await reloadedToggle.click()
+  expect(pageErrors).toEqual([])
+  expect(consoleErrors).toEqual([])
+})
+
 test('logging out resets the email verification flow', async ({ boxPlayer }) => {
   const { page, pageErrors, consoleErrors } = boxPlayer
   const dismissLoginDialog = async () => {

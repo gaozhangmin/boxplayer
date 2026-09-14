@@ -96,23 +96,6 @@ const handleStartScan = async () => {
   await Promise.allSettled(tasks)
 }
 
-// AI 批量刮削
-const handleAIBatchScrape = async () => {
-  const folder = pickFolderForScan()
-  if (!folder) return
-  if (mediaScanner.isCurrentlyScanning) {
-    message.warning(t('file.scanning'))
-    return
-  }
-  try {
-    appStore.toggleTab('media')
-    await mediaScanner.batchAIScrapeFolder(folder, (folder as any).drive_id)
-  } catch (error) {
-    console.error('AI 批量刮削失败:', error)
-    message.error(t('file.aiRescrapeFailed'))
-  }
-}
-
 const props = defineProps({
   dirtype: {
     type: String,
@@ -290,10 +273,6 @@ function openDocumentAI(initialPrompt = '') {
           <a-doption @click="handleStartScan">
             <template #icon><IconFont name="iconstart" /></template>
             <template #default>{{ t('file.startScan') }}</template>
-          </a-doption>
-          <a-doption @click="handleAIBatchScrape">
-            <template #icon><IconFont name="iconscan" /></template>
-            <template #default>{{ t('file.aiRescrape') }} <span class="ai-pro-badge">Pro</span></template>
           </a-doption>
         </template>
       </a-dsubmenu>

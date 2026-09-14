@@ -61,7 +61,7 @@ export class MediaScanner {
   async scanFolder(
     folder: IAliGetFileModel,
     driveServerId: string,
-    options: { incremental?: boolean; silent?: boolean; aiScrape?: boolean; mediaHint?: MediaScanHint } = {}
+    options: { incremental?: boolean; silent?: boolean; mediaHint?: MediaScanHint } = {}
   ): Promise<void> {
     while (this.isScanning) {
       if (!options.silent) {
@@ -103,7 +103,9 @@ export class MediaScanner {
       let unresolvedTransientFailures = 0
 
       console.log('开始扫描网盘文件夹:', folder.name)
-      const shouldRunAIScrape = Boolean(options.aiScrape && await this.canRunInternalAIScrape())
+      // 与 iOS 保持一致：只有用户在设置中明确开启后，才在完整的常规刮削
+      // 结束后把未匹配项交给 AI。AI 不能抢在 TMDB 匹配流程中间执行。
+      const shouldRunAIScrape = Boolean(useSettingStore().apiAIMediaScrapeEnabled && await this.canRunInternalAIScrape())
       let totalFound = 0
       const pendingAIUnmatched: DriveFileItem[] = []
       const flushAIUnmatched = async () => {
@@ -122,9 +124,6 @@ export class MediaScanner {
         },
         async (unmatched) => {
           pendingAIUnmatched.push(...unmatched)
-          while (pendingAIUnmatched.length >= 10) {
-            await this.applyBatchAIScrapeResults(pendingAIUnmatched.splice(0, 10), folder.name, folderKey, false)
-          }
         }, subtitleIndex
       )
 
@@ -1302,17 +1301,6 @@ export class MediaScanner {
   // 检查是否正在扫描
   get isCurrentlyScanning(): boolean {
     return this.isScanning
-  }
-
-  // AI 批量刮削：收集文件夹内所有视频文件，一次性发给 AI 识别
-  async batchAIScrapeFolder(folder: IAliGetFileModel, driveServerId: string): Promise<number> {
-    if (this.isScanning) {
-      message.warning('正在扫描中，请稍后...')
-      return 0
-    }
-
-    await this.scanFolder(folder, driveServerId, { aiScrape: await this.canRunInternalAIScrape() })
-    return 0
   }
 
   private async canRunInternalAIScrape(): Promise<boolean> {

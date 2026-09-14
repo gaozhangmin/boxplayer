@@ -33,7 +33,7 @@ describe('BoxPlayer Cloud AI error mapping', () => {
     expect(mapBoxPlayerCloudAIError('429 status code (no body)')).toContain('本月内置 AI 额度已用完')
   })
 
-  it('maps the Cloudflare bridge 500 observed for a rejected cloud request', () => {
-    expect(mapBoxPlayerCloudAIError('500 status code (no body)')).toContain('本月内置 AI 额度已用完')
+  it('does not mislabel a body-less Cloudflare 500 as a user quota error', () => {
+    expect(mapBoxPlayerCloudAIError('500 status code (no body)')).toContain('模型服务执行失败')
   })
 })

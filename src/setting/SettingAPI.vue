@@ -29,6 +29,7 @@ const aiMaxContextChunks = ref(settingStore.apiAIMaxContextChunks)
 const aiIndexingMode = ref(settingStore.apiAIIndexingMode)
 const aiReedyEnabled = ref(settingStore.apiAIReedyEnabled)
 const aiReedyRuntime = ref(settingStore.apiAIReedyRuntime)
+const aiMediaScrapeEnabled = ref(settingStore.apiAIMediaScrapeEnabled)
 const mediaAcquisitionPreferredQuality = ref(settingStore.mediaAcquisitionPreferredQuality)
 const mediaAcquisitionFetchSubtitles = ref(settingStore.mediaAcquisitionFetchSubtitles)
 const mediaAcquisitionSubtitleLanguage = ref(settingStore.mediaAcquisitionSubtitleLanguage)
@@ -207,6 +208,7 @@ watch(aiMaxContextChunks, (v) => settingStore.updateStore({ apiAIMaxContextChunk
 watch(aiIndexingMode, (v) => settingStore.updateStore({ apiAIIndexingMode: v }))
 watch(aiReedyEnabled, (v) => settingStore.updateStore({ apiAIReedyEnabled: v }))
 watch(aiReedyRuntime, (v) => settingStore.updateStore({ apiAIReedyRuntime: v }))
+watch(aiMediaScrapeEnabled, (v) => settingStore.updateStore({ apiAIMediaScrapeEnabled: v }))
 watch(mediaAcquisitionPreferredQuality, (v) => settingStore.updateStore({ mediaAcquisitionPreferredQuality: v }))
 watch(mediaAcquisitionFetchSubtitles, (v) => settingStore.updateStore({ mediaAcquisitionFetchSubtitles: v }))
 watch(mediaAcquisitionSubtitleLanguage, (v) => settingStore.updateStore({ mediaAcquisitionSubtitleLanguage: v }))
@@ -503,6 +505,15 @@ async function runConnectionTest() {
       <span class='ai-hint'>{{ aiReedyRuntime === 'agent' ? t('settings.ai.agentModeHint') : t('settings.ai.toolModeHint') }}</span>
     </div>
     <div class='ai-footnote'>{{ t('settings.ai.agentFootnote') }}</div>
+  </div>
+
+  <div class='settingcard' data-testid='ai-media-scrape-setting'>
+    <div class='settinghead'>{{ t('settings.ai.mediaScraping') }}</div>
+    <div class='settingrow'>
+      <span class='ai-reedy-label'>{{ t('settings.ai.enableMediaScraping') }}</span>
+      <a-switch v-model:model-value='aiMediaScrapeEnabled' />
+      <span class='ai-hint'>{{ t('settings.ai.mediaScrapingHint') }}</span>
+    </div>
   </div>
 
   <div class='settingcard'>

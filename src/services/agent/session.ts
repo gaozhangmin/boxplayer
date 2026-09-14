@@ -249,17 +249,26 @@ export async function runBoxPlayerAgent(options: RunBoxPlayerAgentOptions): Prom
   const abort = () => agent.abort()
   options.signal?.addEventListener('abort', abort, { once: true })
 
+  let failure: Error | undefined
   try {
     await agent.prompt(promptWithUntrustedContext(options.prompt, options.untrustedContext))
     // A sandbox may deliberately stop after a terminal tool result. Pi reports
     // that as an abort; surfacing it as a model error makes a successful import
     // look failed and can poison the task's subsequent event interpretation.
-    if (!expectedStop && agent.state.errorMessage) await options.onEvent?.({ type: 'error', message: formatAgentModelError(options.model, agent.state.errorMessage) })
+    if (!expectedStop && agent.state.errorMessage) failure = new Error(formatAgentModelError(options.model, agent.state.errorMessage))
   } catch (error) {
-    if (!expectedStop) await options.onEvent?.({ type: 'error', message: formatAgentModelError(options.model, error) })
+    if (!expectedStop) failure = new Error(formatAgentModelError(options.model, error))
   } finally {
     options.signal?.removeEventListener('abort', abort)
     unsubscribe()
+  }
+  // Callers use the rejected promise to end their visible loading state. The
+  // previous implementation only emitted an event, so an async subscriber
+  // could not propagate the failure and document Q&A misleadingly showed an
+  // empty generic reply instead of the real model/login/quota error.
+  if (failure) {
+    await options.onEvent?.({ type: 'error', message: failure.message })
+    throw failure
   }
   return agent.state.messages as unknown[]
 }

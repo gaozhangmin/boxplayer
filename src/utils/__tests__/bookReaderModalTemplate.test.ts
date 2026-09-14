@@ -127,7 +127,7 @@ describe('BookReaderModal template structure', () => {
 
     expect(source).toContain('isFixedLayoutBookFormat')
     expect(source).toContain(':is-fixed-layout="readerIsFixedLayout"')
-    expect(source).toContain("readerIsFixedLayout ? 'Page' : 'Chapter page'")
+    expect(source).toContain("readerIsFixedLayout ? '页码' : '本章'")
     expect(widgetSource).toContain('isFixedLayout: boolean')
     expect(widgetSource).toContain('Chapter ${props.currentChapter || 1}')
   })
