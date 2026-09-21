@@ -328,6 +328,25 @@ test('downloads every file in a real cloud folder (BP-000077 BP-000084)', async 
   }
 })
 
+test('shows real Quark recycle-bin entries through the dedicated recycle endpoint (BP-000104)', async ({ boxPlayer }) => {
+  const { page, pageErrors, consoleErrors } = boxPlayer
+  await switchToRealProvider(page, '夸克网盘')
+  const recycleRequest = page.waitForResponse((response) => {
+    const url = new URL(response.url())
+    return url.hostname.endsWith('quark.cn') && url.pathname.endsWith('/file/recycle/list') && response.status() === 200
+  })
+  const recycleNode = page.locator('.dirtree:visible .dirtitle').getByText('回收站', { exact: true }).first()
+  await expect(recycleNode).toBeVisible({ timeout: 45_000 })
+  await recycleNode.click()
+  const response = await recycleRequest
+  const payload = await response.json() as { data?: { list?: Array<{ file_name?: string }> } }
+  const listed = payload.data?.list || []
+  await expect(page.locator('#panfilelist:visible')).toBeVisible()
+  if (listed[0]?.file_name) await expect(fileListItem(page, listed[0].file_name)).toBeVisible({ timeout: 45_000 })
+  expect(pageErrors).toEqual([])
+  expect(unexpectedCloudErrors(consoleErrors)).toEqual([])
+})
+
 test('queues every existing Aliyun folder file and downloads more than the first (BP-000077 BP-000084)', async ({ boxPlayer }) => {
   test.setTimeout(180_000)
   const { app, page } = boxPlayer

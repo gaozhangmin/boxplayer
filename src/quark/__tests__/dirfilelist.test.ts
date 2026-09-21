@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { apiQuarkDownloadUrl, apiQuarkFileList, apiQuarkVideoPreviewUrl, mapQuarkFileToAliModel } from '../dirfilelist'
+import { apiQuarkDownloadUrl, apiQuarkFileList, apiQuarkTrashList, apiQuarkVideoPreviewUrl, mapQuarkFileToAliModel } from '../dirfilelist'
+import { listQuarkItems } from '../adapter'
 import { apiQuarkMkdir } from '../filecmd'
 
 (globalThis as any).pinyinlite = (input: string) => input.split('').map((char) => [char])
@@ -43,6 +44,44 @@ describe('apiQuarkFileList', () => {
     expect(String(url)).toContain('/file/sort?')
     expect(String(url)).toContain('pdir_fid=0')
     expect((init.headers as Record<string, string>).cookie).toContain('__uid=u1')
+  })
+})
+
+describe('apiQuarkTrashList', () => {
+  it('uses the dedicated recycle endpoint instead of treating trash as a folder', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 200,
+        data: {
+          list: [{ fid: 'deleted-file', record_id: 'recycle-record', file_name: 'Deleted.mp4', file_type: 1, size: 2048 }],
+          metadata: { _total: 201 }
+        }
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await apiQuarkTrashList('quark_u1', 200, 2)
+    expect(result).toMatchObject({ total: 201, items: [{ fid: 'deleted-file', record_id: 'recycle-record' }] })
+    const [url] = fetchMock.mock.calls[0]
+    expect(String(url)).toContain('/file/recycle/list?')
+    expect(String(url)).toContain('_page=2')
+    expect(String(url)).toContain('_size=200')
+  })
+
+  it('maps recycle records into the visible trash directory and keeps pagination', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: 200,
+        data: { list: [{ fid: 'deleted-file', record_id: 'recycle-record', file_name: 'Deleted.mp4', file_type: 1, size: 2048 }], metadata: { _total: 201 } }
+      })
+    }))
+
+    const result = await listQuarkItems('quark_u1', 'quark', 'trash', true, 1)
+    expect(result.nextCursor).toBe('2')
+    expect(result.items[0]).toMatchObject({ file_id: 'deleted-file', parent_file_id: 'trash', name: 'Deleted.mp4' })
+    expect(result.items[0].description).toContain('quark_record:recycle-record')
   })
 })
 

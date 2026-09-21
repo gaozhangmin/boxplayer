@@ -9,10 +9,12 @@ import { quarkAuthHeaders, quarkDownloadHeaders, syncQuarkCookiesToElectron } fr
 
 export type QuarkFileItem = {
   fid: string
+  record_id?: string
   pdir_fid?: string
   file_name: string
   category?: number
   file_type?: number
+  dir?: boolean
   format_type?: string
   size?: number | string
   updated_at?: number | string
@@ -131,6 +133,33 @@ export const apiQuarkFileList = async (
   }
 }
 
+/**
+ * The recycle bin is not a normal directory. Passing `trash` to file/sort
+ * silently returns an empty list, even while deleted files exist. Quark keeps
+ * the recycle records behind this separate, paginated endpoint.
+ */
+export const apiQuarkTrashList = async (
+  user_id: string,
+  size = 100,
+  page = 1,
+  strict = false
+): Promise<{ items: QuarkFileItem[]; total: number }> => {
+  const data = await quarkRequest(user_id, 'file/recycle/list', {}, {
+    _page: page,
+    _size: size,
+    _fetch_total: 1
+  })
+  if (!data || isQuarkError(data)) {
+    if (strict) throw new Error(data?.message || '获取夸克回收站失败')
+    return { items: [], total: 0 }
+  }
+  const items = getListFromResponse(data)
+  return {
+    items,
+    total: Number((data as any)?.metadata?._total || (data as any)?.data?.metadata?._total || items.length)
+  }
+}
+
 export const apiQuarkSearch = async (user_id: string, keyword: string, size = 200, silent = false): Promise<QuarkFileItem[]> => {
   if (!keyword) return []
   const data = await quarkRequest(user_id, 'file/search', {}, {
@@ -246,7 +275,7 @@ export const apiQuarkVideoPreviewUrl = async (user_id: string, fileId: string): 
 }
 
 export const mapQuarkFileToAliModel = (item: QuarkFileItem, drive_id: string, parentId: string): IAliGetFileModel => {
-  const isDir = Number(item.file_type || 0) === 0
+  const isDir = item.dir === true || Number(item.file_type || 0) === 0
   const name = item.file_name || ''
   const ext = isDir ? '' : (name.split('.').pop() || '')
   const size = Number(item.size || 0)
@@ -279,6 +308,6 @@ export const mapQuarkFileToAliModel = (item: QuarkFileItem, drive_id: string, pa
     starred: false,
     isDir,
     thumbnail: item.thumbnail || item.preview_url || '',
-    description: `quark_fid:${item.fid || ''};quark_pdir:${item.pdir_fid || parentId}`
+    description: `quark_fid:${item.fid || ''};quark_pdir:${item.pdir_fid || parentId}${item.record_id ? `;quark_record:${item.record_id}` : ''}`
   }
 }
