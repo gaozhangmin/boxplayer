@@ -25,10 +25,11 @@ process.on('message', async (message) => {
       mpv.create(message.config)
       mpv.onFrame((frame) => {
         if (!frame?.pixels) return
-        if (waitingForFrameAck) pendingFrame = frame
+        const copiedFrame = { ...frame, pixels: Buffer.from(frame.pixels) }
+        if (waitingForFrameAck) pendingFrame = copiedFrame
         else {
           waitingForFrameAck = true
-          send({ type: 'frame', frame })
+          send({ type: 'frame', frame: copiedFrame })
         }
       })
       mpv.onStatus((status) => send({ type: 'status', status, tracks: mpv.getTrackStatus?.() }))

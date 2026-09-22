@@ -49,6 +49,7 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
       ready = new Promise<void>((resolve, reject) => { readyResolve = resolve; readyReject = reject })
       child = fork(path.join(directory, 'mpv-host.cjs'), [], {
         execPath: path.join(directory, 'mpv-node-host'),
+        execArgv: [],
         stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
         serialization: 'advanced',
         env: { ...process.env, ELECTRON_RUN_AS_NODE: undefined }
