@@ -59,6 +59,9 @@ jobs:
           pnpm --dir native/boxplayer-mpv-texture run bundle:software
           node scripts/check-embedded-mpv-bundles.mjs win32/x64
 
+      - name: Diagnose native software playback
+        run: node native/boxplayer-mpv-texture/scripts/smoke-playback.mjs
+
       - name: Verify visible playback in production Electron entry
         env:
           BOXPLAYER_MPV_REQUIRE_E2E: '1'

@@ -172,7 +172,13 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
       ariaProcess?.kill()
       rendererProcess?.kill()
-      rmSync(userData, { recursive: true, force: true })
+      try {
+        rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+      } catch (error) {
+        // Windows can retain Chromium cache handles after Electron exits.
+        // A cleanup failure must not hide the playback assertion that failed.
+        console.warn(`Could not remove isolated E2E profile ${userData}:`, error)
+      }
     }
   }
 })

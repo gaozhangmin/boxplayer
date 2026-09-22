@@ -36,6 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential meson ninja-build pkg-config patchelf \
+            gdb \
             libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev \
             libswresample-dev libswscale-dev libplacebo-dev libass-dev \
             libpulse-dev xvfb
@@ -57,6 +58,11 @@ jobs:
           node scripts/check-embedded-mpv-bundles.mjs linux/${{ matrix.arch }}
           ldd static/engine/linux/${{ matrix.arch }}/mpv-texture/mpv_texture.node
           ldd static/engine/linux/${{ matrix.arch }}/mpv-texture/libmpv.so.2
+
+      - name: Diagnose native software playback
+        run: |
+          gdb -batch -ex run -ex 'thread apply all bt 12' --args \
+            node native/boxplayer-mpv-texture/scripts/smoke-playback.mjs
 
       - name: Verify visible playback in production Electron entry
         env:
