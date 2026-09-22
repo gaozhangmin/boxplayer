@@ -1,7 +1,6 @@
 import { chromium, expect, test } from '@playwright/test'
 import { spawn, execFileSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdtempSync } from 'node:fs'
-import { createRequire } from 'node:module'
 import { connect } from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
@@ -26,7 +25,7 @@ async function waitForPort(port: number): Promise<void> {
 test('Windows production Electron displays embedded MPV software frames', async () => {
   const entry = path.resolve('dist/electron/main/index.js')
   if (!existsSync(entry)) throw new Error(`Missing production Electron entry: ${entry}`)
-  const electronBinary = createRequire(import.meta.url)('electron') as string
+  const electronBinary = require('electron') as string
   const userData = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-mpv-cdp-'))
   const port = 19222
   const electronProcess: ChildProcess = spawn(electronBinary, [`--remote-debugging-port=${port}`, entry], {
