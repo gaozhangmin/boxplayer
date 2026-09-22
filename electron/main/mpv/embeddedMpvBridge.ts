@@ -43,6 +43,7 @@ export interface EmbeddedMpvBridge {
   control(request: EmbeddedMpvControlRequest): Promise<EmbeddedMpvControlResult>
   getStatus(): Promise<EmbeddedMpvControlResult>
   acknowledgeSoftwareFrame?(sender: WebContents): void
+  destroy?(): void
 }
 
 export class DisabledEmbeddedMpvBridge implements EmbeddedMpvBridge {
@@ -81,6 +82,10 @@ export class DisabledEmbeddedMpvBridge implements EmbeddedMpvBridge {
 
 export class RoutedEmbeddedMpvBridge implements EmbeddedMpvBridge {
   private readonly textureBridge = new EmbeddedMpvTextureBridge()
+
+  destroy(): void {
+    this.textureBridge.destroy()
+  }
 
   getCapability(): EmbeddedMpvCapability {
     return this.textureBridge.getCapability()

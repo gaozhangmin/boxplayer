@@ -19,6 +19,7 @@ import { destroyDb } from './reedy/ReedyService'
 import { DRIVE115_DOWN_AGENT } from '@shared/drive115'
 import { restoreCloud189DateHeader } from '@shared/cloud189RequestHeaders'
 import { Drive115PlaybackAuthRegistry } from './drive115PlaybackAuth'
+import { embeddedMpvBridge } from './mpv/embeddedMpvBridge'
 
 const OAUTH_PROTOCOLS = ['xbyboxplayer-oauth', 'boxplayer-onedriveoauth', 'boxplayer-auth']
 
@@ -359,6 +360,7 @@ export default class launch extends EventEmitter {
 
   handleAppWillQuit() {
     app.on('will-quit', async () => {
+      embeddedMpvBridge.destroy?.()
       stopAgentCliExecutionScheduler()
       this.stopGoogleOAuthLoopback()
       try { await this.motrixApp?.quit() } catch {}
