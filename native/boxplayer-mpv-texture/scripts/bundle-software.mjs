@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { binaryArchitecture } from '../../../scripts/check-embedded-mpv-bundles.mjs'
@@ -63,6 +63,18 @@ for (const input of inputs) {
   }
   const bytes = readFileSync(destination)
   copied.push({ name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })
+}
+if (platform === 'linux') {
+  for (const [input, name] of [
+    [process.execPath, 'mpv-node-host'],
+    [path.join(packageRoot, 'scripts', 'mpv-host.cjs'), 'mpv-host.cjs']
+  ]) {
+    const destination = path.join(output, name)
+    copyFileSync(input, destination)
+    if (name === 'mpv-node-host') chmodSync(destination, 0o755)
+    const bytes = readFileSync(destination)
+    copied.push({ name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })
+  }
 }
 writeFileSync(path.join(output, 'mpv-bundle-manifest.json'), `${JSON.stringify({ platform, arch, renderer: 'software', files: copied }, null, 2)}\n`)
 console.log(`Staged ${platform}/${arch} software MPV candidate: ${output}`)

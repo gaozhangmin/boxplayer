@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'fs'
 import path from 'path'
 import { createRequire } from 'module'
 import { getResourcesPath, getStaticPath } from '../utils/mainfile'
+import { createLinuxMpvHost } from './embeddedMpvLinuxHost'
 
 export interface EmbeddedMpvTextureInfo {
   handle: bigint
@@ -136,7 +137,7 @@ export function getEmbeddedMpvNativeResourceStatus(candidates = getEmbeddedMpvNa
     const directory = path.dirname(candidate)
     const libmpvPath = path.join(directory, libraryName)
     const manifestPath = path.join(directory, 'mpv-bundle-manifest.json')
-    const directoryMissing = [libmpvPath, manifestPath].filter((filePath) => !existsSync(filePath))
+    const directoryMissing = [libmpvPath, manifestPath, ...(platform === 'linux' ? [path.join(directory, 'mpv-node-host'), path.join(directory, 'mpv-host.cjs')] : [])].filter((filePath) => !existsSync(filePath))
     if (directoryMissing.length > 0) {
       firstIncomplete ||= {
         complete: false,
@@ -151,13 +152,15 @@ export function getEmbeddedMpvNativeResourceStatus(candidates = getEmbeddedMpvNa
       const files = Array.isArray(manifest?.files) ? manifest.files : []
       const hasNode = files.some((file: any) => file?.name === path.basename(candidate))
       const hasLibmpv = files.some((file: any) => file?.name === libraryName)
-      if (!hasNode || !hasLibmpv) {
+      const hasHost = platform !== 'linux' || (files.some((file: any) => file?.name === 'mpv-node-host') && files.some((file: any) => file?.name === 'mpv-host.cjs'))
+      if (!hasNode || !hasLibmpv || !hasHost) {
         firstIncomplete ||= {
           complete: false,
           directory,
           missing: [
             ...(hasNode ? [] : [`mpv-bundle-manifest.json:${path.basename(candidate)}`]),
-            ...(hasLibmpv ? [] : [`mpv-bundle-manifest.json:${libraryName}`])
+            ...(hasLibmpv ? [] : [`mpv-bundle-manifest.json:${libraryName}`]),
+            ...(hasHost ? [] : ['mpv-bundle-manifest.json:mpv-host.cjs/mpv-node-host'])
           ]
         }
         continue
@@ -259,7 +262,9 @@ export function loadEmbeddedMpvNativeAddon(candidates = getEmbeddedMpvNativeAddo
   for (const candidate of candidates) {
     if (!existsSync(candidate)) continue
     try {
-      const addon = toEmbeddedMpvNativeAddon(requireNative(candidate))
+      const addon = process.platform === 'linux'
+        ? { mpvTexture: createLinuxMpvHost(candidate) }
+        : toEmbeddedMpvNativeAddon(requireNative(candidate))
       if (!addon) {
         failedPath ||= candidate
         failures.push(`${path.basename(candidate)}: MPV native addon 接口不完整。`)

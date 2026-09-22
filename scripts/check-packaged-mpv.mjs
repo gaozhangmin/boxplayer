@@ -24,6 +24,7 @@ if (manifest.platform !== platform || manifest.arch !== arch || manifest.rendere
 const library = platform === 'win32' ? 'libmpv-2.dll' : 'libmpv.so.2'
 const names = new Set(manifest.files?.map((file) => file.name) || [])
 if (!names.has('mpv_texture.node') || !names.has(library)) throw new Error('Packaged MPV manifest lacks addon or libmpv')
+if (platform === 'linux' && (!names.has('mpv-node-host') || !names.has('mpv-host.cjs'))) throw new Error('Packaged Linux MPV manifest lacks isolated host')
 for (const file of manifest.files) {
   if (typeof file.name !== 'string' || path.basename(file.name) !== file.name) throw new Error('Unsafe manifest filename')
   const target = path.join(directory, file.name)
@@ -32,6 +33,6 @@ for (const file of manifest.files) {
   if (bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
     throw new Error(`Packaged MPV dependency changed: ${file.name}`)
   }
-  if (binaryArchitecture(target, platform) !== arch) throw new Error(`Wrong packaged architecture: ${file.name}`)
+  if (file.name !== 'mpv-host.cjs' && binaryArchitecture(target, platform) !== arch) throw new Error(`Wrong packaged architecture: ${file.name}`)
 }
 console.log(`Packaged MPV ${platform}/${arch} verified: ${directory}`)

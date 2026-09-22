@@ -63,7 +63,14 @@ describe('embedded MPV capability', () => {
     writeFileSync(addonPath, '')
     expect(getEmbeddedMpvNativeResourceStatus([addonPath], platform).missing).toContain(path.join(dir, libraryName))
     writeFileSync(path.join(dir, libraryName), '')
-    writeFileSync(path.join(dir, 'mpv-bundle-manifest.json'), JSON.stringify({ files: [{ name: 'mpv_texture.node' }, { name: libraryName }] }))
+    const files = [{ name: 'mpv_texture.node' }, { name: libraryName }]
+    if (platform === 'linux') {
+      for (const name of ['mpv-node-host', 'mpv-host.cjs']) {
+        writeFileSync(path.join(dir, name), '')
+        files.push({ name })
+      }
+    }
+    writeFileSync(path.join(dir, 'mpv-bundle-manifest.json'), JSON.stringify({ files }))
     expect(getEmbeddedMpvNativeResourceStatus([addonPath], platform).complete).toBe(true)
     expect(getEmbeddedMpvCapability({ platform, arch: 'x64', nativeAddonAvailable: true, nativeResourcesComplete: true }).enabled).toBe(false)
   })

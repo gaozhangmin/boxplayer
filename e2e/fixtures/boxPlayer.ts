@@ -165,10 +165,25 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       }
     } finally {
       const electronProcess = app.process()
-      await Promise.race([
-        app.close(),
-        new Promise<void>((resolve) => setTimeout(resolve, 5_000))
-      ])
+      if (process.platform === 'win32' && path.basename(testInfo.file) === 'embeddedMpvPlayback.spec.ts') {
+        // BoxPlayer's window-close handler can hide to tray. Quit the app
+        // explicitly so MPV receives will-quit and its native threads stop.
+        await Promise.race([
+          app.evaluate(({ app: electronApp }) => { electronApp.quit() }).catch(() => undefined),
+          new Promise<void>((resolve) => setTimeout(resolve, 5_000))
+        ])
+        if (electronProcess.exitCode === null && electronProcess.signalCode === null) {
+          await Promise.race([
+            new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
+            new Promise<void>((resolve) => setTimeout(resolve, 5_000))
+          ])
+        }
+      } else {
+        await Promise.race([
+          app.close(),
+          new Promise<void>((resolve) => setTimeout(resolve, 5_000))
+        ])
+      }
       if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
       ariaProcess?.kill()
       rendererProcess?.kill()
