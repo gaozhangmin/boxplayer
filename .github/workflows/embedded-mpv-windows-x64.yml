@@ -62,6 +62,9 @@ jobs:
       - name: Diagnose native software playback
         run: node native/boxplayer-mpv-texture/scripts/smoke-playback.mjs
 
+      - name: Diagnose Electron native software playback
+        run: pnpm exec electron e2e/embeddedMpvNativeSmoke.cjs
+
       - name: Verify visible playback in production Electron entry
         env:
           BOXPLAYER_MPV_REQUIRE_E2E: '1'

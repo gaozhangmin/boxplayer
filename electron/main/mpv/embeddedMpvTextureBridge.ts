@@ -63,7 +63,7 @@ export class EmbeddedMpvTextureBridge {
     try {
       console.error('[mpv] initialize: creating native context')
       // The software renderer cannot import hardware-decoded GPU surfaces.
-      this.mpv.create(process.platform === 'darwin' ? {} : { hwdec: 'no' })
+      this.mpv.create(process.platform === 'darwin' ? {} : { headless: false, width: 640, height: 360, hwdec: 'no' })
       console.error('[mpv] initialize: native context created')
     } catch (error) {
       console.error('[mpv] native addon create failed:', error)
