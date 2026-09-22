@@ -304,7 +304,7 @@ window.WebMpvEmbeddedStatus = async function() {
 
 window.WebMpvSharedTextureCapability = function() {
   if (process.platform !== 'darwin') {
-    return { available: false, platform: process.platform, reason: 'sharedTexture receiver is only planned for macOS embedded MPV' }
+    return { available: true, platform: process.platform, reason: 'software frame receiver' }
   }
   try {
     const sharedTexture = (require('electron') as any).sharedTexture
@@ -319,11 +319,19 @@ window.WebMpvSharedTextureCapability = function() {
 }
 
 let mpvSharedTextureFrameCallback: ((videoFrame: VideoFrame, index: number) => void) | null = null
+let mpvSoftwareFrameCallback: ((pixels: Uint8Array, width: number, height: number, index: number) => void) | null = null
 let mpvSharedTextureClearCallback: (() => void) | null = null
 let mpvSharedTextureReceiverReady = false
 
 ipcRenderer.on('MpvEmbedded:clearTexture', () => {
   mpvSharedTextureClearCallback?.()
+})
+ipcRenderer.on('MpvEmbedded:softwareFrame', (_event, frame: { pixels: Uint8Array; width: number; height: number; index: number }) => {
+  try {
+    if (frame?.pixels && mpvSoftwareFrameCallback) mpvSoftwareFrameCallback(frame.pixels, frame.width, frame.height, frame.index)
+  } finally {
+    ipcRenderer.send('MpvEmbedded:softwareFrameConsumed')
+  }
 })
 
 const registerMpvSharedTextureReceiver = (): boolean => {
@@ -359,7 +367,13 @@ const registerMpvSharedTextureReceiver = (): boolean => {
 registerMpvSharedTextureReceiver()
 
 window.WebMpvSharedTexture = {
-  isAvailable: () => mpvSharedTextureReceiverReady,
+  isAvailable: () => process.platform === 'darwin' ? mpvSharedTextureReceiverReady : true,
+  onSoftwareFrame: (callback: (pixels: Uint8Array, width: number, height: number, index: number) => void) => {
+    mpvSoftwareFrameCallback = callback
+  },
+  removeSoftwareFrameListener: () => {
+    mpvSoftwareFrameCallback = null
+  },
   onFrame: (callback: (videoFrame: VideoFrame, index: number) => void) => {
     mpvSharedTextureFrameCallback = callback
   },

@@ -1,19 +1,112 @@
 # boxplayer-mpv-texture
 
-macOS-only N-API addon scaffold for BoxPlayer embedded MPV.
+N-API addon for BoxPlayer embedded MPV. macOS has a texture-rendering backend;
+Windows and Linux have an opt-in software-frame renderer while their GPU texture
+renderers remain unimplemented. Target-platform playback verification is pending.
+
+## Target matrix
+
+| Target | Native mode | Required libmpv runtime | Current bundle |
+| --- | --- | --- | --- |
+| macOS arm64 | IOSurface texture | `libmpv.dylib` | Present locally; manifest needs regeneration |
+| macOS x64 | IOSurface texture | `libmpv.dylib` | Local macOS 26 build passes Electron playback; older-system compatibility awaits runner build |
+| Windows x64 | Software frames (candidate) | `libmpv-2.dll` | Missing |
+| Windows arm64 | Deferred | — | Not a current target |
+| Linux x64 / arm64 | Software frames (candidate) | `libmpv.so.2` | Missing |
+
+The Windows/Linux build requires matching SDK headers, a link library and the
+runtime binary for each architecture. Stage Windows import libraries at
+`deps/mpv/win32/<arch>/mpv.lib`, or Linux link libraries at
+`deps/mpv/linux/<arch>/libmpv.so`, then run `pnpm run build:libmpv` on the
+target OS and architecture. The default non-macOS build remains a safe stub;
+the opt-in build is not yet wired into releases. The software renderer skips GL
+and shared-texture creation, sends capped 1280×720 RGBA frames over Electron IPC,
+and keeps libmpv playback, status, speed, audio-track and subtitle-track controls.
+This compatibility route is CPU-heavy and must not be advertised as complete
+until real target-platform playback tests pass.
+The manual `embedded-mpv-linux.yml` and `embedded-mpv-windows-x64.yml`
+workflows build candidates on matching GitHub-hosted runners, run the
+production-entry Electron frame test, and inspect an unpacked app for the
+complete runtime bundle. They do not publish a BoxPlayer release. A passing
+target-host run remains required before release integration.
+
+The cross-platform `build:libmpv` command checks SDK inputs before compiling.
+For macOS it selects `deps/mpv/macos/<arch>/libmpv.dylib`, with the legacy
+`deps/mpv/macos/libmpv.dylib` accepted only for arm64. The currently staged
+legacy dylib is arm64, so an x64 build fails fast rather than silently
+producing a mismatched addon. On Windows, use an MSVC-compatible
+`mpv.lib` matching `libmpv-2.dll` (the mpv Windows build docs explain how to
+generate one from the DLL). Linux builds link `libmpv.so` and set an
+`$ORIGIN` runtime path so the packaged addon can locate a sibling
+`libmpv.so.2`.
+
+For macOS x64, Windows x64 and Linux x64/arm64, build from the official
+`mpv-player/mpv` source at the pinned `v0.41.0` tag:
+
+```bash
+# On an Intel Mac with Meson, Ninja, pkg-config and mpv dependencies installed:
+pnpm --dir native/boxplayer-mpv-texture run source:mac
+pnpm --dir native/boxplayer-mpv-texture run build:libmpv
+pnpm --dir native/boxplayer-mpv-texture run smoke:controls
+```
+
+```bash
+# On native Windows x64 in an MSYS2 CLANG64 shell with Meson, Ninja and x64 deps:
+pnpm --dir native/boxplayer-mpv-texture run source:win:x64
+pnpm --dir native/boxplayer-mpv-texture run build:libmpv
+pnpm --dir native/boxplayer-mpv-texture run smoke:controls
+pnpm --dir native/boxplayer-mpv-texture run bundle:software
+node scripts/check-embedded-mpv-bundles.mjs win32/x64
+```
+
+```bash
+# On native Linux x64 or arm64 with Meson, Ninja, pkg-config and mpv deps:
+pnpm --dir native/boxplayer-mpv-texture run source:linux
+pnpm --dir native/boxplayer-mpv-texture run build:libmpv
+pnpm --dir native/boxplayer-mpv-texture run smoke:controls
+pnpm --dir native/boxplayer-mpv-texture run bundle:software
+node scripts/check-embedded-mpv-bundles.mjs linux/x64 # or linux/arm64
+```
+
+The source scripts download the official tag archive and verify its SHA-256
+before compiling. Its `.mpv-source/` directory is separate from node-gyp's
+`build/`, which is deleted during addon rebuilds. Both source scripts stop on
+missing toolchains or matching libraries; they do
+not substitute a different-architecture DLL/dylib. The Windows CLANG64 script
+generates the MSVC-compatible import library from the built DLL's exports and
+stages its non-system runtime DLLs. The Windows and Linux source scripts have
+not passed target-host builds yet. The macOS x64
+bundle passes its manifest/architecture check and a production-entry Electron
+Playwright test with a local video. An installed DMG remains a separate release
+gate. See the [official compilation notes](https://github.com/mpv-player/mpv/blob/v0.41.0/README.md#compilation)
+and [Windows build notes](https://github.com/mpv-player/mpv/blob/v0.41.0/DOCS/compile-windows.md).
+
+The local Intel macOS 26 Homebrew libraries require macOS 26. Run
+`ARCH=x64 MAX_MACOS_MIN_VERSION=15.0 pnpm run check:mac-minos` on a bundled
+candidate before using it for older macOS releases. The isolated macOS 15
+workflow enforces that limit; it does not publish a BoxPlayer release.
+
+Run `pnpm run check:mpv-bundles` at the repository root before declaring the
+target-platform bundles complete. It checks manifests, file sizes/hashes, and the
+actual `.node`/libmpv binary architectures. To check just one target, use
+`node scripts/check-embedded-mpv-bundles.mjs darwin/arm64`.
+After building on a target machine, run `pnpm run smoke:controls` from this
+package before packaging. It loads the native addon and exercises libmpv
+initialization, volume, speed, track selection and status queries.
 
 Current status:
 
 - Builds a `.node` addon shape for the Electron 40 `sharedTexture` route.
 - Exports `mpvTexture`, matching `electron/main/mpv/embeddedMpvNativeAddon.ts`.
-- Routes the N-API entrypoint through `src/mpv_context.{h,cpp}` so the real libmpv backend can replace the current stub without changing the JavaScript API.
+- Routes the N-API entrypoint through `src/native/mpv_context.{h,cpp}` for the opt-in real libmpv backend.
 - Adds a small `IOSurfaceTexture` render-target wrapper so the future `mpv_render_context` path has a stable texture handle boundary.
 - Links Objective-C++ translation units against `IOSurface` to validate the native toolchain path.
 - The opt-in libmpv backend creates and controls an mpv context, and passes load options such as start position and HTTP headers into `loadfile`.
 - The opt-in libmpv backend exposes non-blocking event polling so Electron can read mpv status without calling JavaScript from libmpv-owned threads.
 - The opt-in libmpv backend creates a libmpv render context and renders frames into IOSurface-backed OpenGL FBOs for Electron `sharedTexture`.
 - The default stub backend has been verified to build into `build/Release/boxplayer-mpv-texture.node` and export the expected JavaScript API shape.
-- `mpvTexture.load()` currently rejects with `boxplayer-mpv-texture libmpv backend is not implemented yet`.
+- The default stub rejects playback; the opt-in libmpv backend provides software frames on Windows/Linux, but target-host acceptance is still pending.
+- Windows/Linux software-frame rendering is implemented but unverified on target hosts.
 
 Expected packaged output:
 

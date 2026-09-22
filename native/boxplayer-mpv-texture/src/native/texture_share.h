@@ -7,6 +7,8 @@
 #define TEXTURE_SHARE_H_
 
 #include <cstdint>
+#include <memory>
+#include <vector>
 
 namespace mpv_texture {
 
@@ -24,6 +26,7 @@ struct TextureInfo {
     uint32_t height;
     TextureFormat format;
     bool is_valid;
+    std::shared_ptr<std::vector<uint8_t>> pixels; // software renderer only
 };
 
 // Abstract interface for platform-specific texture sharing

@@ -3,6 +3,7 @@
  */
 
 #include <napi.h>
+#include <cmath>
 #include "mpv_context.h"
 
 // Request high-performance GPU on Windows (NVIDIA Optimus / AMD PowerXpress)
@@ -38,6 +39,9 @@ Napi::Object TextureInfoToJS(Napi::Env env, const TextureInfo& info) {
         default: formatStr = "rgba"; break;
     }
     obj.Set("format", Napi::String::New(env, formatStr));
+    if (info.pixels && !info.pixels->empty()) {
+        obj.Set("pixels", Napi::Buffer<uint8_t>::Copy(env, info.pixels->data(), info.pixels->size()));
+    }
 
     return obj;
 }
@@ -47,6 +51,7 @@ Napi::Object StatusToJS(Napi::Env env, const MpvStatus& status) {
     auto obj = Napi::Object::New(env);
     obj.Set("playing", Napi::Boolean::New(env, status.playing));
     obj.Set("volume", Napi::Number::New(env, status.volume));
+    obj.Set("speed", Napi::Number::New(env, status.speed));
     obj.Set("muted", Napi::Boolean::New(env, status.muted));
     obj.Set("position", Napi::Number::New(env, status.position));
     obj.Set("duration", Napi::Number::New(env, status.duration));
@@ -99,7 +104,16 @@ Napi::Value Create(const Napi::CallbackInfo& info) {
         if (configObj.Has("hwdec")) {
             config.hwdec = configObj.Get("hwdec").As<Napi::String>().Utf8Value();
         }
+        if (configObj.Has("headless")) {
+            config.headless = configObj.Get("headless").As<Napi::Boolean>().Value();
+        }
     }
+
+#if !defined(__APPLE__) && !defined(BOXPLAYER_MPV_SOFTWARE)
+    // Windows/Linux currently provide libmpv controls only; texture import is
+    // deliberately deferred until the platform-specific renderer is ready.
+    config.headless = true;
+#endif
 
     g_context = new MpvContext();
 
@@ -219,6 +233,25 @@ Napi::Value SetVolume(const Napi::CallbackInfo& info) {
     double volume = info[0].As<Napi::Number>().DoubleValue();
     g_context->setVolume(volume);
 
+    return env.Undefined();
+}
+
+Napi::Value SetSpeed(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (!g_context) {
+        Napi::Error::New(env, "Context not initialized").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    if (info.Length() < 1 || !info[0].IsNumber()) {
+        Napi::TypeError::New(env, "Speed number required").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    const double speed = info[0].As<Napi::Number>().DoubleValue();
+    if (!std::isfinite(speed) || speed < 0.25 || speed > 4.0) {
+        Napi::RangeError::New(env, "Speed must be between 0.25 and 4.0").ThrowAsJavaScriptException();
+        return env.Undefined();
+    }
+    g_context->setSpeed(speed);
     return env.Undefined();
 }
 
@@ -389,7 +422,7 @@ Napi::Value OnFrame(const Napi::CallbackInfo& info) {
         env,
         info[0].As<Napi::Function>(),
         "FrameCallback",
-        0,  // Unlimited queue
+        2,  // Bound queued frames; software frames can be several MB each.
         1   // Initial thread count
     );
 
@@ -511,6 +544,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("stop", Napi::Function::New(env, Stop));
     exports.Set("seek", Napi::Function::New(env, Seek));
     exports.Set("setVolume", Napi::Function::New(env, SetVolume));
+    exports.Set("setSpeed", Napi::Function::New(env, SetSpeed));
     exports.Set("setAudioTrack", Napi::Function::New(env, SetAudioTrack));
     exports.Set("setSubtitleTrack", Napi::Function::New(env, SetSubtitleTrack));
     exports.Set("setSubtitleStyle", Napi::Function::New(env, SetSubtitleStyle));
@@ -521,6 +555,11 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
     exports.Set("getStatus", Napi::Function::New(env, GetStatus));
     exports.Set("getTrackStatus", Napi::Function::New(env, GetTrackStatus));
     exports.Set("onFrame", Napi::Function::New(env, OnFrame));
+#ifdef BOXPLAYER_MPV_SOFTWARE
+    exports.Set("renderMode", Napi::String::New(env, "software"));
+#else
+    exports.Set("renderMode", Napi::String::New(env, "texture"));
+#endif
     exports.Set("onStatus", Napi::Function::New(env, OnStatus));
     exports.Set("onError", Napi::Function::New(env, OnError));
     exports.Set("releaseFrame", Napi::Function::New(env, ReleaseFrame));

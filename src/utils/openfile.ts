@@ -187,7 +187,7 @@ export async function menuOpenFile(
     // 选择字幕
     let subTitleFile: any
     const { uiVideoPlayer, uiVideoSubtitleMode } = useSettingStore()
-    const useMacEmbeddedMpv = uiVideoPlayer === 'mpv' && window.platform === 'darwin'
+    const useMacEmbeddedMpv = uiVideoPlayer === 'mpv'
     const listDataRaw: IAliGetFileModel[] = usePanFileStore().ListDataRaw || []
     const subTitlesList: IAliGetFileModel[] = listDataRaw.filter((file) => /srt|vtt|ass/.test(file.ext))
     if (uiVideoPlayer !== 'web' && !useMacEmbeddedMpv) {
@@ -296,15 +296,17 @@ async function Video(
     uiVideoPlayer,
     uiVideoPlayerPath
   } = useSettingStore()
-  if (uiVideoPlayer === 'mpv' && window.platform !== 'darwin') {
-    useSettingStore().updateStore({ uiVideoPlayer: 'other' })
-    message.error('内置 MPV 仅支持 macOS，请在设置中选择“自定义播放软件”并指定播放器路径。')
-    return
+  if (uiVideoPlayer === 'mpv') {
+    const capability = await window.WebMpvEmbeddedCapability?.()
+    if (!capability?.enabled) {
+      message.error(capability?.reason || '当前平台的内置 MPV 资源尚未就绪，请改用内置网页播放器。')
+      return
+    }
   }
   if (uiAutoColorVideo && !isPikPakUser(token) && !isDropboxUser(token) && !isOneDriveUser(token) && !isBoxUser(token) && file.drive_id !== 'pikpak' && file.drive_id !== 'dropbox' && file.drive_id !== 'onedrive' && file.drive_id !== 'box' && (!desc || !desc.includes('ce74c3c'))) {
     AliFileCmd.ApiFileColorBatch(token.user_id, file.drive_id, file.description, 'ce74c3c', [file.file_id])
   }
-  if (uiVideoPlayer == 'web' || (uiVideoPlayer === 'mpv' && window.platform === 'darwin')) {
+  if (uiVideoPlayer == 'web' || uiVideoPlayer === 'mpv') {
     let play_cursor = 0
     let playCursorInfo = await PlayerUtils.getPlayCursor(token.user_id, file.drive_id, file.file_id)
     if (playCursorInfo) {

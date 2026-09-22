@@ -1,3 +1,4 @@
 build/
+.mpv-source/
 node_modules/
 scripts/__pycache__/

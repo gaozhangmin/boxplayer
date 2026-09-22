@@ -8,6 +8,7 @@ export interface EmbeddedMpvTextureInfo {
   width: number
   height: number
   format: 'rgba' | 'bgra' | 'nv12' | string
+  pixels?: Buffer
 }
 
 export interface EmbeddedMpvStatus {
@@ -46,6 +47,7 @@ export interface EmbeddedMpvSubtitleStyle {
 }
 
 export interface EmbeddedMpvNativeInstance {
+  renderMode?: 'texture' | 'software'
   create(config?: Record<string, unknown>): void
   load(url: string, options?: string): Promise<void> | void
   play(): void
@@ -91,10 +93,26 @@ export interface EmbeddedMpvNativeResourceStatus {
 
 const requireNative = createRequire(import.meta.url)
 
+export const EMBEDDED_MPV_LIBRARY_BY_PLATFORM: Partial<Record<NodeJS.Platform, string>> = {
+  darwin: 'libmpv.dylib',
+  win32: 'libmpv-2.dll',
+  linux: 'libmpv.so.2'
+}
+
+export function isEmbeddedMpvTarget(platform: string, arch: string): boolean {
+  return (platform === 'darwin' || platform === 'linux') && (arch === 'x64' || arch === 'arm64') || platform === 'win32' && arch === 'x64'
+}
+
+export function getEmbeddedMpvNativeAddonRelativePaths(platform = process.platform, arch = process.arch): string[] {
+  if (!isEmbeddedMpvTarget(platform, arch)) return []
+  const sbtlRelativePath = path.join('engine', platform, arch, 'mpv-texture', 'mpv_texture.node')
+  const legacyRelativePath = path.join('engine', platform, arch, 'mpv-texture', 'boxplayer-mpv-texture.node')
+  return [sbtlRelativePath, legacyRelativePath]
+}
+
 export function getEmbeddedMpvNativeAddonCandidates(platform = process.platform, arch = process.arch): string[] {
-  if (platform !== 'darwin') return []
-  const sbtlRelativePath = path.join('engine', 'darwin', arch, 'mpv-texture', 'mpv_texture.node')
-  const legacyRelativePath = path.join('engine', 'darwin', arch, 'mpv-texture', 'boxplayer-mpv-texture.node')
+  const [sbtlRelativePath, legacyRelativePath] = getEmbeddedMpvNativeAddonRelativePaths(platform, arch)
+  if (!sbtlRelativePath || !legacyRelativePath) return []
   return [
     getResourcesPath(sbtlRelativePath),
     getStaticPath(sbtlRelativePath),
@@ -103,8 +121,11 @@ export function getEmbeddedMpvNativeAddonCandidates(platform = process.platform,
   ]
 }
 
-export function getEmbeddedMpvNativeResourceStatus(candidates = getEmbeddedMpvNativeAddonCandidates()): EmbeddedMpvNativeResourceStatus {
+export function getEmbeddedMpvNativeResourceStatus(candidates = getEmbeddedMpvNativeAddonCandidates(), platform = process.platform): EmbeddedMpvNativeResourceStatus {
   const missing: string[] = []
+  let firstIncomplete: EmbeddedMpvNativeResourceStatus | undefined
+  const libraryName = EMBEDDED_MPV_LIBRARY_BY_PLATFORM[platform as NodeJS.Platform]
+  if (!libraryName) return { complete: false, missing: [], error: `不支持 ${platform} 的 libmpv 资源包。` }
 
   for (const candidate of candidates) {
     if (!existsSync(candidate)) {
@@ -113,39 +134,42 @@ export function getEmbeddedMpvNativeResourceStatus(candidates = getEmbeddedMpvNa
     }
 
     const directory = path.dirname(candidate)
-    const libmpvPath = path.join(directory, 'libmpv.dylib')
+    const libmpvPath = path.join(directory, libraryName)
     const manifestPath = path.join(directory, 'mpv-bundle-manifest.json')
     const directoryMissing = [libmpvPath, manifestPath].filter((filePath) => !existsSync(filePath))
     if (directoryMissing.length > 0) {
-      return {
+      firstIncomplete ||= {
         complete: false,
         directory,
         missing: directoryMissing
       }
+      continue
     }
 
     try {
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
       const files = Array.isArray(manifest?.files) ? manifest.files : []
-      const hasNode = files.some((file: any) => file?.name === 'mpv_texture.node' || file?.name === 'boxplayer-mpv-texture.node')
-      const hasLibmpv = files.some((file: any) => file?.name === 'libmpv.dylib')
+      const hasNode = files.some((file: any) => file?.name === path.basename(candidate))
+      const hasLibmpv = files.some((file: any) => file?.name === libraryName)
       if (!hasNode || !hasLibmpv) {
-        return {
+        firstIncomplete ||= {
           complete: false,
           directory,
           missing: [
-            ...(hasNode ? [] : ['mpv-bundle-manifest.json:mpv_texture.node']),
-            ...(hasLibmpv ? [] : ['mpv-bundle-manifest.json:libmpv.dylib'])
+            ...(hasNode ? [] : [`mpv-bundle-manifest.json:${path.basename(candidate)}`]),
+            ...(hasLibmpv ? [] : [`mpv-bundle-manifest.json:${libraryName}`])
           ]
         }
+        continue
       }
     } catch (error: any) {
-      return {
+      firstIncomplete ||= {
         complete: false,
         directory,
         missing: [],
-        error: error?.message || 'macOS MPV resource manifest 读取失败。'
+        error: error?.message || 'MPV resource manifest 读取失败。'
       }
+      continue
     }
 
     return {
@@ -155,6 +179,7 @@ export function getEmbeddedMpvNativeResourceStatus(candidates = getEmbeddedMpvNa
     }
   }
 
+  if (firstIncomplete) return firstIncomplete
   return {
     complete: false,
     missing
@@ -179,19 +204,20 @@ function hasSbtlMpvTextureShape(mpvTexture: any): mpvTexture is EmbeddedMpvNativ
   )
 }
 
-function normalizeMpvStatus(status: EmbeddedMpvStatus | undefined): EmbeddedMpvStatus {
+function normalizeMpvStatus(status: EmbeddedMpvStatus | undefined, fallbackSpeed = 1): EmbeddedMpvStatus {
   const playing = Boolean(status?.playing)
   return {
     ...(status || {}),
     playing,
     paused: typeof status?.paused === 'boolean' ? status.paused : !playing,
-    speed: typeof status?.speed === 'number' ? status.speed : 1
+    speed: typeof status?.speed === 'number' ? status.speed : fallbackSpeed
   }
 }
 
 function toEmbeddedMpvNativeAddon(value: any): EmbeddedMpvNativeAddon | null {
   const mpvTexture = hasSbtlMpvTextureShape(value?.mpvTexture) ? value.mpvTexture : hasSbtlMpvTextureShape(value) ? value : null
   if (!mpvTexture) return null
+  let requestedSpeed = 1
   return {
     mpvTexture: {
       ...mpvTexture,
@@ -199,15 +225,22 @@ function toEmbeddedMpvNativeAddon(value: any): EmbeddedMpvNativeAddon | null {
         return mpvTexture.load(url, options)
       },
       getStatus() {
-        return normalizeMpvStatus(mpvTexture.getStatus?.())
+        return normalizeMpvStatus(mpvTexture.getStatus?.(), requestedSpeed)
       },
       getTrackStatus() {
         return mpvTexture.getTrackStatus?.() || { audioId: -1, subtitleId: -1, tracks: [] }
       },
       onStatus(callback: (status: EmbeddedMpvStatus) => void) {
-        mpvTexture.onStatus((status) => callback(normalizeMpvStatus(status)))
+        mpvTexture.onStatus((status) => callback(normalizeMpvStatus(status, requestedSpeed)))
       },
-      setSpeed: mpvTexture.setSpeed,
+      setSpeed: typeof mpvTexture.setSpeed === 'function' || typeof mpvTexture.setVideoProperty === 'function'
+        ? (speed: number) => {
+            if (!Number.isFinite(speed) || speed < 0.25 || speed > 4) throw new RangeError('MPV 倍速必须在 0.25–4 倍之间。')
+            if (typeof mpvTexture.setSpeed === 'function') mpvTexture.setSpeed(speed)
+            else mpvTexture.setVideoProperty('speed', String(speed))
+            requestedSpeed = speed
+          }
+        : undefined,
       setAudioTrack: mpvTexture.setAudioTrack,
       setSubtitleTrack: mpvTexture.setSubtitleTrack,
       setSubtitleStyle: mpvTexture.setSubtitleStyle,
@@ -221,16 +254,16 @@ function toEmbeddedMpvNativeAddon(value: any): EmbeddedMpvNativeAddon | null {
 }
 
 export function loadEmbeddedMpvNativeAddon(candidates = getEmbeddedMpvNativeAddonCandidates()): EmbeddedMpvNativeAddonLoadResult {
+  const failures: string[] = []
+  let failedPath: string | undefined
   for (const candidate of candidates) {
     if (!existsSync(candidate)) continue
     try {
       const addon = toEmbeddedMpvNativeAddon(requireNative(candidate))
       if (!addon) {
-        return {
-          addonPath: candidate,
-          error: 'macOS MPV native addon 接口不完整。',
-          searchedPaths: candidates
-        }
+        failedPath ||= candidate
+        failures.push(`${path.basename(candidate)}: MPV native addon 接口不完整。`)
+        continue
       }
       return {
         addon,
@@ -238,16 +271,14 @@ export function loadEmbeddedMpvNativeAddon(candidates = getEmbeddedMpvNativeAddo
         searchedPaths: candidates
       }
     } catch (error: any) {
-      return {
-        addonPath: candidate,
-        error: error?.message || 'macOS MPV native addon 加载失败。',
-        searchedPaths: candidates
-      }
+      failedPath ||= candidate
+      failures.push(`${path.basename(candidate)}: ${error?.message || 'MPV native addon 加载失败。'}`)
     }
   }
 
   return {
-    error: '未找到 macOS MPV native addon。',
+    addonPath: failedPath,
+    error: failures.length > 0 ? failures.join('；') : '未找到 MPV native addon。',
     searchedPaths: candidates
   }
 }

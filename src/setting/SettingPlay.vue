@@ -12,7 +12,7 @@ const cb = (val: any) => {
 }
 
 const platform = window.platform
-const supportsEmbeddedMpv = platform === 'darwin'
+const supportsEmbeddedMpv = platform === 'darwin' || platform === 'win32' || platform === 'linux'
 
 function handleSelectPlayer() {
   if (window.WebShowOpenDialogSync) {
@@ -43,14 +43,14 @@ const sharedTextureCapability = ref<{ available: boolean; platform: string; reas
 const isMpvPlayer = computed(() => settingStore.uiVideoPlayer === 'mpv')
 const mpvStatusText = computed(() => {
   if (!isMpvPlayer.value) return ''
-  if (embeddedMpvCapability.value?.enabled) return t('settings.play.mpvEnabled')
-  const reason = embeddedMpvCapability.value?.reason || t('settings.play.mpvNotEnabled')
+  if (embeddedMpvCapability.value?.enabled) return '内置 MPV 已启用。'
+  const reason = embeddedMpvCapability.value?.reason || '当前平台的内置 MPV 尚未启用。'
   const textureReason = sharedTextureCapability.value && !sharedTextureCapability.value.available ? sharedTextureCapability.value.reason : ''
   return [reason, textureReason].filter(Boolean).join('；')
 })
 
 async function refreshMpvEmbeddedStatus() {
-  if (platform !== 'darwin') return
+  if (!supportsEmbeddedMpv) return
   const capability = await window.WebMpvEmbeddedCapability?.()
   if (capability) embeddedMpvCapability.value = capability
   if (window.WebMpvSharedTextureCapability) sharedTextureCapability.value = window.WebMpvSharedTextureCapability()
@@ -59,15 +59,15 @@ async function refreshMpvEmbeddedStatus() {
 async function handleUseMpv() {
   if (!supportsEmbeddedMpv) {
     settingStore.updateStore({ uiVideoPlayer: 'other' })
-    message.warning(t('settings.play.mpvMacOnly'))
+    message.warning('当前平台尚不支持内置 MPV。')
     return
   }
   settingStore.updateStore({ uiVideoPlayer: 'mpv' })
   await refreshMpvEmbeddedStatus()
   if (embeddedMpvCapability.value?.enabled) {
-    message.success(t('settings.play.mpvSet'))
+    message.success('已设置为内置 MPV 播放器。')
   } else {
-    message.warning(mpvStatusText.value || t('settings.play.mpvNotEnabled'))
+    message.warning(mpvStatusText.value || '当前平台的内置 MPV 尚未启用。')
   }
 }
 
@@ -118,7 +118,7 @@ onMounted(() => {
             支持 选择清晰度、倍速播放、字幕选择、画中画模式，播放加密视频
             <div class='hrspace'></div>
             <span class='opred'>内置 MPV 播放器</span>：<br />
-            仅 macOS 可用，使用 BoxPlayer 内嵌 libmpv 播放高级格式
+            macOS 使用共享纹理；Windows / Linux 使用软件画面通道。仅在对应资源包可用时启用。
             <div class='hrspace'></div>
             <span class='opred'>自定义播放软件</span>：<br />
             是实验性的功能，可以<span class='oporg'>自己选择</span>电脑上安装的播放软件<br />

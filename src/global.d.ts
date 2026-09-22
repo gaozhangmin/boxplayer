@@ -63,6 +63,8 @@ declare global {
     WebMpvSharedTexture: {
       isAvailable: () => boolean
       onFrame: (callback: (videoFrame: VideoFrame, index: number) => void) => void
+      onSoftwareFrame: (callback: (pixels: Uint8Array, width: number, height: number, index: number) => void) => void
+      removeSoftwareFrameListener: () => void
       removeFrameListener: () => void
       onClear: (callback: () => void) => void
       removeClearListener: () => void

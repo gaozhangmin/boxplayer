@@ -3,9 +3,12 @@
  */
 
 #include "mpv_context.h"
+#include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <iostream>
 
+#if !defined(BOXPLAYER_MPV_HEADLESS) && !defined(BOXPLAYER_MPV_SOFTWARE)
 #ifdef _WIN32
 #include <windows.h>
 #include <gl/GL.h>
@@ -22,6 +25,7 @@ typedef PROC(WINAPI* PFNWGLGETPROCADDRESSPROC)(LPCSTR);
 #include <GL/gl.h>
 #include <GL/glx.h>
 #endif
+#endif
 
 namespace mpv_texture {
 
@@ -32,6 +36,7 @@ MpvContext::~MpvContext() {
 }
 
 // Platform-specific GL context creation
+#if !defined(BOXPLAYER_MPV_HEADLESS) && !defined(BOXPLAYER_MPV_SOFTWARE)
 #ifdef _WIN32
 static HWND g_dummyWindow = nullptr;
 static HDC g_hdc = nullptr;
@@ -181,6 +186,8 @@ static void destroyMacOSGLContext() {
 }
 #endif
 
+#endif // BOXPLAYER_MPV_HEADLESS
+
 bool MpvContext::create(const MpvConfig& config) {
     if (m_initialized) {
         return true;
@@ -188,6 +195,8 @@ bool MpvContext::create(const MpvConfig& config) {
 
     m_config = config;
 
+#if !defined(BOXPLAYER_MPV_HEADLESS) && !defined(BOXPLAYER_MPV_SOFTWARE)
+    if (!config.headless) {
 #ifdef _WIN32
     // Create Windows GL context first (required for WGL extensions)
     if (!createWindowsGLContext()) {
@@ -207,6 +216,8 @@ bool MpvContext::create(const MpvConfig& config) {
     }
     m_glContext = static_cast<void*>(g_cglContext);
 #endif
+    }
+#endif
 
     // Create mpv handle
     m_mpv = mpv_create();
@@ -218,7 +229,7 @@ bool MpvContext::create(const MpvConfig& config) {
     }
 
     // Set options before initialization
-    mpv_set_option_string(m_mpv, "vo", config.vo.c_str());
+    mpv_set_option_string(m_mpv, "vo", config.headless ? "null" : config.vo.c_str());
     mpv_set_option_string(m_mpv, "hwdec", config.hwdec.c_str());
     mpv_set_option_string(m_mpv, "keep-open", "yes");
     mpv_set_option_string(m_mpv, "idle", "yes");
@@ -235,6 +246,21 @@ bool MpvContext::create(const MpvConfig& config) {
         return false;
     }
 
+#ifdef BOXPLAYER_MPV_SOFTWARE
+    if (!config.headless) {
+        mpv_render_param params[] = {
+            {MPV_RENDER_PARAM_API_TYPE, const_cast<char*>(MPV_RENDER_API_TYPE_SW)},
+            {MPV_RENDER_PARAM_INVALID, nullptr}
+        };
+        if (mpv_render_context_create(&m_renderCtx, m_mpv, params) < 0) {
+            mpv_terminate_destroy(m_mpv);
+            m_mpv = nullptr;
+            return false;
+        }
+        mpv_render_context_set_update_callback(m_renderCtx, renderUpdateCallback, this);
+    }
+#elif !defined(BOXPLAYER_MPV_HEADLESS)
+    if (!config.headless) {
     // Create texture sharing
     m_textureShare = createTextureShare();
     if (!m_textureShare) {
@@ -273,10 +299,9 @@ bool MpvContext::create(const MpvConfig& config) {
     }
 
     // Create render context
-    mpv_opengl_init_params gl_init_params{
-        .get_proc_address = getProcAddress,
-        .get_proc_address_ctx = this,
-    };
+    mpv_opengl_init_params gl_init_params{};
+    gl_init_params.get_proc_address = getProcAddress;
+    gl_init_params.get_proc_address_ctx = this;
 
     int advanced_control = 1;
     mpv_render_param params[] = {
@@ -300,6 +325,8 @@ bool MpvContext::create(const MpvConfig& config) {
 
     // Set up render update callback
     mpv_render_context_set_update_callback(m_renderCtx, renderUpdateCallback, this);
+    }
+#endif
 
     // Set up wakeup callback for event handling
     mpv_set_wakeup_callback(m_mpv, wakeupCallback, this);
@@ -312,11 +339,13 @@ bool MpvContext::create(const MpvConfig& config) {
     mpv_observe_property(m_mpv, 5, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 6, "width", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 7, "height", MPV_FORMAT_INT64);
+    mpv_observe_property(m_mpv, 8, "speed", MPV_FORMAT_DOUBLE);
 
     // Start threads
     m_running = true;
     m_eventThread = std::thread(&MpvContext::eventLoop, this);
 
+#if !defined(BOXPLAYER_MPV_HEADLESS) && !defined(BOXPLAYER_MPV_SOFTWARE)
 #ifdef _WIN32
     // Release GL context from main thread so render thread can use it
     // (OpenGL contexts can only be current on one thread at a time)
@@ -326,7 +355,8 @@ bool MpvContext::create(const MpvConfig& config) {
     CGLSetCurrentContext(nullptr);
 #endif
 
-    m_renderThread = std::thread(&MpvContext::renderLoop, this);
+#endif
+    if (!config.headless && m_renderCtx) m_renderThread = std::thread(&MpvContext::renderLoop, this);
 
     m_initialized = true;
     return true;
@@ -370,12 +400,14 @@ void MpvContext::destroy() {
         m_textureShare = nullptr;
     }
 
+#if !defined(BOXPLAYER_MPV_HEADLESS) && !defined(BOXPLAYER_MPV_SOFTWARE)
 #ifdef _WIN32
     destroyWindowsGLContext();
     m_glContext = nullptr;
 #elif defined(__APPLE__)
     destroyMacOSGLContext();
     m_glContext = nullptr;
+#endif
 #endif
 
     m_initialized = false;
@@ -422,6 +454,11 @@ void MpvContext::seek(double position) {
 void MpvContext::setVolume(double volume) {
     if (!m_mpv) return;
     mpv_set_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &volume);
+}
+
+void MpvContext::setSpeed(double speed) {
+    if (!m_mpv || speed < 0.25 || speed > 4.0) return;
+    mpv_set_property(m_mpv, "speed", MPV_FORMAT_DOUBLE, &speed);
 }
 
 void MpvContext::setAudioTrack(int id) {
@@ -595,7 +632,7 @@ void MpvContext::setErrorCallback(ErrorCallback callback) {
 
 void MpvContext::releaseFrame() {
     std::lock_guard<std::mutex> lock(m_frameMutex);
-    if (m_frameInUse) {
+    if (m_frameInUse && m_textureShare) {
         m_textureShare->releaseTexture();
         m_frameInUse = false;
     }
@@ -662,6 +699,9 @@ void MpvContext::handlePropertyChange(mpv_event_property* prop) {
         } else if (strcmp(prop->name, "volume") == 0 && prop->format == MPV_FORMAT_DOUBLE) {
             m_status.volume = *static_cast<double*>(prop->data);
             statusChanged = true;
+        } else if (strcmp(prop->name, "speed") == 0 && prop->format == MPV_FORMAT_DOUBLE) {
+            m_status.speed = *static_cast<double*>(prop->data);
+            statusChanged = true;
         } else if (strcmp(prop->name, "mute") == 0 && prop->format == MPV_FORMAT_FLAG) {
             m_status.muted = *static_cast<int*>(prop->data);
             statusChanged = true;
@@ -676,7 +716,7 @@ void MpvContext::handlePropertyChange(mpv_event_property* prop) {
             if (newWidth > 0 && newWidth != m_status.width) {
                 m_status.width = newWidth;
                 // Signal render thread to resize (GL calls must happen there)
-                if (m_status.height > 0) {
+                if (m_status.height > 0 && m_renderCtx) {
                     m_pendingWidth = static_cast<uint32_t>(m_status.width);
                     m_pendingHeight = static_cast<uint32_t>(m_status.height);
                     m_needsResize = true;
@@ -689,7 +729,7 @@ void MpvContext::handlePropertyChange(mpv_event_property* prop) {
             if (newHeight > 0 && newHeight != m_status.height) {
                 m_status.height = newHeight;
                 // Signal render thread to resize (GL calls must happen there)
-                if (m_status.width > 0) {
+                if (m_status.width > 0 && m_renderCtx) {
                     m_pendingWidth = static_cast<uint32_t>(m_status.width);
                     m_pendingHeight = static_cast<uint32_t>(m_status.height);
                     m_needsResize = true;
@@ -716,6 +756,76 @@ void MpvContext::handlePropertyChange(mpv_event_property* prop) {
     }
 }
 
+#ifdef BOXPLAYER_MPV_SOFTWARE
+void MpvContext::renderLoop() {
+    auto lastFrame = std::chrono::steady_clock::time_point::min();
+    while (m_running) {
+        {
+            std::unique_lock<std::mutex> lock(m_renderMutex);
+            m_renderCV.wait(lock, [this] { return m_needsRender || !m_running; });
+            if (!m_running) break;
+            m_needsRender = false;
+        }
+        if (!(mpv_render_context_update(m_renderCtx) & MPV_RENDER_UPDATE_FRAME)) continue;
+        const auto now = std::chrono::steady_clock::now();
+        if (lastFrame != std::chrono::steady_clock::time_point::min() &&
+            now - lastFrame < std::chrono::milliseconds(50)) continue;
+        lastFrame = now;
+
+        int width, height;
+        {
+            std::lock_guard<std::mutex> lock(m_statusMutex);
+            width = m_status.width > 0 ? m_status.width : static_cast<int>(m_config.width);
+            height = m_status.height > 0 ? m_status.height : static_cast<int>(m_config.height);
+        }
+        // Software rendering is a compatibility path, not a full-resolution
+        // replacement for platform GPU texture sharing. Bound IPC frame size.
+        if (width <= 0 || height <= 0) continue;
+        if (width > 1280) {
+            height = static_cast<int>(static_cast<int64_t>(height) * 1280 / width);
+            width = 1280;
+        }
+        if (height > 720) {
+            width = static_cast<int>(static_cast<int64_t>(width) * 720 / height);
+            height = 720;
+        }
+        width = std::max(width, 1);
+        height = std::max(height, 1);
+        auto pixels = std::make_shared<std::vector<uint8_t>>(static_cast<size_t>(width) * height * 4);
+        int size[2] = {width, height};
+        size_t stride = static_cast<size_t>(width) * 4;
+        mpv_render_param params[] = {
+            {MPV_RENDER_PARAM_SW_SIZE, size},
+            {MPV_RENDER_PARAM_SW_FORMAT, const_cast<char*>("rgb0")},
+            {MPV_RENDER_PARAM_SW_STRIDE, &stride},
+            {MPV_RENDER_PARAM_SW_POINTER, pixels->data()},
+            {MPV_RENDER_PARAM_INVALID, nullptr}
+        };
+        if (mpv_render_context_render(m_renderCtx, params) < 0) continue;
+        mpv_render_context_report_swap(m_renderCtx);
+        for (size_t i = 3; i < pixels->size(); i += 4) (*pixels)[i] = 255;
+        TextureInfo frame{};
+        frame.width = static_cast<uint32_t>(width);
+        frame.height = static_cast<uint32_t>(height);
+        frame.format = TextureFormat::RGBA8;
+        frame.is_valid = true;
+        frame.pixels = pixels;
+        std::lock_guard<std::mutex> lock(m_callbackMutex);
+        if (m_frameCallback) m_frameCallback(frame);
+    }
+}
+
+void MpvContext::onRenderUpdate() {
+    m_needsRender = true;
+    m_renderCV.notify_one();
+}
+
+void* MpvContext::getProcAddress(void*, const char*) { return nullptr; }
+
+void MpvContext::renderUpdateCallback(void* ctx) {
+    static_cast<MpvContext*>(ctx)->onRenderUpdate();
+}
+#elif !defined(BOXPLAYER_MPV_HEADLESS)
 void MpvContext::renderLoop() {
 #ifdef _WIN32
     // Make GL context current on this thread (required for WGL operations)
@@ -796,12 +906,11 @@ void MpvContext::renderLoop() {
         }
 
         // Render
-        mpv_opengl_fbo fbo_params{
-            .fbo = fbo,
-            .w = width,
-            .h = height,
-            .internal_format = 0  // Use default
-        };
+        mpv_opengl_fbo fbo_params{};
+        fbo_params.fbo = fbo;
+        fbo_params.w = width;
+        fbo_params.h = height;
+        fbo_params.internal_format = 0;
 
         int flip_y = 1;
         mpv_render_param params[] = {
@@ -876,6 +985,7 @@ void MpvContext::renderUpdateCallback(void* ctx) {
     auto* self = static_cast<MpvContext*>(ctx);
     self->onRenderUpdate();
 }
+#endif
 
 void MpvContext::wakeupCallback(void* ctx) {
     (void)ctx; // Event loop uses mpv_wait_event with timeout, so no explicit wakeup needed

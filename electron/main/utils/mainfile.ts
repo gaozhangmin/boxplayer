@@ -36,6 +36,7 @@ export function getAsarPath(fileName: string) {
 }
 
 export function getResourcesPath(fileName: string) {
+  if (process.env.BOXPLAYER_E2E_PROJECT_PATH) return path.join(process.env.BOXPLAYER_E2E_PROJECT_PATH, 'static', fileName)
   let basePath = path.resolve(app.getAppPath(), '..')
   if (is.dev()) basePath = path.resolve(app.getAppPath(), '.')
   return path.join(basePath, fileName)
@@ -43,7 +44,8 @@ export function getResourcesPath(fileName: string) {
 
 export function getStaticPath(fileName: string) {
   let basePath = path.resolve(app.getAppPath(), '..')
-  if (is.dev()) basePath = path.resolve(app.getAppPath(), './static')
+  if (process.env.BOXPLAYER_E2E_PROJECT_PATH) basePath = path.join(process.env.BOXPLAYER_E2E_PROJECT_PATH, 'static')
+  else if (is.dev()) basePath = path.resolve(app.getAppPath(), './static')
   if (fileName.startsWith('icon')) {
     if (fileName == 'icon_256x256.ico' && !is.windows()) {
       fileName = path.join('images', 'icon_30x30.png')

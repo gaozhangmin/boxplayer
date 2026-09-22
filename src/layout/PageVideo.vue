@@ -46,7 +46,7 @@ import {
   searchSubtitles
 } from '../utils/subtitleApi'
 import type { SubtitleSearchFormat, SubtitleSearchResult } from '../utils/subtitleApi'
-import { dedupeSubtitleSelectors, hasSubtitleSource, selectSingleSubtitleCandidates } from '../utils/subtitleSelector'
+import { dedupeSubtitleSelectors, hasSubtitleSource } from '../utils/subtitleSelector'
 import { formatEmbeddedSubtitleLabel } from '../utils/subtitleLanguage'
 import { resolveFullscreenModalContainer } from '../utils/fullscreenModal'
 import { updateSettingPreservingActivePanel } from '../utils/artplayerSetting'
@@ -108,7 +108,7 @@ const mediaServerControlNames = new Set<string>()
 let danmakuAutoLoadingKey = ''
 let danmakuAutoLoadedKey = ''
 let activeSearchModal: { close: () => void } | undefined
-const useMacEmbeddedMpv = useSettingStore().uiVideoPlayer === 'mpv' && window.platform === 'darwin'
+const useMacEmbeddedMpv = useSettingStore().uiVideoPlayer === 'mpv'
 const mpvEmbeddedUrl = ref('')
 const mpvEmbeddedHeaders = ref<Record<string, string>>({})
 const mpvEmbeddedError = ref('')
@@ -3144,7 +3144,6 @@ const getSubTitleList = async (art: Artplayer, autoLoad = true) => {
   const subDefault = subSelector.find((item) => item.default) || subSelector[0]
   updateSubtitleListControl(art, subSelector, subDefault)
   const multipleSubtitleCandidates = subSelector.filter(isMultipleSubtitleSupported)
-  const singleSubtitleCandidates = selectSingleSubtitleCandidates(subSelector)
   const subtitleTranslate = art.storage.get('subtitleTranslate')
   // 字幕设置面板
   updateSettingPreservingActivePanel(art.setting as any, {
@@ -3253,21 +3252,6 @@ const getSubTitleList = async (art: Artplayer, autoLoad = true) => {
         }
         const ok = await applyMultipleSubtitles(art, multipleSubtitleCandidates.slice(0, 2), item.mode === 'reverse')
         if (ok && item.$parent) item.$parent.tooltip = item.mode === 'reverse' ? t('video.reverse') : t('video.on')
-        return item.html
-      }
-    }] : []), ...(singleSubtitleCandidates.length ? [{
-      html: t('video.singleSubtitle'),
-      tooltip: t('video.selectDisplay'),
-      selector: singleSubtitleCandidates.map((candidate, index) => ({
-        html: candidate.name || candidate.html || t('video.subtitleIndex', { index: index + 1 }),
-        subtitleIndex: index
-      })),
-      onSelect: async (item: SettingOption) => {
-        const candidate = singleSubtitleCandidates[item.subtitleIndex]
-        if (!candidate) return item.html
-        clearMultipleSubtitleState(art)
-        if (candidate.file_id) await loadOnlineSub(art, candidate)
-        else await loadSubtitleUrlToPlayer(art, candidate)
         return item.html
       }
     }] : []), {

@@ -9,8 +9,16 @@
     "sync:mpv:mac": "bash scripts/sync-mpv-deps-mac.sh",
     "build": "bash scripts/node-gyp-rebuild.sh",
     "build:stub": "bash scripts/node-gyp-rebuild.sh",
-    "build:libmpv": "npm_config_enable_libmpv=1 bash scripts/node-gyp-rebuild.sh",
+    "build:libmpv": "node scripts/build-libmpv.mjs",
+    "source:mac": "bash scripts/build-mpv-source-mac.sh",
+    "source:linux": "bash scripts/build-mpv-source-linux.sh",
+    "source:win:x64": "bash scripts/build-mpv-source-win-x64-msys2.sh",
+    "source:win:x64:sdk": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-mpv-source-win-x64.ps1",
+    "source:win:arm64": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-mpv-source-win-arm64.ps1",
+    "smoke:controls": "node scripts/smoke-control.mjs",
     "bundle:mac": "bash scripts/bundle-dylibs-mac.sh",
+    "bundle:software": "node scripts/bundle-software.mjs",
+    "check:mac-minos": "bash scripts/check-macos-minos.sh",
     "clean": "node-gyp clean"
   },
   "dependencies": {

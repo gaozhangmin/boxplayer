@@ -1,4 +1,4 @@
-import { BrowserWindow, SharedTextureHandle, sharedTexture } from 'electron'
+import { BrowserWindow, SharedTextureHandle, WebContents, sharedTexture } from 'electron'
 import { EmbeddedMpvCapability, getEmbeddedMpvCapability } from './embeddedMpvCapability'
 import { EmbeddedMpvNativeAddonLoadResult, EmbeddedMpvNativeInstance, EmbeddedMpvNativeResourceStatus, EmbeddedMpvStatus, EmbeddedMpvTextureInfo, getEmbeddedMpvNativeResourceStatus, loadEmbeddedMpvNativeAddon } from './embeddedMpvNativeAddon'
 import type { EmbeddedMpvControlRequest, EmbeddedMpvControlResult, EmbeddedMpvLoadRequest, EmbeddedMpvLoadResult } from './embeddedMpvBridge'
@@ -14,6 +14,8 @@ export class EmbeddedMpvTextureBridge {
   private frameIndex = 0
   private sendingFrame = false
   private pendingFrame: EmbeddedMpvTextureInfo | null = null
+  private softwareFrameInFlight = false
+  private pendingSoftwareFrame: EmbeddedMpvTextureInfo | null = null
   private nativeLoadResult: EmbeddedMpvNativeAddonLoadResult | null = null
   private nativeResourceStatus: EmbeddedMpvNativeResourceStatus | null = null
   private mpv: EmbeddedMpvNativeInstance | null = null
@@ -30,7 +32,10 @@ export class EmbeddedMpvTextureBridge {
   }
 
   private getNativeResourceStatus(): EmbeddedMpvNativeResourceStatus {
-    if (!this.nativeResourceStatus) this.nativeResourceStatus = getEmbeddedMpvNativeResourceStatus(this.loadNativeAddon().searchedPaths)
+    if (!this.nativeResourceStatus) {
+      const nativeLoadResult = this.loadNativeAddon()
+      this.nativeResourceStatus = getEmbeddedMpvNativeResourceStatus(nativeLoadResult.addonPath && nativeLoadResult.addon ? [nativeLoadResult.addonPath] : nativeLoadResult.searchedPaths)
+    }
     return this.nativeResourceStatus
   }
 
@@ -39,7 +44,10 @@ export class EmbeddedMpvTextureBridge {
     const nativeResourceStatus = this.getNativeResourceStatus()
     return getEmbeddedMpvCapability({
       nativeAddonAvailable: this.options.nativeAddonAvailable === true || Boolean(nativeLoadResult.addon),
-      nativeResourcesComplete: nativeResourceStatus.complete
+      nativeAddonError: nativeLoadResult.error,
+      nativeResourcesComplete: nativeResourceStatus.complete,
+      nativeResourcesMissing: nativeResourceStatus.missing,
+      rendererAvailable: process.platform === 'darwin' || nativeLoadResult.addon?.mpvTexture.renderMode === 'software'
     })
   }
 
@@ -97,11 +105,15 @@ export class EmbeddedMpvTextureBridge {
     if (this.window !== window) {
       this.window = window
       this.pendingFrame = null
+      this.pendingSoftwareFrame = null
+      this.softwareFrameInFlight = false
       this.frameIndex = 0
     }
 
     this.clearTexture()
     this.pendingFrame = null
+    this.pendingSoftwareFrame = null
+    this.softwareFrameInFlight = false
     this.latestStatus = null
     try {
       console.info('[播放][MPV] native 加载链接', {
@@ -155,7 +167,7 @@ export class EmbeddedMpvTextureBridge {
         this.mpv.setVolume(request.value)
         break
       case 'setSpeed':
-        if (typeof request.value !== 'number') return { ok: false, capability, error: 'setSpeed 需要数字倍速。' }
+        if (typeof request.value !== 'number' || !Number.isFinite(request.value) || request.value < 0.25 || request.value > 4) return { ok: false, capability, error: '倍速必须在 0.25–4 倍之间。' }
         if (!this.mpv.setSpeed) return this.getUnsupportedOptionalControlResult(capability, '当前 sbtlTV MPV 内核尚未暴露倍速控制。')
         this.mpv.setSpeed(request.value)
         break
@@ -219,11 +231,9 @@ export class EmbeddedMpvTextureBridge {
 
   private getUnsupportedOptionalControlResult(capability: EmbeddedMpvCapability, warning: string): EmbeddedMpvControlResult {
     return {
-      ok: true,
+      ok: false,
       capability,
-      warning,
-      status: this.latestStatus || this.mpv?.getStatus?.(),
-      trackStatus: this.mpv?.getTrackStatus?.()
+      error: warning
     }
   }
 
@@ -247,10 +257,37 @@ export class EmbeddedMpvTextureBridge {
 
   private handleFrame(textureInfo: EmbeddedMpvTextureInfo): void {
     if (!this.window || !this.mpv) return
+    if (textureInfo.pixels) {
+      if (this.softwareFrameInFlight) {
+        this.pendingSoftwareFrame = textureInfo
+        return
+      }
+      this.sendSoftwareFrame(textureInfo)
+      return
+    }
     this.frameStats.received++
     if (this.sendingFrame) this.frameStats.dropped++
     this.pendingFrame = textureInfo
     if (!this.sendingFrame) void this.sendFrameLoop()
+  }
+
+  private sendSoftwareFrame(textureInfo: EmbeddedMpvTextureInfo): void {
+    if (!this.window || this.window.isDestroyed() || !textureInfo.pixels) return
+    this.softwareFrameInFlight = true
+    this.window.webContents.send('MpvEmbedded:softwareFrame', {
+        pixels: textureInfo.pixels,
+        width: textureInfo.width,
+        height: textureInfo.height,
+        index: this.frameIndex++
+      })
+  }
+
+  acknowledgeSoftwareFrame(sender: WebContents): void {
+    if (!this.window || this.window.isDestroyed() || this.window.webContents !== sender) return
+    this.softwareFrameInFlight = false
+    const next = this.pendingSoftwareFrame
+    this.pendingSoftwareFrame = null
+    if (next) this.sendSoftwareFrame(next)
   }
 
   private async sendFrameLoop(): Promise<void> {
@@ -311,6 +348,8 @@ export class EmbeddedMpvTextureBridge {
     }
     this.clearTexture()
     this.pendingFrame = null
+    this.pendingSoftwareFrame = null
+    this.softwareFrameInFlight = false
     this.latestStatus = null
     this.mpv?.destroy()
     this.mpv = null

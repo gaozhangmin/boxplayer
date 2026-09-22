@@ -1,0 +1,76 @@
+name: Validate embedded MPV Linux candidates
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/mpv-runner-validation
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: x64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.32.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+
+      - name: Install Linux build and playback dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential meson ninja-build pkg-config patchelf \
+            libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev \
+            libswresample-dev libswscale-dev libplacebo-dev libass-dev \
+            libpulse-dev xvfb
+
+      - name: Install project dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build official libmpv and software renderer addon
+        run: |
+          pnpm --dir native/boxplayer-mpv-texture run source:linux
+          pnpm --dir native/boxplayer-mpv-texture run build:libmpv
+          pnpm --dir native/boxplayer-mpv-texture run smoke:controls
+
+      - name: Bundle and verify target architecture
+        run: |
+          pnpm --dir native/boxplayer-mpv-texture run bundle:software
+          node scripts/check-embedded-mpv-bundles.mjs linux/${{ matrix.arch }}
+          ldd static/engine/linux/${{ matrix.arch }}/mpv-texture/mpv_texture.node
+          ldd static/engine/linux/${{ matrix.arch }}/mpv-texture/libmpv.so.2
+
+      - name: Verify visible playback in production Electron entry
+        env:
+          BOXPLAYER_MPV_REQUIRE_E2E: '1'
+        run: |
+          pnpm run pretest:e2e
+          xvfb-run -a pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts --workers=1
+
+      - name: Verify the unpacked Electron package contains the complete bundle
+        run: |
+          pnpm exec electron-builder --linux --dir
+          node scripts/check-packaged-mpv.mjs linux ${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: embedded-mpv-linux-${{ matrix.arch }}-candidate
+          path: static/engine/linux/${{ matrix.arch }}/mpv-texture/
+          if-no-files-found: warn

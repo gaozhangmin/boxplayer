@@ -12,7 +12,9 @@
 #include <OpenGL/CGLIOSurface.h>
 #include <IOSurface/IOSurface.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <array>
 #include <iostream>
+#include <vector>
 
 namespace mpv_texture {
 
@@ -70,9 +72,16 @@ public:
             return true;
         }
 
+        // Electron may still import a previously exported IOSurface when mpv
+        // reports the video's actual dimensions. Keep those surfaces alive
+        // until this playback context is destroyed.
+        std::array<IOSurfaceRef, BUFFER_COUNT> retired{};
         for (int i = 0; i < BUFFER_COUNT; i++) {
+            retired[i] = m_slots[i].ioSurface;
+            m_slots[i].ioSurface = nullptr;
             destroySlot(m_slots[i]);
         }
+        m_retiredSurfaces.push_back(retired);
 
         return createTexture(width, height);
     }
@@ -127,6 +136,12 @@ public:
         for (int i = 0; i < BUFFER_COUNT; i++) {
             destroySlot(m_slots[i]);
         }
+        for (const auto& generation : m_retiredSurfaces) {
+            for (IOSurfaceRef surface : generation) {
+                if (surface) CFRelease(surface);
+            }
+        }
+        m_retiredSurfaces.clear();
 
         m_initialized = false;
     }
@@ -233,6 +248,7 @@ private:
 
     // Triple-buffered texture slots
     IOSurfaceSlot m_slots[BUFFER_COUNT];
+    std::vector<std::array<IOSurfaceRef, BUFFER_COUNT>> m_retiredSurfaces;
     int m_writeIndex = 0;
 };
 

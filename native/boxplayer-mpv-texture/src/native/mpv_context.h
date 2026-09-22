@@ -24,6 +24,7 @@ namespace mpv_texture {
 struct MpvStatus {
     bool playing;
     double volume;
+    double speed = 1.0;
     bool muted;
     double position;
     double duration;
@@ -66,6 +67,7 @@ struct MpvConfig {
     uint32_t height = 1080;
     std::string hwdec = "auto";  // Hardware decoding: auto, d3d11va, videotoolbox, etc.
     std::string vo = "libmpv";   // Video output
+    bool headless = false;        // Control-only mode; no GL context or shared texture
 };
 
 class MpvContext {
@@ -85,6 +87,7 @@ public:
     void stop();
     void seek(double position);
     void setVolume(double volume);
+    void setSpeed(double speed);
     void setAudioTrack(int id);
     void setSubtitleTrack(int id);
     void setSubtitleStyle(const MpvSubtitleStyle& style);

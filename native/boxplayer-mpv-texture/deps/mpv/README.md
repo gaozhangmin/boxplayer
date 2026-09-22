@@ -11,6 +11,8 @@ deps/mpv/
   include/mpv/render.h
   include/mpv/render_gl.h
   macos/libmpv.dylib
+  macos/x64/libmpv.dylib
+  macos/arm64/libmpv.dylib
 ```
 
 The headers are used only when building `boxplayer-mpv-texture.node`.

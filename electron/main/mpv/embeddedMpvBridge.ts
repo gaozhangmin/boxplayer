@@ -42,6 +42,7 @@ export interface EmbeddedMpvBridge {
   load(request: EmbeddedMpvLoadRequest, sender?: WebContents): Promise<EmbeddedMpvLoadResult>
   control(request: EmbeddedMpvControlRequest): Promise<EmbeddedMpvControlResult>
   getStatus(): Promise<EmbeddedMpvControlResult>
+  acknowledgeSoftwareFrame?(sender: WebContents): void
 }
 
 export class DisabledEmbeddedMpvBridge implements EmbeddedMpvBridge {
@@ -83,6 +84,10 @@ export class RoutedEmbeddedMpvBridge implements EmbeddedMpvBridge {
 
   getCapability(): EmbeddedMpvCapability {
     return this.textureBridge.getCapability()
+  }
+
+  acknowledgeSoftwareFrame(sender: WebContents): void {
+    this.textureBridge.acknowledgeSoftwareFrame(sender)
   }
 
   async load(request: EmbeddedMpvLoadRequest, sender?: WebContents): Promise<EmbeddedMpvLoadResult> {
