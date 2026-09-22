@@ -433,13 +433,19 @@ bool MpvContext::load(const std::string& url, const std::string& options) {
 void MpvContext::play() {
     if (!m_mpv) return;
     int flag = 0;
-    mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag);
+    if (mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag) >= 0) {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_status.playing = true;
+    }
 }
 
 void MpvContext::pause() {
     if (!m_mpv) return;
     int flag = 1;
-    mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag);
+    if (mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag) >= 0) {
+        std::lock_guard<std::mutex> lock(m_statusMutex);
+        m_status.playing = false;
+    }
 }
 
 void MpvContext::stop() {
