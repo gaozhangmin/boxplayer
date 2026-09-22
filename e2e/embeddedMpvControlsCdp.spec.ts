@@ -68,7 +68,7 @@ test('all visible MPV player controls execute successfully', async () => {
     }), { videoPath, parentPath, subtitleUrl })
     const player = await playerPromise
     await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 30_000 })
-    await player.evaluate(() => {
+    await player.evaluate(async (externalAudioPath) => {
       ;(window as any).__mpvControlLog = []
       const original = window.WebMpvEmbeddedControl
       window.WebMpvEmbeddedControl = async (request) => {
@@ -76,7 +76,9 @@ test('all visible MPV player controls execute successfully', async () => {
         ;(window as any).__mpvControlLog.push({ request, result })
         return result
       }
-    })
+      const result = await window.WebMpvEmbeddedControl({ action: 'addAudio', url: externalAudioPath, title: 'E2E external audio' })
+      if (!result.ok) throw new Error(`Unable to add the external audio fixture: ${result.error || 'unknown error'}`)
+    }, videoPath)
     const surface = player.locator('#mpvEmbeddedPlayer')
     await surface.hover()
 
