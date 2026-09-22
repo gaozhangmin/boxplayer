@@ -4,6 +4,7 @@ const mpvModule = require(path.join(__dirname, 'mpv_texture.node'))
 const mpv = mpvModule.mpvTexture || mpvModule
 let waitingForFrameAck = false
 let pendingFrame = null
+let statusTimer = null
 
 function send(message) {
   if (process.connected) process.send(message)
@@ -34,10 +35,16 @@ process.on('message', async (message) => {
       })
       mpv.onStatus((status) => send({ type: 'status', status, tracks: mpv.getTrackStatus?.() }))
       mpv.onError((error) => send({ type: 'error', error: String(error) }))
+      // Track discovery and async audio-add/sub-add do not always change an
+      // observed scalar property. Poll while isolated so the Electron-side
+      // cache remains current when playback is paused or already at EOF.
+      statusTimer = setInterval(() => send({ type: 'status', status: mpv.getStatus(), tracks: mpv.getTrackStatus?.() }), 250)
+      statusTimer.unref?.()
       send({ type: 'ready' })
       return
     }
     if (message.type === 'destroy') {
+      if (statusTimer) clearInterval(statusTimer)
       mpv.destroy()
       process.exit(0)
     }
@@ -53,6 +60,7 @@ process.on('message', async (message) => {
 })
 
 process.on('disconnect', () => {
+  if (statusTimer) clearInterval(statusTimer)
   mpv.destroy()
   process.exit(0)
 })
