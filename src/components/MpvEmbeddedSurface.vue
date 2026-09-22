@@ -572,6 +572,11 @@ const control = async (action: 'play' | 'pause' | 'stop' | 'seek' | 'setVolume' 
   const status = { ...result.status, __loading: !loaded.value }
   emit('status', status)
   applyStatusResult(result)
+  // Keep the transport button deterministic immediately after an accepted
+  // command. Native property-change delivery is asynchronous and can briefly
+  // return the previous pause state, especially through the Linux host.
+  if (action === 'pause') paused.value = true
+  else if (action === 'play') paused.value = false
   if (action === 'stop') clearFrame()
 }
 
