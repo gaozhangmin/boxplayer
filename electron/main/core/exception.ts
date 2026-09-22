@@ -15,6 +15,7 @@ export default class exception {
       console.log('Unhandled Rejection at:', p, 'reason:', reason)
     })
     process.on('uncaughtException', (err) => {
+      console.error('[main] uncaught exception:', err)
       let { message, stack = '' } = err
       if (app.isReady()) {
         ShowErrorAndExit('发生未定义的异常', err.message + '\n' + stack)
