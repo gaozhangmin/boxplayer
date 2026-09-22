@@ -173,6 +173,10 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
           new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
           new Promise<void>((resolve) => setTimeout(resolve, 3_000))
         ])
+        await Promise.race([
+          app.close(),
+          new Promise<void>((resolve) => setTimeout(resolve, 3_000))
+        ])
       } else {
         await Promise.race([
           app.close(),

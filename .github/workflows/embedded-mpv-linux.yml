@@ -67,6 +67,13 @@ jobs:
       - name: Diagnose Electron native software playback
         run: xvfb-run -a pnpm exec electron --no-sandbox e2e/embeddedMpvNativeSmoke.cjs
 
+      - name: Capture Electron exit stack for Linux x64
+        if: failure() && matrix.arch == 'x64'
+        run: |
+          xvfb-run -a gdb -q -batch \
+            -ex 'catch syscall exit_group' -ex run -ex 'thread apply all bt 20' \
+            --args "$(node -p "require('electron')")" --no-sandbox e2e/embeddedMpvNativeSmoke.cjs
+
       - name: Verify visible playback in production Electron entry
         env:
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
