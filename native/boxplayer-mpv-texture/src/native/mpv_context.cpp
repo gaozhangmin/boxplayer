@@ -549,39 +549,6 @@ bool MpvContext::addSubtitle(const std::string& url, const std::string& title) {
     return mpv_command_async(m_mpv, 0, cmd) >= 0;
 }
 
-namespace {
-const mpv_node* findMapValue(const mpv_node& mapNode, const char* key) {
-    if (mapNode.format != MPV_FORMAT_NODE_MAP || !mapNode.u.list) return nullptr;
-    for (int i = 0; i < mapNode.u.list->num; ++i) {
-        if (mapNode.u.list->keys[i] && strcmp(mapNode.u.list->keys[i], key) == 0) {
-            return &mapNode.u.list->values[i];
-        }
-    }
-    return nullptr;
-}
-
-std::string nodeStringValue(const mpv_node& mapNode, const char* key) {
-    const mpv_node* node = findMapValue(mapNode, key);
-    if (!node) return "";
-    if (node->format == MPV_FORMAT_STRING && node->u.string) return node->u.string;
-    return "";
-}
-
-int nodeIntValue(const mpv_node& mapNode, const char* key, int defaultValue = -1) {
-    const mpv_node* node = findMapValue(mapNode, key);
-    if (!node) return defaultValue;
-    if (node->format == MPV_FORMAT_INT64) return static_cast<int>(node->u.int64);
-    return defaultValue;
-}
-
-bool nodeBoolValue(const mpv_node& mapNode, const char* key) {
-    const mpv_node* node = findMapValue(mapNode, key);
-    if (!node) return false;
-    if (node->format == MPV_FORMAT_FLAG) return node->u.flag != 0;
-    return false;
-}
-}
-
 MpvTrackStatus MpvContext::getTrackStatus() const {
     MpvTrackStatus status;
     if (!m_mpv) return status;
@@ -592,24 +559,30 @@ MpvTrackStatus MpvContext::getTrackStatus() const {
     int64_t sid = -1;
     if (mpv_get_property(m_mpv, "sid", MPV_FORMAT_INT64, &sid) >= 0) status.subtitleId = static_cast<int>(sid);
 
-    mpv_node root;
-    if (mpv_get_property(m_mpv, "track-list", MPV_FORMAT_NODE, &root) < 0) return status;
-    if (root.format == MPV_FORMAT_NODE_ARRAY && root.u.list) {
-        for (int i = 0; i < root.u.list->num; ++i) {
-            const mpv_node& item = root.u.list->values[i];
-            if (item.format != MPV_FORMAT_NODE_MAP) continue;
-            MpvTrack track;
-            track.id = nodeIntValue(item, "id");
-            track.type = nodeStringValue(item, "type");
-            track.title = nodeStringValue(item, "title");
-            track.language = nodeStringValue(item, "lang");
-            track.codec = nodeStringValue(item, "codec");
-            track.selected = nodeBoolValue(item, "selected");
-            track.external = nodeBoolValue(item, "external");
-            if (track.id >= 0 && !track.type.empty()) status.tracks.push_back(track);
-        }
+    int64_t trackCount = 0;
+    if (mpv_get_property(m_mpv, "track-list/count", MPV_FORMAT_INT64, &trackCount) < 0) return status;
+    auto readStringProperty = [this](const std::string& name) {
+        char* value = mpv_get_property_string(m_mpv, name.c_str());
+        std::string result = value ? value : "";
+        if (value) mpv_free(value);
+        return result;
+    };
+    for (int64_t i = 0; i < trackCount; ++i) {
+        const std::string prefix = "track-list/" + std::to_string(i) + "/";
+        MpvTrack track{};
+        int64_t id = -1;
+        int selected = 0;
+        int external = 0;
+        if (mpv_get_property(m_mpv, (prefix + "id").c_str(), MPV_FORMAT_INT64, &id) >= 0) track.id = static_cast<int>(id);
+        else track.id = -1;
+        track.type = readStringProperty(prefix + "type");
+        track.title = readStringProperty(prefix + "title");
+        track.language = readStringProperty(prefix + "lang");
+        track.codec = readStringProperty(prefix + "codec");
+        if (mpv_get_property(m_mpv, (prefix + "selected").c_str(), MPV_FORMAT_FLAG, &selected) >= 0) track.selected = selected != 0;
+        if (mpv_get_property(m_mpv, (prefix + "external").c_str(), MPV_FORMAT_FLAG, &external) >= 0) track.external = external != 0;
+        if (track.id >= 0 && !track.type.empty()) status.tracks.push_back(track);
     }
-    mpv_free_node_contents(&root);
     return status;
 }
 
