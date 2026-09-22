@@ -173,10 +173,8 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
           new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
           new Promise<void>((resolve) => setTimeout(resolve, 3_000))
         ])
-        await Promise.race([
-          app.close(),
-          new Promise<void>((resolve) => setTimeout(resolve, 3_000))
-        ])
+        // The Electron process has already exited. Calling app.close() here
+        // leaves Playwright's connection teardown pending on Windows.
       } else {
         await Promise.race([
           app.close(),
