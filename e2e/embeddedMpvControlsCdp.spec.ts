@@ -52,19 +52,20 @@ test('all visible MPV player controls execute successfully', async () => {
     const mainPage = context.pages()[0] || await context.waitForEvent('page')
     await mainPage.waitForFunction(() => typeof window.WebOpenWindow === 'function')
     const videoPath = path.resolve('e2e/assets/mpv-sample.mp4')
+    const parentPath = path.dirname(videoPath)
     const subtitleUrl = pathToFileURL(path.resolve('e2e/assets/mpv-sample.srt')).href
     const playerPromise = context.waitForEvent('page')
-    await mainPage.evaluate(({ videoPath, subtitleUrl }) => window.WebOpenWindow({
+    await mainPage.evaluate(({ videoPath, parentPath, subtitleUrl }) => window.WebOpenWindow({
       page: 'PageVideo',
       theme: 'dark',
       data: {
         user_id: 'e2e', tokenfrom: 'local', drive_id: 'local', file_id: videoPath,
-        parent_file_id: path.dirname(videoPath), parent_file_name: 'assets', file_name: 'mpv-sample.mp4', html: 'MPV controls E2E',
+        parent_file_id: parentPath, parent_file_name: 'assets', file_name: 'mpv-sample.mp4', html: 'MPV controls E2E',
         encType: '', password: '', expire_time: 0, play_cursor: 0,
         media_subtitle_sources: [{ url: subtitleUrl, title: 'E2E subtitle' }],
-        custom_playlist: [{ user_id: 'e2e', drive_id: 'local', file_id: videoPath, parent_file_id: path.dirname(videoPath), file_name: 'mpv-sample.mp4', html: 'MPV sample' }]
+        custom_playlist: [{ user_id: 'e2e', drive_id: 'local', file_id: videoPath, parent_file_id: parentPath, file_name: 'mpv-sample.mp4', html: 'MPV sample' }]
       }
-    }), { videoPath, subtitleUrl })
+    }), { videoPath, parentPath, subtitleUrl })
     const player = await playerPromise
     await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 30_000 })
     await player.evaluate(() => {
