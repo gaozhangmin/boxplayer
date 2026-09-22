@@ -5,6 +5,7 @@
 #include "mpv_context.h"
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 
@@ -235,6 +236,9 @@ bool MpvContext::create(const MpvConfig& config) {
     mpv_set_option_string(m_mpv, "idle", "yes");
     mpv_set_option_string(m_mpv, "terminal", "no");
     mpv_set_option_string(m_mpv, "msg-level", "all=v");
+    if (const char* audioOutput = std::getenv("BOXPLAYER_MPV_AUDIO_OUTPUT")) {
+        if (*audioOutput) mpv_set_option_string(m_mpv, "ao", audioOutput);
+    }
 
     // Initialize mpv
     if (mpv_initialize(m_mpv) < 0) {

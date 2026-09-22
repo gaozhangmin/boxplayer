@@ -67,6 +67,7 @@ jobs:
       - name: Verify visible playback in production Electron entry
         env:
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
+          BOXPLAYER_MPV_AUDIO_OUTPUT: 'null'
         run: |
           pnpm run pretest:e2e
           xvfb-run -a pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts e2e/embeddedMpvControlsCdp.spec.ts --workers=1
