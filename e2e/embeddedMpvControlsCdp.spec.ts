@@ -53,7 +53,8 @@ test('all visible MPV player controls execute successfully', async () => {
     await mainPage.waitForFunction(() => typeof window.WebOpenWindow === 'function')
     const videoPath = path.resolve('e2e/assets/mpv-sample.mp4')
     const parentPath = path.dirname(videoPath)
-    const subtitleUrl = pathToFileURL(path.resolve('e2e/assets/mpv-sample.srt')).href
+    const subtitlePath = path.resolve('e2e/assets/mpv-sample.srt')
+    const subtitleUrl = pathToFileURL(subtitlePath).href
     const playerPromise = context.waitForEvent('page')
     await mainPage.evaluate(({ videoPath, parentPath, subtitleUrl }) => window.WebOpenWindow({
       page: 'PageVideo',
@@ -68,7 +69,7 @@ test('all visible MPV player controls execute successfully', async () => {
     }), { videoPath, parentPath, subtitleUrl })
     const player = await playerPromise
     await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 30_000 })
-    await player.evaluate(async (externalAudioPath) => {
+    await player.evaluate(({ externalAudioPath, externalSubtitlePath }) => {
       ;(window as any).__mpvControlLog = []
       const original = window.WebMpvEmbeddedControl
       window.WebMpvEmbeddedControl = async (request) => {
@@ -76,9 +77,8 @@ test('all visible MPV player controls execute successfully', async () => {
         ;(window as any).__mpvControlLog.push({ request, result })
         return result
       }
-      const result = await window.WebMpvEmbeddedControl({ action: 'addAudio', url: externalAudioPath, title: 'E2E external audio' })
-      if (!result.ok) throw new Error(`Unable to add the external audio fixture: ${result.error || 'unknown error'}`)
-    }, videoPath)
+      window.WebShowOpenDialogSync = (options, callback) => callback([String(options?.title || '').includes('音频') ? externalAudioPath : externalSubtitlePath])
+    }, { externalAudioPath: videoPath, externalSubtitlePath: subtitlePath })
     const surface = player.locator('#mpvEmbeddedPlayer')
     await surface.hover()
 
@@ -108,6 +108,7 @@ test('all visible MPV player controls execute successfully', async () => {
     await setRange(player, videoSection.locator('.mpv-video-filter-row input').first(), 10)
 
     await player.getByRole('button', { name: '音频', exact: true }).click()
+    await player.getByRole('button', { name: '加载外置音频…' }).click()
     const audioSelect = player.locator('select[title="音轨"]')
     await expect.poll(() => audioSelect.locator('option').count(), { timeout: 10_000 }).toBeGreaterThan(1)
     const audioValues = await audioSelect.locator('option').evaluateAll((items) => items.map((item) => (item as HTMLOptionElement).value))
@@ -117,22 +118,32 @@ test('all visible MPV player controls execute successfully', async () => {
     await setRange(player, audioContent.locator('.mpv-equalizer-band input').first(), 2)
 
     await player.getByRole('button', { name: '字幕', exact: true }).click()
+    await player.getByRole('button', { name: '加载字幕…' }).click()
     const subtitleSelect = player.locator('select[title="字幕"]')
     await expect.poll(() => subtitleSelect.locator('option').count()).toBeGreaterThan(1)
     const subtitleValues = await subtitleSelect.locator('option').evaluateAll((items) => items.map((item) => (item as HTMLOptionElement).value))
-    await subtitleSelect.selectOption(subtitleValues.find((value) => value !== 'track:-1')!)
+    const enabledSubtitle = subtitleValues.find((value) => value !== 'track:-1')!
+    await subtitleSelect.selectOption(enabledSubtitle)
+    await player.locator('select[title="副字幕"]').selectOption(enabledSubtitle)
     const subtitleContent = player.locator('.mpv-side-settings-content')
     const subtitleRanges = subtitleContent.locator('.mpv-side-slider input[type="range"]')
     for (const [index, value] of [0.2, 80, 1.1, 48, 4].entries()) await setRange(player, subtitleRanges.nth(index), value)
     await subtitleContent.locator('label').filter({ hasText: '粗体' }).getByRole('checkbox').click()
     await subtitleContent.locator('label').filter({ hasText: '斜体' }).getByRole('checkbox').click()
+    for (const [label, value] of [['字幕颜色', '#ffff00'], ['描边颜色', '#111111'], ['背景颜色', '#222222']] as const) {
+      await subtitleContent.getByLabel(label).evaluate((element, nextValue) => {
+        const input = element as HTMLInputElement
+        input.value = nextValue
+        input.dispatchEvent(new Event('change', { bubbles: true }))
+      }, value)
+    }
     await subtitleContent.getByRole('button', { name: '在线查找' }).click()
     await expect(player.getByText('在线字幕搜索')).toBeVisible()
     await player.locator('.mpv-subtitle-modal-close').click()
 
     const log = await player.evaluate(() => (window as any).__mpvControlLog)
     const actions = log.map((entry: any) => entry.request.action)
-    for (const action of ['pause', 'play', 'seek', 'setVolume', 'setSpeed', 'setAudioTrack', 'setSubtitleTrack', 'setSubtitleStyle', 'setVideoProperty']) expect(actions).toContain(action)
+    for (const action of ['pause', 'play', 'seek', 'setVolume', 'setSpeed', 'addAudio', 'setAudioTrack', 'addSubtitle', 'setSubtitleTrack', 'setSubtitleStyle', 'setVideoProperty']) expect(actions).toContain(action)
     const failures = log.filter((entry: any) => !entry.result?.ok)
     expect(failures, JSON.stringify(failures, null, 2)).toEqual([])
     await expect(surface.locator('.mpv-embedded-error')).toHaveCount(0)
