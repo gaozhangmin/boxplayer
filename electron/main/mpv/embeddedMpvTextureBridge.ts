@@ -52,15 +52,19 @@ export class EmbeddedMpvTextureBridge {
   }
 
   async initialize(window: BrowserWindow): Promise<boolean> {
+    console.error('[mpv] initialize: checking capability')
     const capability = this.getCapability()
     if (!capability.enabled) return false
+    console.error('[mpv] initialize: loading addon')
     const nativeLoadResult = this.loadNativeAddon()
     if (!nativeLoadResult.addon) return false
     this.window = window
     this.mpv = nativeLoadResult.addon.mpvTexture
     try {
+      console.error('[mpv] initialize: creating native context')
       // The software renderer cannot import hardware-decoded GPU surfaces.
       this.mpv.create(process.platform === 'darwin' ? {} : { hwdec: 'no' })
+      console.error('[mpv] initialize: native context created')
     } catch (error) {
       console.error('[mpv] native addon create failed:', error)
       this.mpv = null
@@ -72,6 +76,7 @@ export class EmbeddedMpvTextureBridge {
     })
     this.mpv.onError((error) => console.error('[mpv] native addon error:', error))
     this.initialized = true
+    console.error('[mpv] initialize: callbacks installed')
     this.frameStatsTimer = setInterval(() => {
       if (this.frameStats.received === 0) return
       const averageImport = this.frameStats.sendCount > 0 ? (this.frameStats.importMs / this.frameStats.sendCount).toFixed(1) : '?'
@@ -83,6 +88,7 @@ export class EmbeddedMpvTextureBridge {
   }
 
   async load(window: BrowserWindow, request: EmbeddedMpvLoadRequest): Promise<EmbeddedMpvLoadResult> {
+    console.error('[mpv] load: entered')
     const capability = this.getCapability()
     if (!capability.enabled) {
       return {
@@ -117,6 +123,7 @@ export class EmbeddedMpvTextureBridge {
     this.softwareFrameInFlight = false
     this.latestStatus = null
     try {
+      console.error('[mpv] load: invoking native load')
       console.info('[播放][MPV] native 加载链接', {
         url: request.url || '',
         startPosition: request.startPosition || 0,
@@ -124,6 +131,7 @@ export class EmbeddedMpvTextureBridge {
         userAgent: Object.entries(request.headers || {}).find(([key]) => key.toLowerCase() === 'user-agent')?.[1] || ''
       })
       await this.mpv?.load(request.url || '', buildMpvLoadOptions(request))
+      console.error('[mpv] load: native load returned')
     } catch (error: any) {
       return {
         ok: false,

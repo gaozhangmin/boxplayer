@@ -165,11 +165,21 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       }
     } finally {
       const electronProcess = app.process()
-      await Promise.race([
-        app.close(),
-        new Promise<void>((resolve) => setTimeout(resolve, 5_000))
-      ])
-      if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
+      if (process.platform === 'win32' && path.basename(testInfo.file) === 'embeddedMpvPlayback.spec.ts') {
+        // Electron's native MPV threads can keep app.close() waiting past
+        // Playwright's worker teardown deadline on Windows runners.
+        if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
+        await Promise.race([
+          new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
+          new Promise<void>((resolve) => setTimeout(resolve, 3_000))
+        ])
+      } else {
+        await Promise.race([
+          app.close(),
+          new Promise<void>((resolve) => setTimeout(resolve, 5_000))
+        ])
+        if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
+      }
       ariaProcess?.kill()
       rendererProcess?.kill()
       try {
