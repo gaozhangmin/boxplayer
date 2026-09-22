@@ -96,7 +96,7 @@ test('all visible MPV player controls execute successfully', async () => {
 
     await player.getByRole('button', { name: '设置片头' }).click()
     await player.getByRole('button', { name: '设置片尾' }).click()
-    await player.getByRole('button', { name: '设置' }).click()
+    await player.getByRole('button', { name: '设置', exact: true }).click()
     await player.getByRole('button', { name: '16:9' }).first().click()
     await player.getByRole('button', { name: '16:10' }).nth(1).click()
     await player.getByRole('button', { name: '90°' }).click()
