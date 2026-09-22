@@ -82,9 +82,14 @@ test('all visible MPV player controls execute successfully', async () => {
     const surface = player.locator('#mpvEmbeddedPlayer')
     await surface.hover()
 
-    await player.getByRole('button', { name: '暂停' }).click()
-    await expect(player.getByRole('button', { name: '播放' })).toBeVisible()
-    await player.getByRole('button', { name: '播放' }).click()
+    const playButton = player.locator('.mpv-play-btn')
+    await playButton.click()
+    await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.some((entry: any) => entry.request.action === 'pause'))).toBe(true)
+    await expect(playButton).toHaveAttribute('aria-label', '播放')
+    // Execute synchronously once the Vue state exposes the play action; the
+    // three-second fixture can otherwise reach EOF during Playwright's actionability wait.
+    await playButton.evaluate((button: HTMLButtonElement) => button.click())
+    await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.some((entry: any) => entry.request.action === 'play'))).toBe(true)
     await setRange(player, player.getByRole('slider', { name: '播放进度' }), 1)
     await setRange(player, player.getByRole('slider', { name: '音量' }), 35)
 
