@@ -97,7 +97,7 @@ export class EmbeddedMpvTextureBridge {
       return {
         ok: false,
         capability,
-        error: capability.reason || 'macOS 内嵌 MPV 尚未启用。'
+        error: capability.reason || '内嵌 MPV 尚未启用。'
       }
     }
 
@@ -105,7 +105,7 @@ export class EmbeddedMpvTextureBridge {
       return {
         ok: false,
         capability,
-        error: 'macOS 内嵌 MPV 初始化失败。'
+        error: '内嵌 MPV 初始化失败。'
       }
     }
 
@@ -155,7 +155,7 @@ export class EmbeddedMpvTextureBridge {
       return {
         ok: false,
         capability,
-        error: capability.reason || 'macOS 内嵌 MPV 尚未初始化。'
+        error: capability.reason || '内嵌 MPV 尚未初始化。'
       }
     }
 
@@ -230,7 +230,7 @@ export class EmbeddedMpvTextureBridge {
         }
         break
       default:
-        return { ok: false, capability, error: '未知的 macOS 内嵌 MPV 控制命令。' }
+        return { ok: false, capability, error: '未知的内嵌 MPV 控制命令。' }
     }
 
     return {
@@ -255,7 +255,7 @@ export class EmbeddedMpvTextureBridge {
       return {
         ok: false,
         capability,
-        error: capability.reason || 'macOS 内嵌 MPV 尚未初始化。'
+        error: capability.reason || '内嵌 MPV 尚未初始化。'
       }
     }
 

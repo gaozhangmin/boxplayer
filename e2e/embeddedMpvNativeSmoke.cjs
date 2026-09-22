@@ -1,14 +1,9 @@
 const { app, BrowserWindow } = require('electron')
 const path = require('node:path')
 
-const addonPath = path.resolve(__dirname, '../native/boxplayer-mpv-texture/build/Release/mpv_texture.node')
-const addon = process.platform === 'linux' ? (() => {
-  const nativeModule = { exports: {} }
-  // glibc RTLD_DEEPBIND (0x8) keeps libmpv's FFmpeg symbols ahead of
-  // Electron's already-loaded FFmpeg symbols.
-  process.dlopen(nativeModule, addonPath, 0x2 | 0x8)
-  return nativeModule.exports
-})() : require(addonPath)
+// Linux loads the native addon in the isolated Node host, not in Electron.
+if (process.platform === 'linux') throw new Error('Use the production Linux isolated-host Playwright test instead')
+const addon = require(path.resolve(__dirname, '../native/boxplayer-mpv-texture/build/Release/mpv_texture.node'))
 const mpv = addon.mpvTexture || addon
 const sample = path.resolve(__dirname, 'assets/mpv-sample.mp4')
 let frames = 0

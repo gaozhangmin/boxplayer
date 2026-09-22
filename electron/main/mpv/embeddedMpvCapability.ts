@@ -78,8 +78,8 @@ export function getEmbeddedMpvCapability(options: {
     }
   }
 
-  // The current native texture producer and renderer are macOS-only. A matching
-  // bundle alone must never advertise working playback on Windows or Linux.
+  // A matching bundle alone must never advertise working playback without a
+  // corresponding renderer (shared texture on macOS, software on Win/Linux).
   if (options.rendererAvailable === false || (platform !== 'darwin' && options.rendererAvailable !== true)) {
     return {
       ...base,
