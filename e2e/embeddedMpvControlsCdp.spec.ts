@@ -86,11 +86,13 @@ test('all visible MPV player controls execute successfully', async () => {
     await setRange(player, player.getByRole('slider', { name: '播放进度' }), 1)
     await setRange(player, player.getByRole('slider', { name: '音量' }), 35)
 
-    await player.getByRole('button', { name: '播放列表' }).click()
-    await expect(player.getByRole('button', { name: '章节' })).toBeVisible()
-    await player.getByRole('button', { name: '章节' }).click()
-    await player.getByRole('button', { name: '播放列表', exact: true }).click()
-    await player.getByRole('button', { name: '播放列表', exact: true }).first().click()
+    const playlistToggle = player.locator('.mpv-transport-buttons button[aria-label="播放列表"]')
+    if (!(await playlistToggle.getAttribute('class'))?.includes('active')) await playlistToggle.click()
+    const playlistTabs = player.locator('.mpv-playlist-tabs')
+    await expect(playlistTabs.getByRole('button', { name: '章节' })).toBeVisible()
+    await playlistTabs.getByRole('button', { name: '章节' }).click()
+    await playlistTabs.getByRole('button', { name: '播放列表' }).click()
+    await playlistToggle.click()
 
     await player.getByRole('button', { name: '设置片头' }).click()
     await player.getByRole('button', { name: '设置片尾' }).click()
