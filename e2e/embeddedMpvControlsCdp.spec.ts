@@ -107,8 +107,8 @@ test('all visible MPV player controls execute successfully', async () => {
 
     await player.getByRole('button', { name: '音频', exact: true }).click()
     const audioSelect = player.locator('select[title="音轨"]')
+    await expect.poll(() => audioSelect.locator('option').count(), { timeout: 10_000 }).toBeGreaterThan(1)
     const audioValues = await audioSelect.locator('option').evaluateAll((items) => items.map((item) => (item as HTMLOptionElement).value))
-    expect(audioValues.length).toBeGreaterThan(1)
     await audioSelect.selectOption(audioValues.find((value) => value !== '-1')!)
     const audioContent = player.locator('.mpv-side-settings-content')
     await setRange(player, audioContent.locator('.mpv-side-slider input').first(), 0.2)
