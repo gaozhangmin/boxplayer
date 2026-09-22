@@ -69,7 +69,7 @@ jobs:
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
         run: |
           pnpm run pretest:e2e
-          xvfb-run -a pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts --workers=1
+          xvfb-run -a pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts e2e/embeddedMpvControlsCdp.spec.ts --workers=1
 
       - name: Verify the unpacked Electron package contains the complete bundle
         run: |

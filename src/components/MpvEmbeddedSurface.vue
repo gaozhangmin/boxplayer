@@ -1025,6 +1025,10 @@ watch(chapters, (nextChapters) => {
             <button class="mpv-icon-btn mpv-marker-btn" :class="{ active: introSkipSeconds > 0 }" title="设置片头" aria-label="设置片头" type="button" @click="handleIntroSkipToggle"><Flag :size="18" /></button>
             <button class="mpv-icon-btn mpv-marker-btn" :class="{ active: outroSkipSeconds > 0 }" title="设置片尾" aria-label="设置片尾" type="button" @click="handleOutroSkipToggle"><Flag :size="18" /></button>
           </div>
+          <label class="mpv-volume-control mpv-inline-volume">
+            <span>音量 {{ Math.round(volume) }}%</span>
+            <input aria-label="音量" max="100" min="0" step="1" type="range" :style="{ '--mpv-volume': volumePercent }" :value="volume" @change="handleVolumeChange" />
+          </label>
         </div>
 
         <div class="mpv-progress-row">
