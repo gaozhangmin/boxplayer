@@ -59,6 +59,9 @@ export class EmbeddedMpvTextureBridge {
     const nativeLoadResult = this.loadNativeAddon()
     if (!nativeLoadResult.addon) return false
     this.window = window
+    window.once('closed', () => {
+      if (this.window === window) this.destroy()
+    })
     this.mpv = nativeLoadResult.addon.mpvTexture
     try {
       console.error('[mpv] initialize: creating native context')

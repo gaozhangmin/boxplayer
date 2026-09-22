@@ -64,6 +64,11 @@ jobs:
           gdb -batch -ex run -ex 'thread apply all bt 12' --args \
             node native/boxplayer-mpv-texture/scripts/smoke-playback.mjs
 
+      - name: Verify Electron executable in Node mode can host libmpv separately
+        run: |
+          ELECTRON_RUN_AS_NODE=1 "$(node -p "require('electron')")" \
+            native/boxplayer-mpv-texture/scripts/smoke-playback.mjs
+
       - name: Diagnose Electron native software playback
         run: xvfb-run -a pnpm exec electron --no-sandbox e2e/embeddedMpvNativeSmoke.cjs
 
