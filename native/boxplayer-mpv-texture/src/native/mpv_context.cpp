@@ -340,6 +340,10 @@ bool MpvContext::create(const MpvConfig& config) {
     mpv_observe_property(m_mpv, 6, "width", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 7, "height", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 8, "speed", MPV_FORMAT_DOUBLE);
+    // The Linux renderer runs libmpv in an isolated child process. Notify the
+    // parent whenever tracks are discovered, added, or selected so its cached
+    // track list cannot remain at the pre-load empty value.
+    mpv_observe_property(m_mpv, 9, "track-list", MPV_FORMAT_NONE);
 
     // Start threads
     m_running = true;
@@ -736,6 +740,8 @@ void MpvContext::handlePropertyChange(mpv_event_property* prop) {
                     m_renderCV.notify_one();  // Wake render thread for resize
                 }
             }
+            statusChanged = true;
+        } else if (strcmp(prop->name, "track-list") == 0) {
             statusChanged = true;
         }
     }
