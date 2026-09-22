@@ -161,52 +161,52 @@ export class EmbeddedMpvTextureBridge {
 
     switch (request.action) {
       case 'play':
-        this.mpv.play()
+        await this.mpv.play()
         break
       case 'pause':
-        this.mpv.pause()
+        await this.mpv.pause()
         break
       case 'stop':
-        this.mpv.stop()
+        await this.mpv.stop()
         this.clearTexture()
         break
       case 'seek':
         if (typeof request.value !== 'number') return { ok: false, capability, error: 'seek 需要数字位置。' }
-        this.mpv.seek(request.value)
+        await this.mpv.seek(request.value)
         break
       case 'setVolume':
         if (typeof request.value !== 'number') return { ok: false, capability, error: 'setVolume 需要数字音量。' }
-        this.mpv.setVolume(request.value)
+        await this.mpv.setVolume(request.value)
         break
       case 'setSpeed':
         if (typeof request.value !== 'number' || !Number.isFinite(request.value) || request.value < 0.25 || request.value > 4) return { ok: false, capability, error: '倍速必须在 0.25–4 倍之间。' }
         if (!this.mpv.setSpeed) return this.getUnsupportedOptionalControlResult(capability, '当前 sbtlTV MPV 内核尚未暴露倍速控制。')
-        this.mpv.setSpeed(request.value)
+        await this.mpv.setSpeed(request.value)
         break
       case 'setAudioTrack':
         if (typeof request.value !== 'number') return { ok: false, capability, error: 'setAudioTrack 需要数字轨道 ID。' }
         if (!this.mpv.setAudioTrack) return this.getUnsupportedOptionalControlResult(capability, '当前 sbtlTV MPV 内核尚未暴露音轨控制。')
-        this.mpv.setAudioTrack(request.value)
+        await this.mpv.setAudioTrack(request.value)
         break
       case 'setSubtitleTrack':
         if (typeof request.value !== 'number') return { ok: false, capability, error: 'setSubtitleTrack 需要数字轨道 ID。' }
         if (!this.mpv.setSubtitleTrack) return this.getUnsupportedOptionalControlResult(capability, '当前 sbtlTV MPV 内核尚未暴露字幕轨控制。')
-        this.mpv.setSubtitleTrack(request.value)
+        await this.mpv.setSubtitleTrack(request.value)
         break
       case 'setSubtitleStyle':
         if (!request.style) return { ok: false, capability, error: 'setSubtitleStyle 需要字幕样式。' }
         if (!this.mpv.setSubtitleStyle) return this.getUnsupportedOptionalControlResult(capability, '当前 MPV 内核尚未暴露字幕样式控制。')
-        this.mpv.setSubtitleStyle(request.style)
+        await this.mpv.setSubtitleStyle(request.style)
         break
       case 'setVideoProperty':
         if (!request.property || request.propertyValue == null) return { ok: false, capability, error: 'setVideoProperty 参数不完整。' }
         if (!this.mpv.setVideoProperty) return this.getUnsupportedOptionalControlResult(capability, '当前 MPV 内核尚未暴露视频属性控制。')
-        this.mpv.setVideoProperty(request.property, String(request.propertyValue))
+        await this.mpv.setVideoProperty(request.property, String(request.propertyValue))
         break
       case 'addAudio':
         if (!request.url) return { ok: false, capability, error: 'addAudio 需要音频文件路径。' }
         if (!this.mpv.addAudio) return this.getUnsupportedOptionalControlResult(capability, '当前 MPV 内核尚未暴露外置音频控制。')
-        this.mpv.addAudio(request.url, request.title || '')
+        await this.mpv.addAudio(request.url, request.title || '')
         break
       case 'addSubtitle':
         if (!request.url) return { ok: false, capability, error: 'addSubtitle 需要字幕 URL。' }
@@ -216,7 +216,7 @@ export class EmbeddedMpvTextureBridge {
           for (const delay of [0, 250, 750]) {
             if (delay > 0) await waitForMpvCommand(delay)
             try {
-              this.mpv.addSubtitle(request.url, request.title || '')
+              await this.mpv.addSubtitle(request.url, request.title || '')
               lastError = undefined
               break
             } catch (error) {

@@ -38,8 +38,11 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
     }))
   }
 
-  function sendControl(method: string, ...args: unknown[]): void {
-    void command(method, ...args).catch((error) => errorCallback(error.message))
+  function sendControl(method: string, ...args: unknown[]): Promise<void> {
+    return command(method, ...args).catch((error) => {
+      errorCallback(error.message)
+      throw error
+    })
   }
 
   return {

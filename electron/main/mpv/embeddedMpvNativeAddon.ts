@@ -51,18 +51,18 @@ export interface EmbeddedMpvNativeInstance {
   renderMode?: 'texture' | 'software'
   create(config?: Record<string, unknown>): void
   load(url: string, options?: string): Promise<void> | void
-  play(): void
-  pause(): void
-  stop(): void
-  seek(position: number): void
-  setVolume(volume: number): void
-  setSpeed?: (speed: number) => void
-  setAudioTrack?: (id: number) => void
-  setSubtitleTrack?: (id: number) => void
-  setSubtitleStyle?: (style: EmbeddedMpvSubtitleStyle) => void
-  setVideoProperty?: (name: string, value: string) => void
-  addAudio?: (url: string, title?: string) => void
-  addSubtitle?: (url: string, title?: string) => void
+  play(): Promise<void> | void
+  pause(): Promise<void> | void
+  stop(): Promise<void> | void
+  seek(position: number): Promise<void> | void
+  setVolume(volume: number): Promise<void> | void
+  setSpeed?: (speed: number) => Promise<void> | void
+  setAudioTrack?: (id: number) => Promise<void> | void
+  setSubtitleTrack?: (id: number) => Promise<void> | void
+  setSubtitleStyle?: (style: EmbeddedMpvSubtitleStyle) => Promise<void> | void
+  setVideoProperty?: (name: string, value: string) => Promise<void> | void
+  addAudio?: (url: string, title?: string) => Promise<void> | void
+  addSubtitle?: (url: string, title?: string) => Promise<void> | void
   pollEvents?: () => void
   getStatus(): EmbeddedMpvStatus
   getTrackStatus?: () => EmbeddedMpvTrackStatus
