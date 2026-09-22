@@ -59,7 +59,8 @@ export class EmbeddedMpvTextureBridge {
     this.window = window
     this.mpv = nativeLoadResult.addon.mpvTexture
     try {
-      this.mpv.create()
+      // The software renderer cannot import hardware-decoded GPU surfaces.
+      this.mpv.create(process.platform === 'darwin' ? {} : { hwdec: 'no' })
     } catch (error) {
       console.error('[mpv] native addon create failed:', error)
       this.mpv = null

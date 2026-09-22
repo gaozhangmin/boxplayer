@@ -8,6 +8,11 @@ test.skip(!process.env.BOXPLAYER_MPV_REQUIRE_E2E && !existsSync(bundleManifest),
 
 test('embedded MPV plays visible frames from a local video in the production Electron app', async ({ boxPlayer }) => {
   const { page } = boxPlayer
+  boxPlayer.app.process().once('exit', (code, signal) => {
+    console.error(`Embedded MPV Electron process exited: code=${code}, signal=${signal}`)
+  })
+  page.once('close', () => console.error('Embedded MPV renderer window closed during test'))
+  page.once('crash', () => console.error('Embedded MPV renderer process crashed during test'))
   const sample = path.resolve('e2e/assets/mpv-sample.mp4')
   const capability = await page.evaluate(() => window.WebMpvEmbeddedCapability())
   expect(capability.enabled, capability.reason).toBe(true)
