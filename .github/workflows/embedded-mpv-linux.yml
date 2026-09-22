@@ -43,7 +43,7 @@ jobs:
       - name: Install project dependencies
         run: |
           pnpm install --frozen-lockfile
-          pnpm --dir native/boxplayer-mpv-texture install --no-frozen-lockfile --ignore-scripts
+          pnpm --dir native/boxplayer-mpv-texture install --ignore-workspace --no-frozen-lockfile --ignore-scripts
 
       - name: Build official libmpv and software renderer addon
         run: |
