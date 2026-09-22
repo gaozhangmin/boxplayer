@@ -2309,7 +2309,11 @@ const resolvePageVideoMpvSource = async (): Promise<{ url: string; headers?: Rec
     const urlModule = window.require?.('url')
     const filePath = pageVideo.file_id || (pageVideo as any).file_path || ''
     if (!filePath) return { url: '', error: t('video.localVideoPathEmpty') }
-    return { url: urlModule?.pathToFileURL ? urlModule.pathToFileURL(filePath).href : `file://${encodeURI(filePath)}`, qualityLabel: t('video.local') }
+    return {
+      url: urlModule?.pathToFileURL ? urlModule.pathToFileURL(filePath).href : `file://${encodeURI(filePath)}`,
+      qualityLabel: t('video.local'),
+      subtitles: pageVideo.media_subtitle_sources || []
+    }
   }
 
   if (pageVideo.drive_id === 'media_server') {
