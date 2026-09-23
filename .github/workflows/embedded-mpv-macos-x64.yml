@@ -21,6 +21,8 @@ on:
 
 jobs:
   macos-x64:
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     runs-on: macos-15-intel
     timeout-minutes: 240
     steps:

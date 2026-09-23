@@ -21,6 +21,8 @@ on:
 
 jobs:
   windows-x64:
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     runs-on: windows-2025
     timeout-minutes: 180
     steps:

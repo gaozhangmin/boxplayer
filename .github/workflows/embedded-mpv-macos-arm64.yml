@@ -21,6 +21,8 @@ on:
 
 jobs:
   macos-arm64:
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     runs-on: macos-14
     timeout-minutes: 180
     steps:

@@ -21,6 +21,8 @@ on:
 
 jobs:
   linux:
+    env:
+      NODE_OPTIONS: --max-old-space-size=4096
     strategy:
       fail-fast: false
       # OAuth providers may rotate refresh tokens. Never let the two Linux
