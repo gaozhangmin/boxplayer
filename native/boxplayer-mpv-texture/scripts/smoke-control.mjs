@@ -36,10 +36,11 @@ try {
   if (!status || typeof status !== 'object' || !tracks || typeof tracks !== 'object') throw new Error('libmpv status/track query failed')
 
   const samplePath = path.resolve(packageRoot, '..', '..', 'e2e', 'assets', 'mpv-sample.mp4')
+  const audioSamplePath = path.resolve(packageRoot, '..', '..', 'e2e', 'assets', 'mpv-sample.m4a')
   if (existsSync(samplePath)) {
     mpv.load(samplePath)
     await waitForTrackCount('audio', 1)
-    mpv.addAudio(samplePath, 'external-smoke-audio')
+    mpv.addAudio(audioSamplePath, 'external-smoke-audio')
     const audioTracks = (mpv.getTrackStatus()?.tracks || []).filter((track) => track.type === 'audio')
     if (audioTracks.length < 2 || !audioTracks.some((track) => track.external || track.title === 'external-smoke-audio')) {
       throw new Error(`libmpv audio-add returned before exposing the external track: ${JSON.stringify(audioTracks)}`)

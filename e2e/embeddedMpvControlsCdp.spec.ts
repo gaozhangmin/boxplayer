@@ -52,6 +52,7 @@ test('all visible MPV player controls execute successfully', async () => {
     const mainPage = context.pages()[0] || await context.waitForEvent('page')
     await mainPage.waitForFunction(() => typeof window.WebOpenWindow === 'function')
     const videoPath = path.resolve('e2e/assets/mpv-sample.mp4')
+    const audioPath = path.resolve('e2e/assets/mpv-sample.m4a')
     const parentPath = path.dirname(videoPath)
     const subtitlePath = path.resolve('e2e/assets/mpv-sample.srt')
     const subtitleUrl = pathToFileURL(subtitlePath).href
@@ -78,7 +79,7 @@ test('all visible MPV player controls execute successfully', async () => {
         return result
       }
       window.WebShowOpenDialogSync = (options, callback) => callback([String(options?.title || '').includes('音频') ? externalAudioPath : externalSubtitlePath])
-    }, { externalAudioPath: videoPath, externalSubtitlePath: subtitlePath })
+    }, { externalAudioPath: audioPath, externalSubtitlePath: subtitlePath })
     const surface = player.locator('#mpvEmbeddedPlayer')
     await surface.hover()
 
