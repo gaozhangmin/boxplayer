@@ -49,6 +49,7 @@ def main() -> int:
         "generatedAt": datetime.now(timezone.utc).isoformat(),
         "platform": "darwin",
         "arch": arch,
+        "renderer": "texture",
         "source": {
             "libmpv": os.path.realpath(libmpv_source),
             "homebrewPrefix": command_output(["brew", "--prefix"]),

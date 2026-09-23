@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { packagedResourceRoots, PACKAGED_TARGETS, verifyPackagedMpv } from '../check-packaged-mpv.mjs'
 
@@ -49,5 +50,18 @@ describe('packaged MPV acceptance', () => {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     writeFileSync(manifestPath, JSON.stringify({ ...manifest, renderer: 'software' }))
     expect(() => verifyPackagedMpv(releaseDir, 'darwin', 'x64')).toThrow('Wrong packaged MPV manifest target or renderer')
+  })
+
+  it('writes texture renderer metadata for generated macOS manifests', () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'boxplayer-mpv-manifest-'))
+    const bundle = path.join(root, 'bundle')
+    const manifestPath = path.join(bundle, 'mpv-bundle-manifest.json')
+    const libmpv = path.join(root, 'libmpv.dylib')
+    mkdirSync(bundle)
+    writeFileSync(path.join(bundle, 'mpv_texture.node'), machO('arm64'))
+    writeFileSync(libmpv, machO('arm64'))
+    const result = spawnSync('python3', ['native/boxplayer-mpv-texture/scripts/write-bundle-manifest.py', bundle, manifestPath, 'arm64', libmpv], { cwd: path.resolve('.') })
+    expect(result.status, result.stderr.toString()).toBe(0)
+    expect(JSON.parse(readFileSync(manifestPath, 'utf8'))).toMatchObject({ platform: 'darwin', arch: 'arm64', renderer: 'texture' })
   })
 })
