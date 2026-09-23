@@ -64,8 +64,13 @@ if (!enabled) {
       const serverRow = page.locator('.media-server-sidebar .server-item').filter({ hasText: mediaServer!.name })
       await expect(serverRow).toBeVisible({ timeout: 30_000 })
       await serverRow.click()
-      await expect(page.locator('.workspace-tabs')).toBeVisible({ timeout: 60_000 })
-      await page.locator('.workspace-tab').getByText('搜索', { exact: true }).click()
+      const workspaceTabs = page.locator('.workspace-tabs')
+      await expect(workspaceTabs).toBeVisible({ timeout: 60_000 })
+      // Search is the second workspace tab in every locale. Do not couple the
+      // release gate to the runner's translated label (搜索/Search/etc.).
+      const searchTab = workspaceTabs.locator('.workspace-tab').nth(1)
+      await expect(searchTab).toBeVisible({ timeout: 30_000 })
+      await searchTab.click()
       const search = page.locator('.search-input-hero input')
       await expect(search).toBeVisible()
       await search.fill(mediaServer!.mediaTitle)
