@@ -66,6 +66,7 @@ export interface EmbeddedMpvNativeInstance {
   pollEvents?: () => void
   getStatus(): EmbeddedMpvStatus
   getTrackStatus?: () => EmbeddedMpvTrackStatus
+  refreshTrackStatus?: () => Promise<EmbeddedMpvTrackStatus>
   destroy(): void
   onFrame(callback: (textureInfo: EmbeddedMpvTextureInfo) => void): void
   onStatus(callback: (status: EmbeddedMpvStatus) => void): void

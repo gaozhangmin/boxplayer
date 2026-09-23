@@ -26,6 +26,18 @@ export class EmbeddedMpvTextureBridge {
 
   constructor(private readonly options: EmbeddedMpvTextureBridgeOptions = {}) {}
 
+  private async readTrackStatus(expectedIncrease?: { type: 'audio' | 'sub'; previousCount: number }) {
+    let latest = this.mpv?.getTrackStatus?.()
+    for (const delay of expectedIncrease ? [0, 25, 75, 150, 300, 500] : [0]) {
+      if (delay > 0) await waitForMpvCommand(delay)
+      latest = this.mpv?.refreshTrackStatus
+        ? await this.mpv.refreshTrackStatus()
+        : this.mpv?.getTrackStatus?.()
+      if (!expectedIncrease || (latest?.tracks || []).filter((track) => track.type === expectedIncrease.type).length > expectedIncrease.previousCount) break
+    }
+    return latest
+  }
+
   private loadNativeAddon(): EmbeddedMpvNativeAddonLoadResult {
     if (!this.nativeLoadResult) this.nativeLoadResult = loadEmbeddedMpvNativeAddon()
     return this.nativeLoadResult
@@ -159,6 +171,9 @@ export class EmbeddedMpvTextureBridge {
       }
     }
 
+    const trackType = request.action === 'addAudio' ? 'audio' : request.action === 'addSubtitle' ? 'sub' : undefined
+    const previousTrackCount = trackType ? (this.mpv.getTrackStatus?.().tracks || []).filter((track) => track.type === trackType).length : 0
+
     switch (request.action) {
       case 'play':
         await this.mpv.play()
@@ -233,11 +248,12 @@ export class EmbeddedMpvTextureBridge {
         return { ok: false, capability, error: '未知的内嵌 MPV 控制命令。' }
     }
 
+    const trackStatus = await this.readTrackStatus(trackType ? { type: trackType, previousCount: previousTrackCount } : undefined)
     return {
       ok: true,
       capability,
       status: this.mpv.getStatus?.() || this.latestStatus,
-      trackStatus: this.mpv.getTrackStatus?.()
+      trackStatus
     }
   }
 
@@ -263,7 +279,7 @@ export class EmbeddedMpvTextureBridge {
       ok: true,
       capability,
       status: this.mpv.getStatus?.() || this.latestStatus,
-      trackStatus: this.mpv.getTrackStatus?.()
+      trackStatus: await this.readTrackStatus()
     }
   }
 

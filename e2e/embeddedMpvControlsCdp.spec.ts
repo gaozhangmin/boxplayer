@@ -114,6 +114,10 @@ test('all visible MPV player controls execute successfully', async () => {
 
     await player.getByRole('button', { name: '音频', exact: true }).click()
     await player.getByRole('button', { name: '加载外置音频…' }).click()
+    await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.filter((entry: any) => entry.request.action === 'addAudio').length), { message: '加载外置音频按钮必须调用 MPV addAudio', timeout: 10_000 }).toBeGreaterThan(0)
+    const addAudioResult = await player.evaluate(() => (window as any).__mpvControlLog.findLast((entry: any) => entry.request.action === 'addAudio')?.result)
+    expect(addAudioResult?.ok, JSON.stringify(addAudioResult, null, 2)).toBe(true)
+    expect((addAudioResult?.trackStatus?.tracks || []).filter((track: any) => track.type === 'audio').length, JSON.stringify(addAudioResult?.trackStatus, null, 2)).toBeGreaterThan(1)
     const audioSelect = player.locator('select[title="音轨"]')
     await expect.poll(() => audioSelect.locator('option').count(), { timeout: 10_000 }).toBeGreaterThan(1)
     const audioValues = await audioSelect.locator('option').evaluateAll((items) => items.map((item) => (item as HTMLOptionElement).value))

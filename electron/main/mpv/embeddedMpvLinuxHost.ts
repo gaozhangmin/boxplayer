@@ -11,7 +11,7 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
   let frameCallback: (frame: EmbeddedMpvTextureInfo) => void = () => {}
   let statusCallback: (status: EmbeddedMpvStatus) => void = () => {}
   let errorCallback: (error: string) => void = () => {}
-  const pending = new Map<number, { resolve: () => void; reject: (error: Error) => void }>()
+  const pending = new Map<number, { resolve: (message: any) => void; reject: (error: Error) => void }>()
   let readyResolve: (() => void) | null = null
   let readyReject: ((error: Error) => void) | null = null
   let ready: Promise<void> = Promise.reject(new Error('MPV host has not started'))
@@ -25,11 +25,11 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
     errorCallback(error.message)
   }
 
-  function command(method: string, ...args: unknown[]): Promise<void> {
+  function command<T = void>(method: string, ...args: unknown[]): Promise<T> {
     const id = ++nextId
-    return ready.then(() => new Promise<void>((resolve, reject) => {
+    return ready.then(() => new Promise<T>((resolve, reject) => {
       if (!child?.connected) return reject(new Error('MPV host is not connected'))
-      pending.set(id, { resolve, reject })
+      pending.set(id, { resolve: resolve as (message: any) => void, reject })
       child.send({ type: 'command', id, method, args }, (error) => {
         if (!error) return
         pending.delete(id)
@@ -79,7 +79,7 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
         } else if (message?.type === 'result') {
           latestStatus = message.status || latestStatus
           latestTracks = message.tracks || latestTracks
-          pending.get(message.id)?.resolve()
+          pending.get(message.id)?.resolve(message)
           pending.delete(message.id)
         } else if (message?.type === 'error') {
           const error = new Error(String(message.error))
@@ -106,6 +106,11 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
     addSubtitle: (url, title) => sendControl('addSubtitle', url, title),
     getStatus: () => latestStatus,
     getTrackStatus: () => latestTracks,
+    async refreshTrackStatus() {
+      const result = await command<{ tracks?: EmbeddedMpvTrackStatus }>('getTrackStatus')
+      latestTracks = result?.tracks || latestTracks
+      return latestTracks
+    },
     destroy() {
       if (!child) return
       const closing = child

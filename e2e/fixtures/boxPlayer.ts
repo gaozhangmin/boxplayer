@@ -168,13 +168,12 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       }
     } finally {
       const electronProcess = app.process()
-      if (process.platform === 'win32' && path.basename(testInfo.file) === 'embeddedMpvPlayback.spec.ts') {
+      if (path.basename(testInfo.file).startsWith('embeddedMpv')) {
         // BoxPlayer's window-close handler can hide to tray. Quit the app
         // explicitly so MPV receives will-quit and its native threads stop.
-        await Promise.race([
-          app.evaluate(({ app: electronApp }) => { electronApp.quit() }).catch(() => undefined),
-          new Promise<void>((resolve) => setTimeout(resolve, 5_000))
-        ])
+        // Do not race app.close(): the abandoned close promise retains the
+        // Playwright transport and makes an otherwise-passing worker time out.
+        await app.evaluate(({ app: electronApp }) => { electronApp.quit() }).catch(() => undefined)
         if (electronProcess.exitCode === null && electronProcess.signalCode === null) {
           await Promise.race([
             new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
