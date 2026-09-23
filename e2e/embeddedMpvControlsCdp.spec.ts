@@ -40,10 +40,16 @@ test('all visible MPV player controls execute successfully', async () => {
   writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close' }))
   const port = 19223
   const args = [`--remote-debugging-port=${port}`, ...(process.platform === 'linux' ? ['--no-sandbox'] : []), entry]
+  let electronOutput = ''
   const electronProcess: ChildProcess = spawn(electronBinary, args, {
     env: { ...process.env, BOXPLAYER_E2E: '1', BOXPLAYER_E2E_TRANSFERS: '0', BOXPLAYER_E2E_PROJECT_PATH: process.cwd(), BOXPLAYER_E2E_USER_DATA: userData },
-    stdio: 'ignore'
+    stdio: ['ignore', 'pipe', 'pipe']
   })
+  const recordOutput = (chunk: Buffer) => {
+    electronOutput = `${electronOutput}${chunk.toString()}`.slice(-64 * 1024)
+  }
+  electronProcess.stdout?.on('data', recordOutput)
+  electronProcess.stderr?.on('data', recordOutput)
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined
   try {
     await waitForPort(port)
@@ -169,6 +175,9 @@ test('all visible MPV player controls execute successfully', async () => {
     const failures = log.filter((entry: any) => !entry.result?.ok)
     expect(failures, JSON.stringify(failures, null, 2)).toEqual([])
     await expect(surface.locator('.mpv-embedded-error')).toHaveCount(0)
+  } catch (error) {
+    console.error(`Embedded MPV Electron output (tail):\n${electronOutput}`)
+    throw error
   } finally {
     if (electronProcess.pid) {
       if (process.platform === 'win32') {

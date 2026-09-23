@@ -52,7 +52,9 @@ process.on('message', async (message) => {
     const { id, method, args = [] } = message
     const allowed = new Set(['load', 'play', 'pause', 'stop', 'seek', 'setVolume', 'setSpeed', 'setAudioTrack', 'setSubtitleTrack', 'setSubtitleStyle', 'setVideoProperty', 'addAudio', 'addSubtitle', 'getTrackStatus'])
     if (!allowed.has(method) || typeof mpv[method] !== 'function') throw new Error(`Unsupported MPV command: ${method}`)
+    process.stderr.write(`[mpv-host] command ${method} start\n`)
     await mpv[method](...args)
+    process.stderr.write(`[mpv-host] command ${method} complete\n`)
     send({ type: 'result', id, status: mpv.getStatus(), tracks: mpv.getTrackStatus?.() })
   } catch (error) {
     send({ type: 'error', id: message.id, error: error?.stack || String(error) })

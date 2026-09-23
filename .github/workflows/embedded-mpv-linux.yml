@@ -70,7 +70,20 @@ jobs:
           BOXPLAYER_MPV_AUDIO_OUTPUT: 'null'
         run: |
           pnpm run pretest:e2e
+          sudo sysctl -w kernel.core_pattern="$PWD/core.%e.%p"
+          ulimit -c unlimited
+          set +e
           xvfb-run -a pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts e2e/embeddedMpvControlsCdp.spec.ts --workers=1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            for core in core.mpv-node-host.*; do
+              if [ -f "$core" ]; then
+                gdb -batch -ex 'thread apply all bt 24' static/engine/linux/${{ matrix.arch }}/mpv-texture/mpv-node-host "$core" || true
+              fi
+            done
+          fi
+          exit "$status"
 
       - name: Verify the unpacked Electron package contains the complete bundle
         run: |
