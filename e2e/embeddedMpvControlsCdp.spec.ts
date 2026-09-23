@@ -112,6 +112,11 @@ test('all visible MPV player controls execute successfully', async () => {
     await player.getByRole('button', { name: '16:9' }).first().click()
     await player.getByRole('button', { name: '16:10' }).nth(1).click()
     await player.getByRole('button', { name: '90°' }).click()
+    if (process.platform !== 'darwin') {
+      await expect.poll(async () => player.locator('.mpv-fallback-canvas').evaluate((canvas: HTMLCanvasElement) => ({ width: canvas.width, height: canvas.height })), {
+        message: '软件帧应实际应用 16:10 中心裁剪和 90° 旋转'
+      }).toMatchObject({ width: 360, height: 576 })
+    }
     await player.getByRole('combobox', { name: '倍速' }).selectOption('1.5')
     for (const label of ['硬件解码', '反交错', 'HDR 色调映射']) await player.getByText(label, { exact: true }).locator('..').getByRole('checkbox').click()
     const videoSection = player.locator('.mpv-side-settings-content').filter({ hasText: '均衡器' })

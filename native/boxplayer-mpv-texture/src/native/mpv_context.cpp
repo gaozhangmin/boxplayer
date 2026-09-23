@@ -541,6 +541,15 @@ void MpvContext::setVideoProperty(const std::string& name, const std::string& va
         }
     }
     if (!supported) return;
+#ifdef BOXPLAYER_MPV_SOFTWARE
+    // libmpv's software render backend can retain a crop rectangle from the
+    // previous frame while video-crop/video-rotate reconfigure the source.
+    // That upstream path aborts inside mp_image_crop instead of returning an
+    // error. Windows/Linux apply these two presentation-only transforms to
+    // the received RGBA frame in MpvEmbeddedSurface, while all other video
+    // properties continue to be handled by libmpv here.
+    if (name == "video-crop" || name == "video-rotate") return;
+#endif
     // Crop/rotation/aspect and filter changes reconfigure libmpv's render
     // destination. Do not let the software render thread use the previous
     // destination rectangle while the property update is being applied.

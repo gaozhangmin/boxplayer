@@ -130,6 +130,8 @@ void main() {
 
 let glState: WebGLVideoState | null = null
 let fallbackContext: CanvasRenderingContext2D | null = null
+let softwareSourceCanvas: HTMLCanvasElement | null = null
+let softwareSourceContext: CanvasRenderingContext2D | null = null
 let statusTimer: number | null = null
 let controlsHideTimer: number | null = null
 let noticeTimer: number | null = null
@@ -343,11 +345,51 @@ const drawFrame = (videoFrame: VideoFrame, index: number) => {
 const drawSoftwareFrame = (pixels: Uint8Array, width: number, height: number, index: number) => {
   const canvas = fallbackCanvasRef.value
   if (!canvas || width < 1 || height < 1 || pixels.length !== width * height * 4) return
-  if (canvas.width !== width) canvas.width = width
-  if (canvas.height !== height) canvas.height = height
+  softwareSourceCanvas = softwareSourceCanvas || document.createElement('canvas')
+  if (softwareSourceCanvas.width !== width) softwareSourceCanvas.width = width
+  if (softwareSourceCanvas.height !== height) softwareSourceCanvas.height = height
+  softwareSourceContext = softwareSourceContext || softwareSourceCanvas.getContext('2d', { alpha: false })
+  if (!softwareSourceContext) return
+  softwareSourceContext.putImageData(new ImageData(new Uint8ClampedArray(pixels), width, height), 0, 0)
+
+  let sourceX = 0
+  let sourceY = 0
+  let sourceWidth = width
+  let sourceHeight = height
+  if (cropRatio.value !== 'no') {
+    const [ratioWidth, ratioHeight] = cropRatio.value.split(':').map(Number)
+    const targetRatio = ratioWidth > 0 && ratioHeight > 0 ? ratioWidth / ratioHeight : 0
+    if (targetRatio > 0 && width / height > targetRatio) {
+      sourceWidth = Math.max(1, Math.round(height * targetRatio))
+      sourceX = Math.floor((width - sourceWidth) / 2)
+    } else if (targetRatio > 0) {
+      sourceHeight = Math.max(1, Math.round(width / targetRatio))
+      sourceY = Math.floor((height - sourceHeight) / 2)
+    }
+  }
+
+  const normalizedRotation = ((rotation.value % 360) + 360) % 360
+  const swapsAxes = normalizedRotation === 90 || normalizedRotation === 270
+  const outputWidth = swapsAxes ? sourceHeight : sourceWidth
+  const outputHeight = swapsAxes ? sourceWidth : sourceHeight
+  if (canvas.width !== outputWidth) canvas.width = outputWidth
+  if (canvas.height !== outputHeight) canvas.height = outputHeight
   fallbackContext = fallbackContext || canvas.getContext('2d', { alpha: false })
   if (!fallbackContext) return
-  fallbackContext.putImageData(new ImageData(new Uint8ClampedArray(pixels), width, height), 0, 0)
+  fallbackContext.save()
+  fallbackContext.clearRect(0, 0, outputWidth, outputHeight)
+  if (normalizedRotation === 90) {
+    fallbackContext.translate(outputWidth, 0)
+    fallbackContext.rotate(Math.PI / 2)
+  } else if (normalizedRotation === 180) {
+    fallbackContext.translate(outputWidth, outputHeight)
+    fallbackContext.rotate(Math.PI)
+  } else if (normalizedRotation === 270) {
+    fallbackContext.translate(0, outputHeight)
+    fallbackContext.rotate(-Math.PI / 2)
+  }
+  fallbackContext.drawImage(softwareSourceCanvas, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight)
+  fallbackContext.restore()
   renderMode.value = 'fallback'
   frameCount.value = index + 1
   loading.value = false
@@ -978,6 +1020,8 @@ onBeforeUnmount(() => {
   window.WebMpvSharedTexture?.removeClearListener?.()
   void control('stop')
   destroyWebGL()
+  softwareSourceCanvas = null
+  softwareSourceContext = null
 })
 
 watch(() => props.url, () => {
