@@ -543,7 +543,12 @@ bool MpvContext::addAudio(const std::string& url, const std::string& title) {
         title.empty() ? nullptr : title.c_str(),
         nullptr
     };
-    return mpv_command_async(m_mpv, 0, cmd) >= 0;
+    // The renderer returns the updated track list with the control response.
+    // `mpv_command_async` only confirms that the command was queued, which
+    // races that response on Windows/Linux and leaves the audio selector with
+    // its stale pre-add list. Execute the command synchronously so callers can
+    // immediately observe (and select) the new external track.
+    return mpv_command(m_mpv, cmd) >= 0;
 }
 
 bool MpvContext::addSubtitle(const std::string& url, const std::string& title) {
@@ -556,7 +561,7 @@ bool MpvContext::addSubtitle(const std::string& url, const std::string& title) {
         title.empty() ? nullptr : title.c_str(),
         nullptr
     };
-    return mpv_command_async(m_mpv, 0, cmd) >= 0;
+    return mpv_command(m_mpv, cmd) >= 0;
 }
 
 MpvTrackStatus MpvContext::getTrackStatus() const {

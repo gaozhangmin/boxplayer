@@ -40,7 +40,10 @@ try {
     mpv.load(samplePath)
     await waitForTrackCount('audio', 1)
     mpv.addAudio(samplePath, 'external-smoke-audio')
-    await waitForTrackCount('audio', 2)
+    const audioTracks = (mpv.getTrackStatus()?.tracks || []).filter((track) => track.type === 'audio')
+    if (audioTracks.length < 2 || !audioTracks.some((track) => track.external || track.title === 'external-smoke-audio')) {
+      throw new Error(`libmpv audio-add returned before exposing the external track: ${JSON.stringify(audioTracks)}`)
+    }
   }
   console.log(`libmpv controls OK: ${process.platform}/${process.arch} ${addonPath}`)
 } finally {
