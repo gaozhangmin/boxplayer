@@ -171,9 +171,16 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       if (path.basename(testInfo.file).startsWith('embeddedMpv')) {
         // BoxPlayer's window-close handler can hide to tray. Quit the app
         // explicitly so MPV receives will-quit and its native threads stop.
+        // Remove only the test process' window close interception first;
+        // otherwise app.quit() is cancelled on Windows, the forced kill leaves
+        // Chromium profile files locked, and Playwright's worker cannot tear
+        // down even though every playback assertion already passed.
         // Do not race app.close(): the abandoned close promise retains the
         // Playwright transport and makes an otherwise-passing worker time out.
-        await app.evaluate(({ app: electronApp }) => { electronApp.quit() }).catch(() => undefined)
+        await app.evaluate(({ app: electronApp, BrowserWindow }) => {
+          for (const window of BrowserWindow.getAllWindows()) window.removeAllListeners('close')
+          electronApp.quit()
+        }).catch(() => undefined)
         if (electronProcess.exitCode === null && electronProcess.signalCode === null) {
           await Promise.race([
             new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
@@ -186,7 +193,13 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
           new Promise<void>((resolve) => setTimeout(resolve, 5_000))
         ])
       }
-      if (electronProcess.exitCode === null && !electronProcess.killed) electronProcess.kill('SIGKILL')
+      if (electronProcess.exitCode === null && !electronProcess.killed) {
+        electronProcess.kill('SIGKILL')
+        await Promise.race([
+          new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
+          new Promise<void>((resolve) => setTimeout(resolve, 5_000))
+        ])
+      }
       ariaProcess?.kill()
       rendererProcess?.kill()
       try {
