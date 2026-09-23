@@ -1,10 +1,7 @@
 import { expect, test } from './fixtures/boxPlayer'
 import type { Page } from '@playwright/test'
-// @ts-expect-error CommonJS helper is also executed directly by Actions.
-import { loadRealMediaServerE2EConfig } from '../scripts/real-media-server-e2e-config.cjs'
 
 const enabled = Boolean(process.env.BOXPLAYER_E2E_EMBY_JSON?.trim())
-const config = enabled ? loadRealMediaServerE2EConfig() : undefined
 
 test.setTimeout(15 * 60_000)
 
@@ -34,9 +31,10 @@ if (!enabled) {
   })
 } else {
   test('Emby authenticates, searches, resolves playback metadata and plays through MPV', async ({ boxPlayer }) => {
-    const { app, page, pageErrors, consoleErrors } = boxPlayer
+    const { app, page, pageErrors, consoleErrors, mediaServer } = boxPlayer
+    expect(mediaServer, 'Emby CI login did not produce a media-server fixture').toBeTruthy()
     const embyPaths = new Set<string>()
-    const base = new URL(config!.baseUrl)
+    const base = new URL(mediaServer!.baseUrl)
     const capture = (request: import('@playwright/test').Request) => {
       const url = new URL(request.url())
       if (url.origin === base.origin) embyPaths.add(url.pathname)
@@ -46,18 +44,18 @@ if (!enabled) {
     let player: Page | undefined
     try {
       await page.locator('#xbyhead2 .arco-menu-item').getByText('媒体服务器', { exact: true }).click()
-      const serverRow = page.locator('.media-server-sidebar .server-item').filter({ hasText: config!.name })
+      const serverRow = page.locator('.media-server-sidebar .server-item').filter({ hasText: mediaServer!.name })
       await expect(serverRow).toBeVisible({ timeout: 30_000 })
       await serverRow.click()
       await expect(page.locator('.workspace-tabs')).toBeVisible({ timeout: 60_000 })
       await page.locator('.workspace-tab').getByText('搜索', { exact: true }).click()
       const search = page.locator('.search-input-hero input')
       await expect(search).toBeVisible()
-      await search.fill(config!.mediaTitle)
+      await search.fill(mediaServer!.mediaTitle)
       await search.press('Enter')
 
-      const result = page.locator('.poster-tile').filter({ has: page.getByText(config!.mediaTitle, { exact: true }) }).first()
-      await expect(result, `Emby search did not return ${config!.mediaTitle}`).toBeVisible({ timeout: 90_000 })
+      const result = page.locator('.poster-tile').filter({ has: page.getByText(mediaServer!.mediaTitle, { exact: true }) }).first()
+      await expect(result, `Emby search did not return ${mediaServer!.mediaTitle}`).toBeVisible({ timeout: 90_000 })
       await result.click()
       const play = page.locator('.detail-primary-play')
       await expect(play).toBeVisible({ timeout: 90_000 })

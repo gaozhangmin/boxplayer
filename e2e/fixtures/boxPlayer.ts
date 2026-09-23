@@ -9,13 +9,20 @@ import path from 'path'
 // @ts-expect-error JavaScript helper uses runtime validation.
 import { parseRealCloudAccounts } from '../../scripts/real-cloud-e2e-config.cjs'
 // @ts-expect-error CommonJS helper is shared with Actions preflight.
-import { loadRealMediaServerE2EConfig } from '../../scripts/real-media-server-e2e-config.cjs'
+import { resolveRealMediaServerE2EConfig } from '../../scripts/real-media-server-e2e-config.cjs'
+
+export interface RealMediaServerFixture {
+  name: string
+  baseUrl: string
+  mediaTitle: string
+}
 
 export interface BoxPlayerFixture {
   app: ElectronApplication
   page: Page
   pageErrors: string[]
   consoleErrors: string[]
+  mediaServer?: RealMediaServerFixture
 }
 
 function sanitizeConsoleText(value: string): string {
@@ -104,9 +111,9 @@ async function seedRealCloudAccounts(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded')
 }
 
-async function seedRealMediaServer(page: Page): Promise<void> {
-  if (!process.env.BOXPLAYER_E2E_EMBY_JSON?.trim()) return
-  const config = loadRealMediaServerE2EConfig()
+async function seedRealMediaServer(page: Page): Promise<RealMediaServerFixture | undefined> {
+  if (!process.env.BOXPLAYER_E2E_EMBY_JSON?.trim()) return undefined
+  const config = await resolveRealMediaServerE2EConfig()
   const now = Date.now()
   await page.evaluate(({ config, now }) => {
     const server = {
@@ -134,6 +141,7 @@ async function seedRealMediaServer(page: Page): Promise<void> {
   }, { config, now })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
+  return { name: config.name, baseUrl: config.baseUrl, mediaTitle: config.mediaTitle }
 }
 
 async function waitForPort(port: number, timeout = 10_000): Promise<void> {
@@ -216,7 +224,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
     try {
       const page = await app.firstWindow()
       if (realAccountTest && injectedRealAccounts) await seedRealCloudAccounts(page)
-      if (realAccountTest) await seedRealMediaServer(page)
+      const mediaServer = realAccountTest ? await seedRealMediaServer(page) : undefined
       const pageErrors: string[] = []
       const consoleErrors: string[] = []
       page.on('pageerror', (error) => pageErrors.push(sanitizeConsoleText(error.message)))
@@ -255,7 +263,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
       const loginDialog = page.locator('.userloginmodal')
       await loginDialog.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined)
       if (await loginDialog.isVisible()) await loginDialog.getByRole('button', { name: 'Close' }).click()
-      await use({ app, page, pageErrors, consoleErrors })
+      await use({ app, page, pageErrors, consoleErrors, mediaServer })
       if (testInfo.status !== testInfo.expectedStatus) {
         await testInfo.attach('renderer-errors', { body: JSON.stringify({ url: page.url(), pageErrors, consoleErrors }), contentType: 'application/json' })
       }

@@ -56,20 +56,24 @@ Every required provider must have exactly one imported account and one playback 
 
 ## Store the Emby test identity
 
-Add `BOXPLAYER_E2E_EMBY_JSON` as an encrypted Actions secret. The server must be reachable from GitHub-hosted runners and should use a dedicated test user:
+Add `BOXPLAYER_E2E_EMBY_JSON` as an encrypted Actions secret. The server must be reachable from GitHub-hosted runners and should use a dedicated, non-administrator test user:
 
 ```json
 {
-  "name": "BoxPlayer E2E Emby",
-  "baseUrl": "https://emby.example.com",
-  "accessToken": "DEDICATED_TEST_USER_TOKEN",
-  "userId": "EMBY_USER_ID",
-  "deviceId": "boxplayer-github-actions",
-  "mediaTitle": "BoxPlayer E2E Sample"
+  "url": "https://emby.example.com",
+  "username": "boxplayer-ci",
+  "password": "DEDICATED_TEST_USER_PASSWORD",
+  "userAgent": "BoxPlayer E2E"
 }
 ```
 
-`mediaTitle` must identify a small, seekable H.264/AAC test video. The gate uses the real UI to search it, open its detail page, resolve `PlaybackInfo`, and play it through embedded MPV.
+The preflight calls Emby's `Users/AuthenticateByName` endpoint for every CI run and keeps the returned token only in the runner's temporary profile. It then discovers the newest playable Movie, Episode, or Video, uses the real UI to search it, opens its detail page, resolves `PlaybackInfo`, and plays it through embedded MPV. `mediaTitle` remains an optional field when a fixed small H.264/AAC sample should be selected instead of automatic discovery.
+
+Upload without placing the password in shell history:
+
+```bash
+gh secret set BOXPLAYER_E2E_EMBY_JSON --repo gaozhangmin/boxplayer < /secure/path/emby-e2e.json
+```
 
 ## What the gate verifies on Linux x64/arm64, Windows x64, and macOS arm64/x64
 
