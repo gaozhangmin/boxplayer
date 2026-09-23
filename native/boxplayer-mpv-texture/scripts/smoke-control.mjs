@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -8,8 +9,19 @@ const require = createRequire(import.meta.url)
 const native = require(addonPath)
 const mpv = native.mpvTexture || native
 
-for (const name of ['create', 'destroy', 'getStatus', 'setVolume', 'setSpeed', 'getTrackStatus', 'setAudioTrack', 'setSubtitleTrack']) {
+for (const name of ['create', 'destroy', 'load', 'getStatus', 'setVolume', 'setSpeed', 'getTrackStatus', 'setAudioTrack', 'setSubtitleTrack', 'addAudio']) {
   if (typeof mpv[name] !== 'function') throw new Error(`Missing libmpv control method: ${name}`)
+}
+
+async function waitForTrackCount(type, expected, timeout = 5_000) {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    const count = (mpv.getTrackStatus()?.tracks || []).filter((track) => track.type === type).length
+    if (count >= expected) return count
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  const status = mpv.getTrackStatus()
+  throw new Error(`libmpv did not expose ${expected} ${type} track(s): ${JSON.stringify(status)}`)
 }
 
 try {
@@ -22,6 +34,14 @@ try {
   const status = mpv.getStatus()
   const tracks = mpv.getTrackStatus()
   if (!status || typeof status !== 'object' || !tracks || typeof tracks !== 'object') throw new Error('libmpv status/track query failed')
+
+  const samplePath = path.resolve(packageRoot, '..', '..', 'e2e', 'assets', 'mpv-sample.mp4')
+  if (existsSync(samplePath)) {
+    mpv.load(samplePath)
+    await waitForTrackCount('audio', 1)
+    mpv.addAudio(samplePath, 'external-smoke-audio')
+    await waitForTrackCount('audio', 2)
+  }
   console.log(`libmpv controls OK: ${process.platform}/${process.arch} ${addonPath}`)
 } finally {
   mpv.destroy()

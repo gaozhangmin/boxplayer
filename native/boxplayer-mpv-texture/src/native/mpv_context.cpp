@@ -569,30 +569,49 @@ MpvTrackStatus MpvContext::getTrackStatus() const {
     int64_t sid = -1;
     if (mpv_get_property(m_mpv, "sid", MPV_FORMAT_INT64, &sid) >= 0) status.subtitleId = static_cast<int>(sid);
 
-    int64_t trackCount = 0;
-    if (mpv_get_property(m_mpv, "track-list/count", MPV_FORMAT_INT64, &trackCount) < 0) return status;
-    auto readStringProperty = [this](const std::string& name) {
-        char* value = mpv_get_property_string(m_mpv, name.c_str());
-        std::string result = value ? value : "";
-        if (value) mpv_free(value);
-        return result;
+    // `track-list/N/property` is accepted by some libmpv builds but is not a
+    // portable client-API property path. In particular, the Linux builds used
+    // by BoxPlayer returned an empty list even though the file contained audio
+    // and subtitle tracks. Read the documented node-array value instead so the
+    // same enumeration works on macOS, Windows and Linux.
+    mpv_node trackList{};
+    if (mpv_get_property(m_mpv, "track-list", MPV_FORMAT_NODE, &trackList) < 0) return status;
+
+    auto mapValue = [](const mpv_node& map, const char* key) -> const mpv_node* {
+        if (map.format != MPV_FORMAT_NODE_MAP || !map.u.list) return nullptr;
+        const mpv_node_list* values = map.u.list;
+        for (int index = 0; index < values->num; ++index) {
+            if (values->keys[index] && std::strcmp(values->keys[index], key) == 0) return &values->values[index];
+        }
+        return nullptr;
     };
-    for (int64_t i = 0; i < trackCount; ++i) {
-        const std::string prefix = "track-list/" + std::to_string(i) + "/";
-        MpvTrack track{};
-        int64_t id = -1;
-        int selected = 0;
-        int external = 0;
-        if (mpv_get_property(m_mpv, (prefix + "id").c_str(), MPV_FORMAT_INT64, &id) >= 0) track.id = static_cast<int>(id);
-        else track.id = -1;
-        track.type = readStringProperty(prefix + "type");
-        track.title = readStringProperty(prefix + "title");
-        track.language = readStringProperty(prefix + "lang");
-        track.codec = readStringProperty(prefix + "codec");
-        if (mpv_get_property(m_mpv, (prefix + "selected").c_str(), MPV_FORMAT_FLAG, &selected) >= 0) track.selected = selected != 0;
-        if (mpv_get_property(m_mpv, (prefix + "external").c_str(), MPV_FORMAT_FLAG, &external) >= 0) track.external = external != 0;
-        if (track.id >= 0 && !track.type.empty()) status.tracks.push_back(track);
+    auto nodeString = [](const mpv_node* value) -> std::string {
+        return value && value->format == MPV_FORMAT_STRING && value->u.string ? value->u.string : "";
+    };
+    auto nodeFlag = [](const mpv_node* value) -> bool {
+        return value && value->format == MPV_FORMAT_FLAG && value->u.flag != 0;
+    };
+
+    if (trackList.format == MPV_FORMAT_NODE_ARRAY && trackList.u.list) {
+        const mpv_node_list* values = trackList.u.list;
+        for (int index = 0; index < values->num; ++index) {
+            const mpv_node& item = values->values[index];
+            const mpv_node* id = mapValue(item, "id");
+            const mpv_node* type = mapValue(item, "type");
+            if (!id || id->format != MPV_FORMAT_INT64 || !type) continue;
+
+            MpvTrack track{};
+            track.id = static_cast<int>(id->u.int64);
+            track.type = nodeString(type);
+            track.title = nodeString(mapValue(item, "title"));
+            track.language = nodeString(mapValue(item, "lang"));
+            track.codec = nodeString(mapValue(item, "codec"));
+            track.selected = nodeFlag(mapValue(item, "selected"));
+            track.external = nodeFlag(mapValue(item, "external"));
+            if (track.id >= 0 && !track.type.empty()) status.tracks.push_back(track);
+        }
     }
+    mpv_free_node_contents(&trackList);
     return status;
 }
 
