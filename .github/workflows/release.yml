@@ -16,34 +16,31 @@ jobs:
     uses: ./.github/workflows/mpv-linux.yml
 
   embedded-mpv-linux-test:
-    name: Verify embedded MPV on Linux
+    name: Verify embedded MPV on Linux (playback only)
     uses: ./.github/workflows/embedded-mpv-linux.yml
     with:
-      real_cloud: true
+      real_cloud: false
     secrets: inherit
 
   embedded-mpv-windows-test:
-    name: Verify embedded MPV on Windows
-    needs: embedded-mpv-linux-test
+    name: Verify Windows x64 cloud APIs, Emby and embedded MPV
     uses: ./.github/workflows/embedded-mpv-windows-x64.yml
     with:
       real_cloud: true
     secrets: inherit
 
   embedded-mpv-macos-arm64-test:
-    name: Verify embedded MPV on macOS ARM64
-    needs: embedded-mpv-windows-test
+    name: Verify embedded MPV on macOS ARM64 (playback only)
     uses: ./.github/workflows/embedded-mpv-macos-arm64.yml
     with:
-      real_cloud: true
+      real_cloud: false
     secrets: inherit
 
   embedded-mpv-macos-x64-test:
-    name: Verify embedded MPV on macOS x64
-    needs: embedded-mpv-macos-arm64-test
+    name: Verify embedded MPV on macOS x64 (playback only)
     uses: ./.github/workflows/embedded-mpv-macos-x64.yml
     with:
-      real_cloud: true
+      real_cloud: false
     secrets: inherit
 
   electron-e2e:
