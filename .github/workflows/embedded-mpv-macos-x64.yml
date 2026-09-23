@@ -137,5 +137,8 @@ jobs:
         if: always()
         with:
           name: embedded-mpv-darwin-x64-candidate
-          path: static/engine/darwin/x64/mpv-texture/
+          path: |
+            static/engine/darwin/x64/mpv-texture/
+            test-results/
+            playwright-report/
           if-no-files-found: error

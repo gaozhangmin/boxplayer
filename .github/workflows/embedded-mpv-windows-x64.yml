@@ -159,5 +159,8 @@ jobs:
         if: always()
         with:
           name: embedded-mpv-windows-x64-candidate
-          path: static/engine/win32/x64/mpv-texture/
+          path: |
+            static/engine/win32/x64/mpv-texture/
+            test-results/
+            playwright-report/
           if-no-files-found: warn

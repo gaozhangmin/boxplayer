@@ -197,7 +197,14 @@ async function isPortOpen(port: number): Promise<boolean> {
 async function startRealAccountRenderer(): Promise<ChildProcess | undefined> {
   if (await isPortOpen(5173)) return undefined
   const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-  const child = spawn(command, ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], { cwd: process.cwd(), stdio: 'ignore' })
+  // Windows cannot execute .cmd shims directly through spawn without a shell.
+  // Keep arguments separate and enable the shell only for the trusted pnpm shim.
+  const child = spawn(command, ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], {
+    cwd: process.cwd(),
+    stdio: 'ignore',
+    shell: process.platform === 'win32',
+    windowsHide: true
+  })
   await waitForPort(5173)
   return child
 }
