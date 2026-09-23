@@ -135,8 +135,12 @@ static CGLContextObj g_cglContext = nullptr;
 static CGLPixelFormatObj g_cglPixelFormat = nullptr;
 
 static bool createMacOSGLContext() {
-    // Create a minimal OpenGL context for offscreen rendering
-    CGLPixelFormatAttribute attributes[] = {
+    // Prefer the accelerated renderer on real Macs. GitHub-hosted and other
+    // headless macOS machines do not expose an accelerated pixel format even
+    // though CGL's software renderer can still render into IOSurface-backed
+    // textures. Falling back here keeps the exact production addon and libmpv
+    // path testable without weakening the normal hardware path.
+    CGLPixelFormatAttribute acceleratedAttributes[] = {
         kCGLPFAOpenGLProfile, (CGLPixelFormatAttribute)kCGLOGLPVersion_3_2_Core,
         kCGLPFAColorSize, (CGLPixelFormatAttribute)24,
         kCGLPFAAlphaSize, (CGLPixelFormatAttribute)8,
@@ -146,7 +150,24 @@ static bool createMacOSGLContext() {
     };
 
     GLint numFormats = 0;
-    CGLError err = CGLChoosePixelFormat(attributes, &g_cglPixelFormat, &numFormats);
+    CGLError err = CGLChoosePixelFormat(acceleratedAttributes, &g_cglPixelFormat, &numFormats);
+    if (err != kCGLNoError || numFormats == 0) {
+        if (g_cglPixelFormat) {
+            CGLDestroyPixelFormat(g_cglPixelFormat);
+            g_cglPixelFormat = nullptr;
+        }
+        CGLPixelFormatAttribute softwareAttributes[] = {
+            kCGLPFAOpenGLProfile, (CGLPixelFormatAttribute)kCGLOGLPVersion_3_2_Core,
+            kCGLPFAColorSize, (CGLPixelFormatAttribute)24,
+            kCGLPFAAlphaSize, (CGLPixelFormatAttribute)8,
+            (CGLPixelFormatAttribute)0
+        };
+        numFormats = 0;
+        err = CGLChoosePixelFormat(softwareAttributes, &g_cglPixelFormat, &numFormats);
+        if (err == kCGLNoError && numFormats > 0) {
+            std::cout << "[MpvContext] Accelerated CGL pixel format unavailable; using software OpenGL renderer" << std::endl;
+        }
+    }
     if (err != kCGLNoError || numFormats == 0) {
         std::cerr << "[MpvContext] Failed to choose pixel format: " << err << std::endl;
         return false;

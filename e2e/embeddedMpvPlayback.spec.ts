@@ -143,7 +143,7 @@ test('PageVideo MPV forwards the complete authenticated cloud header contract', 
     }), { mediaUrl: authenticatedMedia.url, headers: Object.fromEntries(Object.entries(expectedCloudHeaders).map(([key, value]) => [key === 'user-agent' ? 'User-Agent' : key === 'x-urlp' ? 'x-urlp' : key[0].toUpperCase() + key.slice(1), value])) })
 
     const player = await playerPromise
-    await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 30_000 })
+    await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 90_000 })
     await expect.poll(async () => {
       const status = await player.evaluate(() => window.WebMpvEmbeddedStatus())
       return Boolean(status.ok && status.status?.duration > 0)

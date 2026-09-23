@@ -78,7 +78,10 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
       }
     }), { videoPath, parentPath, subtitleUrl })
     const player = await playerPromise
-    await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 30_000 })
+    // Loading the freshly bundled libmpv dependency graph can be slow on a
+    // cold GitHub runner. Wait for the real production surface rather than
+    // treating dependency loading latency as a playback failure.
+    await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 90_000 })
     await player.evaluate(({ externalAudioPath, externalSubtitlePath }) => {
       ;(window as any).__mpvControlLog = []
       const original = window.WebMpvEmbeddedControl
@@ -94,12 +97,14 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
 
     const playButton = player.locator('.mpv-play-btn')
     await playButton.click()
-    await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.some((entry: any) => entry.request.action === 'pause'))).toBe(true)
-    await expect(playButton).toHaveAttribute('aria-label', '播放')
+    await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.findLast((entry: any) => entry.request.action === 'pause')?.result?.ok), { message: '暂停按钮必须成功调用 MPV pause', timeout: 15_000 }).toBe(true)
+    await expect.poll(async () => Boolean((await player.evaluate(() => window.WebMpvEmbeddedStatus())).status?.paused), { message: 'MPV 必须实际进入暂停状态', timeout: 15_000 }).toBe(true)
+    await expect(playButton).toHaveAttribute('aria-label', '播放', { timeout: 15_000 })
     // Execute synchronously once the Vue state exposes the play action; the
     // three-second fixture can otherwise reach EOF during Playwright's actionability wait.
     await playButton.evaluate((button: HTMLButtonElement) => button.click())
-    await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.some((entry: any) => entry.request.action === 'play'))).toBe(true)
+    await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.findLast((entry: any) => entry.request.action === 'play')?.result?.ok), { message: '播放按钮必须成功调用 MPV play', timeout: 15_000 }).toBe(true)
+    await expect.poll(async () => Boolean((await player.evaluate(() => window.WebMpvEmbeddedStatus())).status?.paused), { message: 'MPV 必须实际恢复播放', timeout: 15_000 }).toBe(false)
     await setRange(player, player.getByRole('slider', { name: '播放进度' }), 1)
     await setRange(player, player.getByRole('slider', { name: '音量' }), 35)
 
