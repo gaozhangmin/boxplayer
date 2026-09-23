@@ -180,7 +180,6 @@ jobs:
           BOXPLAYER_E2E_REQUIRED_PROVIDERS: ${{ inputs.required_providers }}
           BOXPLAYER_E2E_REAL: '1'
           BOXPLAYER_E2E_REAL_MPV: '1'
-          BOXPLAYER_E2E_CLOUD_MUTATIONS: ${{ matrix.arch == 'x64' && '1' || '0' }}
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
           BOXPLAYER_MPV_AUDIO_OUTPUT: 'null'
         run: xvfb-run -a pnpm exec playwright test e2e/realCloudProviders.spec.ts e2e/realMediaServerMpv.spec.ts --workers=1

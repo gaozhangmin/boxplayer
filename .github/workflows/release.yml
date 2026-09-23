@@ -16,10 +16,10 @@ jobs:
     uses: ./.github/workflows/mpv-linux.yml
 
   embedded-mpv-linux-test:
-    name: Verify embedded MPV on Linux (playback only)
+    name: Verify every cloud provider and Emby playback on Linux
     uses: ./.github/workflows/embedded-mpv-linux.yml
     with:
-      real_cloud: false
+      real_cloud: true
     secrets: inherit
 
   embedded-mpv-windows-test:
@@ -30,17 +30,17 @@ jobs:
     secrets: inherit
 
   embedded-mpv-macos-arm64-test:
-    name: Verify embedded MPV on macOS ARM64 (playback only)
+    name: Verify every cloud provider and Emby playback on macOS ARM64
     uses: ./.github/workflows/embedded-mpv-macos-arm64.yml
     with:
-      real_cloud: false
+      real_cloud: true
     secrets: inherit
 
   embedded-mpv-macos-x64-test:
-    name: Verify embedded MPV on macOS x64 (playback only)
+    name: Verify every cloud provider and Emby playback on macOS x64
     uses: ./.github/workflows/embedded-mpv-macos-x64.yml
     with:
-      real_cloud: false
+      real_cloud: true
     secrets: inherit
 
   electron-e2e:
