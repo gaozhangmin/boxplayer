@@ -158,7 +158,7 @@ test('all visible MPV player controls execute successfully', async () => {
     // Marker buttons are destructive at the current position while playback
     // is running: setting the outro to "now" correctly stops/advances. Test
     // their local toggle state last, after all native track controls have run.
-    await playButton.click()
+    if (await playButton.getAttribute('aria-label') === '暂停') await playButton.click()
     await expect(playButton).toHaveAttribute('aria-label', '播放')
     const introMarker = player.getByRole('button', { name: '设置片头' })
     const outroMarker = player.getByRole('button', { name: '设置片尾' })

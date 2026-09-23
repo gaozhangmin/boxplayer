@@ -24,6 +24,15 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   if (frames === 0) throw new Error(`No software video frames; status=${JSON.stringify(lastStatus)}`)
+  for (const [name, value] of [
+    ['video-aspect-override', '16:9'],
+    ['video-crop', '16:10'],
+    ['video-rotate', '90'],
+    ['hwdec', 'auto'],
+    ['deinterlace', 'yes'],
+    ['tone-mapping', 'auto'],
+    ['brightness', '10']
+  ]) mpv.setVideoProperty(name, value)
   mpv.addAudio(externalAudio, 'software-render-smoke-audio')
   mpv.addSubtitle(externalSubtitle, 'software-render-smoke-subtitle')
   const trackDeadline = Date.now() + 5_000

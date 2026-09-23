@@ -423,6 +423,7 @@ void MpvContext::destroy() {
 
 bool MpvContext::load(const std::string& url, const std::string& options) {
     if (!m_mpv) return false;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
 
     if (!options.empty()) {
         const char* cmd[] = {"loadfile", url.c_str(), "replace", "-1", options.c_str(), nullptr};
@@ -436,6 +437,7 @@ bool MpvContext::load(const std::string& url, const std::string& options) {
 
 void MpvContext::play() {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> renderLock(m_renderApiMutex);
     int flag = 0;
     if (mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag) >= 0) {
         std::lock_guard<std::mutex> lock(m_statusMutex);
@@ -445,6 +447,7 @@ void MpvContext::play() {
 
 void MpvContext::pause() {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> renderLock(m_renderApiMutex);
     int flag = 1;
     if (mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag) >= 0) {
         std::lock_guard<std::mutex> lock(m_statusMutex);
@@ -454,12 +457,14 @@ void MpvContext::pause() {
 
 void MpvContext::stop() {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     const char* cmd[] = {"stop", nullptr};
     mpv_command(m_mpv, cmd);
 }
 
 void MpvContext::seek(double position) {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     std::string pos_str = std::to_string(position);
     const char* cmd[] = {"seek", pos_str.c_str(), "absolute", nullptr};
     mpv_command(m_mpv, cmd);
@@ -467,16 +472,19 @@ void MpvContext::seek(double position) {
 
 void MpvContext::setVolume(double volume) {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     mpv_set_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &volume);
 }
 
 void MpvContext::setSpeed(double speed) {
     if (!m_mpv || speed < 0.25 || speed > 4.0) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     mpv_set_property(m_mpv, "speed", MPV_FORMAT_DOUBLE, &speed);
 }
 
 void MpvContext::setAudioTrack(int id) {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     if (id < 0) {
         mpv_set_property_string(m_mpv, "aid", "no");
         return;
@@ -487,6 +495,7 @@ void MpvContext::setAudioTrack(int id) {
 
 void MpvContext::setSubtitleTrack(int id) {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     if (id < 0) {
         mpv_set_property_string(m_mpv, "sid", "no");
         return;
@@ -497,6 +506,7 @@ void MpvContext::setSubtitleTrack(int id) {
 
 void MpvContext::setSubtitleStyle(const MpvSubtitleStyle& style) {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     if (style.fontSize > 0) {
         std::string value = std::to_string(style.fontSize);
         mpv_set_property_string(m_mpv, "sub-font-size", value.c_str());
@@ -531,6 +541,10 @@ void MpvContext::setVideoProperty(const std::string& name, const std::string& va
         }
     }
     if (!supported) return;
+    // Crop/rotation/aspect and filter changes reconfigure libmpv's render
+    // destination. Do not let the software render thread use the previous
+    // destination rectangle while the property update is being applied.
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     mpv_set_property_string(m_mpv, name.c_str(), value.c_str());
 }
 
@@ -624,6 +638,7 @@ MpvTrackStatus MpvContext::getTrackStatus() const {
 
 void MpvContext::toggleMute() {
     if (!m_mpv) return;
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
     const char* cmd[] = {"cycle", "mute", nullptr};
     mpv_command(m_mpv, cmd);
 }
