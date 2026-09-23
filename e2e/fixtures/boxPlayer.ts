@@ -8,6 +8,8 @@ import path from 'path'
 // remains plain CommonJS so it can run before Electron or TypeScript is built.
 // @ts-expect-error JavaScript helper uses runtime validation.
 import { parseRealCloudAccounts } from '../../scripts/real-cloud-e2e-config.cjs'
+// @ts-expect-error CommonJS helper is shared with Actions preflight.
+import { loadRealMediaServerE2EConfig } from '../../scripts/real-media-server-e2e-config.cjs'
 
 export interface BoxPlayerFixture {
   app: ElectronApplication
@@ -20,12 +22,12 @@ function sanitizeConsoleText(value: string): string {
   return value
     .replace(/([?&](?:access_token|refresh_token|provider_token|provider_refresh_token|api_key|apikey|key|token|x-oss-signature|x-amz-signature|x-amz-credential)=)[^&#\s)]+/gi, '$1[redacted]')
     .replace(/(["']?(?:access_token|refresh_token|provider_token|provider_refresh_token|authorization|cookie|set-cookie|signature)["']?\s*:\s*["'])[^"'\r\n]+(["'])/gi, '$1[redacted]$2')
-    .replace(/((?:authorization|cookie|set-cookie)\s*[=:]\s*)[^\r\n}]+/gi, '$1[redacted]')
+    .replace(/((?:authorization|cookie|set-cookie|x-emby-token)\s*[=:]\s*)[^\r\n}]+/gi, '$1[redacted]')
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
 }
 
 function isRealCloudTest(file: string): boolean {
-  return /^realCloud.*\.spec\.ts$/i.test(path.basename(file))
+  return /^real(?:Cloud|MediaServer).*\.spec\.ts$/i.test(path.basename(file))
 }
 
 function defaultRealProfilePath(): string {
@@ -98,6 +100,38 @@ async function seedRealCloudAccounts(page: Page): Promise<void> {
       db.close()
     }
   }, { accounts, defaultUserId })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+}
+
+async function seedRealMediaServer(page: Page): Promise<void> {
+  if (!process.env.BOXPLAYER_E2E_EMBY_JSON?.trim()) return
+  const config = loadRealMediaServerE2EConfig()
+  const now = Date.now()
+  await page.evaluate(({ config, now }) => {
+    const server = {
+      id: 'media_server_e2e_emby',
+      type: 'emby',
+      name: config.name,
+      baseUrl: config.baseUrl,
+      accessToken: config.accessToken,
+      userId: config.userId,
+      deviceId: config.deviceId,
+      loginStatus: 'success',
+      createdAt: now,
+      updatedAt: now,
+      lastUsedAt: now
+    }
+    localStorage.setItem('MediaServer_Registry', JSON.stringify([server]))
+    localStorage.setItem('MediaServer_Preferences', JSON.stringify({
+      currentServerId: server.id,
+      serverListView: 'grid',
+      serverSortBy: 'lastUsedAt',
+      serverSortOrder: 'desc',
+      serverSearchText: '',
+      pinnedServerIds: []
+    }))
+  }, { config, now })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
 }
@@ -182,6 +216,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
     try {
       const page = await app.firstWindow()
       if (realAccountTest && injectedRealAccounts) await seedRealCloudAccounts(page)
+      if (realAccountTest) await seedRealMediaServer(page)
       const pageErrors: string[] = []
       const consoleErrors: string[] = []
       page.on('pageerror', (error) => pageErrors.push(sanitizeConsoleText(error.message)))

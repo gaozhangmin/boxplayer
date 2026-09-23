@@ -42,6 +42,7 @@ jobs:
       - name: Install project dependencies
         run: |
           pnpm install --frozen-lockfile
+          pnpm exec electron-rebuild -f -w better-sqlite3
           pnpm --dir native/boxplayer-mpv-texture install --ignore-workspace --no-frozen-lockfile --ignore-scripts
 
       - name: Verify MPV playback header and proxy contracts
@@ -93,14 +94,17 @@ jobs:
           pnpm run pretest:e2e
           pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts e2e/embeddedMpvWindowsCdp.spec.ts e2e/embeddedMpvControlsCdp.spec.ts --workers=1
 
-      - name: Validate real cloud test account coverage
+      - name: Validate real cloud and Emby test coverage
         if: inputs.real_cloud == true
         env:
           BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_WINDOWS_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
           BOXPLAYER_E2E_TARGETS_JSON: ${{ secrets.BOXPLAYER_E2E_TARGETS_JSON }}
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
-        run: node scripts/real-cloud-e2e-config.cjs
+          BOXPLAYER_E2E_EMBY_JSON: ${{ secrets.BOXPLAYER_E2E_EMBY_JSON }}
+        run: |
+          node scripts/real-cloud-e2e-config.cjs
+          node scripts/real-media-server-e2e-config.cjs
 
       - name: Build production renderer with real provider credentials
         if: inputs.real_cloud == true
@@ -130,17 +134,18 @@ jobs:
           node scripts/generate-secrets.mjs --mode=ci
           pnpm exec vite build
 
-      - name: Verify every real cloud provider API and MPV playback path
+      - name: Verify every cloud provider and Emby through the real MPV path
         if: inputs.real_cloud == true
         env:
           BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_WINDOWS_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
           BOXPLAYER_E2E_TARGETS_JSON: ${{ secrets.BOXPLAYER_E2E_TARGETS_JSON }}
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
+          BOXPLAYER_E2E_EMBY_JSON: ${{ secrets.BOXPLAYER_E2E_EMBY_JSON }}
           BOXPLAYER_E2E_REAL: '1'
           BOXPLAYER_E2E_REAL_MPV: '1'
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
-        run: pnpm exec playwright test e2e/realCloudProviders.spec.ts --workers=1
+        run: pnpm exec playwright test e2e/realCloudProviders.spec.ts e2e/realMediaServerMpv.spec.ts --workers=1
 
       - name: Verify the unpacked Electron package contains the complete bundle
         run: |

@@ -1,6 +1,6 @@
-# Real cloud release gate
+# Real cloud + Emby release gate
 
-The release workflow can inject dedicated BoxPlayer test accounts into a temporary Electron profile and verify every supported cloud provider through the production application and embedded MPV.
+The release workflow can inject dedicated BoxPlayer test accounts into a temporary Electron profile and verify every supported cloud provider plus Emby through the production application and embedded MPV.
 
 ## Providers required by the release gate
 
@@ -31,6 +31,7 @@ gh secret set BOXPLAYER_E2E_ACCOUNTS_LINUX_X64_JSON < /secure/path/tokens-linux-
 gh secret set BOXPLAYER_E2E_ACCOUNTS_LINUX_ARM64_JSON < /secure/path/tokens-linux-arm64.json
 gh secret set BOXPLAYER_E2E_ACCOUNTS_WINDOWS_X64_JSON < /secure/path/tokens-windows-x64.json
 gh secret set BOXPLAYER_E2E_ACCOUNTS_MACOS_ARM64_JSON < /secure/path/tokens-macos-arm64.json
+gh secret set BOXPLAYER_E2E_ACCOUNTS_MACOS_X64_JSON < /secure/path/tokens-macos-x64.json
 ```
 
 `BOXPLAYER_E2E_ACCOUNTS_JSON` remains a supported common fallback for initial setup, but it is less reliable for rotating OAuth credentials. Platform-specific secrets take precedence. Release jobs run serially as an additional safeguard.
@@ -53,7 +54,24 @@ For provider-specific paths, add the encrypted `BOXPLAYER_E2E_TARGETS_JSON` secr
 
 Every required provider must have exactly one imported account and one playback target. Missing configuration fails the release instead of skipping the test.
 
-## What the gate verifies on Linux x64/arm64, Windows x64, and macOS arm64
+## Store the Emby test identity
+
+Add `BOXPLAYER_E2E_EMBY_JSON` as an encrypted Actions secret. The server must be reachable from GitHub-hosted runners and should use a dedicated test user:
+
+```json
+{
+  "name": "BoxPlayer E2E Emby",
+  "baseUrl": "https://emby.example.com",
+  "accessToken": "DEDICATED_TEST_USER_TOKEN",
+  "userId": "EMBY_USER_ID",
+  "deviceId": "boxplayer-github-actions",
+  "mediaTitle": "BoxPlayer E2E Sample"
+}
+```
+
+`mediaTitle` must identify a small, seekable H.264/AAC test video. The gate uses the real UI to search it, open its detail page, resolve `PlaybackInfo`, and play it through embedded MPV.
+
+## What the gate verifies on Linux x64/arm64, Windows x64, and macOS arm64/x64
 
 - imports the account into a newly created temporary profile;
 - refreshes or validates the provider session through BoxPlayer's production code;
@@ -62,7 +80,11 @@ Every required provider must have exactly one imported account and one playback 
 - opens the real media file and resolves its download URL through `ApiFileDownloadUrl`;
 - preserves provider-specific Cookie, Authorization, User-Agent, Referer, Origin, and `x-urlp` headers;
 - starts embedded MPV, waits for duration and playback progress, pauses, seeks, resumes, and checks for player errors;
+- authenticates to Emby, searches a real item, loads its detail and playback metadata, and repeats the MPV playback assertions;
+- on Linux x64 only, runs the supported safe mutation APIs inside a unique `BoxPlayer-E2E-Run-*` folder: search, file detail, create folder, local upload, rename, download and content verification, copy, move, and move-to-trash;
 - deletes the temporary Electron profile after the test.
+
+Running the write-operation matrix once avoids duplicate remote mutations and OAuth refresh-token races. Sharing, permanent deletion, empty-trash, share import, and offline-download APIs are intentionally excluded from the automatic release gate because they create durable external effects; they need a separately authorized disposable-account suite.
 
 Quark and some session-based providers cannot refresh indefinitely. Rotate the dedicated test credential when the release gate reports an expired session.
 

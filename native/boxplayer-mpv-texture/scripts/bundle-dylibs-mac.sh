@@ -34,6 +34,7 @@ fi
 LIBMPV_SOURCE="${LIBMPV_SOURCE:-}"
 if [ -z "$LIBMPV_SOURCE" ]; then
   for candidate in \
+    "$PACKAGE_DIR/deps/mpv/macos/$ARCH/libmpv.dylib" \
     "$PACKAGE_DIR/deps/mpv/macos/libmpv.dylib" \
     "$HOMEBREW_PREFIX/opt/mpv/lib/libmpv.dylib" \
     "$HOMEBREW_PREFIX/lib/libmpv.dylib" \
@@ -61,7 +62,7 @@ BREW_LIB_DIRS=""
 if [ -d "$HOMEBREW_PREFIX/opt" ]; then
   BREW_LIB_DIRS="$(find "$HOMEBREW_PREFIX/opt" -maxdepth 3 -type d -name lib 2>/dev/null | tr '\n' ':')"
 fi
-BREW_LIB_DIRS="${PACKAGE_DIR}/deps/mpv/macos:${BREW_LIB_DIRS}${HOMEBREW_PREFIX}/lib:/usr/local/lib"
+BREW_LIB_DIRS="${PACKAGE_DIR}/deps/mpv/macos/$ARCH:${PACKAGE_DIR}/deps/mpv/macos:${BREW_LIB_DIRS}${HOMEBREW_PREFIX}/lib:/usr/local/lib"
 
 resolve_dep() {
   dep="$1"
@@ -149,10 +150,10 @@ while [ -s "$QUEUE_FILE" ]; do
   done
 done
 
+find "$OUTPUT_DIR" -maxdepth 1 \( -name "*.dylib" -o -name "*.node" \) -print0 | xargs -0 codesign --force --sign - 2>/dev/null || true
+
 MANIFEST="$OUTPUT_DIR/mpv-bundle-manifest.json"
 python3 "$SCRIPT_DIR/write-bundle-manifest.py" "$OUTPUT_DIR" "$MANIFEST" "$ARCH" "$LIBMPV_SOURCE"
-
-find "$OUTPUT_DIR" -maxdepth 1 \( -name "*.dylib" -o -name "*.node" \) -print0 | xargs -0 codesign --force --sign - 2>/dev/null || true
 
 echo "[bundle] output: $OUTPUT_DIR"
 echo "[bundle] manifest: $MANIFEST"

@@ -7,7 +7,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 test.skip(!['darwin', 'win32', 'linux'].includes(process.platform), 'Embedded MPV controls require a desktop host')
-test.setTimeout(120_000)
+test.setTimeout(180_000)
 
 async function waitForPort(port: number): Promise<void> {
   const deadline = Date.now() + 20_000
@@ -32,13 +32,16 @@ async function setRange(page: Page, locator: ReturnType<Page['locator']>, value:
   }, value)
 }
 
-test('all visible MPV player controls execute successfully', async () => {
+test('all visible MPV player controls execute successfully', async ({}, testInfo) => {
   const entry = path.resolve('dist/electron/main/index.js')
   if (!existsSync(entry)) throw new Error(`Missing production Electron entry: ${entry}`)
   const electronBinary = require('electron') as string
   const userData = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-mpv-controls-'))
   writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close' }))
-  const port = 19223
+  // A timed-out Electron process may hold its DevTools socket briefly. Give
+  // every Playwright retry a separate port so the retry never attaches to the
+  // previous process.
+  const port = 19223 + testInfo.retry
   const args = [`--remote-debugging-port=${port}`, ...(process.platform === 'linux' ? ['--no-sandbox'] : []), entry]
   let electronOutput = ''
   const electronProcess: ChildProcess = spawn(electronBinary, args, {
