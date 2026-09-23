@@ -55,6 +55,7 @@ try {
       ['brightness', '10']
     ]) mpv.setVideoProperty(name, value)
     mpv.addAudio(audioSamplePath, 'external-smoke-audio')
+    await waitForTrackCount('audio', 2)
     const audioTracks = (mpv.getTrackStatus()?.tracks || []).filter((track) => track.type === 'audio')
     if (audioTracks.length < 2 || !audioTracks.some((track) => track.external || track.title === 'external-smoke-audio')) {
       throw new Error(`libmpv audio-add returned before exposing the external track: ${JSON.stringify(audioTracks)}`)

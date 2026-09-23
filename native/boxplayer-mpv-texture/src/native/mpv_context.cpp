@@ -543,12 +543,11 @@ int MpvContext::addAudio(const std::string& url, const std::string& title) {
         title.empty() ? nullptr : title.c_str(),
         nullptr
     };
-    // The renderer returns the updated track list with the control response.
-    // `mpv_command_async` only confirms that the command was queued, which
-    // races that response on Windows/Linux and leaves the audio selector with
-    // its stale pre-add list. Execute the command synchronously so callers can
-    // immediately observe (and select) the new external track.
-    return mpv_command(m_mpv, cmd);
+    // Queue track mutations on libmpv's event thread. A synchronous command
+    // can race the software render loop on Linux and abort the isolated host.
+    // The Electron bridge explicitly polls track-list after this call, so the
+    // UI still waits for the newly added track before updating its selector.
+    return mpv_command_async(m_mpv, 0, cmd);
 }
 
 int MpvContext::addSubtitle(const std::string& url, const std::string& title) {
@@ -561,7 +560,7 @@ int MpvContext::addSubtitle(const std::string& url, const std::string& title) {
         title.empty() ? nullptr : title.c_str(),
         nullptr
     };
-    return mpv_command(m_mpv, cmd);
+    return mpv_command_async(m_mpv, 0, cmd);
 }
 
 MpvTrackStatus MpvContext::getTrackStatus() const {
