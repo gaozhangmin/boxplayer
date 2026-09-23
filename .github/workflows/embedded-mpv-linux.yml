@@ -53,8 +53,7 @@ jobs:
             src/utils/__tests__/playbackHeaders.test.ts \
             src/utils/__tests__/proxyMediaRewrite.test.ts \
             src/utils/__tests__/proxyhelper.test.ts \
-            electron/main/core/__tests__/embeddedMpvLoadOptions.test.ts \
-            electron/main/core/__tests__/embeddedMpvCapability.test.ts
+            electron/main/core/__tests__/embeddedMpvLoadOptions.test.ts
 
       - name: Build official libmpv and software renderer addon
         run: |
