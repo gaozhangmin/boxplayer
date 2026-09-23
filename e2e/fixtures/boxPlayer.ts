@@ -264,11 +264,11 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
         const location = sanitizeConsoleText(message.location().url)
         if (message.type() === 'error' && !expectedMissingAria) consoleErrors.push(location ? `${text} (${location})` : text)
       })
-      if (realAccountTest) {
+      if (injectedRealAccounts) {
         await page.locator('.user-avatar-trigger').waitFor({ state: 'visible', timeout: 45_000 })
         // The copied profile may contain pending transfers targeting the user's real disk.
         // Clear only transfer databases in this isolated profile before enabling workers.
-        if (injectedRealAccounts) await page.evaluate(async () => {
+        await page.evaluate(async () => {
           for (const name of ['XBYDB3Down', 'XBYDB3Upload']) {
             await new Promise<void>((resolve, reject) => {
               const request = indexedDB.open(name)
@@ -285,11 +285,9 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
             })
           }
         })
-        if (injectedRealAccounts) {
-          await page.reload()
-          await page.waitForLoadState('domcontentloaded')
-          await page.evaluate(() => { window.WebE2EAllowTransfers = true })
-        }
+        await page.reload()
+        await page.waitForLoadState('domcontentloaded')
+        await page.evaluate(() => { window.WebE2EAllowTransfers = true })
       }
       const loginDialog = page.locator('.userloginmodal')
       await loginDialog.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined)

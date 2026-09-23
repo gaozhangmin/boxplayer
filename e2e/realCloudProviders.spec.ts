@@ -31,9 +31,17 @@ async function switchToProvider(page: Page, provider: string): Promise<void> {
   const accountRow = page.locator('.user-list-row').filter({ has: page.locator(`.user-provider[title="${label}"]`) }).first()
   await expect(accountRow, `${label} CI 测试账号没有出现在账号列表`).toBeVisible({ timeout: 15_000 })
   const accountSwitch = accountRow.locator('.arco-switch')
-  if (!(await accountSwitch.getAttribute('class'))?.includes('arco-switch-checked')) await accountSwitch.click()
-  await expect(accountTrigger).toHaveAttribute('title', label, { timeout: 60_000 })
-  await page.keyboard.press('Escape')
+  try {
+    if (!(await accountSwitch.getAttribute('class'))?.includes('arco-switch-checked')) await accountSwitch.click()
+    await expect(accountTrigger).toHaveAttribute('title', label, { timeout: 60_000 })
+  } finally {
+    // The account chooser is a hover popover. Escape does not dismiss it and
+    // leaves an invisible-looking overlay that intercepts the next file click.
+    // Always close it, including after a failed account refresh, so one
+    // provider cannot contaminate the rest of the matrix.
+    await page.mouse.move(0, 0)
+    await expect(page.locator('.arco-trigger-popup.arco-popover:visible')).toHaveCount(0, { timeout: 15_000 })
+  }
 }
 
 async function openCloudRoot(page: Page): Promise<void> {
@@ -258,8 +266,17 @@ async function assertRealMpvPlayback(player: Page, provider: string): Promise<vo
   await expect(surface, `${provider} 没有打开内置 MPV`).toBeVisible({ timeout: 90_000 })
   await expect.poll(async () => {
     const result = await player.evaluate(() => window.WebMpvEmbeddedStatus())
-    return Boolean(result?.ok && Number(result.status?.duration) > 0 && Number(result.status?.position) > 0)
-  }, { timeout: 90_000, intervals: [500, 1_000, 2_000] }).toBe(true)
+    const status = {
+      ok: Boolean(result?.ok),
+      duration: Number(result?.status?.duration || 0),
+      position: Number(result?.status?.position || 0),
+      error: result?.error || result?.status?.error || ''
+    }
+    return status.ok && status.duration > 0 && status.position > 0 ? 'playing' : JSON.stringify(status)
+  }, { message: `${provider} MPV did not begin playback`, timeout: 90_000, intervals: [500, 1_000, 2_000] }).toBe('playing')
+  const started = await player.evaluate(() => window.WebMpvEmbeddedStatus())
+  expect(Number(started.status?.duration || 0), `${provider} MPV duration`).toBeGreaterThan(0)
+  expect(Number(started.status?.position || 0), `${provider} MPV position`).toBeGreaterThan(0)
 
   const pause = await player.evaluate(() => window.WebMpvEmbeddedControl({ action: 'pause' }))
   expect(pause.ok, `${provider} MPV pause: ${pause.error || 'unknown error'}`).toBe(true)
