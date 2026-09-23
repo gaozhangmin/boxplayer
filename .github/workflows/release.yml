@@ -15,6 +15,14 @@ jobs:
     name: Verify Linux MPV
     uses: ./.github/workflows/mpv-linux.yml
 
+  embedded-mpv-linux-test:
+    name: Verify embedded MPV on Linux
+    uses: ./.github/workflows/embedded-mpv-linux.yml
+
+  embedded-mpv-windows-test:
+    name: Verify embedded MPV on Windows
+    uses: ./.github/workflows/embedded-mpv-windows-x64.yml
+
   electron-e2e:
     name: Verify packaged Electron UI
     runs-on: ubuntu-latest
@@ -39,6 +47,7 @@ jobs:
 
   create-release:
     name: Create Release Draft
+    needs: [linux-mpv-test, embedded-mpv-linux-test, embedded-mpv-windows-test, electron-e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -62,7 +71,7 @@ jobs:
 
   release:
     name: Build Release
-    needs: [linux-mpv-test, electron-e2e, create-release]
+    needs: [create-release, embedded-mpv-linux-test, embedded-mpv-windows-test]
     strategy:
       fail-fast: false
       matrix:
@@ -134,6 +143,30 @@ jobs:
       - name: Install Dependencies
         run: |
           pnpm install --frozen-lockfile
+
+      - name: Download verified Windows x64 embedded MPV runtime
+        if: matrix.os == 'windows-latest'
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-mpv-windows-x64-candidate
+          path: static/engine/win32/x64/mpv-texture
+
+      - name: Download verified Linux x64 embedded MPV runtime
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-mpv-linux-x64-candidate
+          path: static/engine/linux/x64/mpv-texture
+
+      - name: Verify release uses the tested embedded MPV runtime
+        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            node scripts/check-embedded-mpv-bundles.mjs win32/x64
+          else
+            node scripts/check-embedded-mpv-bundles.mjs linux/x64
+          fi
 
       - name: Generate Release Secrets
         env:

@@ -1,6 +1,7 @@
 name: Validate embedded MPV Windows x64 candidate
 
 on:
+  workflow_call:
   workflow_dispatch:
   push:
     branches:
@@ -30,6 +31,15 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm --dir native/boxplayer-mpv-texture install --ignore-workspace --no-frozen-lockfile --ignore-scripts
+
+      - name: Verify MPV playback header and proxy contracts
+        run: |
+          pnpm exec vitest run `
+            src/utils/__tests__/playbackHeaders.test.ts `
+            src/utils/__tests__/proxyMediaRewrite.test.ts `
+            src/utils/__tests__/proxyhelper.test.ts `
+            electron/main/core/__tests__/embeddedMpvLoadOptions.test.ts `
+            electron/main/core/__tests__/embeddedMpvCapability.test.ts
 
       - uses: msys2/setup-msys2@v2
         with:
