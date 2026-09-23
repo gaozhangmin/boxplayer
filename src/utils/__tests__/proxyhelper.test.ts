@@ -89,5 +89,6 @@ describe('proxy response lifecycle', () => {
     expect(source).toContain("httpResp.on('close', () => {")
     expect(source).toContain('if (!httpResp.complete) finishResponse(true)')
     expect(source).toContain('if (endClient && !clientRes.writableEnded) clientRes.end()')
+    expect(source).toContain("if (proxyUrl.includes('.aliyuncs.com') && !isAuthenticatedMpvProxy)")
   })
 })

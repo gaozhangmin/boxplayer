@@ -287,7 +287,7 @@ const setting: SettingState = {
   uiMediaServerCustomDeviceProfile: DEFAULT_MEDIA_SERVER_CUSTOM_DEVICE_PROFILE,
   uiVideoQualityTips: false,
   uiVideoQualityLastSelect: true,
-  uiVideoPlayer: 'web',
+  uiVideoPlayer: 'mpv',
   uiVideoEnablePlayerList: false,
   uiVideoPlayerExit: false,
   uiVideoPlayerHistory: false,
@@ -512,7 +512,7 @@ function _loadSetting(val: any) {
   setting.uiMediaServerCustomDeviceProfile = normalizeMediaServerCustomDeviceProfile(val.uiMediaServerCustomDeviceProfile)
   setting.uiVideoQualityTips = defaultBool(val.uiVideoQualityTips, false)
   setting.uiVideoQualityLastSelect = defaultBool(val.uiVideoQualityLastSelect, true)
-  setting.uiVideoPlayer = defaultValue(val.uiVideoPlayer, ['web', 'mpv', 'other'])
+  setting.uiVideoPlayer = defaultValue(val.uiVideoPlayer, ['mpv', 'web', 'other'])
   setting.uiVideoEnablePlayerList = defaultBool(val.uiVideoEnablePlayerList, false)
   setting.uiVideoPlayerExit = defaultBool(val.uiVideoPlayerExit, false)
   setting.uiVideoPlayerHistory = defaultBool(val.uiVideoPlayerHistory, false)

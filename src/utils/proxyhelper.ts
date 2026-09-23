@@ -20,6 +20,7 @@ import { isAliyunUser, isQuarkUser } from '../aliapi/utils'
 import { isWebDavDrive } from './webdavClient'
 import { QUARK_DOWNLOAD_AGENT, readQuarkCookieStringFromElectron } from '../quark/auth'
 import { DRIVE115_DOWN_AGENT } from '@shared/drive115'
+import { mergeQuarkCookieHeaders } from '@shared/quarkCookies'
 import { createMpvProxyContext, isM3u8Response, resolveMpvProxyUri, rewriteMpvProxyPlaylist } from './proxyMediaRewrite'
 
 // 默认maxFreeSockets=256
@@ -368,7 +369,7 @@ export async function createProxyServer(port: number) {
         await Db.saveValueObject('ProxyInfo', info)
       }
       // 转码文件302重定向
-      if (proxyUrl.includes('.aliyuncs.com')) {
+      if (proxyUrl.includes('.aliyuncs.com') && !isAuthenticatedMpvProxy) {
         clientRes.writeHead(302, { 'Location': proxyUrl })
         clientRes.end()
         return
@@ -414,9 +415,13 @@ export async function createProxyServer(port: number) {
       if (query.drive_id === 'quark' || isQuarkUser(String(query.user_id || ''))) {
         const token = await getQuarkProxyToken(String(query.user_id || ''))
         const sessionCookie = await readQuarkCookieStringFromElectron().catch(() => '')
-        const quarkCookie = hasQuarkLoginCookie(token?.access_token || '')
-          ? token?.access_token || ''
-          : (hasQuarkLoginCookie(sessionCookie) ? sessionCookie : '')
+        // The signed-download endpoint can rotate __pus and returns its newest
+        // value through proxy_headers.  Do not replace it with the persisted
+        // login cookie here: the latter still works for listing/upload but the
+        // CDN rejects it for the newly issued signed URL with 403.
+        const signedDownloadCookie = String(upstreamHeaders.cookie || '')
+        const storedCookie = hasQuarkLoginCookie(token?.access_token || '') ? token?.access_token || '' : ''
+        const quarkCookie = mergeQuarkCookieHeaders(signedDownloadCookie, mergeQuarkCookieHeaders(sessionCookie, storedCookie))
         if (quarkCookie) {
           upstreamHeaders.cookie = quarkCookie
         }
@@ -443,6 +448,7 @@ export async function createProxyServer(port: number) {
         clientRes.setHeader('x-quark-proxy-x-urlp', String(upstreamHeaders['x-urlp'] || ''))
         console.warn('proxy.quark.upstreamHeaders', {
           hasCookie: !!quarkCookie,
+          hasSignedDownloadCookie: !!signedDownloadCookie,
           hasSessionCookie: !!sessionCookie,
           cookieKeys,
           origin: upstreamHeaders.origin,

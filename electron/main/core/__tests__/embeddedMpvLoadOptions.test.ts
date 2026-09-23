@@ -21,6 +21,19 @@ describe('embedded MPV load options', () => {
     })).toBe('http-header-fields=X-Emby-Authorization: MediaBrowser Token="token"\\, UserId="user"\\, Client="BoxPlayer",X-Emby-Token: token')
   })
 
+  it('preserves every header required by cloud drive playback', () => {
+    expect(buildMpvLoadOptions({
+      headers: {
+        Authorization: 'Bearer cloud-token',
+        Cookie: 'sid=quark',
+        'User-Agent': 'BoxPlayer-Cloud',
+        Referer: 'https://pan.example/',
+        Origin: 'https://pan.example',
+        'x-urlp': 'signed-value'
+      }
+    })).toBe('user-agent=BoxPlayer-Cloud,referrer=https://pan.example/,http-header-fields=Authorization: Bearer cloud-token,Cookie: sid=quark,Origin: https://pan.example,x-urlp: signed-value')
+  })
+
   it('does not emit empty options', () => {
     expect(buildMpvLoadOptions({})).toBe('')
   })

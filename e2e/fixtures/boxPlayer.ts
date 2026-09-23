@@ -103,6 +103,9 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
     const userData = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-e2e-'))
     const realAccountTest = path.basename(testInfo.file) === 'realCloud.spec.ts'
     copyRealProfile(userData, realAccountTest || process.env.BOXPLAYER_E2E_REAL === '1')
+    if (path.basename(testInfo.file) === 'embeddedMpvPlayback.spec.ts') {
+      writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close' }))
+    }
     let ariaProcess: ChildProcess | undefined
     let rendererProcess: ChildProcess | undefined
     if (realAccountTest) rendererProcess = await startRealAccountRenderer()

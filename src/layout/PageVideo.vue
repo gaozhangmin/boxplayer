@@ -52,6 +52,7 @@ import { resolveFullscreenModalContainer } from '../utils/fullscreenModal'
 import { updateSettingPreservingActivePanel } from '../utils/artplayerSetting'
 import message from '../utils/message'
 import { captureVideoQualitySwitchPlaybackState } from '../utils/videoQualitySwitch'
+import { hasPlaybackHeaders, mergeMpvPlaybackHeaders, mergePlaybackHeaders } from '../utils/playbackHeaders'
 import { getLocalVideoProgress, saveLocalVideoProgress } from '../utils/videoProgress'
 import { isVideoFile } from '../utils/videoFile'
 import { simpleToTradition, traditionToSimple } from 'chinese-simple2traditional'
@@ -406,8 +407,6 @@ const getArtVideoType = (url: string, type?: string) => {
 
 const isHlsVideoType = (type: string) => ['m3u8', 'hls', 'ts'].includes(type)
 const isDashVideoType = (type: string) => ['mpd', 'dash'].includes(type)
-
-const hasPlaybackHeaders = (headers?: Record<string, string>) => !!headers && Object.values(headers).some(Boolean)
 
 const resolveHeaderAwareVideoUrl = (
   url: string,
@@ -2290,7 +2289,11 @@ const resolveRawMpvQualitySource = (data: IRawUrl, preferredQuality?: string): {
     defaultQuality = resolvePreferredVideoQuality(data.qualities, uiVideoQuality)
   }
 
-  const defaultHeaders = defaultQuality.headers || data.headers
+  // Provider-level headers (Authorization/Cookie/Referer/etc.) apply to every
+  // quality. Quality-specific headers may add to or override them, but an empty
+  // quality header object must never discard provider authentication.
+  const provider = resolveDriveProvider(pageVideo.user_id, pageVideo.drive_id, pageVideo.tokenfrom).provider
+  const defaultHeaders = mergeMpvPlaybackHeaders(provider, data.headers, defaultQuality.headers)
   const useAuthenticatedMpvProxy = !pageVideo.encType && hasPlaybackHeaders(defaultHeaders)
   const defaultUrl = resolveHeaderAwareVideoUrl(defaultQuality.url, defaultHeaders, data.size, defaultQuality.quality || '', useAuthenticatedMpvProxy ? 'mpv' : '')
   const mpvHeaders = defaultUrl === defaultQuality.url ? defaultHeaders : undefined
@@ -2327,8 +2330,8 @@ const resolvePageVideoMpvSource = async (): Promise<{ url: string; headers?: Rec
     const mediaUrl = pageVideo.media_url || ''
     if (!mediaUrl) return { url: '', error: t('video.getMediaServerUrlFailed') }
     const mediaHeaders = pageVideo.media_headers
-    // The native libmpv addon accepts no per-file HTTP options. Route authenticated
-    // media-server streams through the local proxy, as other authenticated drives do.
+    // Keep the URL and request headers together in the local proxy. This also
+    // preserves authentication across redirects and nested HLS requests.
     const useAuthenticatedMpvProxy = hasPlaybackHeaders(mediaHeaders)
     const mpvUrl = useAuthenticatedMpvProxy
       ? getProxyUrl({
@@ -2362,19 +2365,23 @@ const resolvePageVideoMpvSource = async (): Promise<{ url: string; headers?: Rec
     default: q.quality === defaultQuality.quality
   }))
   pageVideo.expire_time = GetExpiresTime(defaultQuality.url)
-  const subtitles = (data.subtitles || []).map((subtitle) => ({
-    url: subtitle.headers
-      ? getProxyUrl({
-        user_id: pageVideo.user_id,
-        drive_id: pageVideo.drive_id,
-        file_id: pageVideo.file_id,
-        proxy_kind: 'subtitle',
-        proxy_url: subtitle.url,
-        proxy_headers: JSON.stringify(subtitle.headers)
-      })
-      : subtitle.url,
-    title: formatEmbeddedSubtitleLabel(subtitle.language, locale.value)
-  }))
+  const provider = resolveDriveProvider(pageVideo.user_id, pageVideo.drive_id, pageVideo.tokenfrom).provider
+  const subtitles = (data.subtitles || []).map((subtitle) => {
+    const subtitleHeaders = mergeMpvPlaybackHeaders(provider, subtitle.headers)
+    return {
+      url: hasPlaybackHeaders(subtitleHeaders)
+        ? getProxyUrl({
+          user_id: pageVideo.user_id,
+          drive_id: pageVideo.drive_id,
+          file_id: pageVideo.file_id,
+          proxy_kind: 'subtitle',
+          proxy_url: subtitle.url,
+          proxy_headers: JSON.stringify(subtitleHeaders)
+        })
+        : subtitle.url,
+      title: formatEmbeddedSubtitleLabel(subtitle.language, locale.value)
+    }
+  })
   return { url: source.url, headers: source.headers, type: source.type, qualityLabel: source.qualityLabel, quality: defaultQuality.quality, qualities, subtitles }
 }
 
@@ -2597,7 +2604,7 @@ const getVideoInfo = async (art: Artplayer) => {
     } else {
       defaultQuality = resolvePreferredVideoQuality(data.qualities, uiVideoQuality)
     }
-    const defaultHeaders = defaultQuality.headers || data.headers
+    const defaultHeaders = mergePlaybackHeaders(data.headers, defaultQuality.headers)
     const defaultUrl = resolveHeaderAwareVideoUrl(defaultQuality.url, defaultHeaders, data.size, defaultQuality.quality || '')
     setArtVideoUrl(art, defaultUrl, defaultQuality.type)
     defaultQuality.default = true
@@ -2616,7 +2623,7 @@ const getVideoInfo = async (art: Artplayer) => {
         art.type = artType as any
         if (!isHlsVideoType(artType)) destroyArtHls(art)
         if (!isDashVideoType(artType)) destroyArtDash(art)
-        const itemHeaders = item.headers || data.headers
+        const itemHeaders = mergePlaybackHeaders(data.headers, item.headers)
         const itemUrl = resolveHeaderAwareVideoUrl(item.url, itemHeaders, data.size, item.quality || '')
         console.info('[播放][网页] 切换清晰度链接', {
           quality: item.quality || '',
@@ -2672,7 +2679,7 @@ const getVideoInfo = async (art: Artplayer) => {
       embedSubSelector = []
       for (let i = 0; i < subtitles.length; i++) {
         const subtitle = subtitles[i]
-        const subtitleUrl = subtitle.headers
+        const subtitleUrl = hasPlaybackHeaders(subtitle.headers)
           ? getProxyUrl({
             user_id: pageVideo.user_id,
             drive_id: pageVideo.drive_id,
@@ -2976,6 +2983,8 @@ const resolveCloudSubtitleUrl = async (item: selectorItem): Promise<string> => {
   const tokenfrom = item.tokenfrom || (userId === pageVideo.user_id ? pageVideo.tokenfrom : '')
   const data = await DriveFile.ApiFileDownloadUrl(userId, driveId, item.file_id, 14400, tokenfrom)
   if (typeof data === 'string' || !data.url) return ''
+  const provider = resolveDriveProvider(userId, driveId, tokenfrom).provider
+  const playbackHeaders = useMacEmbeddedMpv ? mergeMpvPlaybackHeaders(provider, data.headers) : data.headers
   return getProxyUrl({
     user_id: userId,
     drive_id: driveId,
@@ -2986,7 +2995,7 @@ const resolveCloudSubtitleUrl = async (item: selectorItem): Promise<string> => {
     quality: 'Origin',
     proxy_kind: 'subtitle',
     proxy_url: data.url,
-    proxy_headers: hasPlaybackHeaders(data.headers) ? JSON.stringify(data.headers) : undefined
+    proxy_headers: hasPlaybackHeaders(playbackHeaders) ? JSON.stringify(playbackHeaders) : undefined
   })
 }
 
