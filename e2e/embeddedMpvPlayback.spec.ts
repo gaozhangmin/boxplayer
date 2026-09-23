@@ -4,7 +4,10 @@ import { createServer, type IncomingHttpHeaders, type Server } from 'node:http'
 import { expect, test } from './fixtures/boxPlayer'
 
 const bundleManifest = path.resolve('static/engine', process.platform, process.arch, 'mpv-texture/mpv-bundle-manifest.json')
-test.setTimeout(60_000)
+// Source-built libmpv takes longer to initialize on the macOS x64 runner.
+// Keep this above the longest player-surface wait so Playwright does not tear
+// down Electron while the native player is still opening the authenticated URL.
+test.setTimeout(180_000)
 test.skip(!process.env.BOXPLAYER_MPV_REQUIRE_E2E && !existsSync(bundleManifest), 'Requires a local libmpv bundle for the host architecture')
 
 const expectedCloudHeaders: Record<string, string> = {

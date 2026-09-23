@@ -89,11 +89,16 @@ function configureRealCloudMpv(userData: string): void {
   writeFileSync(settingPath, JSON.stringify(setting))
 }
 
-async function seedRealCloudAccounts(page: Page): Promise<void> {
+async function seedRealCloudAccounts(page: Page, provider?: string): Promise<void> {
   const value = process.env.BOXPLAYER_E2E_ACCOUNTS_JSON
   if (!value?.trim()) return
-  const accounts = parseRealCloudAccounts(value)
-  const defaultUserId = accounts[0]?.user_id
+  const parsedAccounts = parseRealCloudAccounts(value)
+  // The main drive view bootstraps most reliably from the Aliyun account. Keep
+  // it as a stable anchor, then inject only the provider under test so unrelated
+  // OAuth refreshes cannot invalidate another provider's rotating token.
+  const accounts = provider ? parsedAccounts.filter(account => account.tokenfrom === 'aliyun' || account.tokenfrom === provider) : parsedAccounts
+  if (!accounts.length) throw new Error(`Injected real-cloud account list has no account for ${provider}`)
+  const defaultUserId = accounts.find(account => account.tokenfrom === 'aliyun')?.user_id || accounts[0]?.user_id
   if (!defaultUserId) throw new Error('Injected real-cloud account list has no default user')
   await page.waitForFunction(async ({ databaseName, requiredStores }) => {
     return new Promise<boolean>((resolve) => {
@@ -169,6 +174,14 @@ async function seedRealMediaServer(page: Page): Promise<RealMediaServerFixture |
   }, { config, now })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
+  await page.waitForFunction((serverName) => {
+    try {
+      const servers = JSON.parse(localStorage.getItem('MediaServer_Registry') || '[]')
+      return Array.isArray(servers) && servers.some((server) => server?.name === serverName)
+    } catch {
+      return false
+    }
+  }, config.name, { timeout: 30_000 })
   return { name: config.name, baseUrl: config.baseUrl, mediaTitle: config.mediaTitle }
 }
 
@@ -196,17 +209,25 @@ async function isPortOpen(port: number): Promise<boolean> {
 
 async function startRealAccountRenderer(): Promise<ChildProcess | undefined> {
   if (await isPortOpen(5173)) return undefined
-  const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
-  // Windows cannot execute .cmd shims directly through spawn without a shell.
-  // Keep arguments separate and enable the shell only for the trusted pnpm shim.
-  const child = spawn(command, ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], {
+  const viteCli = path.resolve('node_modules/vite/bin/vite.js')
+  if (!existsSync(viteCli)) throw new Error(`Vite CLI is missing: ${viteCli}`)
+  // Execute Vite with Node directly. This avoids .cmd/shell process trees on
+  // Windows and lets every isolated provider test stop the preview cleanly.
+  const child = spawn(process.execPath, [viteCli, 'preview', '--host', '127.0.0.1', '--port', '5173', '--strictPort'], {
     cwd: process.cwd(),
     stdio: 'ignore',
-    shell: process.platform === 'win32',
     windowsHide: true
   })
   await waitForPort(5173)
   return child
+}
+
+async function stopChildProcess(child?: ChildProcess): Promise<void> {
+  if (!child || child.exitCode !== null || child.signalCode !== null) return
+  const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()))
+  child.kill()
+  await Promise.race([exited, new Promise<void>((resolve) => setTimeout(resolve, 5_000))])
+  if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
 }
 
 async function startIsolatedAria(userData: string): Promise<ChildProcess> {
@@ -226,8 +247,17 @@ async function startIsolatedAria(userData: string): Promise<ChildProcess> {
   return child
 }
 
-export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
-  boxPlayer: async ({}, use, testInfo) => {
+export const test = base.extend<{ boxPlayer: BoxPlayerFixture }, { realAccountRenderer?: ChildProcess }>({
+  realAccountRenderer: [async ({}, use) => {
+    const enabled = Boolean(process.env.BOXPLAYER_E2E_ACCOUNTS_JSON?.trim() || process.env.BOXPLAYER_E2E_EMBY_JSON?.trim())
+    const renderer = enabled ? await startRealAccountRenderer() : undefined
+    try {
+      await use(renderer)
+    } finally {
+      await stopChildProcess(renderer)
+    }
+  }, { scope: 'worker' }],
+  boxPlayer: async ({ realAccountRenderer: _realAccountRenderer }, use, testInfo) => {
     const entry = path.resolve('dist/electron/main/index.js')
     if (!existsSync(entry)) throw new Error(`Electron production entry is missing: ${entry}`)
 
@@ -235,14 +265,13 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
     const realAccountTest = isRealCloudTest(testInfo.file)
     const injectedRealAccounts = isRealCloudProviderTest(testInfo.file) && Boolean(process.env.BOXPLAYER_E2E_ACCOUNTS_JSON?.trim())
     const injectedRealMediaServer = isRealMediaServerTest(testInfo.file) && Boolean(process.env.BOXPLAYER_E2E_EMBY_JSON?.trim())
+    const cloudProvider = testInfo.annotations.find(annotation => annotation.type === 'cloud-provider')?.description
     copyRealProfile(userData, (realAccountTest || process.env.BOXPLAYER_E2E_REAL === '1') && !injectedRealAccounts && !injectedRealMediaServer)
     if (realAccountTest) configureRealCloudMpv(userData)
     if (path.basename(testInfo.file) === 'embeddedMpvPlayback.spec.ts') {
       writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close' }))
     }
     let ariaProcess: ChildProcess | undefined
-    let rendererProcess: ChildProcess | undefined
-    if (realAccountTest) rendererProcess = await startRealAccountRenderer()
     if (realAccountTest) ariaProcess = await startIsolatedAria(userData)
     const app = await electron.launch({
       args: [entry],
@@ -260,7 +289,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
     try {
       const page = await app.firstWindow()
       await page.waitForLoadState('domcontentloaded')
-      if (realAccountTest && injectedRealAccounts) await seedRealCloudAccounts(page)
+      if (realAccountTest && injectedRealAccounts) await seedRealCloudAccounts(page, cloudProvider)
       const mediaServer = injectedRealMediaServer ? await seedRealMediaServer(page) : undefined
       const pageErrors: string[] = []
       const consoleErrors: string[] = []
@@ -341,8 +370,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
           new Promise<void>((resolve) => setTimeout(resolve, 5_000))
         ])
       }
-      ariaProcess?.kill()
-      rendererProcess?.kill()
+      await stopChildProcess(ariaProcess)
       try {
         rmSync(userData, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
       } catch (error) {

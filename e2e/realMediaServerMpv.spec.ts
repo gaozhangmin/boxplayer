@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures/boxPlayer'
-import type { Page } from '@playwright/test'
+import type { ElectronApplication, Page } from '@playwright/test'
 
 const enabled = Boolean(process.env.BOXPLAYER_E2E_EMBY_JSON?.trim())
 
@@ -25,6 +25,20 @@ async function assertRealMpvPlayback(player: Page): Promise<void> {
   await expect(surface.locator('.mpv-embedded-error')).toHaveCount(0)
 }
 
+async function openMpvPlayerWindow(app: ElectronApplication, action: () => Promise<void>): Promise<Page> {
+  const existing = new Set(app.windows())
+  await action()
+  const deadline = Date.now() + 60_000
+  while (Date.now() < deadline) {
+    for (const candidate of app.windows()) {
+      if (existing.has(candidate) || candidate.isClosed()) continue
+      if (await candidate.locator('#mpvEmbeddedPlayer').count().catch(() => 0)) return candidate
+    }
+    await new Promise(resolve => setTimeout(resolve, 250))
+  }
+  throw new Error('Emby 没有创建 PageVideo MPV 窗口')
+}
+
 if (!enabled) {
   test('real Emby playback requires an encrypted CI server secret', async () => {
     test.skip(true, 'Set BOXPLAYER_E2E_EMBY_JSON to run the real Emby release gate')
@@ -43,8 +57,10 @@ if (!enabled) {
 
     let player: Page | undefined
     try {
-      await page.keyboard.press('Alt+6')
-      await expect(page.locator('[data-testid="top-nav-media-server"]')).toBeAttached({ timeout: 30_000 })
+      const mediaServerTab = page.locator('[data-testid="top-nav-media-server"]')
+      await expect(mediaServerTab).toBeVisible({ timeout: 30_000 })
+      await mediaServerTab.click()
+      await expect(mediaServerTab).toHaveClass(/arco-menu-selected/, { timeout: 30_000 })
       const serverRow = page.locator('.media-server-sidebar .server-item').filter({ hasText: mediaServer!.name })
       await expect(serverRow).toBeVisible({ timeout: 30_000 })
       await serverRow.click()
@@ -60,9 +76,7 @@ if (!enabled) {
       await result.click()
       const play = page.locator('.detail-primary-play')
       await expect(play).toBeVisible({ timeout: 90_000 })
-      const playerPromise = app.waitForEvent('window', { timeout: 60_000 })
-      await play.click()
-      player = await playerPromise
+      player = await openMpvPlayerWindow(app, () => play.click())
       await assertRealMpvPlayback(player)
 
       expect([...embyPaths].some(path => /\/Users\/[^/]+\/Items/i.test(path)), `Emby item API was not called: ${[...embyPaths].join(', ')}`).toBe(true)
