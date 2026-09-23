@@ -2,6 +2,16 @@ import { fork, type ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import type { EmbeddedMpvNativeInstance, EmbeddedMpvStatus, EmbeddedMpvSubtitleStyle, EmbeddedMpvTextureInfo, EmbeddedMpvTrackStatus } from './embeddedMpvNativeAddon'
 
+export function normalizeLinuxMpvStatus(status: EmbeddedMpvStatus | undefined): EmbeddedMpvStatus {
+  const playing = Boolean(status?.playing)
+  return {
+    ...(status || {}),
+    playing,
+    paused: typeof status?.paused === 'boolean' ? status.paused : !playing,
+    speed: typeof status?.speed === 'number' ? status.speed : 1
+  }
+}
+
 export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance {
   const directory = path.dirname(addonPath)
   let child: ChildProcess | null = null
@@ -73,13 +83,13 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
             child?.send({ type: 'frame-ack' })
           }
         } else if (message?.type === 'status') {
-          latestStatus = message.status || {}
+          latestStatus = normalizeLinuxMpvStatus(message.status)
           latestTracks = message.tracks || {}
           statusCallback(latestStatus)
         } else if (message?.type === 'result') {
-          latestStatus = message.status || latestStatus
+          latestStatus = message.status ? normalizeLinuxMpvStatus(message.status) : latestStatus
           latestTracks = message.tracks || latestTracks
-          pending.get(message.id)?.resolve(message)
+          pending.get(message.id)?.resolve({ ...message, status: latestStatus, tracks: latestTracks })
           pending.delete(message.id)
         } else if (message?.type === 'error') {
           const error = new Error(String(message.error))

@@ -112,6 +112,24 @@ public:
 
         auto& slot = m_slots[m_writeIndex];
 
+        if (m_softwareReadback) {
+            auto pixels = std::make_shared<std::vector<uint8_t>>(static_cast<size_t>(m_width) * m_height * 4);
+            while (glGetError() != GL_NO_ERROR) {}
+            glBindFramebuffer(GL_FRAMEBUFFER, slot.glFBO);
+            glReadBuffer(GL_COLOR_ATTACHMENT0);
+            glReadPixels(0, 0, static_cast<GLsizei>(m_width), static_cast<GLsizei>(m_height), GL_RGBA, GL_UNSIGNED_BYTE, pixels->data());
+            const bool valid = glGetError() == GL_NO_ERROR;
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            info.handle = 0;
+            info.width = m_width;
+            info.height = m_height;
+            info.format = TextureFormat::RGBA8;
+            info.is_valid = valid;
+            info.pixels = pixels;
+            m_writeIndex = (m_writeIndex + 1) % BUFFER_COUNT;
+            return info;
+        }
+
         // Pass IOSurfaceRef as raw pointer — Electron's importSharedTexture expects
         // the ioSurface Buffer to contain the IOSurfaceRef pointer, not the IOSurfaceID.
         info.handle = reinterpret_cast<uint64_t>(slot.ioSurface);
@@ -124,6 +142,11 @@ public:
         m_writeIndex = (m_writeIndex + 1) % BUFFER_COUNT;
 
         return info;
+    }
+
+    void setSoftwareReadback(bool enabled) override {
+        m_softwareReadback = enabled;
+        if (enabled) std::cout << "[IOSurface] Electron GPU import unavailable; using CPU frame readback" << std::endl;
     }
 
     void releaseTexture() override {
@@ -241,6 +264,7 @@ private:
 
     bool m_initialized = false;
     bool m_locked = false;
+    bool m_softwareReadback = false;
     uint32_t m_width = 0;
     uint32_t m_height = 0;
 

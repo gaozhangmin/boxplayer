@@ -57,6 +57,12 @@ public:
     // Returns the texture info for sharing with Electron
     virtual TextureInfo unlockAndExport() = 0;
 
+    // Headless macOS runners can expose only the CGL software renderer. In
+    // that case Electron cannot import an IOSurface through its GPU process,
+    // so the rendered FBO is read back over the existing CPU frame path.
+    // Hardware-backed Macs keep zero-copy texture sharing.
+    virtual void setSoftwareReadback(bool enabled) { (void)enabled; }
+
     // Release a previously exported texture
     virtual void releaseTexture() = 0;
 

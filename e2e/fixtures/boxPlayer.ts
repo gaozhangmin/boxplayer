@@ -260,7 +260,11 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
         await testInfo.attach('renderer-errors', { body: JSON.stringify({ url: page.url(), pageErrors, consoleErrors }), contentType: 'application/json' })
       }
     } finally {
-      const electronProcess = app.process()
+      // If Electron has already crashed, Playwright disposes the application
+      // handle and process() itself throws. Keep the original playback failure
+      // instead of replacing it with an internal disposed-handle error.
+      let electronProcess: ChildProcess | undefined
+      try { electronProcess = app.process() } catch {}
       if (path.basename(testInfo.file).startsWith('embeddedMpv')) {
         // BoxPlayer's window-close handler can hide to tray. Quit the app
         // explicitly so MPV receives will-quit and its native threads stop.
@@ -274,7 +278,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
           for (const window of BrowserWindow.getAllWindows()) window.removeAllListeners('close')
           electronApp.quit()
         }).catch(() => undefined)
-        if (electronProcess.exitCode === null && electronProcess.signalCode === null) {
+        if (electronProcess && electronProcess.exitCode === null && electronProcess.signalCode === null) {
           await Promise.race([
             new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),
             new Promise<void>((resolve) => setTimeout(resolve, 5_000))
@@ -286,7 +290,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
           new Promise<void>((resolve) => setTimeout(resolve, 5_000))
         ])
       }
-      if (electronProcess.exitCode === null && !electronProcess.killed) {
+      if (electronProcess && electronProcess.exitCode === null && !electronProcess.killed) {
         electronProcess.kill('SIGKILL')
         await Promise.race([
           new Promise<void>((resolve) => electronProcess.once('exit', () => resolve())),

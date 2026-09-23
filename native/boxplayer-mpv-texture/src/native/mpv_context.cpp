@@ -133,8 +133,10 @@ static void destroyWindowsGLContext() {
 #ifdef __APPLE__
 static CGLContextObj g_cglContext = nullptr;
 static CGLPixelFormatObj g_cglPixelFormat = nullptr;
+static bool g_softwareCGLFallback = false;
 
 static bool createMacOSGLContext() {
+    g_softwareCGLFallback = false;
     // Prefer the accelerated renderer on real Macs. GitHub-hosted and other
     // headless macOS machines do not expose an accelerated pixel format even
     // though CGL's software renderer can still render into IOSurface-backed
@@ -165,6 +167,7 @@ static bool createMacOSGLContext() {
         numFormats = 0;
         err = CGLChoosePixelFormat(softwareAttributes, &g_cglPixelFormat, &numFormats);
         if (err == kCGLNoError && numFormats > 0) {
+            g_softwareCGLFallback = true;
             std::cout << "[MpvContext] Accelerated CGL pixel format unavailable; using software OpenGL renderer" << std::endl;
         }
     }
@@ -191,6 +194,10 @@ static bool createMacOSGLContext() {
         return false;
     }
 
+    if (const char* forceReadback = std::getenv("BOXPLAYER_MPV_FORCE_SOFTWARE_READBACK")) {
+        if (strcmp(forceReadback, "1") == 0) g_softwareCGLFallback = true;
+    }
+
     std::cout << "[MpvContext] macOS CGL context created successfully" << std::endl;
     return true;
 }
@@ -205,6 +212,7 @@ static void destroyMacOSGLContext() {
         CGLDestroyPixelFormat(g_cglPixelFormat);
         g_cglPixelFormat = nullptr;
     }
+    g_softwareCGLFallback = false;
 }
 #endif
 
@@ -296,6 +304,9 @@ bool MpvContext::create(const MpvConfig& config) {
         m_mpv = nullptr;
         return false;
     }
+#ifdef __APPLE__
+    m_textureShare->setSoftwareReadback(g_softwareCGLFallback);
+#endif
 
     // Initialize texture sharing with current GL context
     // Note: The GL context must be created and made current before calling this
