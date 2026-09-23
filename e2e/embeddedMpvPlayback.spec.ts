@@ -62,7 +62,7 @@ async function startAuthenticatedMediaServer(): Promise<{ server: Server; url: s
   return { server, url: `http://127.0.0.1:${address.port}/signed/video.mp4`, received: () => receivedHeaders }
 }
 
-test('embedded MPV plays visible frames from a local video in the production Electron app', async ({ boxPlayer }) => {
+test('embedded MPV plays visible frames and forwards the authenticated cloud header contract', async ({ boxPlayer }) => {
   const { page } = boxPlayer
   boxPlayer.app.process().once('exit', (code, signal) => {
     console.error(`Embedded MPV Electron process exited: code=${code}, signal=${signal}`)
@@ -111,15 +111,13 @@ test('embedded MPV plays visible frames from a local video in the production Ele
 
   const stop = await page.evaluate(() => window.WebMpvEmbeddedControl({ action: 'stop' }))
   expect(stop.ok, stop.error).toBe(true)
-})
 
-test('PageVideo MPV forwards the complete authenticated cloud header contract', async ({ boxPlayer }) => {
+  // Keep both playback checks in one Electron lifecycle. On slower macOS x64
+  // runners the local proxy and native MPV teardown can outlive app.quit() by
+  // a few seconds; launching a second app immediately could then close its
+  // PageVideo window before the authenticated source finished loading.
   const authenticatedMedia = await startAuthenticatedMediaServer()
   try {
-    const { page } = boxPlayer
-    const capability = await page.evaluate(() => window.WebMpvEmbeddedCapability())
-    expect(capability.enabled, capability.reason).toBe(true)
-
     const playerPromise = page.context().waitForEvent('page')
     await page.evaluate(({ mediaUrl, headers }) => window.WebOpenWindow({
       page: 'PageVideo',
@@ -153,6 +151,7 @@ test('PageVideo MPV forwards the complete authenticated cloud header contract', 
     }, { timeout: 20_000 }).toBe(true)
     await expect.poll(() => authenticatedMedia.received()?.authorization, { timeout: 10_000 }).toBe(expectedCloudHeaders.authorization)
     for (const [key, value] of Object.entries(expectedCloudHeaders)) expect(authenticatedMedia.received()?.[key]).toBe(value)
+    await player.close()
   } finally {
     await new Promise<void>((resolve) => authenticatedMedia.server.close(() => resolve()))
   }
