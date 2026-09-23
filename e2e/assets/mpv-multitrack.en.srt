@@ -1,0 +1,11 @@
+1
+00:00:01,000 --> 00:00:06,000
+BoxPlayer English subtitle track
+
+2
+00:00:08,000 --> 00:00:15,000
+English subtitle switching works
+
+3
+00:00:16,000 --> 00:00:19,000
+BoxPlayer MPV test is ending

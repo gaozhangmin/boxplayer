@@ -37,6 +37,14 @@ function isRealCloudTest(file: string): boolean {
   return /^real(?:Cloud|MediaServer).*\.spec\.ts$/i.test(path.basename(file))
 }
 
+function isRealCloudProviderTest(file: string): boolean {
+  return /^realCloud.*\.spec\.ts$/i.test(path.basename(file))
+}
+
+function isRealMediaServerTest(file: string): boolean {
+  return /^realMediaServer.*\.spec\.ts$/i.test(path.basename(file))
+}
+
 function defaultRealProfilePath(): string {
   if (process.platform === 'darwin') return path.join(os.homedir(), 'Library/Application Support/BoxPlayer')
   if (process.platform === 'win32') return path.join(process.env.APPDATA || '', 'BoxPlayer')
@@ -87,6 +95,26 @@ async function seedRealCloudAccounts(page: Page): Promise<void> {
   const accounts = parseRealCloudAccounts(value)
   const defaultUserId = accounts[0]?.user_id
   if (!defaultUserId) throw new Error('Injected real-cloud account list has no default user')
+  await page.waitForFunction(async ({ databaseName, requiredStores }) => {
+    return new Promise<boolean>((resolve) => {
+      const request = indexedDB.open(databaseName)
+      let upgrading = false
+      request.onupgradeneeded = () => {
+        // Opening a missing database without a version creates an empty v1
+        // database. Abort that implicit creation and let the application's
+        // Dexie bootstrap create the real schema instead.
+        upgrading = true
+        request.transaction?.abort()
+      }
+      request.onerror = () => resolve(false)
+      request.onsuccess = () => {
+        const db = request.result
+        const ready = !upgrading && requiredStores.every(store => db.objectStoreNames.contains(store))
+        db.close()
+        resolve(ready)
+      }
+    })
+  }, { databaseName: 'XBY3Database', requiredStores: ['itoken', 'istring'] }, { timeout: 45_000 })
   await page.evaluate(async ({ accounts, defaultUserId }) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open('XBY3Database')
@@ -198,8 +226,9 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
 
     const userData = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-e2e-'))
     const realAccountTest = isRealCloudTest(testInfo.file)
-    const injectedRealAccounts = Boolean(process.env.BOXPLAYER_E2E_ACCOUNTS_JSON?.trim())
-    copyRealProfile(userData, (realAccountTest || process.env.BOXPLAYER_E2E_REAL === '1') && !injectedRealAccounts)
+    const injectedRealAccounts = isRealCloudProviderTest(testInfo.file) && Boolean(process.env.BOXPLAYER_E2E_ACCOUNTS_JSON?.trim())
+    const injectedRealMediaServer = isRealMediaServerTest(testInfo.file) && Boolean(process.env.BOXPLAYER_E2E_EMBY_JSON?.trim())
+    copyRealProfile(userData, (realAccountTest || process.env.BOXPLAYER_E2E_REAL === '1') && !injectedRealAccounts && !injectedRealMediaServer)
     if (realAccountTest) configureRealCloudMpv(userData)
     if (path.basename(testInfo.file) === 'embeddedMpvPlayback.spec.ts') {
       writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close' }))
@@ -223,8 +252,9 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
 
     try {
       const page = await app.firstWindow()
+      await page.waitForLoadState('domcontentloaded')
       if (realAccountTest && injectedRealAccounts) await seedRealCloudAccounts(page)
-      const mediaServer = realAccountTest ? await seedRealMediaServer(page) : undefined
+      const mediaServer = injectedRealMediaServer ? await seedRealMediaServer(page) : undefined
       const pageErrors: string[] = []
       const consoleErrors: string[] = []
       page.on('pageerror', (error) => pageErrors.push(sanitizeConsoleText(error.message)))
@@ -234,12 +264,11 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
         const location = sanitizeConsoleText(message.location().url)
         if (message.type() === 'error' && !expectedMissingAria) consoleErrors.push(location ? `${text} (${location})` : text)
       })
-      await page.waitForLoadState('domcontentloaded')
       if (realAccountTest) {
         await page.locator('.user-avatar-trigger').waitFor({ state: 'visible', timeout: 45_000 })
         // The copied profile may contain pending transfers targeting the user's real disk.
         // Clear only transfer databases in this isolated profile before enabling workers.
-        await page.evaluate(async () => {
+        if (injectedRealAccounts) await page.evaluate(async () => {
           for (const name of ['XBYDB3Down', 'XBYDB3Upload']) {
             await new Promise<void>((resolve, reject) => {
               const request = indexedDB.open(name)
@@ -256,9 +285,11 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
             })
           }
         })
-        await page.reload()
-        await page.waitForLoadState('domcontentloaded')
-        await page.evaluate(() => { window.WebE2EAllowTransfers = true })
+        if (injectedRealAccounts) {
+          await page.reload()
+          await page.waitForLoadState('domcontentloaded')
+          await page.evaluate(() => { window.WebE2EAllowTransfers = true })
+        }
       }
       const loginDialog = page.locator('.userloginmodal')
       await loginDialog.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined)
