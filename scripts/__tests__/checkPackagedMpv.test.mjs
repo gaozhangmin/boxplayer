@@ -18,8 +18,8 @@ function macFixture(arch) {
   const resources = path.join(releaseDir, arch === 'arm64' ? 'mac-arm64' : 'mac', 'BoxPlayer.app', 'Contents', 'Resources')
   const directory = path.join(resources, 'engine', 'darwin', arch, 'mpv-texture')
   mkdirSync(directory, { recursive: true })
-  const files = ['mpv_texture.node', 'libmpv.dylib'].map((name) => {
-    const contents = machO(arch)
+  const files = ['mpv_texture.node', 'libmpv.dylib', 'README.md', '.gitignore'].map((name) => {
+    const contents = name.endsWith('.node') || name.endsWith('.dylib') ? machO(arch) : Buffer.from(`fixture ${name}`)
     writeFileSync(path.join(directory, name), contents)
     return { name, bytes: contents.length, sha256: createHash('sha256').update(contents).digest('hex') }
   })

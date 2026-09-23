@@ -16,6 +16,12 @@ function isDirectory(candidate) {
   return existsSync(candidate) && statSync(candidate).isDirectory()
 }
 
+function isNativeBinary(name, platform) {
+  if (platform === 'darwin') return name.endsWith('.node') || name.endsWith('.dylib')
+  if (platform === 'win32') return name.endsWith('.node') || name.endsWith('.dll') || name.endsWith('.exe')
+  return name !== 'mpv-host.cjs'
+}
+
 export function packagedResourceRoots(releaseDir, platform) {
   const outputs = readdirSync(releaseDir)
     .map((name) => path.join(releaseDir, name))
@@ -65,7 +71,7 @@ export function verifyPackagedMpv(releaseDir, platform, arch) {
     if (bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
       throw new Error(`Packaged MPV dependency changed: ${file.name}`)
     }
-    if (file.name !== 'mpv-host.cjs' && binaryArchitecture(target, platform) !== arch) throw new Error(`Wrong packaged architecture: ${file.name}`)
+    if (isNativeBinary(file.name, platform) && binaryArchitecture(target, platform) !== arch) throw new Error(`Wrong packaged architecture: ${file.name}`)
   }
   return directory
 }
