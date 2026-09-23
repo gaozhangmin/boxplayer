@@ -141,6 +141,12 @@ private:
     std::condition_variable m_renderCV;
     std::atomic<bool> m_needsRender{false};
 
+    // libmpv's software render context must not be entered while a command is
+    // synchronously rebuilding the track graph (audio-add/sub-add). The
+    // Linux/Windows renderer runs on a dedicated thread, so serialize those
+    // two operations without blocking ordinary property controls.
+    std::mutex m_renderApiMutex;
+
     // Texture resize synchronization (resize must happen on render thread)
     std::atomic<bool> m_needsResize{false};
     std::atomic<uint32_t> m_pendingWidth{0};

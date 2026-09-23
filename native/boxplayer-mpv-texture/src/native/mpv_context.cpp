@@ -543,11 +543,13 @@ int MpvContext::addAudio(const std::string& url, const std::string& title) {
         title.empty() ? nullptr : title.c_str(),
         nullptr
     };
-    // Queue track mutations on libmpv's event thread. A synchronous command
-    // can race the software render loop on Linux and abort the isolated host.
-    // The Electron bridge explicitly polls track-list after this call, so the
-    // UI still waits for the newly added track before updating its selector.
-    return mpv_command_async(m_mpv, 0, cmd);
+    // Software rendering and external-track graph rebuilds can overlap in
+    // libmpv even though the client API itself is thread-safe. Keep the render
+    // API idle until the synchronous mutation has completed; this also means
+    // callers can immediately refresh track-list without observing a queued
+    // command that has not run yet.
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
+    return mpv_command(m_mpv, cmd);
 }
 
 int MpvContext::addSubtitle(const std::string& url, const std::string& title) {
@@ -560,7 +562,8 @@ int MpvContext::addSubtitle(const std::string& url, const std::string& title) {
         title.empty() ? nullptr : title.c_str(),
         nullptr
     };
-    return mpv_command_async(m_mpv, 0, cmd);
+    std::lock_guard<std::mutex> lock(m_renderApiMutex);
+    return mpv_command(m_mpv, cmd);
 }
 
 MpvTrackStatus MpvContext::getTrackStatus() const {
@@ -778,6 +781,11 @@ void MpvContext::renderLoop() {
             if (!m_running) break;
             m_needsRender = false;
         }
+        // Hold the render API lock from update through report_swap. External
+        // audio/subtitle additions take the same lock while libmpv rebuilds
+        // its track graph, preventing the software render path from entering
+        // the context halfway through that mutation.
+        std::unique_lock<std::mutex> renderApiLock(m_renderApiMutex);
         if (!(mpv_render_context_update(m_renderCtx) & MPV_RENDER_UPDATE_FRAME)) continue;
         const auto now = std::chrono::steady_clock::now();
         if (lastFrame != std::chrono::steady_clock::time_point::min() &&
@@ -815,6 +823,7 @@ void MpvContext::renderLoop() {
         };
         if (mpv_render_context_render(m_renderCtx, params) < 0) continue;
         mpv_render_context_report_swap(m_renderCtx);
+        renderApiLock.unlock();
         for (size_t i = 3; i < pixels->size(); i += 4) (*pixels)[i] = 255;
         TextureInfo frame{};
         frame.width = static_cast<uint32_t>(width);
