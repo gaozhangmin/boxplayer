@@ -43,7 +43,8 @@ if (!enabled) {
 
     let player: Page | undefined
     try {
-      await page.locator('#xbyhead2 .arco-menu-item').getByText('媒体服务器', { exact: true }).click()
+      await page.keyboard.press('Alt+6')
+      await expect(page.locator('[data-testid="top-nav-media-server"]')).toBeAttached({ timeout: 30_000 })
       const serverRow = page.locator('.media-server-sidebar .server-item').filter({ hasText: mediaServer!.name })
       await expect(serverRow).toBeVisible({ timeout: 30_000 })
       await serverRow.click()

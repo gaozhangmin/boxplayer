@@ -8,12 +8,32 @@ on:
         required: false
         default: false
         type: boolean
+      required_providers:
+        description: Optional comma-separated provider subset for diagnostics
+        required: false
+        default: ''
+        type: string
+      run_arm64:
+        description: Also validate Linux arm64
+        required: false
+        default: true
+        type: boolean
   workflow_dispatch:
     inputs:
       real_cloud:
         description: Run the real cloud provider matrix
         required: false
         default: false
+        type: boolean
+      required_providers:
+        description: Optional comma-separated provider subset for diagnostics
+        required: false
+        default: ''
+        type: string
+      run_arm64:
+        description: Also validate Linux arm64
+        required: false
+        default: true
         type: boolean
   push:
     branches:
@@ -29,11 +49,7 @@ jobs:
       # architectures consume the same fallback credential concurrently.
       max-parallel: 1
       matrix:
-        include:
-          - runner: ubuntu-24.04
-            arch: x64
-          - runner: ubuntu-24.04-arm
-            arch: arm64
+        include: ${{ fromJSON((github.event_name == 'push' || inputs.run_arm64 == true) && '[{"runner":"ubuntu-24.04","arch":"x64"},{"runner":"ubuntu-24.04-arm","arch":"arm64"}]' || '[{"runner":"ubuntu-24.04","arch":"x64"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     steps:
@@ -120,6 +136,7 @@ jobs:
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
           BOXPLAYER_E2E_EMBY_JSON: ${{ secrets.BOXPLAYER_E2E_EMBY_JSON }}
+          BOXPLAYER_E2E_REQUIRED_PROVIDERS: ${{ inputs.required_providers }}
         run: |
           node scripts/real-cloud-e2e-config.cjs
           node scripts/real-media-server-e2e-config.cjs
@@ -160,6 +177,7 @@ jobs:
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
           BOXPLAYER_E2E_EMBY_JSON: ${{ secrets.BOXPLAYER_E2E_EMBY_JSON }}
+          BOXPLAYER_E2E_REQUIRED_PROVIDERS: ${{ inputs.required_providers }}
           BOXPLAYER_E2E_REAL: '1'
           BOXPLAYER_E2E_REAL_MPV: '1'
           BOXPLAYER_E2E_CLOUD_MUTATIONS: ${{ matrix.arch == 'x64' && '1' || '0' }}
@@ -176,5 +194,8 @@ jobs:
         if: always()
         with:
           name: embedded-mpv-linux-${{ matrix.arch }}-candidate
-          path: static/engine/linux/${{ matrix.arch }}/mpv-texture/
+          path: |
+            static/engine/linux/${{ matrix.arch }}/mpv-texture/
+            test-results/
+            playwright-report/
           if-no-files-found: warn

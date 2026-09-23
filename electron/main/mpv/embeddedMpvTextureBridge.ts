@@ -20,6 +20,7 @@ export class EmbeddedMpvTextureBridge {
   private nativeResourceStatus: EmbeddedMpvNativeResourceStatus | null = null
   private mpv: EmbeddedMpvNativeInstance | null = null
   private latestStatus: EmbeddedMpvStatus | null = null
+  private lastNativeError = ''
   private consecutiveFrameErrors = 0
   private frameStats = { received: 0, dropped: 0, sent: 0, errors: 0, importMs: 0, sendMs: 0, sendCount: 0 }
   private frameStatsTimer: ReturnType<typeof setInterval> | null = null
@@ -89,7 +90,10 @@ export class EmbeddedMpvTextureBridge {
     this.mpv.onStatus((status) => {
       this.latestStatus = status
     })
-    this.mpv.onError((error) => console.error('[mpv] native addon error:', error))
+    this.mpv.onError((error) => {
+      this.lastNativeError = String(error || 'MPV native error')
+      console.error('[mpv] native addon error:', error)
+    })
     this.initialized = true
     console.error('[mpv] initialize: callbacks installed')
     this.frameStatsTimer = setInterval(() => {
@@ -137,6 +141,7 @@ export class EmbeddedMpvTextureBridge {
     this.pendingSoftwareFrame = null
     this.softwareFrameInFlight = false
     this.latestStatus = null
+    this.lastNativeError = ''
     try {
       console.error('[mpv] load: invoking native load')
       console.info('[播放][MPV] native 加载链接', {
@@ -279,7 +284,8 @@ export class EmbeddedMpvTextureBridge {
       ok: true,
       capability,
       status: this.mpv.getStatus?.() || this.latestStatus,
-      trackStatus: await this.readTrackStatus()
+      trackStatus: await this.readTrackStatus(),
+      error: this.lastNativeError || undefined
     }
   }
 
@@ -379,6 +385,7 @@ export class EmbeddedMpvTextureBridge {
     this.pendingSoftwareFrame = null
     this.softwareFrameInFlight = false
     this.latestStatus = null
+    this.lastNativeError = ''
     this.mpv?.destroy()
     this.mpv = null
     this.window = null

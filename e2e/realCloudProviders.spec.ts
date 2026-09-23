@@ -33,7 +33,12 @@ async function switchToProvider(page: Page, provider: string): Promise<void> {
   const accountSwitch = accountRow.locator('.arco-switch')
   try {
     if (!(await accountSwitch.getAttribute('class'))?.includes('arco-switch-checked')) await accountSwitch.click()
-    await expect(accountTrigger).toHaveAttribute('title', label, { timeout: 60_000 })
+    try {
+      await expect(accountTrigger).toHaveAttribute('title', label, { timeout: 60_000 })
+    } catch (error) {
+      const messages = await page.locator('.arco-message, .arco-notification').allInnerTexts().catch(() => [])
+      throw new Error(`${label} 账号切换失败${messages.length ? `：${messages.join('；')}` : ''}`, { cause: error })
+    }
   } finally {
     // The account chooser is a hover popover. Escape does not dismiss it and
     // leaves an invisible-looking overlay that intercepts the next file click.
@@ -42,6 +47,17 @@ async function switchToProvider(page: Page, provider: string): Promise<void> {
     await page.mouse.move(0, 0)
     await expect(page.locator('.arco-trigger-popup.arco-popover:visible')).toHaveCount(0, { timeout: 15_000 })
   }
+}
+
+async function searchForFixture(page: Page, fileName: string, provider: string): Promise<void> {
+  const searchNode = page.locator('.dirtree .ant-tree-treenode').filter({ has: page.locator('.iconsearch') }).first()
+  await expect(searchNode, `${provider} 声明支持搜索，但网盘侧栏没有显示搜索入口`).toBeVisible({ timeout: 30_000 })
+  await searchNode.click()
+  const search = page.locator('#searchpanInput')
+  await expect(search, `${provider} 搜索页没有显示关键词输入框`).toBeVisible({ timeout: 30_000 })
+  await search.fill(fileName)
+  await search.press('Enter')
+  await expect(fileListItem(page, fileName), `${provider} search API did not find the playback fixture`).toBeVisible({ timeout: 60_000 })
 }
 
 async function openCloudRoot(page: Page): Promise<void> {
@@ -165,10 +181,7 @@ async function assertProviderOperations(app: import('@playwright/test').Electron
   try {
     if (capabilities['files.search']) {
       await openCloudRoot(page)
-      const search = page.getByPlaceholder('全盘搜索')
-      await search.fill(target.fileName)
-      await search.press('Enter')
-      await expect(fileListItem(page, target.fileName), `${target.provider} search API did not find the playback fixture`).toBeVisible({ timeout: 60_000 })
+      await searchForFixture(page, target.fileName, target.provider)
       await returnToTargetFolder(page, target)
     }
 
@@ -274,10 +287,6 @@ async function assertRealMpvPlayback(player: Page, provider: string): Promise<vo
     }
     return status.ok && status.duration > 0 && status.position > 0 ? 'playing' : JSON.stringify(status)
   }, { message: `${provider} MPV did not begin playback`, timeout: 90_000, intervals: [500, 1_000, 2_000] }).toBe('playing')
-  const started = await player.evaluate(() => window.WebMpvEmbeddedStatus())
-  expect(Number(started.status?.duration || 0), `${provider} MPV duration`).toBeGreaterThan(0)
-  expect(Number(started.status?.position || 0), `${provider} MPV position`).toBeGreaterThan(0)
-
   const pause = await player.evaluate(() => window.WebMpvEmbeddedControl({ action: 'pause' }))
   expect(pause.ok, `${provider} MPV pause: ${pause.error || 'unknown error'}`).toBe(true)
   const pausedPosition = Number(pause.status?.position || 0)
@@ -306,23 +315,34 @@ if (!enabled) {
       pageErrors.splice(0)
       consoleErrors.splice(0)
       let player: Page | undefined
+      let stage = '切换账号'
       try {
         await switchToProvider(page, target.provider)
+        stage = '打开网盘根目录'
         await openCloudRoot(page)
+        stage = `打开测试目录 ${target.path.join('/')}`
         for (const folder of target.path) await openFolder(page, folder)
+        stage = `查找测试视频 ${target.fileName}`
         const video = fileListItem(page, target.fileName)
         await expect(video, `${target.provider} 找不到测试视频 ${target.fileName}`).toBeVisible({ timeout: 60_000 })
+        stage = '打开 MPV 播放窗口'
         const playerPromise = app.waitForEvent('window', { timeout: 60_000 })
         await video.getByText(target.fileName, { exact: true }).click()
         player = await playerPromise
+        stage = '验证 MPV 播放和控制'
         await assertRealMpvPlayback(player, target.provider)
         if (!player.isClosed()) await player.close()
         player = undefined
-        if (process.env.BOXPLAYER_E2E_CLOUD_MUTATIONS === '1') await assertProviderOperations(app, page, target)
+        await page.bringToFront()
+        if (process.env.BOXPLAYER_E2E_CLOUD_MUTATIONS === '1') {
+          stage = '验证搜索、属性、上传、下载和文件操作'
+          await assertProviderOperations(app, page, target)
+        }
+        stage = '检查渲染错误'
         expect(pageErrors, `${target.provider} renderer errors`).toEqual([])
         expect(consoleErrors, `${target.provider} console errors`).toEqual([])
       } catch (error) {
-        failures.push(`${target.provider}: ${error instanceof Error ? error.message : String(error)}`)
+        failures.push(`${target.provider} [${stage}]: ${error instanceof Error ? error.stack || error.message : String(error)}`)
       } finally {
         if (player && !player.isClosed()) await player.close().catch(() => undefined)
       }
