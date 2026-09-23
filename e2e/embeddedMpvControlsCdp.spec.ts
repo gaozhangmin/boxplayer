@@ -102,8 +102,22 @@ test('all visible MPV player controls execute successfully', async () => {
     await playlistTabs.getByRole('button', { name: '播放列表' }).click()
     await playlistToggle.click()
 
-    await player.getByRole('button', { name: '设置片头' }).click()
-    await player.getByRole('button', { name: '设置片尾' }).click()
+    // Marker buttons are destructive at the current position while playback
+    // is running: setting the outro to "now" correctly stops/advances. Pause
+    // while checking their toggle states, then clear the outro before the
+    // remaining track and subtitle controls exercise the active media.
+    await playButton.click()
+    await expect(playButton).toHaveAttribute('aria-label', '播放')
+    const introMarker = player.getByRole('button', { name: '设置片头' })
+    const outroMarker = player.getByRole('button', { name: '设置片尾' })
+    await introMarker.click()
+    await expect(introMarker).toHaveClass(/active/)
+    await outroMarker.click()
+    await expect(outroMarker).toHaveClass(/active/)
+    await outroMarker.click()
+    await expect(outroMarker).not.toHaveClass(/active/)
+    await playButton.click()
+    await expect(playButton).toHaveAttribute('aria-label', '暂停')
     await player.getByRole('button', { name: '设置', exact: true }).click()
     await player.getByRole('button', { name: '16:9' }).first().click()
     await player.getByRole('button', { name: '16:10' }).nth(1).click()
