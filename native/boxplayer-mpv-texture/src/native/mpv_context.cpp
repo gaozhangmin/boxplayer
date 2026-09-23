@@ -534,8 +534,8 @@ void MpvContext::setVideoProperty(const std::string& name, const std::string& va
     mpv_set_property_string(m_mpv, name.c_str(), value.c_str());
 }
 
-bool MpvContext::addAudio(const std::string& url, const std::string& title) {
-    if (!m_mpv || url.empty()) return false;
+int MpvContext::addAudio(const std::string& url, const std::string& title) {
+    if (!m_mpv || url.empty()) return MPV_ERROR_INVALID_PARAMETER;
     const char* cmd[] = {
         "audio-add",
         url.c_str(),
@@ -548,11 +548,11 @@ bool MpvContext::addAudio(const std::string& url, const std::string& title) {
     // races that response on Windows/Linux and leaves the audio selector with
     // its stale pre-add list. Execute the command synchronously so callers can
     // immediately observe (and select) the new external track.
-    return mpv_command(m_mpv, cmd) >= 0;
+    return mpv_command(m_mpv, cmd);
 }
 
-bool MpvContext::addSubtitle(const std::string& url, const std::string& title) {
-    if (!m_mpv || url.empty()) return false;
+int MpvContext::addSubtitle(const std::string& url, const std::string& title) {
+    if (!m_mpv || url.empty()) return MPV_ERROR_INVALID_PARAMETER;
 
     const char* cmd[] = {
         "sub-add",
@@ -561,7 +561,7 @@ bool MpvContext::addSubtitle(const std::string& url, const std::string& title) {
         title.empty() ? nullptr : title.c_str(),
         nullptr
     };
-    return mpv_command(m_mpv, cmd) >= 0;
+    return mpv_command(m_mpv, cmd);
 }
 
 MpvTrackStatus MpvContext::getTrackStatus() const {

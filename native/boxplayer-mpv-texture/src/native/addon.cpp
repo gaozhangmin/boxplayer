@@ -338,8 +338,9 @@ Napi::Value AddAudio(const Napi::CallbackInfo& info) {
     std::string url = info[0].As<Napi::String>().Utf8Value();
     std::string title = info.Length() > 1 && info[1].IsString()
         ? info[1].As<Napi::String>().Utf8Value() : "";
-    if (!g_context->addAudio(url, title)) {
-        Napi::Error::New(env, "Failed to add audio").ThrowAsJavaScriptException();
+    const int result = g_context->addAudio(url, title);
+    if (result < 0) {
+        Napi::Error::New(env, std::string("Failed to add audio: ") + mpv_error_string(result)).ThrowAsJavaScriptException();
     }
     return env.Undefined();
 }
@@ -362,8 +363,9 @@ Napi::Value AddSubtitle(const Napi::CallbackInfo& info) {
     std::string title = info.Length() > 1 && info[1].IsString()
         ? info[1].As<Napi::String>().Utf8Value() : "";
 
-    if (!g_context->addSubtitle(url, title)) {
-        Napi::Error::New(env, "Failed to add subtitle").ThrowAsJavaScriptException();
+    const int result = g_context->addSubtitle(url, title);
+    if (result < 0) {
+        Napi::Error::New(env, std::string("Failed to add subtitle: ") + mpv_error_string(result)).ThrowAsJavaScriptException();
     }
 
     return env.Undefined();

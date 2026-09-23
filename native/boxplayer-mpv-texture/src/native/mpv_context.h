@@ -92,8 +92,8 @@ public:
     void setSubtitleTrack(int id);
     void setSubtitleStyle(const MpvSubtitleStyle& style);
     void setVideoProperty(const std::string& name, const std::string& value);
-    bool addAudio(const std::string& url, const std::string& title = "");
-    bool addSubtitle(const std::string& url, const std::string& title = "");
+    int addAudio(const std::string& url, const std::string& title = "");
+    int addSubtitle(const std::string& url, const std::string& title = "");
     void toggleMute();
 
     // Callbacks

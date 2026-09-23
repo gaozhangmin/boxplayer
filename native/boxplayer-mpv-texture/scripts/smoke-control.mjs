@@ -40,6 +40,20 @@ try {
   if (existsSync(samplePath)) {
     mpv.load(samplePath)
     await waitForTrackCount('audio', 1)
+    mpv.pause()
+    mpv.play()
+    mpv.seek(1)
+    mpv.setVolume(35)
+    mpv.setSpeed(1.5)
+    for (const [name, value] of [
+      ['video-aspect-override', '16:9'],
+      ['video-crop', '16:10'],
+      ['video-rotate', '90'],
+      ['hwdec', 'auto'],
+      ['deinterlace', 'yes'],
+      ['tone-mapping', 'auto'],
+      ['brightness', '10']
+    ]) mpv.setVideoProperty(name, value)
     mpv.addAudio(audioSamplePath, 'external-smoke-audio')
     const audioTracks = (mpv.getTrackStatus()?.tracks || []).filter((track) => track.type === 'audio')
     if (audioTracks.length < 2 || !audioTracks.some((track) => track.external || track.title === 'external-smoke-audio')) {
