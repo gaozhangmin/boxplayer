@@ -807,12 +807,16 @@ void MpvContext::renderLoop() {
             now - lastFrame < std::chrono::milliseconds(50)) continue;
         lastFrame = now;
 
-        int width, height;
-        {
-            std::lock_guard<std::mutex> lock(m_statusMutex);
-            width = m_status.width > 0 ? m_status.width : static_cast<int>(m_config.width);
-            height = m_status.height > 0 ? m_status.height : static_cast<int>(m_config.height);
-        }
+        // The software render target must remain stable across source
+        // reconfiguration. Properties such as video-crop and video-rotate can
+        // change the reported source width/height asynchronously. Feeding
+        // those transient dimensions back as the next SW target lets
+        // libmpv's previous destination rectangle outlive the target buffer
+        // and can trip mp_image_crop's bounds assertion. libmpv already
+        // letterboxes/crops the source into the requested target, so keep the
+        // configured presentation size fixed and let it own that mapping.
+        int width = static_cast<int>(m_config.width);
+        int height = static_cast<int>(m_config.height);
         // Software rendering is a compatibility path, not a full-resolution
         // replacement for platform GPU texture sharing. Bound IPC frame size.
         if (width <= 0 || height <= 0) continue;

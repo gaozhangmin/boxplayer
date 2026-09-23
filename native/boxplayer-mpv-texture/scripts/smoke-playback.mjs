@@ -33,6 +33,12 @@ try {
     ['tone-mapping', 'auto'],
     ['brightness', '10']
   ]) mpv.setVideoProperty(name, value)
+  const framesAfterVideoControls = frames
+  const videoControlDeadline = Date.now() + 5_000
+  while (frames === framesAfterVideoControls && Date.now() < videoControlDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  if (frames === framesAfterVideoControls) throw new Error(`No software video frame after crop/rotation controls; status=${JSON.stringify(lastStatus)}`)
   mpv.addAudio(externalAudio, 'software-render-smoke-audio')
   mpv.addSubtitle(externalSubtitle, 'software-render-smoke-subtitle')
   const trackDeadline = Date.now() + 5_000
