@@ -49,6 +49,7 @@ import { completeDocumentReadingUnit, createDocumentReadingJob, failDocumentRead
 import type { CreateDocumentReadingJobInput, DocumentReadingJobStatus } from '@shared/types/documentReading'
 import { downloadAndExtractPdf } from '../documentInsight/PdfExtractionService'
 import { sendPdfProgress } from '../documentInsight/pdfProgress'
+import { resolveCloudDriveCliConfigDir } from './cliConfigPath'
 
 let psbId: any
 const panHubStreamControllers = new Map<string, AbortController>()
@@ -1193,7 +1194,7 @@ export default class ipcEvent {
   private static handleExportCliTokens() {
     ipcMain.handle('ExportCliTokens', async (_event, data: { accounts: any[] }) => {
       try {
-        const cliDir = path.join(os.homedir(), '.clouddrive-cli')
+        const cliDir = resolveCloudDriveCliConfigDir(process.env.CLOUDDRIVE_CLI_CONFIG_DIR, os.homedir())
         const tokensPath = path.join(cliDir, 'tokens.json')
         const configPath = path.join(cliDir, 'config.json')
         mkdirSync(cliDir, { recursive: true })

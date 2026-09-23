@@ -34,7 +34,8 @@ test('Windows production Electron displays embedded MPV software frames', async 
       BOXPLAYER_E2E: '1',
       BOXPLAYER_E2E_TRANSFERS: '0',
       BOXPLAYER_E2E_PROJECT_PATH: process.cwd(),
-      BOXPLAYER_E2E_USER_DATA: userData
+      BOXPLAYER_E2E_USER_DATA: userData,
+      CLOUDDRIVE_CLI_CONFIG_DIR: path.join(userData, '.clouddrive-cli')
     },
     stdio: 'ignore'
   })

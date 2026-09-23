@@ -1,4 +1,4 @@
-name: Validate embedded MPV Linux candidates
+name: Validate embedded MPV macOS arm64 candidate
 
 on:
   workflow_call:
@@ -20,19 +20,8 @@ on:
       - codex/mpv-runner-validation
 
 jobs:
-  linux:
-    strategy:
-      fail-fast: false
-      # OAuth providers may rotate refresh tokens. Never let the two Linux
-      # architectures consume the same fallback credential concurrently.
-      max-parallel: 1
-      matrix:
-        include:
-          - runner: ubuntu-24.04
-            arch: x64
-          - runner: ubuntu-24.04-arm
-            arch: arm64
-    runs-on: ${{ matrix.runner }}
+  macos-arm64:
+    runs-on: macos-14
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
@@ -47,18 +36,9 @@ jobs:
           node-version: 22.12.0
           cache: pnpm
 
-      - name: Install Linux build and playback dependencies
+      - name: Install project and native build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential meson ninja-build pkg-config patchelf \
-            gdb \
-            libavcodec-dev libavfilter-dev libavformat-dev libavutil-dev \
-            libswresample-dev libswscale-dev libplacebo-dev libass-dev \
-            libpulse-dev xvfb
-
-      - name: Install project dependencies
-        run: |
+          brew install mpv pkgconf
           pnpm install --frozen-lockfile
           pnpm --dir native/boxplayer-mpv-texture install --ignore-workspace --no-frozen-lockfile --ignore-scripts
 
@@ -70,23 +50,15 @@ jobs:
             src/utils/__tests__/proxyhelper.test.ts \
             electron/main/core/__tests__/embeddedMpvLoadOptions.test.ts
 
-      - name: Build official libmpv and software renderer addon
+      - name: Build and bundle the arm64 native runtime
+        env:
+          LIBMPV_PREFIX: /opt/homebrew/opt/mpv
         run: |
-          pnpm --dir native/boxplayer-mpv-texture run source:linux
+          pnpm --dir native/boxplayer-mpv-texture run sync:mpv:mac
           pnpm --dir native/boxplayer-mpv-texture run build:libmpv
           pnpm --dir native/boxplayer-mpv-texture run smoke:controls
-
-      - name: Bundle and verify target architecture
-        run: |
-          pnpm --dir native/boxplayer-mpv-texture run bundle:software
-          node scripts/check-embedded-mpv-bundles.mjs linux/${{ matrix.arch }}
-          ldd static/engine/linux/${{ matrix.arch }}/mpv-texture/mpv_texture.node
-          ldd static/engine/linux/${{ matrix.arch }}/mpv-texture/libmpv.so.2
-
-      - name: Diagnose native software playback
-        run: |
-          gdb -batch -ex run -ex 'thread apply all bt 12' --args \
-            node native/boxplayer-mpv-texture/scripts/smoke-playback.mjs
+          ARCH=arm64 pnpm --dir native/boxplayer-mpv-texture run bundle:mac
+          node scripts/check-embedded-mpv-bundles.mjs darwin/arm64
 
       - name: Verify visible playback in production Electron entry
         env:
@@ -94,25 +66,12 @@ jobs:
           BOXPLAYER_MPV_AUDIO_OUTPUT: 'null'
         run: |
           pnpm run pretest:e2e
-          sudo sysctl -w kernel.core_pattern="$PWD/core.%e.%p"
-          ulimit -c unlimited
-          set +e
-          xvfb-run -a pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts e2e/embeddedMpvControlsCdp.spec.ts --workers=1
-          status=$?
-          set -e
-          if [ "$status" -ne 0 ]; then
-            for core in core.mpv-node-host.*; do
-              if [ -f "$core" ]; then
-                gdb -batch -ex 'thread apply all bt 24' static/engine/linux/${{ matrix.arch }}/mpv-texture/mpv-node-host "$core" || true
-              fi
-            done
-          fi
-          exit "$status"
+          pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts e2e/embeddedMpvControlsCdp.spec.ts --workers=1
 
       - name: Validate real cloud test account coverage
         if: inputs.real_cloud == true
         env:
-          BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ matrix.arch == 'x64' && secrets.BOXPLAYER_E2E_ACCOUNTS_LINUX_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_LINUX_ARM64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
+          BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_MACOS_ARM64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
           BOXPLAYER_E2E_TARGETS_JSON: ${{ secrets.BOXPLAYER_E2E_TARGETS_JSON }}
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
@@ -149,7 +108,7 @@ jobs:
       - name: Verify every real cloud provider API and MPV playback path
         if: inputs.real_cloud == true
         env:
-          BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ matrix.arch == 'x64' && secrets.BOXPLAYER_E2E_ACCOUNTS_LINUX_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_LINUX_ARM64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
+          BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_MACOS_ARM64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
           BOXPLAYER_E2E_TARGETS_JSON: ${{ secrets.BOXPLAYER_E2E_TARGETS_JSON }}
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
@@ -157,16 +116,18 @@ jobs:
           BOXPLAYER_E2E_REAL_MPV: '1'
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
           BOXPLAYER_MPV_AUDIO_OUTPUT: 'null'
-        run: xvfb-run -a pnpm exec playwright test e2e/realCloudProviders.spec.ts --workers=1
+        run: pnpm exec playwright test e2e/realCloudProviders.spec.ts --workers=1
 
       - name: Verify the unpacked Electron package contains the complete bundle
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
-          pnpm exec electron-builder --linux --dir
-          node scripts/check-packaged-mpv.mjs linux ${{ matrix.arch }}
+          pnpm exec electron-builder --mac --dir --arm64
+          node scripts/check-embedded-mpv-bundles.mjs darwin/arm64
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: embedded-mpv-linux-${{ matrix.arch }}-candidate
-          path: static/engine/linux/${{ matrix.arch }}/mpv-texture/
-          if-no-files-found: warn
+          name: embedded-mpv-darwin-arm64-candidate
+          path: static/engine/darwin/arm64/mpv-texture/
+          if-no-files-found: error

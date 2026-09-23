@@ -18,10 +18,25 @@ jobs:
   embedded-mpv-linux-test:
     name: Verify embedded MPV on Linux
     uses: ./.github/workflows/embedded-mpv-linux.yml
+    with:
+      real_cloud: true
+    secrets: inherit
 
   embedded-mpv-windows-test:
     name: Verify embedded MPV on Windows
+    needs: embedded-mpv-linux-test
     uses: ./.github/workflows/embedded-mpv-windows-x64.yml
+    with:
+      real_cloud: true
+    secrets: inherit
+
+  embedded-mpv-macos-test:
+    name: Verify embedded MPV on macOS
+    needs: embedded-mpv-windows-test
+    uses: ./.github/workflows/embedded-mpv-macos-arm64.yml
+    with:
+      real_cloud: true
+    secrets: inherit
 
   electron-e2e:
     name: Verify packaged Electron UI
@@ -47,7 +62,7 @@ jobs:
 
   create-release:
     name: Create Release Draft
-    needs: [linux-mpv-test, embedded-mpv-linux-test, embedded-mpv-windows-test, electron-e2e]
+    needs: [linux-mpv-test, embedded-mpv-linux-test, embedded-mpv-windows-test, embedded-mpv-macos-test, electron-e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -71,7 +86,7 @@ jobs:
 
   release:
     name: Build Release
-    needs: [create-release, embedded-mpv-linux-test, embedded-mpv-windows-test]
+    needs: [create-release, embedded-mpv-linux-test, embedded-mpv-windows-test, embedded-mpv-macos-test]
     strategy:
       fail-fast: false
       matrix:
@@ -158,14 +173,23 @@ jobs:
           name: embedded-mpv-linux-x64-candidate
           path: static/engine/linux/x64/mpv-texture
 
+      - name: Download verified macOS arm64 embedded MPV runtime
+        if: matrix.os == 'macos-14'
+        uses: actions/download-artifact@v4
+        with:
+          name: embedded-mpv-darwin-arm64-candidate
+          path: static/engine/darwin/arm64/mpv-texture
+
       - name: Verify release uses the tested embedded MPV runtime
-        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest' || matrix.os == 'macos-14'
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             node scripts/check-embedded-mpv-bundles.mjs win32/x64
-          else
+          elif [[ "${{ runner.os }}" == "Linux" ]]; then
             node scripts/check-embedded-mpv-bundles.mjs linux/x64
+          else
+            node scripts/check-embedded-mpv-bundles.mjs darwin/arm64
           fi
 
       - name: Generate Release Secrets

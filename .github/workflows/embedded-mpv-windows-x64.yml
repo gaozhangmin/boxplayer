@@ -2,7 +2,19 @@ name: Validate embedded MPV Windows x64 candidate
 
 on:
   workflow_call:
+    inputs:
+      real_cloud:
+        description: Run the release-blocking real cloud provider matrix
+        required: false
+        default: false
+        type: boolean
   workflow_dispatch:
+    inputs:
+      real_cloud:
+        description: Run the real cloud provider matrix
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - codex/mpv-runner-validation
@@ -80,6 +92,55 @@ jobs:
         run: |
           pnpm run pretest:e2e
           pnpm exec playwright test e2e/embeddedMpvPlayback.spec.ts e2e/embeddedMpvWindowsCdp.spec.ts e2e/embeddedMpvControlsCdp.spec.ts --workers=1
+
+      - name: Validate real cloud test account coverage
+        if: inputs.real_cloud == true
+        env:
+          BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_WINDOWS_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
+          BOXPLAYER_E2E_TARGETS_JSON: ${{ secrets.BOXPLAYER_E2E_TARGETS_JSON }}
+          BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
+          BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
+        run: node scripts/real-cloud-e2e-config.cjs
+
+      - name: Build production renderer with real provider credentials
+        if: inputs.real_cloud == true
+        env:
+          ALIYUN_APP_ID: ${{ secrets.ALIYUN_APP_ID }}
+          ALIYUN_APP_SECRET: ${{ secrets.ALIYUN_APP_SECRET }}
+          BAIDU_APP_ID: ${{ secrets.BAIDU_APP_ID }}
+          BAIDU_APP_SECRET: ${{ secrets.BAIDU_APP_SECRET }}
+          BAIDU_PCS_APP_ID: ${{ secrets.BAIDU_PCS_APP_ID }}
+          CLOUD123_APP_ID: ${{ secrets.CLOUD123_APP_ID }}
+          CLOUD123_APP_SECRET: ${{ secrets.CLOUD123_APP_SECRET }}
+          DRIVE115_APP_ID: ${{ secrets.DRIVE115_APP_ID }}
+          DRIVE115_APP_SECRET: ${{ secrets.DRIVE115_APP_SECRET }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          ONEDRIVE_CLIENT_ID: ${{ secrets.ONEDRIVE_CLIENT_ID }}
+          ONEDRIVE_CLIENT_SECRET: ${{ secrets.ONEDRIVE_CLIENT_SECRET }}
+          BOX_CLIENT_ID: ${{ secrets.BOX_CLIENT_ID }}
+          BOX_CLIENT_SECRET: ${{ secrets.BOX_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          PIKPAK_CLIENT_ID: ${{ secrets.PIKPAK_CLIENT_ID }}
+          PIKPAK_CLIENT_SECRET: ${{ secrets.PIKPAK_CLIENT_SECRET }}
+          GUANGYA_CLIENT_ID: ${{ secrets.GUANGYA_CLIENT_ID }}
+          CLOUD189_APP_ID: ${{ secrets.CLOUD189_APP_ID }}
+        run: |
+          node scripts/generate-secrets.mjs --mode=ci
+          pnpm exec vite build
+
+      - name: Verify every real cloud provider API and MPV playback path
+        if: inputs.real_cloud == true
+        env:
+          BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_WINDOWS_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
+          BOXPLAYER_E2E_TARGETS_JSON: ${{ secrets.BOXPLAYER_E2E_TARGETS_JSON }}
+          BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
+          BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
+          BOXPLAYER_E2E_REAL: '1'
+          BOXPLAYER_E2E_REAL_MPV: '1'
+          BOXPLAYER_MPV_REQUIRE_E2E: '1'
+        run: pnpm exec playwright test e2e/realCloudProviders.spec.ts --workers=1
 
       - name: Verify the unpacked Electron package contains the complete bundle
         run: |

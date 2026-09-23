@@ -6,7 +6,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-test.skip(!['win32', 'linux'].includes(process.platform), 'Embedded MPV controls target Windows and Linux')
+test.skip(!['darwin', 'win32', 'linux'].includes(process.platform), 'Embedded MPV controls require a desktop host')
 test.setTimeout(120_000)
 
 async function waitForPort(port: number): Promise<void> {
@@ -42,7 +42,7 @@ test('all visible MPV player controls execute successfully', async () => {
   const args = [`--remote-debugging-port=${port}`, ...(process.platform === 'linux' ? ['--no-sandbox'] : []), entry]
   let electronOutput = ''
   const electronProcess: ChildProcess = spawn(electronBinary, args, {
-    env: { ...process.env, BOXPLAYER_E2E: '1', BOXPLAYER_E2E_TRANSFERS: '0', BOXPLAYER_E2E_PROJECT_PATH: process.cwd(), BOXPLAYER_E2E_USER_DATA: userData },
+    env: { ...process.env, BOXPLAYER_E2E: '1', BOXPLAYER_E2E_TRANSFERS: '0', BOXPLAYER_E2E_PROJECT_PATH: process.cwd(), BOXPLAYER_E2E_USER_DATA: userData, CLOUDDRIVE_CLI_CONFIG_DIR: path.join(userData, '.clouddrive-cli') },
     stdio: ['ignore', 'pipe', 'pipe']
   })
   const recordOutput = (chunk: Buffer) => {

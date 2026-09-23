@@ -4,6 +4,10 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { connect } from 'net'
 import os from 'os'
 import path from 'path'
+// The parser is shared with the release-workflow preflight and intentionally
+// remains plain CommonJS so it can run before Electron or TypeScript is built.
+// @ts-expect-error JavaScript helper uses runtime validation.
+import { parseRealCloudAccounts } from '../../scripts/real-cloud-e2e-config.cjs'
 
 export interface BoxPlayerFixture {
   app: ElectronApplication
@@ -13,7 +17,15 @@ export interface BoxPlayerFixture {
 }
 
 function sanitizeConsoleText(value: string): string {
-  return value.replace(/([?&](?:access_token|api_key|apikey|key|token)=)[^&\s)]+/gi, '$1[redacted]')
+  return value
+    .replace(/([?&](?:access_token|refresh_token|provider_token|provider_refresh_token|api_key|apikey|key|token|x-oss-signature|x-amz-signature|x-amz-credential)=)[^&#\s)]+/gi, '$1[redacted]')
+    .replace(/(["']?(?:access_token|refresh_token|provider_token|provider_refresh_token|authorization|cookie|set-cookie|signature)["']?\s*:\s*["'])[^"'\r\n]+(["'])/gi, '$1[redacted]$2')
+    .replace(/((?:authorization|cookie|set-cookie)\s*[=:]\s*)[^\r\n}]+/gi, '$1[redacted]')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+}
+
+function isRealCloudTest(file: string): boolean {
+  return /^realCloud.*\.spec\.ts$/i.test(path.basename(file))
 }
 
 function defaultRealProfilePath(): string {
@@ -46,6 +58,48 @@ function copyRealProfile(target: string, enabled: boolean): void {
     setting.AriaIsLocal = true
     writeFileSync(settingPath, JSON.stringify(setting))
   }
+}
+
+function configureRealCloudMpv(userData: string): void {
+  if (process.env.BOXPLAYER_E2E_REAL_MPV !== '1') return
+  const settingPath = path.join(userData, 'setting.config')
+  let setting: Record<string, unknown> = {}
+  if (existsSync(settingPath)) {
+    try { setting = JSON.parse(readFileSync(settingPath, 'utf8')) } catch {}
+  }
+  setting.uiVideoPlayer = 'mpv'
+  setting.uiVideoSubtitleMode = 'close'
+  writeFileSync(settingPath, JSON.stringify(setting))
+}
+
+async function seedRealCloudAccounts(page: Page): Promise<void> {
+  const value = process.env.BOXPLAYER_E2E_ACCOUNTS_JSON
+  if (!value?.trim()) return
+  const accounts = parseRealCloudAccounts(value)
+  const defaultUserId = accounts[0]?.user_id
+  if (!defaultUserId) throw new Error('Injected real-cloud account list has no default user')
+  await page.evaluate(async ({ accounts, defaultUserId }) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('XBY3Database')
+      request.onerror = () => reject(request.error)
+      request.onsuccess = () => resolve(request.result)
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(['itoken', 'istring'], 'readwrite')
+        const tokenStore = transaction.objectStore('itoken')
+        for (const account of accounts) tokenStore.put(account)
+        transaction.objectStore('istring').put(defaultUserId, 'uiDefaultUser')
+        transaction.oncomplete = () => resolve()
+        transaction.onerror = () => reject(transaction.error)
+        transaction.onabort = () => reject(transaction.error)
+      })
+    } finally {
+      db.close()
+    }
+  }, { accounts, defaultUserId })
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
 }
 
 async function waitForPort(port: number, timeout = 10_000): Promise<void> {
@@ -101,8 +155,10 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
     if (!existsSync(entry)) throw new Error(`Electron production entry is missing: ${entry}`)
 
     const userData = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-e2e-'))
-    const realAccountTest = path.basename(testInfo.file) === 'realCloud.spec.ts'
-    copyRealProfile(userData, realAccountTest || process.env.BOXPLAYER_E2E_REAL === '1')
+    const realAccountTest = isRealCloudTest(testInfo.file)
+    const injectedRealAccounts = Boolean(process.env.BOXPLAYER_E2E_ACCOUNTS_JSON?.trim())
+    copyRealProfile(userData, (realAccountTest || process.env.BOXPLAYER_E2E_REAL === '1') && !injectedRealAccounts)
+    if (realAccountTest) configureRealCloudMpv(userData)
     if (path.basename(testInfo.file) === 'embeddedMpvPlayback.spec.ts') {
       writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close' }))
     }
@@ -118,15 +174,17 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }>({
         BOXPLAYER_E2E_TRANSFERS: '0',
         BOXPLAYER_E2E_PROJECT_PATH: process.cwd(),
         BOXPLAYER_E2E_USER_DATA: userData,
+        CLOUDDRIVE_CLI_CONFIG_DIR: path.join(userData, '.clouddrive-cli'),
         BOXPLAYER_E2E_RENDERER_URL: realAccountTest ? 'http://localhost:5173' : ''
       }
     })
 
     try {
       const page = await app.firstWindow()
+      if (realAccountTest && injectedRealAccounts) await seedRealCloudAccounts(page)
       const pageErrors: string[] = []
       const consoleErrors: string[] = []
-      page.on('pageerror', (error) => pageErrors.push(error.message))
+      page.on('pageerror', (error) => pageErrors.push(sanitizeConsoleText(error.message)))
       page.on('console', (message) => {
         const text = sanitizeConsoleText(message.text())
         const expectedMissingAria = text.includes("WebSocket connection to 'ws://127.0.0.1:16800/jsonrpc' failed")
