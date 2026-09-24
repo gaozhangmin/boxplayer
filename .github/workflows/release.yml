@@ -8,7 +8,9 @@ on:
 
 concurrency:
   group: release-${{ github.ref_name }}
-  cancel-in-progress: false
+  # A new candidate for the same release tag supersedes an older run. This
+  # prevents a failed or stalled Windows provider test from blocking retries.
+  cancel-in-progress: true
 
 jobs:
   linux-mpv-test:
