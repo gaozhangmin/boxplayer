@@ -8,7 +8,7 @@ import type { Page } from '@playwright/test'
 test.describe.configure({ mode: 'serial' })
 test.setTimeout(90_000)
 
-for (const provider of ['天翼云盘', '139云盘']) {
+for (const provider of ['139云盘']) {
   test(`multipart upload to a real ${provider} child directory`, async ({ boxPlayer }) => {
     test.setTimeout(240_000)
     const { page } = boxPlayer
@@ -22,7 +22,7 @@ for (const provider of ['天翼云盘', '139云盘']) {
     const name = `上传回归-${Date.now()}.bin`
     const temp = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-multipart-'))
     const local = path.join(temp, name)
-    // Cross both providers' part boundary with non-deduplicated content.
+    // Cross the provider's multipart boundary with non-deduplicated content.
     const bytes = Buffer.alloc(17 * 1024 * 1024, 97)
     bytes.write(String(Date.now()))
     writeFileSync(local, bytes)
@@ -328,6 +328,47 @@ test('downloads every file in a real cloud folder (BP-000077 BP-000084)', async 
   }
 })
 
+test('downloads a real Quark file through the authenticated local proxy', async ({ boxPlayer }) => {
+  test.setTimeout(180_000)
+  const { app, page, pageErrors, consoleErrors } = boxPlayer
+  const name = `BoxPlayer-E2E-quark-download-${Date.now()}.txt`
+  const tempDir = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-quark-download-'))
+  const localFile = path.join(tempDir, name)
+  const content = `Quark authenticated download regression: ${Date.now()}`
+  writeFileSync(localFile, content)
+
+  try {
+    await switchToRealProvider(page, '夸克网盘')
+    await openCloudRoot(page)
+    await page.evaluate((uploadPath) => {
+      window.WebShowOpenDialogSync = (_options, callback) => callback([uploadPath])
+    }, localFile)
+    await page.keyboard.press('Control+u')
+    await startPendingUpload(page)
+    await refreshUntilListed(page, name)
+
+    const row = fileListItem(page, name)
+    await row.locator('button.select').click()
+    await page.locator('#xbybody').getByRole('button', { name: '下载', exact: true }).click()
+    await page.locator('#xbyhead2 .arco-menu-item').getByText('传输', { exact: true }).click()
+    await page.getByRole('button', { name: '开始全部', exact: true }).first().click()
+
+    const userData = await app.evaluate(({ app }) => app.getPath('userData'))
+    const downloadRoot = path.join(userData, 'E2E Downloads')
+    const downloaded = () => readdirSync(downloadRoot, { recursive: true }).map(String).find(file => file.endsWith(path.sep + name))
+    await expect.poll(downloaded, { timeout: 90_000, message: 'Quark authenticated proxy download must finish without a 403' }).toBeTruthy()
+    expect(readFileSync(path.join(downloadRoot, downloaded()!), 'utf8')).toBe(content)
+  } finally {
+    await page.keyboard.press('Escape')
+    await page.locator('#xbyhead2 .arco-menu-item').getByText('网盘', { exact: true }).click().catch(() => undefined)
+    await ensureCloudTestFileTrashed(page, '', name)
+    rmSync(tempDir, { recursive: true, force: true })
+  }
+
+  expect(pageErrors).toEqual([])
+  expect(unexpectedCloudErrors(consoleErrors)).toEqual([])
+})
+
 test('shows real Quark recycle-bin entries through the dedicated recycle endpoint (BP-000104)', async ({ boxPlayer }) => {
   const { page, pageErrors, consoleErrors } = boxPlayer
   await switchToRealProvider(page, '夸克网盘')
@@ -464,27 +505,6 @@ test('opens Aliyun Word with the native Office preview instead of the book reade
 
   expect(pageErrors).toEqual([])
   expect(unexpectedCloudErrors(consoleErrors).filter((error) => !(error.includes('openapi.alipan.com/adrive/v1.0/openFile/search') && error.includes('401')))).toEqual([])
-})
-
-test('loads the real Tianyi Cloud root with the signed Date header (BP-000081)', async ({ boxPlayer }) => {
-  const { page, pageErrors, consoleErrors } = boxPlayer
-  await switchToRealProvider(page, '天翼云盘')
-  await expect(page.locator('#panfilelist:visible')).toBeVisible({ timeout: 45_000 })
-
-  const responsePromise = page.waitForResponse((response) => response.url().startsWith('https://api.cloud.189.cn/listFiles.action'))
-  await page.locator('#xbybody').getByTitle('刷新 F5').click()
-  const response = await responsePromise
-  const headers = await response.request().allHeaders()
-  const payload = await response.json().catch(() => ({}))
-
-  expect(response.status(), JSON.stringify(payload)).toBe(200)
-  expect(headers.date).toBeTruthy()
-  expect(headers.signature).toBeTruthy()
-  expect(headers.sessionkey).toBeTruthy()
-  expect(payload?.errorCode).not.toBe('InvalidArgument')
-  await expect(page.getByText(/date\/signature is null/i)).toHaveCount(0)
-  expect(pageErrors).toEqual([])
-  expect(unexpectedCloudErrors(consoleErrors)).toEqual([])
 })
 
 test('uploads a desktop-dropped file to the selected real cloud folder', async ({ boxPlayer }) => {

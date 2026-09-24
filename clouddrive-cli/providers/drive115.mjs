@@ -70,7 +70,14 @@ export async function drive115RefreshToken(token) {
     err.code = 'ERR_115_AUTH'
     throw err
   }
-  return { ...token, access_token: data.data?.access_token || data.access_token, refresh_token: data.data?.refresh_token || data.refresh_token || token.refresh_token, expires_in: data.data?.expires_in || data.expires_in }
+  const expiresIn = Number(data.data?.expires_in || data.expires_in || token.expires_in || 7200)
+  return {
+    ...token,
+    access_token: data.data?.access_token || data.access_token,
+    refresh_token: data.data?.refresh_token || data.refresh_token || token.refresh_token,
+    expires_in: expiresIn,
+    expire_time: new Date(Date.now() + expiresIn * 1000).toISOString(),
+  }
 }
 
 function mapFileItem(item, accountId) {

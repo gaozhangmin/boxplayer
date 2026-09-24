@@ -11,6 +11,7 @@ import ServerHttp from './aliapi/server'
 import { startMediaAcquisitionWorkflowRunner, wakeMediaAcquisitionWorkflowRunner } from './services/mediaAcquisition/workflowRunner'
 import { setLocale } from './i18n'
 import UserDAL from './user/userdal'
+import DB from './utils/db'
 import { startAnalytics } from './analytics/posthog'
 import { restoreBoxPlayerAuth } from './utils/boxplayerAuth'
 
@@ -66,6 +67,13 @@ window.addEventListener('unhandledrejection', function (event) {
 })
 
 const app = createApp(App)
+if (window.WebIsE2E) {
+  window.WebE2ESeedCloudAccounts = async (accounts, defaultUserId) => {
+    await DB.saveUserBatch(accounts as any[])
+    await DB.saveValueString('uiDefaultUser', defaultUserId)
+    await UserDAL.ClearUserTokenMap()
+  }
+}
 import IconFont from './components/IconFont.vue'
 app.component('IconFont', IconFont)
 app.config.errorHandler = function (err: any, vm, info) {

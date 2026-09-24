@@ -8,6 +8,7 @@ import {
   apiDrive115UploadInit,
   apiDrive115UploadResume,
   build115Target,
+  getDrive115UploadInitError,
   computePreSha1,
   computeRangeSha1,
   computeSha1,
@@ -36,7 +37,7 @@ const parseSignCheck = (signCheck: string) => {
 }
 
 const findConflictName = async (user_id: string, parentId: string | number, name: string) => {
-  const targetId = parentId === '' || parentId === undefined || parentId === null ? 0 : Number(parentId)
+  const targetId = parentId === '' || parentId === undefined || parentId === null || parentId === 'drive115_root' ? 0 : parentId
   const limit = 200
   let offset = 0
   while (offset < 2000) {
@@ -104,7 +105,7 @@ export default class Drive115UploadDisk {
     if (shouldResumeUpload) {
       initResp = await apiDrive115UploadResume(fileui.user_id, fileui.File.size, target, fileSha1, fileui.Info.up_upload_id)
     }
-    if (!initResp) {
+    if (!initResp?.data || initResp.state === false) {
       initResp = await apiDrive115UploadInit(
         fileui.user_id,
         rename.name,
@@ -114,7 +115,12 @@ export default class Drive115UploadDisk {
         preSha1
       )
     }
-    if (!initResp || !initResp.data) return '上传初始化失败'
+    if (!initResp?.data || initResp.state === false) {
+      const { code: errorCode, message: errorMessage } = getDrive115UploadInitError(initResp)
+      const detail = errorMessage ? `: ${errorMessage}` : ''
+      const code = errorCode ? ` (${errorCode})` : ''
+      return `115 上传初始化失败 [POST /open/upload/init target=${target}]${code}${detail}`
+    }
 
     if (initResp.data.sign_key && initResp.data.sign_check) {
       const range = parseSignCheck(initResp.data.sign_check)
@@ -136,7 +142,12 @@ export default class Drive115UploadDisk {
         initResp.data.sign_key,
         signVal
       )
-      if (!initResp || !initResp.data) return '上传认证失败'
+      if (!initResp?.data || initResp.state === false) {
+        const { code: errorCode, message: errorMessage } = getDrive115UploadInitError(initResp)
+        const detail = errorMessage ? `: ${errorMessage}` : ''
+        const code = errorCode ? ` (${errorCode})` : ''
+        return `115 上传认证失败 [POST /open/upload/init target=${target}]${code}${detail}`
+      }
     }
 
     const data = initResp.data
@@ -153,7 +164,7 @@ export default class Drive115UploadDisk {
     if (!data.pick_code) return '上传初始化失败'
     fileui.Info.up_upload_id = data.pick_code
 
-    const tokenList = await apiDrive115GetUploadToken(fileui.user_id)
+    const tokenList = await apiDrive115GetUploadToken(fileui.user_id, target)
     if (!tokenList || tokenList.length === 0) return '获取上传凭证失败'
     const token = tokenList[0]
     if (!token.endpoint || !token.AccessKeyId || !token.AccessKeySecret || !token.SecurityToken) {

@@ -40,8 +40,9 @@ export async function putUploadPart(file: IUploadingUI, url: string, body: Buffe
     try {
       const response = await fetch(url, { method: 'PUT', headers, body: new Uint8Array(body), signal: controller.signal })
       if (response.ok) { await response.arrayBuffer(); return }
-      if (attempt === 2 || (response.status !== 429 && response.status < 500)) throw new Error(`分片上传失败 HTTP ${response.status}`)
-      await response.body?.cancel()
+      const responseText = (await response.text()).replace(/\s+/g, ' ').trim().slice(0, 500)
+      const detail = responseText ? `: ${responseText}` : ''
+      if (attempt === 2 || (response.status !== 429 && response.status < 500)) throw new Error(`分片上传失败 HTTP ${response.status}${detail}`)
     } catch (error) {
       if (!file.IsRunning || attempt === 2 || (error instanceof Error && error.message.startsWith('分片上传失败'))) throw error
     } finally {

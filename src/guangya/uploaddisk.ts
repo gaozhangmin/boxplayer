@@ -1,14 +1,15 @@
 import crypto from 'crypto'
-import { openAsBlob } from 'fs'
 import path from 'path'
 import { FileHandle } from 'fs/promises'
 import { OpenFileHandle } from '../utils/filehelper'
 import { IUploadingUI } from '../utils/dbupload'
 import AliUploadDisk from '../aliapi/uploaddisk'
 import { Sleep } from '../utils/format'
-import { apiGuangyaCheckFlashUpload, apiGuangyaUploadBuffer, apiGuangyaUploadInfo, apiGuangyaUploadTaskFile, apiGuangyaUploadToken, GuangyaUploadTokenData } from './upload'
+import { formatOssMultipartETag } from '../utils/oss'
+import { apiGuangyaCheckFlashUpload, apiGuangyaUploadBuffer, apiGuangyaUploadInfo, apiGuangyaUploadToken, GuangyaUploadTokenData } from './upload'
 
 const SMALL_FILE_SIZE = 1024 * 1024
+const OSS_PART_SIZE = 5 * 1024 * 1024
 
 const shouldRetryFileOpen = (error: string) => error.includes('同时打开文件过多') || error.includes('文件被其他程序占用') || error.includes('操作超时') || error.includes('IO错误')
 
@@ -38,6 +39,12 @@ const readAll = async (filePath: string, size: number): Promise<{ buff?: Buffer;
   }
 }
 
+const readSlice = async (fileHandle: FileHandle, start: number, size: number): Promise<Buffer> => {
+  const buff = Buffer.alloc(size)
+  const read = await fileHandle.read(buff, 0, size, start)
+  return buff.subarray(0, read.bytesRead)
+}
+
 const getGcidChunkSize = (fileSize: number) => {
   if (fileSize <= 0x8000000) return 262144
   if (fileSize <= 0x10000000) return 524288
@@ -54,11 +61,9 @@ const gcidFile = async (filePath: string, fileSize: number): Promise<{ gcid: str
     let pos = 0
     while (pos < fileSize) {
       const size = Math.min(chunkSize, fileSize - pos)
-      const buff = Buffer.alloc(size)
-      const read = await fh.handle.read(buff, 0, size, pos)
-      const chunk = buff.subarray(0, read.bytesRead)
-      chunks.push(crypto.createHash('sha1').update(chunk).digest())
-      pos += chunk.length
+      const buff = await readSlice(fh.handle, pos, size)
+      chunks.push(crypto.createHash('sha1').update(buff).digest())
+      pos += buff.length
     }
     return { gcid: crypto.createHash('sha1').update(Buffer.concat(chunks)).digest('hex').toUpperCase(), error: '' }
   } catch (error: any) {
@@ -66,6 +71,91 @@ const gcidFile = async (filePath: string, fileSize: number): Promise<{ gcid: str
   } finally {
     await fh.handle.close().catch(() => {})
   }
+}
+
+const getOssCredentials = (tokenData: GuangyaUploadTokenData) => {
+  const creds = tokenData.creds || {}
+  return {
+    accessKeyID: creds.accessKeyID || creds.accessKeyId || '',
+    secretAccessKey: creds.secretAccessKey || creds.accessKeySecret || '',
+    sessionToken: creds.sessionToken || creds.securityToken || ''
+  }
+}
+
+const normalizeEndpoint = (endpoint: string) => endpoint.startsWith('http') ? endpoint.replace(/\/$/, '') : `https://${endpoint.replace(/\/$/, '')}`
+const ossDate = () => new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+
+const signOss = (method: string, objectPath: string, query: string, date: string, contentType: string, contentMd5: string, tokenData: GuangyaUploadTokenData) => {
+  const { accessKeyID, secretAccessKey, sessionToken } = getOssCredentials(tokenData)
+  const bucketName = tokenData.bucketName || ''
+  const ossHeaders = `x-oss-date:${date}\n${sessionToken ? `x-oss-security-token:${sessionToken.trim()}\n` : ''}`
+  const resource = `/${bucketName}/${objectPath}${query ? `?${query}` : ''}`
+  const canonical = `${method}\n${contentMd5}\n${contentType}\n${date}\n${ossHeaders}${resource}`
+  const signature = crypto.createHmac('sha1', secretAccessKey).update(canonical).digest('base64')
+  return `OSS ${accessKeyID}:${signature}`
+}
+
+const ossFetch = async (method: string, tokenData: GuangyaUploadTokenData, query: string, contentType: string, body?: BodyInit, contentMd5 = '') => {
+  const endpoint = normalizeEndpoint(tokenData.fullEndPoint || '')
+  const objectPath = tokenData.objectPath || ''
+  const date = ossDate()
+  const url = `${endpoint}/${objectPath}${query ? `?${query}` : ''}`
+  const { sessionToken } = getOssCredentials(tokenData)
+  const headers: Record<string, string> = {
+    'x-oss-date': date,
+    Authorization: signOss(method, objectPath, query, date, contentType, contentMd5, tokenData)
+  }
+  if (contentType) headers['Content-Type'] = contentType
+  if (contentMd5) headers['Content-MD5'] = contentMd5
+  if (sessionToken) headers['x-oss-security-token'] = sessionToken
+  return fetch(url, { method, headers, body })
+}
+
+const parseUploadId = (xml: string) => xml.match(/<UploadId>([^<]+)<\/UploadId>/)?.[1] || ''
+const parseETag = (xml: string) => xml.match(/<ETag>([^<]+)<\/ETag>/)?.[1]?.replace(/"/g, '') || ''
+
+const ossMultipartUpload = async (fileui: IUploadingUI, filePath: string, tokenData: GuangyaUploadTokenData): Promise<string> => {
+  if (!tokenData.fullEndPoint || !tokenData.bucketName || !tokenData.objectPath) return '光鸭云盘上传凭证不完整'
+  const initResp = await ossFetch('POST', tokenData, 'uploads', 'application/octet-stream')
+  const initXml = await initResp.text().catch(() => '')
+  if (!initResp.ok) return '初始化光鸭云盘分片上传失败'
+  const uploadId = parseUploadId(initXml)
+  if (!uploadId) return '光鸭云盘未返回分片上传 ID'
+
+  const fh = await openFileHandleWithRetry(filePath)
+  if (fh.error || !fh.handle) return fh.error || '打开文件失败'
+  const parts: Array<{ partNumber: number; eTag: string }> = []
+  try {
+    let offset = 0
+    let partNumber = 1
+    while (offset < fileui.File.size) {
+      if (!fileui.IsRunning) return '已暂停'
+      const size = Math.min(OSS_PART_SIZE, fileui.File.size - offset)
+      const buff = await readSlice(fh.handle, offset, size)
+      const contentMd5 = crypto.createHash('md5').update(buff).digest('base64')
+      let partResp: Response | undefined
+      for (let i = 0; i < 3; i++) {
+        partResp = await ossFetch('PUT', tokenData, `partNumber=${partNumber}&uploadId=${encodeURIComponent(uploadId)}`, 'application/octet-stream', buff as any, contentMd5)
+        if (partResp.ok) break
+        await Sleep(800)
+      }
+      if (!partResp?.ok) return '光鸭云盘分片上传失败'
+      const eTag = (partResp.headers.get('etag') || parseETag(await partResp.text().catch(() => ''))).replace(/"/g, '')
+      parts.push({ partNumber, eTag })
+      offset += buff.length
+      AliUploadDisk.RecordUploadProgress(fileui.UploadID, buff.length, offset)
+      partNumber += 1
+    }
+  } finally {
+    await fh.handle.close().catch(() => {})
+  }
+
+  const completeXml = `<?xml version="1.0" encoding="UTF-8"?><CompleteMultipartUpload>${parts.map((part) => `<Part><PartNumber>${part.partNumber}</PartNumber><ETag>${formatOssMultipartETag(part.eTag)}</ETag></Part>`).join('')}</CompleteMultipartUpload>`
+  const completeBody = Buffer.from(completeXml)
+  const completeMd5 = crypto.createHash('md5').update(completeBody).digest('base64')
+  const completeResp = await ossFetch('POST', tokenData, `uploadId=${encodeURIComponent(uploadId)}`, 'application/xml', completeBody, completeMd5)
+  if (!completeResp.ok) return '光鸭云盘分片合并失败'
+  return ''
 }
 
 export default class GuangyaUploadDisk {
@@ -103,9 +193,8 @@ export default class GuangyaUploadDisk {
       return info.error || '光鸭云盘秒传失败'
     }
 
-    const fileBlob = await openAsBlob(filePath, { type: 'application/octet-stream' })
-    const uploadError = await apiGuangyaUploadTaskFile(tokenResp.data, fileui.File.name, fileBlob)
-    if (uploadError) return uploadError
+    const ossError = await ossMultipartUpload(fileui, filePath, tokenResp.data)
+    if (ossError) return ossError
     for (let i = 0; i < 3; i++) {
       const info = await apiGuangyaUploadInfo(fileui.user_id, tokenResp.data.taskId)
       if (info.fileId) {

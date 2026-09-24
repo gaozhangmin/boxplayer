@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 ;(globalThis as any).self = globalThis
 ;(globalThis as any).pinyinlite = (input: string) => input.split('').map((char) => [char])
@@ -23,10 +23,22 @@ vi.mock('../auth', () => ({
   refreshGuangyaAccessToken: vi.fn()
 }))
 
+vi.mock('../../drive/account', () => ({
+  getProviderTokenForUser: vi.fn(async () => ({ user_id: 'guangya-user', access_token: 'token', tokenfrom: 'guangya' }))
+}))
+
+const { saveWarning } = vi.hoisted(() => ({ saveWarning: vi.fn() }))
+vi.mock('../../utils/debuglog', () => ({ default: { mSaveWarning: saveWarning } }))
+
 let helpers: typeof import('../dirfilelist')
 
 beforeAll(async () => {
   helpers = await import('../dirfilelist')
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  saveWarning.mockClear()
 })
 
 describe('Guangya dirfilelist helpers', () => {
@@ -50,6 +62,17 @@ describe('Guangya dirfilelist helpers', () => {
 
   it('reads the signed download URL returned by Guangya', () => {
     expect(helpers.getGuangyaDownloadUrlFromResponse({ data: { signedURL: 'https://vip-lixian-08.guangyapan.com/download' } })).toBe('https://vip-lixian-08.guangyapan.com/download')
+  })
+
+  it('rejects an HTTP 200 response with a nonzero Guangya business code', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ code: 112, msg: '参数错误' })
+    }))
+
+    await expect(helpers.guangyaRequest('guangya-user', '/nd.bizuserres.s/v1/get_res_center_token', {})).rejects.toThrow('光鸭云盘请求失败 code 112: 参数错误')
+    expect(saveWarning).toHaveBeenCalledWith('光鸭云盘接口错误 /nd.bizuserres.s/v1/get_res_center_token code 112 参数错误')
   })
 
   it('maps Guangya files into the shared cloud file model with hashes', () => {

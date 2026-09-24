@@ -231,6 +231,7 @@ describe('createOnedriveProvider', () => {
 // ─── Box ──────────────────────────────────────────────────────────────────────
 describe('Box - refresh token', () => {
   it('posts refresh_token grant to Box', async () => {
+    const refreshedAt = Date.now()
     const fetchMock = mockFetch({ access_token: 'new-tok', refresh_token: 'new-ref', expires_in: 3600 })
     vi.stubGlobal('fetch', fetchMock)
     const result = await boxRefreshToken(TOKEN)
@@ -239,6 +240,8 @@ describe('Box - refresh token', () => {
     const body = new URLSearchParams(opts.body)
     expect(body.get('grant_type')).toBe('refresh_token')
     expect(result.access_token).toBe('new-tok')
+    expect(result.refresh_token).toBe('new-ref')
+    expect(new Date(String(result.expire_time)).getTime()).toBeGreaterThanOrEqual(refreshedAt + 3600_000)
   })
 })
 
@@ -361,12 +364,15 @@ describe('createBaiduProvider', () => {
 // ─── 115 ─────────────────────────────────────────────────────────────────────
 describe('115 - refresh token', () => {
   it('posts to passportapi.115.com', async () => {
+    const refreshedAt = Date.now()
     const fetchMock = mockFetch({ code: 0, data: { access_token: 'new-tok', refresh_token: 'new-ref', expires_in: 7200 } })
     vi.stubGlobal('fetch', fetchMock)
     const result = await drive115RefreshToken(TOKEN)
     const [url] = fetchMock.mock.calls[0]
     expect(url).toContain('passportapi.115.com')
     expect(result.access_token).toBe('new-tok')
+    expect(result.refresh_token).toBe('new-ref')
+    expect(new Date(String(result.expire_time)).getTime()).toBeGreaterThanOrEqual(refreshedAt + 7200_000)
   })
 })
 

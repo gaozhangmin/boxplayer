@@ -1,0 +1,3 @@
+*.node
+*.dylib
+mpv-bundle-manifest.json

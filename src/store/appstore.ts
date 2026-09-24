@@ -365,7 +365,7 @@ const useAppStore = defineStore('app', {
           break
         }
         case 'setting': {
-          next(this.appTabMenuMap, this.appTab, ['SettingUI', 'SettingAccount', 'SettingSecurity', 'SettingPlay', 'SettingPan', 'SettingDown', 'SettingUpload', 'SettingWebDav', 'SettingDebug', 'SettingProxy', 'SettingAria', 'SettingDownloadAdvanced', 'SettingAPI', 'SettingLog'])
+          next(this.appTabMenuMap, this.appTab, ['SettingUI', 'SettingAccount', 'SettingSecurity', 'SettingPlay', 'SettingPan', 'SettingDown', 'SettingUpload', 'SettingDebug', 'SettingProxy', 'SettingAria', 'SettingDownloadAdvanced', 'SettingAPI', 'SettingLog'])
           const menu = this.appTabMenuMap.get('setting')!
           document.getElementById(menu)?.scrollIntoView()
           break

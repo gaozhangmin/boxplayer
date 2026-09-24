@@ -32,7 +32,10 @@ async function switchToProvider(page: Page, provider: string): Promise<void> {
   await expect(accountRow, `${label} CI 测试账号没有出现在账号列表`).toBeVisible({ timeout: 15_000 })
   const accountSwitch = accountRow.locator('.arco-switch')
   try {
-    if (!(await accountSwitch.getAttribute('class'))?.includes('arco-switch-checked')) await accountSwitch.click()
+    if (!(await accountSwitch.getAttribute('class'))?.includes('arco-switch-checked')) {
+      await accountSwitch.click()
+      await expect(accountSwitch, `${label} 点击切换后没有进入账号验证状态`).toHaveClass(/arco-switch-(loading|checked)/, { timeout: 3_000 })
+    }
     try {
       await expect(accountTrigger).toHaveAttribute('title', label, { timeout: 60_000 })
     } catch (error) {

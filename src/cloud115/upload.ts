@@ -24,9 +24,49 @@ export type Drive115UploadInitData = {
 
 export type Drive115UploadInitResp = {
   state: boolean
-  code: number
-  message: string
+  code?: number
+  errno?: number
+  message?: string
+  error?: string
+  msg?: string
   data?: Drive115UploadInitData
+}
+
+export const getDrive115UploadInitError = (resp: Drive115UploadInitResp | null | undefined) => {
+  const code = Number(resp?.code || resp?.errno || 0)
+  const providerMessage = String(resp?.message || resp?.msg || resp?.error || '').trim()
+  const message = providerMessage || '115 未返回初始化详情'
+  return { code, message }
+}
+
+const getResponseError = async (resp: Response): Promise<Drive115UploadInitResp> => {
+  const text = await resp.text().catch(() => '')
+  let payload: any
+  try { payload = text ? JSON.parse(text) : undefined } catch {}
+  return {
+    state: false,
+    code: Number(payload?.code || payload?.errno || resp.status || 0),
+    errno: Number(payload?.errno || 0) || undefined,
+    message: String(payload?.message || payload?.msg || payload?.error || text || `HTTP ${resp.status}`).slice(0, 300),
+    error: String(payload?.error || '')
+  }
+}
+
+const reportUploadInitResponse = (endpoint: string, target: string, status: number, payload: unknown) => {
+  const entry = { endpoint, target, status, response: payload }
+  console.error('[115 upload] API error', entry)
+  try {
+    window.Electron?.ipcRenderer?.send('115-upload-error', entry)
+  } catch {}
+}
+
+const lastUploadTokenNotice = new Map<string, number>()
+const notifyUploadTokenFailure = (text: string) => {
+  const notice = text || '获取 115 上传凭据失败'
+  const now = Date.now()
+  if (now - (lastUploadTokenNotice.get(notice) || 0) < 10_000) return
+  lastUploadTokenNotice.set(notice, now)
+  message.error(notice)
 }
 
 const buildFormData = (fields: Record<string, string>) => {
@@ -76,27 +116,61 @@ export const computeRangeSha1 = async (fileHandle: FileHandle, start: number, en
 }
 
 export const build115Target = (parentId: string | number) => {
-  const id = parentId === undefined || parentId === null || parentId === '' ? 0 : Number(parentId)
-  return `U_1_${Number.isFinite(id) ? id : 0}`
+  const id = parentId === undefined || parentId === null || parentId === '' || parentId === 'drive115_root'
+    ? '0'
+    : String(parentId)
+  // 115 directory IDs can exceed Number.MAX_SAFE_INTEGER. Keep them as strings
+  // or Number conversion will silently change the ID sent to /open/upload/init.
+  return `U_1_${id}`
 }
 
-export const apiDrive115GetUploadToken = async (user_id: string): Promise<Drive115UploadTokenItem[] | null> => {
+export const apiDrive115GetUploadToken = async (user_id: string, target = ''): Promise<Drive115UploadTokenItem[] | null> => {
   const token = await getDrive115Token(user_id)
   if (!token?.access_token) {
     message.error('未登录 115 网盘')
     return null
   }
   const url = `${API_BASE}/open/upload/get_token`
-  const resp = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token.access_token}`
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token.access_token}`
+      }
+    })
+    if (!resp.ok) {
+      const errorMessage = `获取 115 上传凭据失败（HTTP ${resp.status}）`
+      notifyUploadTokenFailure(errorMessage)
+      reportUploadInitResponse('/open/upload/get_token', target, resp.status, { error: errorMessage })
+      return null
     }
-  })
-  if (!resp.ok) return null
-  const data = (await resp.json()) as Drive115UploadTokenResp
-  if (!data?.state || data?.code !== 0) return null
-  const tokens = normalizeDrive115UploadTokens(data.data)
-  return tokens.length > 0 ? tokens : null
+    const data = (await resp.json()) as Drive115UploadTokenResp
+    const tokens = normalizeDrive115UploadTokens(data?.data)
+    if (!data?.state || Number(data?.code) !== 0 || tokens.length === 0) {
+      notifyUploadTokenFailure(data?.message || '获取 115 上传凭据失败')
+      // Never print the raw response here: it contains temporary OSS credentials.
+      const safeResponse = {
+        state: data?.state,
+        code: data?.code,
+        message: data?.message,
+        dataType: Array.isArray(data?.data) ? 'array' : typeof data?.data,
+        tokenCount: tokens.length,
+        credentialFieldsPresent: tokens.map(item => ({
+          endpoint: !!item.endpoint,
+          AccessKeyId: !!item.AccessKeyId,
+          AccessKeySecret: !!item.AccessKeySecret,
+          SecurityToken: !!item.SecurityToken
+        }))
+      }
+      reportUploadInitResponse('/open/upload/get_token', target, resp.status, safeResponse)
+      return null
+    }
+    return tokens
+  } catch (error: any) {
+    const errorMessage = error?.message || '请求 115 上传凭据接口失败'
+    notifyUploadTokenFailure(errorMessage)
+    reportUploadInitResponse('/open/upload/get_token', target, 0, { error: errorMessage })
+    return null
+  }
 }
 
 export const apiDrive115UploadInit = async (
@@ -129,17 +203,40 @@ export const apiDrive115UploadInit = async (
   if (signKey) fields.sign_key = signKey
   if (signVal) fields.sign_val = signVal
   const { body, boundary } = buildFormData(fields)
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token.access_token}`,
-      'Content-Type': `multipart/form-data; boundary=${boundary}`
-    },
-    body
-  })
-  if (!resp.ok) return null
-  const data = (await resp.json()) as Drive115UploadInitResp
-  return data
+  let resp: Response
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`
+      },
+      body
+    })
+  } catch (error: any) {
+    const failure = { state: false, code: 0, message: error?.message || '请求 115 上传初始化接口失败' }
+    reportUploadInitResponse('/open/upload/init', target, 0, failure)
+    return failure
+  }
+  if (!resp.ok) {
+    const error = await getResponseError(resp)
+    reportUploadInitResponse('/open/upload/init', target, resp.status, error)
+    return error
+  }
+  try {
+    const payload = (await resp.json()) as Drive115UploadInitResp
+    if (payload?.state === false || payload?.code !== undefined && payload.code !== 0 || payload?.errno) {
+      reportUploadInitResponse('/open/upload/init', target, resp.status, payload)
+    }
+    if (payload && (payload.state === false || payload.code !== undefined && payload.code !== 0 || payload.errno)) {
+      return { ...payload, code: Number(payload.code || payload.errno || 0), errno: Number(payload.errno || 0) || undefined }
+    }
+    return payload
+  } catch (error: any) {
+    const failure = { state: false, code: resp.status, message: error?.message || '115 上传初始化响应不是有效 JSON' }
+    reportUploadInitResponse('/open/upload/init', target, resp.status, failure)
+    return failure
+  }
 }
 
 export const apiDrive115UploadResume = async (
@@ -162,15 +259,38 @@ export const apiDrive115UploadResume = async (
     pick_code: pickCode
   }
   const { body, boundary } = buildFormData(fields)
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token.access_token}`,
-      'Content-Type': `multipart/form-data; boundary=${boundary}`
-    },
-    body
-  })
-  if (!resp.ok) return null
-  const data = (await resp.json()) as Drive115UploadInitResp
-  return data
+  let resp: Response
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`
+      },
+      body
+    })
+  } catch (error: any) {
+    const failure = { state: false, code: 0, message: error?.message || '请求 115 上传续传接口失败' }
+    reportUploadInitResponse('/open/upload/resume', target, 0, failure)
+    return failure
+  }
+  if (!resp.ok) {
+    const error = await getResponseError(resp)
+    reportUploadInitResponse('/open/upload/resume', target, resp.status, error)
+    return error
+  }
+  try {
+    const payload = (await resp.json()) as Drive115UploadInitResp
+    if (payload?.state === false || payload?.code !== undefined && payload.code !== 0 || payload?.errno) {
+      reportUploadInitResponse('/open/upload/resume', target, resp.status, payload)
+    }
+    if (payload && (payload.state === false || payload.code !== undefined && payload.code !== 0 || payload.errno)) {
+      return { ...payload, code: Number(payload.code || payload.errno || 0), errno: Number(payload.errno || 0) || undefined }
+    }
+    return payload
+  } catch (error: any) {
+    const failure = { state: false, code: resp.status, message: error?.message || '115 上传续传响应不是有效 JSON' }
+    reportUploadInitResponse('/open/upload/resume', target, resp.status, failure)
+    return failure
+  }
 }

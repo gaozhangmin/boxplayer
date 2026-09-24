@@ -1,45 +1,74 @@
 import { guangyaApiParentId, guangyaRequest } from './dirfilelist'
-import { MD5, enc, lib } from 'crypto-js'
+import { HmacSHA1, MD5, enc, lib } from 'crypto-js'
 import { Sleep } from '../utils/format'
 
 export interface GuangyaUploadTokenData {
   taskId: string
-  objectPath?: string
-  params?: {
-    url?: string
-    multipart?: Record<string, unknown>
+  creds?: {
+    accessKeyID?: string
+    accessKeyId?: string
+    accessKeySecret?: string
+    secretAccessKey?: string
+    securityToken?: string
+    sessionToken?: string
   }
+  fullEndPoint?: string
+  bucketName?: string
+  objectPath?: string
 }
 
 const getBody = (data: any) => data?.data || data || {}
 
-export const apiGuangyaUploadTaskFile = async (tokenData: GuangyaUploadTokenData, name: string, file: Blob): Promise<string> => {
-  const url = String(tokenData.params?.url || '')
-  const multipart = tokenData.params?.multipart || {}
-  const key = String(multipart.key || tokenData.objectPath || '')
-  const accessKeyId = String(multipart.OSSAccessKeyId || multipart.ossAccessKeyId || '')
-  const policy = String(multipart.policy || '')
-  const signature = String(multipart.Signature || multipart.signature || '')
-  if (!url || !key || !accessKeyId || !policy || !signature) return '光鸭云盘未返回表单上传凭证'
-
-  const form = new FormData()
-  form.set('key', key)
-  form.set('OSSAccessKeyId', accessKeyId)
-  form.set('policy', policy)
-  form.set('Signature', signature)
-  for (const [field, value] of Object.entries(multipart)) {
-    if (['key', 'OSSAccessKeyId', 'ossAccessKeyId', 'policy', 'Signature', 'signature'].includes(field) || value === undefined || value === null || value === '') continue
-    form.set(field, String(value))
+const getOssCredentials = (tokenData: GuangyaUploadTokenData) => {
+  const creds = tokenData.creds || {}
+  return {
+    accessKeyID: creds.accessKeyID || creds.accessKeyId || '',
+    secretAccessKey: creds.secretAccessKey || creds.accessKeySecret || '',
+    sessionToken: creds.sessionToken || creds.securityToken || ''
   }
-  form.set('file', file, name)
-  const resp = await fetch(url, { method: 'POST', body: form })
-  return resp.ok ? '' : '光鸭云盘上传文件内容失败'
+}
+
+const normalizeEndpoint = (endpoint: string) => endpoint.startsWith('http') ? endpoint.replace(/\/$/, '') : `https://${endpoint.replace(/\/$/, '')}`
+const ossDate = () => new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+
+const signOss = (method: string, objectPath: string, query: string, date: string, contentType: string, contentMd5: string, tokenData: GuangyaUploadTokenData) => {
+  const { accessKeyID, secretAccessKey, sessionToken } = getOssCredentials(tokenData)
+  const bucketName = tokenData.bucketName || ''
+  const ossHeaders = `x-oss-date:${date}\n${sessionToken ? `x-oss-security-token:${sessionToken.trim()}\n` : ''}`
+  const resource = `/${bucketName}/${objectPath}${query ? `?${query}` : ''}`
+  const canonical = `${method}\n${contentMd5}\n${contentType}\n${date}\n${ossHeaders}${resource}`
+  const signature = HmacSHA1(canonical, secretAccessKey).toString(enc.Base64)
+  return `OSS ${accessKeyID}:${signature}`
+}
+
+const apiGuangyaPutObject = async (tokenData: GuangyaUploadTokenData, buff: Buffer): Promise<string> => {
+  if (!tokenData.fullEndPoint || !tokenData.bucketName || !tokenData.objectPath) return '光鸭云盘上传凭证不完整'
+  const endpoint = normalizeEndpoint(tokenData.fullEndPoint)
+  const objectPath = tokenData.objectPath
+  const date = ossDate()
+  const contentType = 'application/octet-stream'
+  const { sessionToken } = getOssCredentials(tokenData)
+  const contentMd5 = MD5(lib.WordArray.create(buff as any)).toString(enc.Base64)
+  const headers: Record<string, string> = {
+    'Content-MD5': contentMd5,
+    'Content-Type': contentType,
+    'x-oss-date': date,
+    Authorization: signOss('PUT', objectPath, '', date, contentType, contentMd5, tokenData)
+  }
+  if (sessionToken) headers['x-oss-security-token'] = sessionToken
+  const resp = await fetch(`${endpoint}/${objectPath}`, { method: 'PUT', headers, body: buff as any })
+  if (resp.ok) return ''
+  const responseText = await resp.text().catch(() => '')
+  const ossCode = responseText.match(/<Code>([^<]+)<\/Code>/i)?.[1] || ''
+  const ossMessage = responseText.match(/<Message>([^<]+)<\/Message>/i)?.[1] || ''
+  const detail = [ossCode, ossMessage].filter(Boolean).join(': ')
+  return `光鸭云盘上传文件内容失败 HTTP ${resp.status}${detail ? `: ${detail}` : ''}`
 }
 
 export const apiGuangyaUploadToken = async (user_id: string, name: string, fileSize: number, parentId: string, md5?: string): Promise<{ data?: GuangyaUploadTokenData; error: string }> => {
   try {
     const body: any = {
-      capacity: 1,
+      capacity: 2,
       name,
       parentId: guangyaApiParentId(parentId),
       res: { fileSize }
@@ -85,8 +114,8 @@ export const apiGuangyaUploadBuffer = async (user_id: string, parentId: string, 
   if (!tokenResp.data) return { file_id: '', error: tokenResp.error || '创建光鸭云盘文件失败' }
   let info = await apiGuangyaUploadInfo(user_id, tokenResp.data.taskId)
   if (info.fileId) return { file_id: info.fileId, error: '' }
-  const uploadError = await apiGuangyaUploadTaskFile(tokenResp.data, name, new Blob([new Uint8Array(buff)], { type: 'application/octet-stream' }))
-  if (uploadError) return { file_id: '', error: uploadError }
+  const ossError = await apiGuangyaPutObject(tokenResp.data, buff)
+  if (ossError) return { file_id: '', error: ossError }
   for (let i = 0; i < 10; i++) {
     info = await apiGuangyaUploadInfo(user_id, tokenResp.data.taskId)
     if (info.fileId) return { file_id: info.fileId, error: '' }

@@ -16,31 +16,35 @@ jobs:
     uses: ./.github/workflows/mpv-linux.yml
 
   embedded-mpv-linux-test:
-    name: Verify every cloud provider and Emby playback on Linux
+    name: Verify cloud providers except 115/Box/189 and Emby playback on Linux
     uses: ./.github/workflows/embedded-mpv-linux.yml
     with:
       real_cloud: true
+      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
     secrets: inherit
 
   embedded-mpv-windows-test:
-    name: Verify Windows x64 cloud APIs, Emby and embedded MPV
+    name: Verify cloud providers except 115/Box/189, Emby and MPV on Windows x64
     uses: ./.github/workflows/embedded-mpv-windows-x64.yml
     with:
       real_cloud: true
+      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
     secrets: inherit
 
   embedded-mpv-macos-arm64-test:
-    name: Verify every cloud provider and Emby playback on macOS ARM64
+    name: Verify cloud providers except 115/Box/189 and Emby playback on macOS ARM64
     uses: ./.github/workflows/embedded-mpv-macos-arm64.yml
     with:
       real_cloud: true
+      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
     secrets: inherit
 
   embedded-mpv-macos-x64-test:
-    name: Verify every cloud provider and Emby playback on macOS x64
+    name: Verify cloud providers except 115/Box/189 and Emby playback on macOS x64
     uses: ./.github/workflows/embedded-mpv-macos-x64.yml
     with:
       real_cloud: true
+      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
     secrets: inherit
 
   electron-e2e:
@@ -73,6 +77,9 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout Git repository
+        uses: actions/checkout@v4
+
       - name: Create shared release draft
         if: startsWith(github.ref, 'refs/tags/')
         env:

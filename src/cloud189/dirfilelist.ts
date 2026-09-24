@@ -40,6 +40,46 @@ const apiParentId = (parentId: string | number) => {
   return id === 'cloud189_root' || id === '0' || id === '/' || id === '' ? '-11' : id
 }
 
+const preserveCloud189LargeIds = (text: string) => {
+  let output = ''
+  let inString = false
+  let escaped = false
+  for (let index = 0; index < text.length;) {
+    const char = text[index]
+    if (inString) {
+      output += char
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === '"') inString = false
+      index++
+      continue
+    }
+    if (char === '"') {
+      inString = true
+      output += char
+      index++
+      continue
+    }
+    if (char === '-' || char >= '0' && char <= '9') {
+      let end = index + 1
+      while (end < text.length && !/[\s,}\]]/.test(text[end])) end++
+      const value = text.slice(index, end)
+      if (/^-?\d+$/.test(value) && !Number.isSafeInteger(Number(value))) output += `"${value}"`
+      else output += value
+      index = end
+      continue
+    }
+    output += char
+    index++
+  }
+  return output
+}
+
+const readCloud189Json = async (resp: Response) => {
+  const text = await resp.text()
+  return JSON.parse(preserveCloud189LargeIds(text))
+}
+
 const renewSession = async (user_id: string) => {
   const token = await getProviderTokenForUser(user_id, '189')
   const refreshed = token && await refreshCloud189Token(token)
@@ -61,7 +101,7 @@ const signedRequest = async (user_id: string, method: 'GET' | 'POST', action: st
       ...cloud189SignatureHeaders(token.open_api_access_token, token.open_api_refresh_token, method, url)
     }
   })
-  const data = await resp.json().catch(() => undefined)
+  const data = await readCloud189Json(resp).catch(() => undefined)
   if (data?.errorCode === 'InvalidSessionKey' && !retried) {
     await renewSession(user_id)
     return signedRequest(user_id, method, action, params, true)
@@ -90,7 +130,7 @@ const signedForm = async (user_id: string, action: string, form: Record<string, 
     },
     body: new URLSearchParams(form)
   })
-  const data = await resp.json().catch(() => undefined)
+  const data = await readCloud189Json(resp).catch(() => undefined)
   if (data?.errorCode === 'InvalidSessionKey' && !retried) {
     await renewSession(user_id)
     return signedForm(user_id, action, form, true)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import config from '../real-cloud-e2e-config.cjs'
 
-const { loadRealCloudE2EConfig, parseRealCloudAccounts, REAL_CLOUD_PROVIDERS } = config
+const { ALL_REAL_CLOUD_PROVIDERS, EXCLUDED_REAL_CLOUD_PROVIDERS, loadRealCloudE2EConfig, parseRealCloudAccounts, REAL_CLOUD_PROVIDERS } = config
 
 const cliAccount = provider => ({
   provider,
@@ -33,6 +33,24 @@ describe('real cloud E2E configuration', () => {
       BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts: [cliAccount('aliyun')] }),
       BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun,quark'
     })).toThrow('缺少 CI 测试账号: quark')
+  })
+
+  it('excludes 115, Tianyi 189 and Box from every real-cloud test target', () => {
+    const accounts = ALL_REAL_CLOUD_PROVIDERS.map(cliAccount)
+    const config = loadRealCloudE2EConfig({
+      BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts })
+    })
+    expect(EXCLUDED_REAL_CLOUD_PROVIDERS).toEqual(['115', '189', 'box'])
+    expect(config.requiredProviders).toEqual(REAL_CLOUD_PROVIDERS)
+    expect(config.targets.map(target => target.provider)).toEqual(REAL_CLOUD_PROVIDERS)
+  })
+
+  it('rejects attempts to add an excluded provider back through workflow inputs', () => {
+    const accounts = ALL_REAL_CLOUD_PROVIDERS.map(cliAccount)
+    expect(() => loadRealCloudE2EConfig({
+      BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts }),
+      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun,115'
+    })).toThrow('包含已排除 provider: 115')
   })
 
   it('does not accept duplicate provider accounts', () => {

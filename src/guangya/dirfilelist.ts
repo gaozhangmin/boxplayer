@@ -7,6 +7,7 @@ import { humanDateTimeDateStr, humanSize } from '../utils/format'
 import message from '../utils/message'
 import { HanToPin } from '../utils/utils'
 import { GUANGYA_API_URL, guangyaApiHeaders } from './auth'
+import DebugLog from '../utils/debuglog'
 
 export type GuangyaFileItem = Record<string, any>
 
@@ -48,7 +49,14 @@ export const guangyaRequest = async (user_id: string, endpoint: string, body: an
     }
   }
   const finalCode = Number(data?.code)
-  if (!resp.ok || (data?.success === false && !allowedCodes.includes(finalCode)) || finalCode === 401) throw new Error(data?.message || data?.msg || `光鸭云盘请求失败 HTTP ${resp.status}`)
+  const businessFailed = Number.isFinite(finalCode) && finalCode !== 0 && !allowedCodes.includes(finalCode)
+  if (!resp.ok || businessFailed || (data?.success === false && !allowedCodes.includes(finalCode))) {
+    const detail = String(data?.message || data?.msg || data?.error || '').trim()
+    const status = !resp.ok ? `HTTP ${resp.status}` : `code ${finalCode}`
+    const errorMessage = `光鸭云盘请求失败 ${status}${detail ? `: ${detail}` : ''}`
+    DebugLog.mSaveWarning(`光鸭云盘接口错误 ${endpoint} ${status}${detail ? ` ${detail}` : ''}`)
+    throw new Error(errorMessage)
+  }
   return data
 }
 

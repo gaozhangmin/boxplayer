@@ -19,9 +19,17 @@ const userStore = useUserStore()
 const mediaLibraryStore = useMediaLibraryStore()
 const isAliyunAccount = computed(() => isAliyunUser(userStore.user_id || userStore.GetUserToken))
 const avatarErrorKeys = ref<Set<string>>(new Set())
+const switchingUserId = ref('')
 
-const handleUserChange = (val: any, user_id: string) => {
-  if (val) UserDAL.UserChange(user_id)
+const handleUserChange = async (val: any, user_id: string) => {
+  if (!val || userStore.user_id === user_id || switchingUserId.value) return
+  switchingUserId.value = user_id
+  try {
+    await UserDAL.UserChange(user_id)
+  } finally {
+    switchingUserId.value = ''
+    await refreshUserList()
+  }
 }
 const handleRefreshUserInfo = async () => {
   try {
@@ -325,8 +333,9 @@ watch(
                   <span class='user-provider' :title='getProviderLabel(item.tokenfrom)'>{{ getProviderLabel(item.tokenfrom) }}</span>
                 </div>
                 <div class='user-list-actions'>
-                  <a-switch size='small' :model-value='userStore.user_id == item.user_id' title='切换到这个账号'
-                            tabindex='-1' @change='handleUserChange($event, item.user_id) '>
+                  <a-switch size='small' :model-value='userStore.user_id == item.user_id' :loading='switchingUserId === item.user_id'
+                            :disabled='!!switchingUserId && switchingUserId !== item.user_id' :data-testid='`account-switch-${item.tokenfrom}`'
+                            title='切换到这个账号' tabindex='-1' @change='handleUserChange($event, item.user_id)'>
                     <template #checked> {{ t('user.current') }}</template>
                     <template #unchecked> {{ t('user.selectMe') }}</template>
                   </a-switch>

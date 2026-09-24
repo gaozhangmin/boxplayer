@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import type { IUploadingUI } from '../utils/dbupload'
+import { CLOUD189_DATE_TRANSPORT_HEADER } from '@shared/cloud189RequestHeaders'
 import { getProviderTokenForUser } from '../drive/account'
 import { cloud189ClientSuffix, cloud189SignatureHeaders } from './auth'
 import { openUploadSource, putUploadPart, uploadHash } from '../drive/uploadSource'
@@ -46,15 +47,27 @@ export default class Cloud189UploadDisk {
       if (Number(task.fileDataExists) !== 1) {
         for (let i = 0; i < hashes.length; i++) {
           const urls = await request('getMultiUploadUrls', { uploadFileId: task.uploadFileId, partInfo: `${i + 1}-${Buffer.from(hashes[i], 'hex').toString('base64')}` })
-          const target = urls[`partNumber_${i + 1}`]
-          if (!target?.requestURL) throw new Error('天翼云盘未返回分片地址')
-          const headers: Record<string, string> = {}
-          for (const pair of String(target.requestHeader || '').split('&')) {
-            const split = pair.indexOf('=')
-            if (split > 0) headers[pair.slice(0, split)] = pair.slice(split + 1)
+          const uploadUrls = urls.uploadUrls || urls.data?.uploadUrls || urls.data || urls
+          const target = uploadUrls[`partNumber_${i + 1}`]
+          if (!target?.requestURL) {
+            const code = urls.code ? ` (${urls.code})` : ''
+            const detail = urls.message || urls.res_message || urls.errorMsg || ''
+            throw new Error(`天翼云盘未返回第 ${i + 1} 个分片地址 [getMultiUploadUrls]${code}${detail ? `: ${detail}` : ''}`)
+          }
+          const headers = Object.fromEntries(new URLSearchParams(String(target.requestHeader || '')))
+          const dateHeader = Object.keys(headers).find(key => key.toLowerCase() === 'date')
+          if (dateHeader) {
+            headers[CLOUD189_DATE_TRANSPORT_HEADER] = headers[dateHeader]
+            delete headers[dateHeader]
+          } else if (!Object.keys(headers).some(key => key.toLowerCase() === 'x-amz-date')) {
+            headers[CLOUD189_DATE_TRANSPORT_HEADER] = new Date().toUTCString()
           }
           const body = await source.read(i * partSize, Math.min(partSize, size - i * partSize))
-          await putUploadPart(file, target.requestURL, body, headers)
+          try {
+            await putUploadPart(file, target.requestURL, body, headers)
+          } catch (error) {
+            throw new Error(`天翼云盘第 ${i + 1} 个分片上传失败: ${error instanceof Error ? error.message : String(error)}`)
+          }
           source.progress(body.length, i * partSize + body.length)
         }
       }

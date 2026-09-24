@@ -169,7 +169,7 @@ jobs:
           node scripts/generate-secrets.mjs --mode=ci
           pnpm exec vite build
 
-      - name: Verify every cloud provider and Emby through the real MPV path
+      - name: Verify supported cloud providers and Emby through the real MPV path
         if: inputs.real_cloud == true
         env:
           BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ matrix.arch == 'x64' && secrets.BOXPLAYER_E2E_ACCOUNTS_LINUX_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_LINUX_ARM64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
@@ -190,11 +190,16 @@ jobs:
           node scripts/check-packaged-mpv.mjs linux ${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: embedded-mpv-linux-${{ matrix.arch }}-candidate
+          path: static/engine/linux/${{ matrix.arch }}/mpv-texture/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: embedded-mpv-linux-${{ matrix.arch }}-diagnostics
           path: |
-            static/engine/linux/${{ matrix.arch }}/mpv-texture/
             test-results/
             playwright-report/
-          if-no-files-found: warn
+          if-no-files-found: ignore

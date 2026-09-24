@@ -88,5 +88,6 @@ electron/**/*.d.ts.map
 !docs/releases/v*.md
 *.html
 *.mp4
+!e2e/assets/mpv-sample.mp4
 *.mov
 *.py

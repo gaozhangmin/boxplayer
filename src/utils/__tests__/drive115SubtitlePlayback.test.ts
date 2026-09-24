@@ -93,6 +93,7 @@ describe('115 subtitle playback', () => {
     expect(source).toContain("name: 'subtitleListControl'")
     expect(source).toContain("position: 'right'")
     expect(source).toContain('selector: subSelector')
+    expect(source).not.toContain("html: t('video.singleSubtitle')")
   })
 
   it('uses the shared 115 user-agent when the subtitle proxy requests upstream data', () => {
@@ -102,7 +103,8 @@ describe('115 subtitle playback', () => {
     expect(playerSource).toContain('const userId = item.user_id || pageVideo.user_id')
     expect(playerSource).toContain('await DriveFile.ApiFileDownloadUrl(userId, driveId, item.file_id, 14400, tokenfrom)')
     expect(playerSource).toContain("proxy_kind: 'subtitle'")
-    expect(playerSource).toContain('proxy_headers: hasPlaybackHeaders(data.headers) ? JSON.stringify(data.headers) : undefined')
+    expect(playerSource).toContain('const playbackHeaders = useMacEmbeddedMpv ? mergeMpvPlaybackHeaders(provider, data.headers) : data.headers')
+    expect(playerSource).toContain('proxy_headers: hasPlaybackHeaders(playbackHeaders) ? JSON.stringify(playbackHeaders) : undefined')
     expect(playerSource).not.toContain('const data = await AliFile.ApiFileDownText(pageVideo.user_id, pageVideo.drive_id, item.file_id')
     expect(source).toContain("import { DRIVE115_DOWN_AGENT } from '@shared/drive115'")
     expect(source).toContain("upstreamHeaders['user-agent'] = DRIVE115_DOWN_AGENT")

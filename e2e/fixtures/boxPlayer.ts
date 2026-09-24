@@ -100,45 +100,10 @@ async function seedRealCloudAccounts(page: Page, provider?: string): Promise<voi
   if (!accounts.length) throw new Error(`Injected real-cloud account list has no account for ${provider}`)
   const defaultUserId = accounts.find(account => account.tokenfrom === 'aliyun')?.user_id || accounts[0]?.user_id
   if (!defaultUserId) throw new Error('Injected real-cloud account list has no default user')
-  await page.waitForFunction(async ({ databaseName, requiredStores }) => {
-    return new Promise<boolean>((resolve) => {
-      const request = indexedDB.open(databaseName)
-      let upgrading = false
-      request.onupgradeneeded = () => {
-        // Opening a missing database without a version creates an empty v1
-        // database. Abort that implicit creation and let the application's
-        // Dexie bootstrap create the real schema instead.
-        upgrading = true
-        request.transaction?.abort()
-      }
-      request.onerror = () => resolve(false)
-      request.onsuccess = () => {
-        const db = request.result
-        const ready = !upgrading && requiredStores.every(store => db.objectStoreNames.contains(store))
-        db.close()
-        resolve(ready)
-      }
-    })
-  }, { databaseName: 'XBY3Database', requiredStores: ['itoken', 'istring'] }, { timeout: 45_000 })
+  await page.waitForFunction(() => typeof window.WebE2ESeedCloudAccounts === 'function', undefined, { timeout: 45_000 })
   await page.evaluate(async ({ accounts, defaultUserId }) => {
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('XBY3Database')
-      request.onerror = () => reject(request.error)
-      request.onsuccess = () => resolve(request.result)
-    })
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const transaction = db.transaction(['itoken', 'istring'], 'readwrite')
-        const tokenStore = transaction.objectStore('itoken')
-        for (const account of accounts) tokenStore.put(account)
-        transaction.objectStore('istring').put(defaultUserId, 'uiDefaultUser')
-        transaction.oncomplete = () => resolve()
-        transaction.onerror = () => reject(transaction.error)
-        transaction.onabort = () => reject(transaction.error)
-      })
-    } finally {
-      db.close()
-    }
+    if (!window.WebE2ESeedCloudAccounts) throw new Error('BoxPlayer E2E account seeding hook is unavailable')
+    await window.WebE2ESeedCloudAccounts(accounts, defaultUserId)
   }, { accounts, defaultUserId })
   await page.reload()
   await page.waitForLoadState('domcontentloaded')

@@ -79,7 +79,15 @@ export async function boxRefreshToken(token) {
     throw err
   }
   const data = await resp.json()
-  return { ...token, access_token: data.access_token, refresh_token: data.refresh_token || token.refresh_token, expires_in: data.expires_in, token_type: data.token_type || 'Bearer' }
+  const expiresIn = Number(data.expires_in || token.expires_in || 3600)
+  return {
+    ...token,
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || token.refresh_token,
+    expires_in: expiresIn,
+    expire_time: new Date(Date.now() + expiresIn * 1000).toISOString(),
+    token_type: data.token_type || 'Bearer',
+  }
 }
 
 const FIELDS = 'id,type,name,size,sha1,parent,created_at,modified_at,item_status'

@@ -1,4 +1,6 @@
-const REAL_CLOUD_PROVIDERS = ['aliyun', 'cloud123', '115', 'baidu', 'pikpak', 'quark', '139', '189', 'guangya', 'dropbox', 'onedrive', 'box', 'google']
+const ALL_REAL_CLOUD_PROVIDERS = ['aliyun', 'cloud123', '115', 'baidu', 'pikpak', 'quark', '139', '189', 'guangya', 'dropbox', 'onedrive', 'box', 'google']
+const EXCLUDED_REAL_CLOUD_PROVIDERS = ['115', '189', 'box']
+const REAL_CLOUD_PROVIDERS = ALL_REAL_CLOUD_PROVIDERS.filter(provider => !EXCLUDED_REAL_CLOUD_PROVIDERS.includes(provider))
 
 const emptyToken = () => ({
   tokenfrom: 'unknown', access_token: '', refresh_token: '', session_expires_in: 0,
@@ -47,7 +49,7 @@ function parseRealCloudAccounts(value) {
   const accounts = source.map(normalizeCliAccount)
   const seenProviders = new Set()
   for (const account of accounts) {
-    if (!REAL_CLOUD_PROVIDERS.includes(account.tokenfrom)) throw new Error(`不支持的真实网盘 provider: ${account.tokenfrom || '(empty)'}`)
+    if (!ALL_REAL_CLOUD_PROVIDERS.includes(account.tokenfrom)) throw new Error(`不支持的真实网盘 provider: ${account.tokenfrom || '(empty)'}`)
     if (!account.user_id) throw new Error(`${account.tokenfrom} 测试账号缺少 user_id`)
     if (!account.access_token && !account.refresh_token) throw new Error(`${account.tokenfrom} 测试账号缺少 access_token/refresh_token`)
     if (seenProviders.has(account.tokenfrom)) throw new Error(`每个 provider 只能配置一个 CI 测试账号: ${account.tokenfrom}`)
@@ -68,6 +70,7 @@ function parseRequiredProviders(value) {
     .map(normalizeProvider)
     .filter(Boolean)
   for (const provider of providers) {
+    if (EXCLUDED_REAL_CLOUD_PROVIDERS.includes(provider)) throw new Error(`BOXPLAYER_E2E_REQUIRED_PROVIDERS 包含已排除 provider: ${provider}`)
     if (!REAL_CLOUD_PROVIDERS.includes(provider)) throw new Error(`BOXPLAYER_E2E_REQUIRED_PROVIDERS 包含未知 provider: ${provider}`)
   }
   return Array.from(new Set(providers))
@@ -93,7 +96,7 @@ function parseRealCloudTargets(value, accounts, options = {}) {
   }))
   const seen = new Set()
   for (const target of targets) {
-    if (!REAL_CLOUD_PROVIDERS.includes(target.provider)) throw new Error(`播放目标包含未知 provider: ${target.provider || '(empty)'}`)
+    if (!ALL_REAL_CLOUD_PROVIDERS.includes(target.provider)) throw new Error(`播放目标包含未知 provider: ${target.provider || '(empty)'}`)
     if (!target.fileName) throw new Error(`${target.provider} 播放目标缺少 fileName`)
     if (seen.has(target.provider)) throw new Error(`每个 provider 只能配置一个播放目标: ${target.provider}`)
     seen.add(target.provider)
@@ -121,7 +124,7 @@ function loadRealCloudE2EConfig(env = process.env) {
   }
 }
 
-module.exports = { REAL_CLOUD_PROVIDERS, parseRealCloudAccounts, parseRequiredProviders, parseRealCloudTargets, loadRealCloudE2EConfig }
+module.exports = { ALL_REAL_CLOUD_PROVIDERS, EXCLUDED_REAL_CLOUD_PROVIDERS, REAL_CLOUD_PROVIDERS, parseRealCloudAccounts, parseRequiredProviders, parseRealCloudTargets, loadRealCloudE2EConfig }
 
 if (require.main === module) {
   try {

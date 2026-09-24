@@ -7,7 +7,7 @@ export const apiCloud189Mkdir = async (user_id: string, parentId: string, name: 
       parentFolderId: cloud189ApiParentId(parentId),
       relativePath: ''
     })
-    const fileId = data?.folderId || data?.id || data?.data?.folderId || ''
+    const fileId = data?.folderId || data?.id || data?.folder?.id || data?.data?.folderId || data?.data?.id || data?.data?.folder?.id || ''
     return { file_id: String(fileId || ''), error: fileId ? '' : '新建文件夹失败' }
   } catch (error: any) {
     return { file_id: '', error: error?.message || '新建文件夹失败' }

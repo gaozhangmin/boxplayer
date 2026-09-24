@@ -56,9 +56,17 @@ const buildHeaders = (deviceId?: string, accessToken?: string): HeadersInit => {
   return headers
 }
 
-const parsePikPakError = (data: any, fallback: string) => {
+const PIKPAK_REGION_PROHIBITED_MESSAGE = '对不起，PikPak 在当前地区 (中国大陆) 不可用。'
+
+export const parsePikPakError = (data: any, fallback: string) => {
   if (!data) return fallback
   if (data.error === 'invalid_account_or_password') return 'PikPak 账号或密码错误'
+  if (Number(data.error_code) === 4126 || data.error_description === 'AccessProhibited') {
+    const localizedMessage = Array.isArray(data.details)
+      ? data.details.find((detail: any) => detail?.['@type'] === 'type.googleapis.com/google.rpc.LocalizedMessage' && typeof detail.message === 'string' && detail.message.trim())?.message.trim()
+      : ''
+    return localizedMessage || PIKPAK_REGION_PROHIBITED_MESSAGE
+  }
   return data.error_description || data.message || data.error || fallback
 }
 

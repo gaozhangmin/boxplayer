@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      required_providers:
+        description: Optional comma-separated provider subset for diagnostics
+        required: false
+        default: ''
+        type: string
   workflow_dispatch:
     inputs:
       real_cloud:
@@ -15,6 +20,11 @@ on:
         required: false
         default: false
         type: boolean
+      required_providers:
+        description: Optional comma-separated provider subset for diagnostics
+        required: false
+        default: ''
+        type: string
   push:
     branches:
       - codex/mpv-runner-validation
@@ -104,6 +114,7 @@ jobs:
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
           BOXPLAYER_E2E_EMBY_JSON: ${{ secrets.BOXPLAYER_E2E_EMBY_JSON }}
+          BOXPLAYER_E2E_REQUIRED_PROVIDERS: ${{ inputs.required_providers }}
         run: |
           node scripts/real-cloud-e2e-config.cjs
           node scripts/real-media-server-e2e-config.cjs
@@ -136,7 +147,7 @@ jobs:
           node scripts/generate-secrets.mjs --mode=ci
           pnpm exec vite build
 
-      - name: Verify every cloud provider and Emby through the real MPV path
+      - name: Verify supported cloud providers and Emby through the real MPV path
         if: inputs.real_cloud == true
         env:
           BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_WINDOWS_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
@@ -144,6 +155,7 @@ jobs:
           BOXPLAYER_E2E_MEDIA_FOLDER: ${{ vars.BOXPLAYER_E2E_MEDIA_FOLDER }}
           BOXPLAYER_E2E_MEDIA_FILE: ${{ vars.BOXPLAYER_E2E_MEDIA_FILE }}
           BOXPLAYER_E2E_EMBY_JSON: ${{ secrets.BOXPLAYER_E2E_EMBY_JSON }}
+          BOXPLAYER_E2E_REQUIRED_PROVIDERS: ${{ inputs.required_providers }}
           BOXPLAYER_E2E_REAL: '1'
           BOXPLAYER_E2E_REAL_MPV: '1'
           BOXPLAYER_E2E_CLOUD_MUTATIONS: '1'
@@ -156,11 +168,16 @@ jobs:
           node scripts/check-packaged-mpv.mjs win32 x64
 
       - uses: actions/upload-artifact@v4
-        if: always()
         with:
           name: embedded-mpv-windows-x64-candidate
+          path: static/engine/win32/x64/mpv-texture/
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: embedded-mpv-windows-x64-diagnostics
           path: |
-            static/engine/win32/x64/mpv-texture/
             test-results/
             playwright-report/
-          if-no-files-found: warn
+          if-no-files-found: ignore

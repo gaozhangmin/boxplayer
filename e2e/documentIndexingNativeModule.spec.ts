@@ -1,9 +1,11 @@
 import { expect, test } from './fixtures/boxPlayer'
 
-test('document indexing native database loads in the launched Electron app', async ({ boxPlayer }) => {
+test('native databases and media acquisition tracking load in the launched Electron app', async ({ boxPlayer }) => {
   const { app, page, pageErrors, consoleErrors } = boxPlayer
 
   await expect(page.locator('#xbyhead2')).toBeVisible()
+  const tracking = await page.evaluate(() => window.Electron.ipcRenderer.invoke('mediaAcquisition:listTracking', 200))
+  expect(Array.isArray(tracking)).toBe(true)
   const abi = await app.evaluate(() => {
     const { createRequire } = process.getBuiltinModule('module')
     const Database = createRequire(`${process.cwd()}/package.json`)('better-sqlite3')

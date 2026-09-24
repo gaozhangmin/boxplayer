@@ -9,6 +9,7 @@ declare global {
     openDatabase: any
     WebIsE2E: boolean
     WebE2EAllowTransfers: boolean
+    WebE2ESeedCloudAccounts?: (accounts: unknown[], defaultUserId: string) => Promise<void>
     WebRelaunchAria: () => Promise<number>
     platform: string
     WebGetPathForFile: (file: File) => string

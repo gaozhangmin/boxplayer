@@ -522,6 +522,10 @@ ipcMain.on('EnsureTransferWorker', (_event, type: unknown) => {
   else if (type === 'download') createDownload()
 })
 
+ipcMain.on('115-upload-error', (_event, entry: { endpoint?: string; target?: string; status?: number; response?: unknown }) => {
+  console.error('[115 upload] API error', entry)
+})
+
 export function createReaderWindow(bookData: any) {
   if (AppWindow.readerWindow && !AppWindow.readerWindow.isDestroyed()) {
     AppWindow.readerWindow.focus()

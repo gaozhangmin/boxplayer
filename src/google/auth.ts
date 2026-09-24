@@ -8,6 +8,7 @@ export { GOOGLE_CLIENT_ID }
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_ABOUT_URL = 'https://www.googleapis.com/drive/v3/about?fields=user%28permissionId%2CdisplayName%2CemailAddress%2CphotoLink%29%2CstorageQuota%28limit%2Cusage%29'
+export const GOOGLE_AUTH_REQUEST_TIMEOUT_MS = 15_000
 export const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
 
 const base64UrlEncode = (bytes: Uint8Array) => {
@@ -44,29 +45,40 @@ const emptyToken = (): ITokenInfo => ({
 })
 
 const googleTokenRequest = async (body: URLSearchParams, fallback: string): Promise<any | null> => {
-  const response = await fetch(GOOGLE_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body })
-  const data = await response.json().catch(() => undefined)
-  if (!response.ok || !data?.access_token) {
-    message.error(data?.error_description || data?.error || fallback)
+  try {
+    const response = await fetch(GOOGLE_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body, signal: AbortSignal.timeout(GOOGLE_AUTH_REQUEST_TIMEOUT_MS) })
+    const data = await response.json().catch(() => undefined)
+    if (!response.ok || !data?.access_token) {
+      message.error(data?.error_description || data?.error || fallback)
+      return null
+    }
+    return data
+  } catch (error: any) {
+    const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError'
+    message.error(isTimeout ? '连接 Google OAuth 超时，请检查网络代理后重试' : `连接 Google OAuth 失败：${error?.message || fallback}`)
     return null
   }
-  return data
 }
 
 const applyGoogleAccount = async (token: ITokenInfo) => {
-  const response = await fetch(GOOGLE_ABOUT_URL, { headers: { Authorization: `Bearer ${token.access_token}` } })
-  const data = await response.json().catch(() => undefined)
-  if (!response.ok || !data?.user?.permissionId) return
-  token.user_id = `google_${data.user.permissionId}`
-  token.user_name = data.user.displayName || data.user.emailAddress || token.user_name
-  token.nick_name = token.user_name
-  token.name = token.user_name
-  token.avatar = data.user.photoLink || ''
-  const total = Number(data.storageQuota?.limit || 0)
-  const used = Number(data.storageQuota?.usage || 0)
-  token.total_size = total
-  token.used_size = used
-  token.free_size = Math.max(0, total - used)
+  try {
+    const response = await fetch(GOOGLE_ABOUT_URL, { headers: { Authorization: `Bearer ${token.access_token}` }, signal: AbortSignal.timeout(GOOGLE_AUTH_REQUEST_TIMEOUT_MS) })
+    const data = await response.json().catch(() => undefined)
+    if (!response.ok || !data?.user?.permissionId) return
+    token.user_id = `google_${data.user.permissionId}`
+    token.user_name = data.user.displayName || data.user.emailAddress || token.user_name
+    token.nick_name = token.user_name
+    token.name = token.user_name
+    token.avatar = data.user.photoLink || ''
+    const total = Number(data.storageQuota?.limit || 0)
+    const used = Number(data.storageQuota?.usage || 0)
+    token.total_size = total
+    token.used_size = used
+    token.free_size = Math.max(0, total - used)
+  } catch (error: any) {
+    const isTimeout = error?.name === 'TimeoutError' || error?.name === 'AbortError'
+    message.error(isTimeout ? '连接 Google Drive 超时，请检查网络代理后重试' : `读取 Google Drive 账号信息失败：${error?.message || '网络错误'}`)
+  }
 }
 
 const applyTokenResponse = (data: any, clientId: string, previous?: ITokenInfo) => {

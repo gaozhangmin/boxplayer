@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import { expect, test } from './fixtures/boxPlayer'
 
 test.setTimeout(60_000)
@@ -17,6 +19,22 @@ async function openApplicationSettings(page: Page) {
   await expect(settings).toBeVisible()
   return settings
 }
+
+test('account settings render and WebDAV settings stay hidden', async ({ boxPlayer }) => {
+  const { page, pageErrors, consoleErrors } = boxPlayer
+  await openApplicationSettings(page)
+  const sidebar = page.locator('.settings-sider')
+
+  await expect(sidebar.getByText('WebDAV', { exact: true })).toHaveCount(0)
+  await sidebar.locator('.arco-menu-item').filter({ hasText: '账户设置' }).click()
+  const accountSettings = page.locator('#SettingAccount')
+  await expect(accountSettings).toBeVisible()
+  await expect(accountSettings.getByText('账号导入导出', { exact: true })).toBeVisible()
+  await expect(accountSettings.getByRole('button', { name: '导出账号', exact: true })).toBeVisible()
+  await expect(page.locator('#SettingWebDav')).toHaveCount(0)
+  expect(pageErrors).toEqual([])
+  expect(consoleErrors).toEqual([])
+})
 
 test('application settings persist after the production renderer reloads', async ({ boxPlayer }) => {
   const { page, pageErrors, consoleErrors } = boxPlayer
@@ -60,6 +78,23 @@ test('AI scraping preference persists after the production renderer reloads', as
   await reloadedToggle.click()
   expect(pageErrors).toEqual([])
   expect(consoleErrors).toEqual([])
+})
+
+test('embedded MPV capability matches the macOS x64 bundle in the production app', async ({ boxPlayer }) => {
+  const { page } = boxPlayer
+  const capability = await page.evaluate(() => window.WebMpvEmbeddedCapability())
+
+  if (process.platform === 'darwin' && process.arch === 'x64') {
+    const bundlePath = path.resolve('static/engine/darwin/x64/mpv-texture/mpv-bundle-manifest.json')
+    if (existsSync(bundlePath)) {
+      expect(capability.enabled, capability.reason).toBe(true)
+    } else {
+      expect(capability.enabled).toBe(false)
+      expect(capability.reason).toContain('macOS x64')
+    }
+  } else {
+    expect(typeof capability.enabled).toBe('boolean')
+  }
 })
 
 test('logging out resets the email verification flow', async ({ boxPlayer }) => {

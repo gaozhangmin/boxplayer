@@ -532,13 +532,27 @@ export default class UserDAL {
 
 
   static async UserChange(user_id: string): Promise<boolean> {
-    const token = await this.EnsureUserTokenReady(user_id)
-    if (!token) {
-      message.warning('该账号需要重新登陆[' + (UserTokenMap.get(user_id)?.name || user_id) + ']')
+    const accountName = UserTokenMap.get(user_id)?.name || user_id
+    let token: ITokenInfo | null = null
+    try {
+      token = await withStartupTimeout(this.EnsureUserTokenReady(user_id), `切换账号 ${accountName}`, 20_000)
+    } catch (error: any) {
+      DebugLog.mSaveWarning('UserChange ' + user_id, error?.message || error)
+      message.error('切换账号超时，请检查网络连接或代理设置后重试')
       return false
     }
-    await this.UserLogin(token).catch()
-    return true
+    if (!token) {
+      message.warning('该账号验证失败，请检查网络或重新登录[' + accountName + ']')
+      return false
+    }
+    try {
+      await this.UserLogin(token)
+      return true
+    } catch (error: any) {
+      DebugLog.mSaveWarning('UserChange login ' + user_id, error?.message || error)
+      message.error('切换账号失败，请稍后重试[' + accountName + ']')
+      return false
+    }
   }
 
 

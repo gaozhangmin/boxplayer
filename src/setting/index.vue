@@ -13,7 +13,6 @@ import SettingUpload from './SettingUpload.vue'
 import SettingAria from './SettingAria.vue'
 import SettingLog from './SettingLog.vue'
 import SettingProxy from './SettingProxy.vue'
-import SettingWebDav from './SettingWebDav.vue'
 import SettingSecurity from './SettingSecurity.vue'
 import SettingDownloadAdvanced from './SettingDownloadAdvanced.vue'
 import SettingAPI from './SettingAPI.vue'
@@ -88,7 +87,6 @@ const sectionMeta: Record<string, { title: string }> = {
   SettingDown: { title: 'settings.download' },
   SettingDownloadAdvanced: { title: 'settings.downloadAdvanced' },
   SettingUpload: { title: 'settings.upload' },
-  SettingWebDav: { title: 'settings.webDav' },
   SettingDebug: { title: 'settings.advanced' },
   SettingProxy: { title: 'settings.proxy' },
   SettingAria: { title: 'settings.remoteAria' },
@@ -123,7 +121,6 @@ onMounted(() => {
     'SettingDown',
     'SettingDownloadAdvanced',
     'SettingUpload',
-    'SettingWebDav',
     'SettingDebug',
     'SettingProxy',
     'SettingAria',
@@ -204,10 +201,6 @@ onUnmounted(() => {
           <template #icon><IconFont name="iconupload" /></template>
           {{ t('settings.upload') }}
         </a-menu-item>
-        <a-menu-item key='SettingWebDav'>
-          <template #icon><IconFont name="iconchuanshu2" /></template>
-          {{ t('settings.webDav') }}
-        </a-menu-item>
         <div class="settings-menu-group">{{ t('settings.group.system') }}</div>
         <a-menu-item key="SettingDebug">
           <template #icon><IconFont name="iconlogoff" /></template>
@@ -248,7 +241,7 @@ onUnmounted(() => {
 <!--        </div>-->
 
         <section id="SettingUI" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingUI.title as Parameters<typeof t>[0]) }}</h2></div><SettingUI /></section>
-<!--        <section id="SettingAccount" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAccount.title as Parameters<typeof t>[0]) }}</h2></div><SettingAccount /></section>-->
+        <section id="SettingAccount" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAccount.title as Parameters<typeof t>[0]) }}</h2></div><SettingAccount /></section>
         <section id="SettingAPI" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAPI.title as Parameters<typeof t>[0]) }}</h2></div><SettingAPI /></section>
         <section id="SettingSecurity" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingSecurity.title as Parameters<typeof t>[0]) }}</h2></div><SettingSecurity /></section>
         <section id="SettingPlay" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingPlay.title as Parameters<typeof t>[0]) }}</h2></div><SettingPlay /></section>
@@ -258,7 +251,6 @@ onUnmounted(() => {
         <section id="SettingDown" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDown.title as Parameters<typeof t>[0]) }}</h2></div><SettingDown /></section>
         <section id="SettingDownloadAdvanced" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDownloadAdvanced.title as Parameters<typeof t>[0]) }}</h2></div><SettingDownloadAdvanced /></section>
         <section id="SettingUpload" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingUpload.title as Parameters<typeof t>[0]) }}</h2></div><SettingUpload /></section>
-        <section id='SettingWebDav' class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingWebDav.title as Parameters<typeof t>[0]) }}</h2></div><SettingWebDav /></section>
         <section id="SettingDebug" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDebug.title as Parameters<typeof t>[0]) }}</h2></div><SettingDebug /></section>
         <section id="SettingProxy" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingProxy.title as Parameters<typeof t>[0]) }}</h2></div><SettingProxy /></section>
         <section id="SettingAria" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAria.title as Parameters<typeof t>[0]) }}</h2></div><SettingAria /></section>
