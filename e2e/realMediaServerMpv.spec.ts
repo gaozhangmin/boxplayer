@@ -76,8 +76,13 @@ if (!enabled) {
       await search.fill(mediaServer!.mediaTitle)
       await search.press('Enter')
 
-      const result = page.locator('.poster-tile').filter({ has: page.getByText(mediaServer!.mediaTitle, { exact: true }) }).first()
-      await expect(result, `Emby search did not return ${mediaServer!.mediaTitle}`).toBeVisible({ timeout: 90_000 })
+      // Episode results can be labeled with their parent series title in the
+      // poster row, even though the search query matched the episode filename.
+      // Scope to the Episodes row and click its result rather than requiring
+      // the raw filename to be rendered as the card's visible title.
+      const episodeRow = page.locator('.search-result-stack .home-section').filter({ has: page.locator('.home-section-header').getByText(/Episodes|剧集/) }).first()
+      const result = episodeRow.locator('.poster-tile').first()
+      await expect(result, `Emby search did not return an episode for ${mediaServer!.mediaTitle}`).toBeVisible({ timeout: 90_000 })
       await result.click()
       const play = page.locator('.detail-primary-play')
       await expect(play).toBeVisible({ timeout: 90_000 })

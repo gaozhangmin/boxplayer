@@ -159,7 +159,7 @@ onUnmounted(() => {
           <template #icon><IconFont name="iconui" /></template>
           {{ t('settings.app') }}
         </a-menu-item>
-        <a-menu-item key="SettingAccount">
+        <a-menu-item key="SettingAccount" data-testid="settings-account-menu">
           <template #icon><IconFont name="iconrobot" /></template>
           {{ t('settings.account') }}
         </a-menu-item>

@@ -26,7 +26,7 @@ test('account settings render and WebDAV settings stay hidden', async ({ boxPlay
   const sidebar = page.locator('.settings-sider')
 
   await expect(sidebar.getByText('WebDAV', { exact: true })).toHaveCount(0)
-  await sidebar.locator('.arco-menu-item').filter({ hasText: '账户设置' }).click()
+  await sidebar.getByTestId('settings-account-menu').click()
   const accountSettings = page.locator('#SettingAccount')
   await expect(accountSettings).toBeVisible()
   await expect(accountSettings.getByText('账号导入导出', { exact: true })).toBeVisible()
