@@ -311,13 +311,13 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }, { realAccountRe
       // instead of replacing it with an internal disposed-handle error.
       let electronProcess: ChildProcess | undefined
       try { electronProcess = app.process() } catch {}
-      if (path.basename(testInfo.file).startsWith('embeddedMpv')) {
+      if (path.basename(testInfo.file).startsWith('embeddedMpv') || (process.platform === 'win32' && realAccountTest)) {
         // BoxPlayer's window-close handler can hide to tray. Quit the app
         // explicitly so MPV receives will-quit and its native threads stop.
         // Remove only the test process' window close interception first;
         // otherwise app.quit() is cancelled on Windows, the forced kill leaves
         // Chromium profile files locked, and Playwright's worker cannot tear
-        // down even though every playback assertion already passed.
+        // down even though every real-provider playback assertion passed.
         // Do not race app.close(): the abandoned close promise retains the
         // Playwright transport and makes an otherwise-passing worker time out.
         await app.evaluate(({ app: electronApp, BrowserWindow }) => {
