@@ -75,7 +75,7 @@
       { "from": "./static/engine/win32/${arch}", "to": "./engine/win32/${arch}", "filter": ["**/*", "!mpv{,/**}"]}
     ],
     "target": [
-      { "target": "nsis", "arch": [ "x64", "arm64" ] }
+      { "target": "nsis", "arch": [ "x64" ] }
     ]
   },
   "dmg": {

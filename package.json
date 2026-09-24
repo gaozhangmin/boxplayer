@@ -1,7 +1,7 @@
 {
   "name": "boxplayer",
   "description": "BoxPlayer",
-  "version": "5.0.33",
+  "version": "5.0.34",
   "main": "dist/electron/main/index.js",
   "packageManager": "pnpm@10.32.1",
   "author": {
@@ -27,7 +27,6 @@
     "build:mac:signed": "pnpm run build && PYTHON=/usr/bin/python3 CSC_IDENTITY_AUTO_DISCOVERY=true electron-builder --mac",
     "build:linux": "pnpm run build && node build-linux.mjs",
     "build:windows": "pnpm run build && electron-builder --win",
-    "build:windows:arm64": "pnpm run build && electron-builder --win --arm64",
     "build:all": "node build-all.mjs",
     "rebuild:electron": "PYTHON=/usr/bin/python3 electron-rebuild -f -w better-sqlite3",
     "build:clouddrive-cli": "node scripts/build-clouddrive-cli-package.mjs",
