@@ -2425,7 +2425,7 @@ const loadMpvEmbeddedCurrentVideo = async (resumePosition = pageVideo.play_curso
   console.info('[播放][MPV] 当前播放链接', {
     quality: source.quality || '',
     qualityLabel: source.qualityLabel || '',
-    url: source.url,
+    source: /^https?:\/\//i.test(source.url) ? 'remote' : 'local',
     position: mpvEmbeddedStartPosition.value,
     hasAuthorization: Boolean(source.headers && Object.keys(source.headers).some((key) => key.toLowerCase() === 'authorization')),
     userAgent: source.headers && Object.entries(source.headers).find(([key]) => key.toLowerCase() === 'user-agent')?.[1] || ''

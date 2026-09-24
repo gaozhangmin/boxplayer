@@ -312,7 +312,6 @@ export async function createProxyServer(port: number) {
   const proxyServer: Server = http.createServer(async (clientReq: IncomingMessage, clientRes: ServerResponse) => {
     const { pathname, query } = url.parse(clientReq.url, true)
     const { user_id, drive_id, file_id, file_size, encType, password, weifa, quality, proxy_url, proxy_headers, proxy_kind, content_disposition, file_name } = query
-    console.info('proxy query: ', query)
     if (pathname === '/proxy') {
       const driveId = String(drive_id || '')
       const fileId = String(file_id || '')
@@ -344,7 +343,6 @@ export async function createProxyServer(port: number) {
         // 获取地址
         const refreshQuality = content_disposition === 'inline' ? 'Origin' : selectQuality
         let data = await getRawUrl(user_id, drive_id, file_id, encType, '', weifa, 'other', refreshQuality)
-        console.error('proxy getRawUrl', data)
         if (typeof data != 'string' && data.url) {
           let subtitleData = data.subtitles.find((sub: any) => sub.language === 'chi') || data.subtitles[0]
           subtitle_url = subtitleData && subtitleData.url || ''
@@ -352,7 +350,6 @@ export async function createProxyServer(port: number) {
           proxyInfo = undefined
         }
       }
-      console.warn('proxyUrl', proxyUrl)
       if (!proxyUrl) {
         clientRes.writeHead(404, { 'Content-Type': 'text/plain' })
         clientRes.end()
@@ -374,7 +371,6 @@ export async function createProxyServer(port: number) {
         clientRes.end()
         return
       }
-      console.warn('proxy.range', clientReq.headers.range)
       // 是否需要解密
       let decryptTransform: any = null
       if (encType) {
@@ -473,7 +469,9 @@ export async function createProxyServer(port: number) {
           rejectUnauthorized: false,
           agent: ~proxyUrl.indexOf('https') ? httpsAgent : httpAgent
         }, (httpResp: any) => {
-          console.error('httpResp.headers', httpResp.statusCode, httpResp.headers)
+          if (isAuthenticatedMpvProxy && Number(httpResp.statusCode || 0) >= 400) {
+            console.error('[MPV proxy] upstream HTTP status', Number(httpResp.statusCode || 0))
+          }
           const quarkErrorChunks: Buffer[] = []
           let quarkErrorLength = 0
           const shouldReportQuarkError = (query.drive_id === 'quark' || isQuarkUser(String(query.user_id || ''))) && httpResp.statusCode >= 400
@@ -518,8 +516,7 @@ export async function createProxyServer(port: number) {
             clientRes.setHeader('content-disposition', `inline; filename*=UTF-8''${encodeURIComponent(inlineFileName)};`)
           }
           if (statusCode % 300 < 5) {
-            // 可能出现304，redirectUrl = undefined
-            const redirectUrl = httpResp.headers.location || '-'
+            // Redirect and not-modified responses retain the proxy URL for encrypted streams.
             if (decryptTransform) {
               // Referer
               httpResp.headers.location = getProxyUrl({
@@ -527,7 +524,6 @@ export async function createProxyServer(port: number) {
                 file_size, encType, quality, proxy_url
               })
             }
-            console.log('302 redirectUrl:', redirectUrl)
           }
           // 解密文件名
           if (clientReq.method === 'GET' && clientRes.statusCode === 200 && encType && securityFileNameAutoDecrypt) {

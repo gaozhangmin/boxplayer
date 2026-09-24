@@ -61,6 +61,18 @@ try {
       throw new Error(`libmpv audio-add returned before exposing the external track: ${JSON.stringify(audioTracks)}`)
     }
   }
+  // Regression for a released N-API ThreadSafeFunction retaining a non-null
+  // native handle across player-window destroy/create cycles. Also exercise
+  // callback replacement while the mpv event thread is still running.
+  for (let cycle = 0; cycle < 3; cycle++) {
+    mpv.onFrame(() => {})
+    mpv.onStatus(() => {})
+    mpv.onError(() => {})
+    mpv.onFrame(() => {})
+    mpv.destroy()
+    mpv.destroy()
+    mpv.create({ headless: true })
+  }
   console.log(`libmpv controls OK: ${process.platform}/${process.arch} ${addonPath}`)
 } finally {
   mpv.destroy()

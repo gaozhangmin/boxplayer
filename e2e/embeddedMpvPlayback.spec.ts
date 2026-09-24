@@ -156,3 +156,48 @@ test('embedded MPV plays visible frames and forwards the authenticated cloud hea
     await new Promise<void>((resolve) => authenticatedMedia.server.close(() => resolve()))
   }
 })
+
+test('closing and reopening the MPV player does not crash Electron', async ({ boxPlayer }) => {
+  const { app, page } = boxPlayer
+  const authenticatedMedia = await startAuthenticatedMediaServer()
+  const headers = Object.fromEntries(Object.entries(expectedCloudHeaders).map(([key, value]) => [key === 'user-agent' ? 'User-Agent' : key === 'x-urlp' ? 'x-urlp' : key[0].toUpperCase() + key.slice(1), value]))
+
+  // Each preview close destroys the native context. The next open registers
+  // new frame/status/error TSFNs and used to release stale handles a second
+  // time, aborting the Electron main process in OnFrame().
+  try {
+    // Initialize the singleton from the main window, as a normal playback
+    // session can do before opening a dedicated video preview window.
+    const initialLoad = await page.evaluate((url) => window.WebMpvEmbeddedLoad({ url, title: 'MPV reopen setup' }), path.resolve('e2e/assets/mpv-sample.mp4'))
+    expect(initialLoad.ok, initialLoad.error).toBe(true)
+    expect((await page.evaluate(() => window.WebMpvEmbeddedControl({ action: 'stop' }))).ok).toBe(true)
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const playerPromise = page.context().waitForEvent('page')
+      await page.evaluate(({ mediaUrl, headers }) => window.WebOpenWindow({
+        page: 'PageVideo',
+        theme: 'dark',
+        data: {
+          user_id: 'mpv-reopen-e2e', tokenfrom: 'emby', drive_id: 'media_server', file_id: 'mpv-reopen-item',
+          parent_file_id: 'mpv-reopen-library', file_name: 'mpv-sample.mp4', html: 'MPV reopen regression',
+          encType: '', password: '', expire_time: 0, play_cursor: 0,
+          media_url: mediaUrl, media_headers: headers,
+          media_server_item_id: 'mpv-reopen-item', media_server_source_id: 'mpv-reopen-source',
+          media_server_source_options: [{ id: 'mpv-reopen-source', label: 'Original' }], media_subtitle_sources: []
+        }
+      }), { mediaUrl: authenticatedMedia.url, headers })
+
+      const player = await playerPromise
+      await player.waitForSelector('#mpvEmbeddedPlayer.mpv-embedded-surface', { timeout: 90_000 })
+      await expect.poll(async () => {
+        const result = await player.evaluate(() => window.WebMpvEmbeddedStatus())
+        return Boolean(result.ok && result.status?.duration > 0)
+      }, { message: `MPV playback must start on open ${attempt + 1}`, timeout: 20_000 }).toBe(true)
+      await player.close()
+      expect(player.isClosed()).toBe(true)
+      expect(app.process().exitCode).toBeNull()
+    }
+  } finally {
+    await new Promise<void>((resolve) => authenticatedMedia.server.close(() => resolve()))
+  }
+})

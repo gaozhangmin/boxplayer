@@ -10,6 +10,7 @@ export interface EmbeddedMpvTextureBridgeOptions {
 
 export class EmbeddedMpvTextureBridge {
   private window: BrowserWindow | null = null
+  private readonly observedWindows = new WeakSet<BrowserWindow>()
   private initialized = false
   private frameIndex = 0
   private sendingFrame = false
@@ -64,6 +65,15 @@ export class EmbeddedMpvTextureBridge {
     })
   }
 
+  private bindWindow(window: BrowserWindow): void {
+    this.window = window
+    if (this.observedWindows.has(window)) return
+    this.observedWindows.add(window)
+    window.once('closed', () => {
+      if (this.window === window) this.destroy()
+    })
+  }
+
   async initialize(window: BrowserWindow): Promise<boolean> {
     console.error('[mpv] initialize: checking capability')
     const capability = this.getCapability()
@@ -71,10 +81,7 @@ export class EmbeddedMpvTextureBridge {
     console.error('[mpv] initialize: loading addon')
     const nativeLoadResult = this.loadNativeAddon()
     if (!nativeLoadResult.addon) return false
-    this.window = window
-    window.once('closed', () => {
-      if (this.window === window) this.destroy()
-    })
+    this.bindWindow(window)
     this.mpv = nativeLoadResult.addon.mpvTexture
     try {
       console.error('[mpv] initialize: creating native context')
@@ -129,7 +136,7 @@ export class EmbeddedMpvTextureBridge {
     // window for each video, so the singleton bridge must follow the current
     // sender instead of keeping the first window's mainFrame forever.
     if (this.window !== window) {
-      this.window = window
+      this.bindWindow(window)
       this.pendingFrame = null
       this.pendingSoftwareFrame = null
       this.softwareFrameInFlight = false
@@ -145,7 +152,7 @@ export class EmbeddedMpvTextureBridge {
     try {
       console.error('[mpv] load: invoking native load')
       console.info('[播放][MPV] native 加载链接', {
-        url: request.url || '',
+        source: /^https?:\/\//i.test(request.url || '') ? 'remote' : 'local',
         startPosition: request.startPosition || 0,
         hasAuthorization: Object.keys(request.headers || {}).some((key) => key.toLowerCase() === 'authorization'),
         userAgent: Object.entries(request.headers || {}).find(([key]) => key.toLowerCase() === 'user-agent')?.[1] || ''

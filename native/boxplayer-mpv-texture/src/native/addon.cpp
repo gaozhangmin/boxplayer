@@ -25,6 +25,16 @@ static Napi::ThreadSafeFunction g_frameCallback;
 static Napi::ThreadSafeFunction g_statusCallback;
 static Napi::ThreadSafeFunction g_errorCallback;
 
+// Release() drops the last N-API thread count, but node-addon-api deliberately
+// leaves the C++ wrapper pointing at the now-invalid handle. Clear the wrapper
+// so a later create/onFrame cycle cannot release the same handle twice.
+void ReleaseCallback(Napi::ThreadSafeFunction& callback) {
+    if (!callback) return;
+    auto previous = callback;
+    callback = Napi::ThreadSafeFunction();
+    previous.Release();
+}
+
 // Convert TextureInfo to JS object
 Napi::Object TextureInfoToJS(Napi::Env env, const TextureInfo& info) {
     auto obj = Napi::Object::New(env);
@@ -137,16 +147,10 @@ Napi::Value Destroy(const Napi::CallbackInfo& info) {
         g_context = nullptr;
     }
 
-    // Release thread-safe functions
-    if (g_frameCallback) {
-        g_frameCallback.Release();
-    }
-    if (g_statusCallback) {
-        g_statusCallback.Release();
-    }
-    if (g_errorCallback) {
-        g_errorCallback.Release();
-    }
+    // Context threads have stopped; no worker can enqueue another callback.
+    ReleaseCallback(g_frameCallback);
+    ReleaseCallback(g_statusCallback);
+    ReleaseCallback(g_errorCallback);
 
     return env.Undefined();
 }
@@ -414,10 +418,11 @@ Napi::Value OnFrame(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
 
-    // Release previous callback if any
-    if (g_frameCallback) {
-        g_frameCallback.Release();
-    }
+    // setFrameCallback waits for an in-flight invocation via m_callbackMutex.
+    // Unregister before releasing the old TSFN so the render thread cannot
+    // enqueue through an already-released handle.
+    g_context->setFrameCallback({});
+    ReleaseCallback(g_frameCallback);
 
     // Create thread-safe function
     g_frameCallback = Napi::ThreadSafeFunction::New(
@@ -455,10 +460,8 @@ Napi::Value OnStatus(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
 
-    // Release previous callback if any
-    if (g_statusCallback) {
-        g_statusCallback.Release();
-    }
+    g_context->setStatusCallback({});
+    ReleaseCallback(g_statusCallback);
 
     // Create thread-safe function
     g_statusCallback = Napi::ThreadSafeFunction::New(
@@ -496,10 +499,8 @@ Napi::Value OnError(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
 
-    // Release previous callback if any
-    if (g_errorCallback) {
-        g_errorCallback.Release();
-    }
+    g_context->setErrorCallback({});
+    ReleaseCallback(g_errorCallback);
 
     // Create thread-safe function
     g_errorCallback = Napi::ThreadSafeFunction::New(

@@ -44,9 +44,9 @@ if (!enabled) {
     test.skip(true, 'Set BOXPLAYER_E2E_EMBY_JSON to run the real Emby release gate')
   })
 } else {
-  test('Emby authenticates, searches, resolves playback metadata and plays through MPV', async ({ boxPlayer }) => {
+  test('Emby plays through MPV with either token-based direct playback or the full account flow', async ({ boxPlayer }) => {
     const { app, page, pageErrors, consoleErrors, mediaServer } = boxPlayer
-    expect(mediaServer, 'Emby CI login did not produce a media-server fixture').toBeTruthy()
+    expect(mediaServer, 'Emby CI configuration did not produce a media-server fixture').toBeTruthy()
     const embyPaths = new Set<string>()
     const base = new URL(mediaServer!.baseUrl)
     const capture = (request: import('@playwright/test').Request) => {
@@ -57,6 +57,32 @@ if (!enabled) {
 
     let player: Page | undefined
     try {
+      if (mediaServer!.directPlayback) {
+        const direct = mediaServer!.directPlayback
+        const load = await page.evaluate(({ url, headers }) => window.WebMpvEmbeddedLoad({ url, headers, title: 'Emby direct playback' }), direct)
+        expect(load.ok, load.error || 'Emby MPV direct load failed').toBe(true)
+        try {
+          await expect.poll(async () => {
+            const result = await page.evaluate(() => window.WebMpvEmbeddedStatus())
+            return Boolean(result?.ok && Number(result.status?.duration) > 0 && Number(result.status?.position) > 0)
+          }, { timeout: 60_000, intervals: [500, 1_000, 2_000] }).toBe(true)
+        } catch (error) {
+          const diagnostic = await page.evaluate(() => window.WebMpvEmbeddedStatus()).catch(() => null)
+          throw new Error(`Emby direct MPV playback failed: ${JSON.stringify(diagnostic)}`, { cause: error })
+        }
+        const pause = await page.evaluate(() => window.WebMpvEmbeddedControl({ action: 'pause' }))
+        expect(pause.ok, pause.error || 'Emby MPV pause failed').toBe(true)
+        const duration = Number(pause.status?.duration || 0)
+        const target = Math.max(0.5, Math.min(duration > 2 ? duration - 1 : duration / 2, Number(pause.status?.position || 0) + 2))
+        expect((await page.evaluate(value => window.WebMpvEmbeddedControl({ action: 'seek', value }), target)).ok).toBe(true)
+        expect((await page.evaluate(() => window.WebMpvEmbeddedControl({ action: 'play' }))).ok).toBe(true)
+        await expect.poll(async () => Number((await page.evaluate(() => window.WebMpvEmbeddedStatus())).status?.position || 0), { timeout: 30_000 }).toBeGreaterThan(Math.max(0, target - 1.5))
+        expect((await page.evaluate(() => window.WebMpvEmbeddedControl({ action: 'stop' }))).ok).toBe(true)
+        expect(pageErrors).toEqual([])
+        expect(consoleErrors).toEqual([])
+        return
+      }
+
       const mediaServerTab = page.locator('[data-testid="top-nav-media-server"]')
       await expect(mediaServerTab).toBeVisible({ timeout: 30_000 })
       await mediaServerTab.click()

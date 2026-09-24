@@ -44,3 +44,20 @@ BOXPLAYER_E2E_PAGINATION_FOLDER='行尸走肉/S10' pnpm run test:e2e:real
 Real tests require explicit approval because they connect to real accounts. Write operations stay inside the dedicated `BoxPlayer-E2E` folder, and test files are moved to trash after verification, including best-effort cleanup after a failed assertion. Playback fails with the provider response when URL generation is rejected because of an account quota or another provider-side restriction; it is never reported as skipped or successful.
 
 The isolated production-renderer suite also checks that application settings survive a renderer reload without using the real profile.
+
+## Emby MPV test without account login
+
+Set the GitHub Actions secret `BOXPLAYER_E2E_EMBY_JSON` to a JSON object with the Emby server URL, token, user ID, item ID, and optional media source ID:
+
+```json
+{
+  "baseUrl": "https://your-emby.example",
+  "accessToken": "<Emby token>",
+  "userId": "<Emby user ID>",
+  "itemId": "<playable item ID>",
+  "sourceId": "<optional source ID>",
+  "userAgent": "SenPlayer"
+}
+```
+
+The test posts to `PlaybackInfo` with the token to obtain a fresh `DirectStreamUrl`, then plays that URL directly in the embedded MPV native bridge and checks play, pause, seek, and resume. It does not log in or search the Emby library. `sourceId` selects a particular version; omit it to use the first source. For a one-off run, `directStreamUrl` may replace `itemId` and `sourceId`, but a fixed URL can expire. Keep the JSON in a secret or temporary environment variable—never commit a token or a token-bearing URL.

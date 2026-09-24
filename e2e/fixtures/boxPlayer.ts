@@ -15,6 +15,7 @@ export interface RealMediaServerFixture {
   name: string
   baseUrl: string
   mediaTitle: string
+  directPlayback?: { url: string; headers: Record<string, string>; itemId: string; sourceId: string }
 }
 
 export interface BoxPlayerFixture {
@@ -112,6 +113,13 @@ async function seedRealCloudAccounts(page: Page, provider?: string): Promise<voi
 async function seedRealMediaServer(page: Page): Promise<RealMediaServerFixture | undefined> {
   if (!process.env.BOXPLAYER_E2E_EMBY_JSON?.trim()) return undefined
   const config = await resolveRealMediaServerE2EConfig()
+  if (config.directPlayback) {
+    // Finish the renderer's first-run initialization before loading MPV.
+    // Direct mode intentionally does not persist the Emby token in the app profile.
+    await page.reload()
+    await page.waitForLoadState('domcontentloaded')
+    return { name: config.name, baseUrl: config.baseUrl, mediaTitle: config.mediaTitle, directPlayback: config.directPlayback }
+  }
   const now = Date.now()
   await page.evaluate(({ config, now }) => {
     const server = {
