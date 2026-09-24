@@ -135,7 +135,7 @@ const handlerExportCliTokens = async () => {
       </a-button>
     </div>
     <div class='settingspace'></div>
-    <div class='settinghead'>{{ t('settings.account.importExport') }}
+    <div class='settinghead' data-testid="account-import-export-heading">{{ t('settings.account.importExport') }}
       <a-popover position="bottom">
         <IconFont name="iconbulb" />
         <template #content>
@@ -149,7 +149,7 @@ const handlerExportCliTokens = async () => {
       </a-popover>
     </div>
     <div class="settingrow">
-      <a-button type='outline' status="danger" size='small' tabindex='-1'
+      <a-button type='outline' status="danger" size='small' tabindex='-1' data-testid="export-account-button"
                 @click='handlerAccountExport'>
         {{ t('settings.account.export') }}
       </a-button>
