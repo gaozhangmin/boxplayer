@@ -147,7 +147,7 @@ jobs:
           node scripts/generate-secrets.mjs --mode=ci
           pnpm exec vite build
 
-      - name: Verify supported cloud providers and Emby through the real MPV path
+      - name: Verify real cloud and Emby MPV playback without file mutations
         if: inputs.real_cloud == true
         env:
           BOXPLAYER_E2E_ACCOUNTS_JSON: ${{ secrets.BOXPLAYER_E2E_ACCOUNTS_WINDOWS_X64_JSON || secrets.BOXPLAYER_E2E_ACCOUNTS_JSON }}
@@ -158,7 +158,8 @@ jobs:
           BOXPLAYER_E2E_REQUIRED_PROVIDERS: ${{ inputs.required_providers }}
           BOXPLAYER_E2E_REAL: '1'
           BOXPLAYER_E2E_REAL_MPV: '1'
-          BOXPLAYER_E2E_CLOUD_MUTATIONS: '1'
+          # URL resolution is required for playback; do not enable the separate
+          # search/upload/download/file-mutation API suite in this release gate.
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
         run: pnpm exec playwright test e2e/realCloudProviders.spec.ts e2e/realMediaServerMpv.spec.ts --workers=1
 
