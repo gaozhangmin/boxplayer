@@ -52,6 +52,13 @@ describe('packaged MPV acceptance', () => {
     expect(() => verifyPackagedMpv(releaseDir, 'darwin', 'x64')).toThrow('Wrong packaged MPV manifest target or renderer')
   })
 
+  it('allows macOS code signing to update native binaries after the bundle manifest was written', () => {
+    const { releaseDir, directory } = macFixture('arm64')
+    writeFileSync(path.join(directory, 'mpv_texture.node'), Buffer.concat([machO('arm64'), Buffer.from('codesign')]))
+    expect(() => verifyPackagedMpv(releaseDir, 'darwin', 'arm64')).toThrow('Packaged MPV dependency changed')
+    expect(verifyPackagedMpv(releaseDir, 'darwin', 'arm64', { allowMacCodeSignatureChanges: true })).toBe(directory)
+  })
+
   it('writes texture renderer metadata for generated macOS manifests', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'boxplayer-mpv-manifest-'))
     const bundle = path.join(root, 'bundle')

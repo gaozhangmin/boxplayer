@@ -23,6 +23,10 @@ function isNativeBinary(name, platform) {
 }
 
 export function packagedResourceRoots(releaseDir, platform) {
+  if (platform === 'darwin' && releaseDir.endsWith('.app') && isDirectory(releaseDir)) {
+    return [path.join(releaseDir, 'Contents', 'Resources')]
+  }
+
   const outputs = readdirSync(releaseDir)
     .map((name) => path.join(releaseDir, name))
     .filter(isDirectory)
@@ -40,7 +44,7 @@ export function packagedResourceRoots(releaseDir, platform) {
   return apps.map((app) => path.join(app, 'Contents', 'Resources'))
 }
 
-export function verifyPackagedMpv(releaseDir, platform, arch) {
+export function verifyPackagedMpv(releaseDir, platform, arch, options = {}) {
   if (!PACKAGED_TARGETS.some(([targetPlatform, targetArch]) => targetPlatform === platform && targetArch === arch)) {
     throw new Error('Usage: node scripts/check-packaged-mpv.mjs darwin x64 | darwin arm64 | win32 x64 | linux x64 | linux arm64')
   }
@@ -68,7 +72,8 @@ export function verifyPackagedMpv(releaseDir, platform, arch) {
     const target = path.join(directory, file.name)
     if (!existsSync(target)) throw new Error(`Missing packaged MPV dependency: ${file.name}`)
     const bytes = readFileSync(target)
-    if (bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
+    const allowMacCodeSignatureChanges = options.allowMacCodeSignatureChanges === true && platform === 'darwin' && isNativeBinary(file.name, platform)
+    if (!allowMacCodeSignatureChanges && (bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256)) {
       throw new Error(`Packaged MPV dependency changed: ${file.name}`)
     }
     if (isNativeBinary(file.name, platform) && binaryArchitecture(target, platform) !== arch) throw new Error(`Wrong packaged architecture: ${file.name}`)
@@ -77,7 +82,11 @@ export function verifyPackagedMpv(releaseDir, platform, arch) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [platform, arch] = process.argv.slice(2)
-  const directory = verifyPackagedMpv(path.resolve('release'), platform, arch)
+  const args = process.argv.slice(2)
+  const [platform, arch] = args
+  const appIndex = args.indexOf('--app')
+  const appPath = appIndex >= 0 ? args[appIndex + 1] : undefined
+  const allowMacCodeSignatureChanges = args.includes('--allow-mac-code-signature-changes')
+  const directory = verifyPackagedMpv(appPath ? path.resolve(appPath) : path.resolve('release'), platform, arch, { allowMacCodeSignatureChanges })
   console.log(`Packaged MPV ${platform}/${arch} verified: ${directory}`)
 }

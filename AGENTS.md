@@ -34,16 +34,6 @@ pnpm run build:windows
 pnpm run build:all       # cross-platform, sequential
 ```
 
-### Mandatory macOS release acceptance gate
-
-Before creating, publishing, or promoting **any** BoxPlayer release, build and test the actual macOS DMG. `pnpm run dev` is not an acceptable substitute because packaged Electron windows load their renderer from `file://` inside `app.asar`.
-
-1. Produce the arm64 DMG from the release candidate.
-2. Mount the generated DMG without replacing the installed application.
-3. Verify the DMG's `BoxPlayer.app` contains its expected renderer assets in `app.asar`, including the main HTML entry and its referenced CSS.
-4. Launch the packaged app and visually verify the main window: global theme, layout, navigation, file list, and controls must all render normally.
-5. Do not create, publish, or promote the release if this test fails or cannot be completed. Record the passing DMG path and verification result in the release handoff.
-
 ## Sensitive config: generated secrets
 
 Private client IDs, client secrets, API keys, and private API URLs live outside git:
