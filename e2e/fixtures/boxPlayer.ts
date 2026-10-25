@@ -94,12 +94,12 @@ async function seedRealCloudAccounts(page: Page, provider?: string): Promise<voi
   const value = process.env.BOXPLAYER_E2E_ACCOUNTS_JSON
   if (!value?.trim()) return
   const parsedAccounts = parseRealCloudAccounts(value, process.env.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON)
-  // The main drive view bootstraps most reliably from the Aliyun account. Keep
-  // it as a stable anchor, then inject only the provider under test so unrelated
-  // OAuth refreshes cannot invalidate another provider's rotating token.
-  const accounts = provider ? parsedAccounts.filter(account => account.tokenfrom === 'aliyun' || account.tokenfrom === provider) : parsedAccounts
+  // Each provider test must initialize only its own account. Loading an
+  // unrelated Aliyun anchor refreshes its rotating credentials repeatedly and
+  // can prevent the target account from reaching the signed-in UI at all.
+  const accounts = provider ? parsedAccounts.filter(account => account.tokenfrom === provider) : parsedAccounts
   if (!accounts.length) throw new Error(`Injected real-cloud account list has no account for ${provider}`)
-  const defaultUserId = accounts.find(account => account.tokenfrom === 'aliyun')?.user_id || accounts[0]?.user_id
+  const defaultUserId = accounts[0]?.user_id
   if (!defaultUserId) throw new Error('Injected real-cloud account list has no default user')
   await page.waitForFunction(() => typeof window.WebE2ESeedCloudAccounts === 'function', undefined, { timeout: 45_000 })
   await page.evaluate(async ({ accounts, defaultUserId }) => {
