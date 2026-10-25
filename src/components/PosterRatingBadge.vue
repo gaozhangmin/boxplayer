@@ -1,9 +1,10 @@
 <script setup lang="ts">
-defineProps<{ rating?: number | null }>()
+import { generalPreferences, displayScopeAllows } from '../utils/seriesVersionPreferences'
+defineProps<{ rating?: number | null; isMovie?: boolean }>()
 </script>
 
 <template>
-  <span v-if="typeof rating === 'number' && Number.isFinite(rating) && rating > 0" class="poster-rating-corner">{{ rating.toFixed(1) }}</span>
+  <span v-if="displayScopeAllows(generalPreferences.ratings, isMovie === true) && typeof rating === 'number' && Number.isFinite(rating) && rating > 0" class="poster-rating-corner">{{ rating.toFixed(1) }}</span>
 </template>
 
 <style scoped>

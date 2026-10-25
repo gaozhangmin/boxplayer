@@ -1,3 +1,4 @@
+import { seriesPreferences, expandedMovieCollections } from './seriesVersionPreferences'
 import type { MediaLibraryItem } from '../types/media'
 import { t } from '../i18n'
 import { tmdbImageUrl } from './tmdb'
@@ -70,7 +71,7 @@ export function libraryResolution(item: MediaLibraryItem): string[] {
 export function filterLibraryCategory(items: MediaLibraryItem[], route: string, watched: (item: MediaLibraryItem) => boolean): MediaLibraryItem[] {
   const [root, category = 'all', rawValue = ''] = categoryRoute(route).split('/')
   const value = libraryGroupLabel(category, categoryGroupValue(category, decodeURIComponent(rawValue)))
-  let result = items.filter(item => root === 'movies' ? item.type === 'movie' : root === 'tv' ? item.type === 'tv' : root === 'other' ? item.type === 'unmatched' : true)
+  let result = expandedMovieCollections(items).filter(item => root === 'movies' ? item.type === 'movie' : root === 'tv' ? item.type === 'tv' : root === 'other' ? item.type === 'unmatched' : true)
   if (root === 'unwatched' || category === 'unwatched') result = result.filter(item => !watched(item))
   if (category === 'genres' && value) result = result.filter(item => item.genres.includes(value))
   if (category === 'ratings' && value) {
@@ -133,6 +134,7 @@ export function libraryCategoryGroups(items: MediaLibraryItem[], category: strin
 }
 
 export function libraryMovieSeries(items: MediaLibraryItem[]) {
+  if (!seriesPreferences.useTMDB) return []
   const groups = new Map<string, { id: string; title: string; members: MediaLibraryItem[] }>()
   for (const item of items.filter(item => item.type === 'movie' && item.collectionId)) {
     const id = String(item.collectionId)

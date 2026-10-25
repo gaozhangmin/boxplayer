@@ -1,16 +1,18 @@
 <script setup lang='ts'>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import useSettingStore from './settingstore'
 import MySwitch from '../layout/MySwitch.vue'
 import LimitReachedModal from './LimitReachedModal.vue'
 import { getAppNewPath, openExternal } from '../utils/electronhelper'
-import { CheckCircle2, Chrome, Code2, Crown, Github, Gift, Loader2, LogOut, Mail, RefreshCw } from 'lucide-vue-next'
+import { CheckCircle2, Chrome, Code2, Crown, Github, Gift, Loader2, LogOut, Mail, RefreshCw, UserRound, ChevronRight } from 'lucide-vue-next'
 import { getPkgVersion } from '../utils/utils'
 import { modalUpdateLog } from '../utils/modal'
 import fs from 'node:fs'
 import message from '../utils/message'
 import { Sleep } from '../utils/format'
 import { BOXPLAYER_SITE_URL, buildProPurchaseUrlForCurrentSession, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
+import SettingsMembershipHeader from '../components/SettingsMembershipHeader.vue'
+import { resolveBoxPlayerProTier } from '../utils/boxplayerProTier'
 import { t } from '../i18n'
 
 const platform = window.platform
@@ -28,6 +30,9 @@ function toggleTopTab(key: string, hidden: boolean) {
 }
 
 const isPro = ref(false)
+const proTier = ref<'standard' | 'all' | 'android' | 'apple'>('standard')
+const proPlan = ref('')
+const proProductId = ref('')
 const isLoggedIn = ref(false)
 const accountEmail = ref('')
 const accountInitial = computed(() => (accountEmail.value.trim().charAt(0) || 'B').toUpperCase())
@@ -35,8 +40,24 @@ try {
   isPro.value = localStorage.getItem('app_user_pro') === '1'
   isLoggedIn.value = localStorage.getItem('app_user_authed') === '1'
   accountEmail.value = localStorage.getItem('app_user_email') || ''
+  proPlan.value = localStorage.getItem('app_user_plan') || ''
+  proProductId.value = localStorage.getItem('app_user_product_id') || ''
+  proTier.value = resolveBoxPlayerProTier({
+    signedIn: isLoggedIn.value,
+    pro: isPro.value,
+    plan: proPlan.value,
+    productId: proProductId.value,
+    entitlementScope: localStorage.getItem('app_user_entitlement_scope') || '',
+  })
 } catch {}
 const showUpgradeModal = ref(false)
+const showAccountControls = ref(false)
+async function openAccountDetails() {
+  showAccountControls.value = true
+  await nextTick()
+  document.getElementById('settings-account-controls')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
 
 onMounted(() => {
   window.WebPlatformSync?.((data: { appVersion?: string }) => {
@@ -60,9 +81,15 @@ function handleLogout() {
   localStorage.removeItem('app_user_email')
   localStorage.removeItem('app_user_authed')
   localStorage.removeItem('app_user_pro')
+  localStorage.removeItem('app_user_plan')
+  localStorage.removeItem('app_user_product_id')
+  localStorage.removeItem('app_user_entitlement_scope')
   clearBoxPlayerAppSession()
   isLoggedIn.value = false
   isPro.value = false
+  proTier.value = 'standard'
+  proPlan.value = ''
+  proProductId.value = ''
   accountEmail.value = ''
   showEmail.value = false
   codeSent.value = false
@@ -87,6 +114,10 @@ const PAYMENT_POLL_DELAYS = [0, 2000, 5000, 10000, 20000]
 const supabase = getBoxPlayerSupabase()
 
 function saveLogin(email: string) {
+  isPro.value = false
+  proTier.value = 'standard'
+  proPlan.value = ''
+  proProductId.value = ''
   localStorage.setItem('app_user_email', email)
   localStorage.setItem('app_user_authed', '1')
   accountEmail.value = email
@@ -95,10 +126,23 @@ function saveLogin(email: string) {
 }
 
 async function syncProStatus() {
-  if (!isLoggedIn.value || !supabase) return false
+  if (!isLoggedIn.value) return false
   try {
     const subscription = await fetchBoxPlayerSubscription()
     isPro.value = subscription.isPro === true
+    proPlan.value = subscription.plan || ''
+    proProductId.value = subscription.productId || subscription.product_id || ''
+    proTier.value = resolveBoxPlayerProTier({
+      signedIn: isLoggedIn.value,
+      pro: isPro.value,
+      plan: proPlan.value,
+      productId: proProductId.value,
+      source: subscription.source || '',
+      entitlementScope: subscription.entitlementScope || subscription.entitlement_scope || '',
+    })
+    localStorage.setItem('app_user_plan', proPlan.value)
+    localStorage.setItem('app_user_product_id', proProductId.value)
+    localStorage.setItem('app_user_entitlement_scope', subscription.entitlementScope || subscription.entitlement_scope || '')
     if (isPro.value) {
       localStorage.setItem('app_user_pro', '1')
     } else {
@@ -305,6 +349,8 @@ const handleImportAsar = () => {
 
 <template>
   <div class='settingcard'>
+    <SettingsMembershipHeader :signed-in="isLoggedIn" :email="accountEmail" :tier="isPro ? proTier : 'standard'"
+      @membership="isPro ? openAccountDetails() : showUpgradeModal = true" />
     <div class='settings-app-hero'>
       <div class='settings-app-badge'>{{ t('settings.application') }}</div>
       <div class='appver'>
@@ -317,6 +363,7 @@ const handleImportAsar = () => {
       </div>
     </div>
     <div class='settings-app-actions'>
+      <span class='settings-app-version'>BoxPlayer {{ getAppVersion }}</span>
       <a-button type='outline' status='success' size='small' @click='handleUpdateLog'>
         {{ t('settings.changelog') }}
       </a-button>
@@ -331,33 +378,16 @@ const handleImportAsar = () => {
       </a-button>
     </div>
     <div class='settingspace'></div>
-    <div class='settinghead'>{{ t('settings.accountPro') }}</div>
-    <div class='settingrow setting-account-row'>
-      <div class='setting-account-copy'>
-        <div class='setting-account-title'>{{ t('settings.boxAccount') }}</div>
-        <div class='setting-account-desc'>{{ t('settings.accountDesc') }}</div>
-      </div>
-
+    <button class="settings-account-disclosure" :aria-expanded="showAccountControls" aria-controls="settings-account-controls" @click="showAccountControls = !showAccountControls">
+      <UserRound :size="24" aria-hidden="true" /><span>{{ t('settings.accountPro') }}</span><ChevronRight :size="18" :class="{ expanded: showAccountControls }" aria-hidden="true" />
+    </button>
+    <div v-show="showAccountControls" id="settings-account-controls" class='settingrow setting-account-row'>
       <div class='setting-account-panel'>
         <template v-if="isLoggedIn">
           <div class='setting-account-main'>
-            <div class='setting-account-avatar' aria-hidden='true'>{{ accountInitial }}</div>
-            <div class='setting-account-identity'>
-              <div class='setting-account-email'>{{ accountEmail }}</div>
-              <div class='setting-account-meta'>
-                <span class='setting-pro-badge' :class="{ active: isPro }">
-                  <CheckCircle2 v-if="isPro" :size='13' />
-                  <Crown v-else :size='13' />
-                  {{ isPro ? t('settings.proActive') : t('settings.openSource') }}
-                </span>
-              </div>
-            </div>
-            <button class='setting-icon-btn' :title="t('settings.syncStatus')" :disabled='loading' @click='syncProStatus'>
-              <RefreshCw :size='15' />
-            </button>
-            <button class='setting-icon-btn danger' :title="t('user.logout')" @click='handleLogout'>
-              <LogOut :size='15' />
-            </button>
+            <span>{{ t('settings.boxAccount') }}</span>
+            <button class='setting-icon-btn' :title="t('settings.syncStatus')" :disabled='loading' @click='syncProStatus'><RefreshCw :size='15' /></button>
+            <button class='setting-icon-btn danger' :title="t('user.logout')" @click='handleLogout'><LogOut :size='15' /></button>
           </div>
 
           <button v-if="!isPro" class='setting-upgrade-btn' :disabled='upgrading' @click='handleUpgrade'>
@@ -908,4 +938,7 @@ const handleImportAsar = () => {
 
 .spin{animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+.settings-account-disclosure{display:flex;align-items:center;gap:18px;min-height:68px;width:calc(100% - 44px);margin:0 22px;padding:16px 0;border:0;border-bottom:1px solid #63866a35;background:transparent;color:var(--color-text-1);font:inherit;cursor:pointer;text-align:left;}
+.settings-account-disclosure>svg:first-child{color:#20c66d;flex-shrink:0}.settings-account-disclosure>span{flex:1}.settings-account-disclosure>svg:last-child{color:var(--color-text-3);transition:transform .15s}.settings-account-disclosure .expanded{transform:rotate(90deg)}
 </style>

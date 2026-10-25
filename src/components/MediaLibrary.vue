@@ -618,6 +618,7 @@
 </template>
 
 <script setup lang="ts">
+import { playbackVersions } from '../utils/seriesVersionPreferences'
 import { openMediaShare } from '../utils/mediaShare'
 import { openPersonalRating } from '../utils/mediaPersonalRating'
 import { Modal } from '@arco-design/web-vue'
@@ -668,6 +669,7 @@ import DownDAL from '../down/DownDAL'
 import useSettingStore from '../setting/settingstore'
 import { refreshMediaMetadata } from '../utils/mediaMetadataRefresh'
 import { manualAIScrapeItems } from '../utils/mediaAIScrape'
+import { mediaDriveFileKey } from '../utils/mediaSourceMembership'
 import { getMediaCoverage } from '../utils/mediaCoverage'
 import { t } from '../i18n'
 import { appIconUrl } from '../utils/appAssets'
@@ -1559,19 +1561,29 @@ const removeFromContinueWatchingFromMenu = () => {
 const handleManualAIScrape = async (item: MediaLibraryItem) => {
   const scrapedItems = await manualAIScrapeItems(item)
   if (!scrapedItems.length) return
-  if (!scrapedItems.some(scraped => scraped.id === item.id)) {
-    mediaStore.removeMediaItem(item.id)
-  }
+  const movedFiles = new Set(scrapedItems.flatMap(scraped => [
+    ...(scraped.driveFiles || []),
+    ...(scraped.seasons || []).flatMap(season => (season.episodes || []).flatMap(episode => episode.driveFiles || []))
+  ]).map(mediaDriveFileKey))
+  const remaining = removeRescrapedFiles(item, movedFiles)
+  if (remaining) mediaStore.replaceMediaItemMetadata(remaining)
+  else mediaStore.removeMediaItem(item.id)
   for (const scraped of scrapedItems) {
-    if (scraped.type === 'tv') {
-      mediaStore.addOrMergeTvSeries(scraped)
-    } else {
-      mediaStore.addMediaItem(scraped)
-    }
+    if (scraped.type === 'tv') mediaStore.addOrMergeTvSeries(scraped)
+    else mediaStore.addMediaItem(scraped)
     mediaStore.addToRecentlyAdded(scraped)
   }
   currentMediaItem.value = scrapedItems[0]
   message.success(t('mediaLibrary.aiRescrapeDone'))
+}
+
+const removeRescrapedFiles = (item: MediaLibraryItem, movedFiles: Set<string>): MediaLibraryItem | null => {
+  const retain = (files: NonNullable<MediaLibraryItem['driveFiles']> = []) => files.filter(file => !movedFiles.has(mediaDriveFileKey(file)))
+  const driveFiles = retain(item.driveFiles)
+  const seasons = item.seasons?.map(season => ({ ...season, episodes: season.episodes?.map(episode => ({ ...episode, driveFiles: retain(episode.driveFiles) })).filter(episode => episode.driveFiles.length) })).filter(season => season.episodes?.length)
+  const collectionMovies = item.collectionMovies?.map(movie => ({ ...movie, driveFiles: retain(movie.driveFiles) })).filter(movie => movie.driveFiles.length)
+  if (!driveFiles.length && !seasons?.some(season => season.episodes?.some(episode => episode.driveFiles.length)) && !collectionMovies?.some(movie => movie.driveFiles.length)) return null
+  return { ...item, driveFiles, seasons, collectionMovies }
 }
 
 const aiRescrapeFromMenu = async () => {
@@ -1900,12 +1912,12 @@ const resolvePlayablePlaylistItem = (playlistId: string) => {
   if (exact) {
     if (exact.type === 'tv') {
       const episode = (exact.seasons || []).flatMap((season) => season.episodes || []).find((candidate) => candidate.driveFiles?.length)
-      const driveFile = episode?.driveFiles?.[0]
+      const driveFile = playbackVersions(episode?.driveFiles || [])[0]
       if (!episode || !driveFile) return null
       const aliFile = buildAliFileModel(driveFile)
       return { aliFile, entry: buildPlaylistEntry(aliFile, `${exact.name} · S${episode.seasonNumber}E${episode.episodeNumber} ${episode.name}`.trim()) }
     }
-    const driveFile = exact.driveFiles?.[0]
+    const driveFile = playbackVersions(exact.driveFiles || [])[0]
     if (!driveFile) return null
     const aliFile = buildAliFileModel(driveFile)
     return { aliFile, entry: buildPlaylistEntry(aliFile, exact.name) }
@@ -1914,7 +1926,7 @@ const resolvePlayablePlaylistItem = (playlistId: string) => {
   const series = mediaStore.mediaItems.find((item) => item.type === 'tv' && playlistId.startsWith(`${item.id}_`))
   if (!series) return null
   const episode = resolveEpisodeByPlaylistId(series, playlistId)
-  const driveFile = episode?.driveFiles?.[0]
+  const driveFile = playbackVersions(episode?.driveFiles || [])[0]
   if (!episode || !driveFile) return null
   const aliFile = buildAliFileModel(driveFile)
   return { aliFile, entry: buildPlaylistEntry(aliFile, `${series.name} · S${episode.seasonNumber}E${episode.episodeNumber} ${episode.name}`.trim()) }
@@ -1923,12 +1935,12 @@ const resolvePlayablePlaylistItem = (playlistId: string) => {
 const resolvePlayableMediaItem = (item: MediaLibraryItem) => {
   if (item.type === 'tv') {
     const episode = (item.seasons || []).flatMap((season) => season.episodes || []).find((candidate) => candidate.driveFiles?.length)
-    const driveFile = episode?.driveFiles?.[0]
+    const driveFile = playbackVersions(episode?.driveFiles || [])[0]
     if (!episode || !driveFile) return null
     const aliFile = buildAliFileModel(driveFile)
     return { aliFile, entry: buildPlaylistEntry(aliFile, `${item.name} · S${episode.seasonNumber}E${episode.episodeNumber} ${episode.name}`.trim()) }
   }
-  const driveFile = item.driveFiles?.[0]
+  const driveFile = playbackVersions(item.driveFiles || [])[0]
   if (!driveFile) return null
   const aliFile = buildAliFileModel(driveFile)
   return { aliFile, entry: buildPlaylistEntry(aliFile, item.name) }
@@ -2012,7 +2024,7 @@ const playFromMenu = async (loop = false, shuffle = false) => {
 
   const episodes = contextMenuItem.value.type === 'tv'
     ? (contextMenuItem.value.seasons || []).flatMap(season => season.episodes || []).filter(episode => episode.driveFiles?.length).map(episode => {
-      const file = buildAliFileModel(episode.driveFiles[0])
+      const file = buildAliFileModel(playbackVersions(episode.driveFiles)[0])
       return buildPlaylistEntry(file, contextMenuItem.value!.name + ' · S' + episode.seasonNumber + 'E' + episode.episodeNumber)
     }) : []
   if (shuffle) shuffleInPlace(episodes)

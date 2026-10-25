@@ -9,6 +9,7 @@ import type { UnifiedLibraryCard, UnifiedLibraryRow } from '../types/unifiedMedi
 import { LIBRARY_CATEGORY_IDS, MOVIE_CATEGORY_IDS, TV_CATEGORY_IDS, libraryHomeId, libraryGroupRoute, libraryGroupLabel, filterLibraryCategory, libraryCategoryGroups, libraryMovieSeries, libraryPlaylistMembers } from '../utils/unifiedLibraryCategories'
 import { isMediaWatched } from '../utils/localWatchedState'
 import { hasLocalMedia } from '../utils/unifiedMediaScope'
+import { seriesPreferences, movieVersionItems, expandedMovieCollections } from '../utils/seriesVersionPreferences'
 import { loadCustomSeries } from '../utils/customMediaSeries'
 import { compareMediaBrowseValues, type MediaBrowseSort } from '../utils/mediaBrowseSort'
 import { useMediaLibraryStore } from '../store/medialibrary'
@@ -40,7 +41,7 @@ async function reload() {
 }
 onMounted(reload)
 watch(() => media.catalogRevision, reload)
-const items = computed(() => props.localOnly ? library.value.filter(hasLocalMedia) : library.value)
+const items = computed(() => expandedMovieCollections(props.localOnly ? library.value.filter(hasLocalMedia) : library.value))
 const parts = computed(() => props.route.split('/'))
 const root = computed(() => parts.value[0])
 const category = computed(() => parts.value[1] || '')
@@ -65,6 +66,21 @@ watch(title, value => emit('title', value), { immediate: true })
 const filtered = computed(() => filterLibraryCategory(items.value, props.route, item => isMediaWatched(item, media.watchedItems)))
 const playlists = computed(() => Object.entries(media.playlists).map(([name, ids]) => ({ name, members: libraryPlaylistMembers(items.value, ids) })))
 const series = computed(() => libraryMovieSeries(items.value))
+const inlineSeries = computed(() => {
+  const enabled = root.value === 'movies' ? seriesPreferences.showMovies : root.value === 'tv' && seriesPreferences.showTV
+  if (!enabled || parts.value.length !== 2 || category.value !== 'all') return []
+  const allowed = new Set(filtered.value.map(item => item.id))
+  const automatic = root.value === 'movies' ? series.value.filter(group => group.members.some(item => allowed.has(item.id))) : []
+  const custom = seriesPreferences.useCustom ? loadCustomSeries().map(group => ({ id: 'custom:' + group.id, title: group.title,
+    members: libraryPlaylistMembers(items.value, group.members.filter(member => !member.serverId).map(member => member.id)).filter(item => item.type === (root.value === 'movies' ? 'movie' : 'tv')) })).filter(group => group.members.length) : []
+  const customIDs = new Set(custom.flatMap(group => group.members.map(item => item.id)))
+  return [...custom, ...automatic.map(group => ({ ...group, members: group.members.filter(item => !customIDs.has(item.id)) })).filter(group => group.members.length)]
+})
+function openCollection(id: string, members: MediaLibraryItem[]) {
+  if (seriesPreferences.openDetail && members[0]) { props.card(members[0]).action(); return }
+  if (id.startsWith('custom:')) emit('customSeries', id.slice(7))
+  else emit('navigate', 'series/' + id)
+}
 const selectedMembers = computed(() => {
   const name = decodeURIComponent(category.value)
   if (root.value === 'playlist') return playlists.value.find(group => group.name === name)?.members || []
@@ -85,10 +101,10 @@ const groupCards = computed<UnifiedLibraryCard[]>(() => {
   if (facetPage.value) return libraryCategoryGroups(filtered.value, category.value).map(group => ({ key: libraryGroupRoute(props.route, group.name), title: group.name, image: libraryObjectCover(libraryGroupRoute(props.route, group.name), group.members), subtitle: t('customSeries.memberCount', { count: group.members.length }), contextMenu: event => openMenu(event, libraryGroupRoute(props.route, group.name)), action: () => emit('navigate', libraryGroupRoute(props.route, group.name)) }))
   if (props.route === 'playlist') return playlists.value.map(group => ({ key: 'playlist/' + encodeURIComponent(group.name), title: group.name, image: libraryObjectCover('playlist/' + encodeURIComponent(group.name), group.members), subtitle: t('customSeries.memberCount', { count: group.members.length }), contextMenu: event => openMenu(event, 'playlist/' + encodeURIComponent(group.name)), action: () => emit('navigate', 'playlist/' + encodeURIComponent(group.name)) }))
   if (props.route === 'series') return [
-    ...series.value.map(group => ({ key: 'series/' + group.id, title: group.title, image: group.members[0]?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }), contextMenu: (event: MouseEvent) => openMenu(event, 'series/' + group.id), action: () => emit('navigate', 'series/' + group.id) })),
-    ...loadCustomSeries().map(group => {
+    ...series.value.map(group => ({ key: 'series/' + group.id, title: group.title, image: group.members[0]?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }), contextMenu: (event: MouseEvent) => openMenu(event, 'series/' + group.id), action: () => openCollection(group.id, group.members) })),
+    ...(seriesPreferences.useCustom ? loadCustomSeries() : []).map(group => {
       const members = libraryPlaylistMembers(items.value, group.members.filter(member => !member.serverId).map(member => member.id))
-      return { key: 'custom-series/' + group.id, title: group.title, image: members.find(item => item.posterUrl)?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }), contextMenu: (event: MouseEvent) => openMenu(event, 'custom-series/' + group.id), action: () => emit('customSeries', group.id) }
+      return { key: 'custom-series/' + group.id, title: group.title, image: members.find(item => item.posterUrl)?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }), contextMenu: (event: MouseEvent) => openMenu(event, 'custom-series/' + group.id), action: () => openCollection('custom:' + group.id, members) }
     })
   ]
   return []
@@ -102,13 +118,17 @@ const sortedMembers = computed(() => {
 })
 const row = computed<UnifiedLibraryRow>(() => {
   const grouped = facetPage.value || props.route === 'playlist'
-  const cards = groupCards.value
+  const inline = inlineSeries.value
+  const cards = [...groupCards.value, ...inline.map(group => ({ key: 'inline-series:' + group.id, title: group.title,
+    image: group.members[0]?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }),
+    action: () => openCollection(group.id, group.members) }))]
   const memberPage = !tilePage.value && !['playlist', 'series'].includes(props.route)
-  const members = memberPage ? sortedMembers.value : []
+  const groupedIDs = new Set(inline.flatMap(group => group.members.map(item => item.id)))
+  const members = memberPage ? movieVersionItems(sortedMembers.value.filter(item => !groupedIDs.has(item.id))) : []
   void coverRevision.value
   return { key: props.route, title: title.value, cards, grouped, landscape: grouped,
-    count: cards.length || members.length,
-    cardAt: !memberPage ? undefined : index => props.card(members[index], false, root.value === 'playlist' ? decodeURIComponent(category.value) : undefined),
+    count: cards.length + members.length,
+    cardAt: !memberPage ? undefined : index => { if (index < cards.length) return cards[index]; const item = members[index - cards.length]; const card = props.card(item, false, root.value === 'playlist' ? decodeURIComponent(category.value) : undefined); return seriesPreferences.mergeVersions ? card : { ...card, key: card.key + ':file:' + item.driveFiles[0]?.id } },
     more: () => {} }
 })
 const reordering = ref(false)

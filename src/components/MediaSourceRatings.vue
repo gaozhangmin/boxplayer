@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import { generalPreferences, displayScopeAllows } from '../utils/seriesVersionPreferences'
 import { computed } from 'vue'
 import tmdbVerticalLogo from '../assets/media-server/tmdb_vertical_logo.svg'
 
-const props = defineProps<{ rating?: number; criticRating?: number }>()
+const props = defineProps<{ rating?: number; criticRating?: number; isMovie?: boolean }>()
 
 const community = computed(() => Number.isFinite(props.rating) && (props.rating || 0) > 0 ? props.rating : undefined)
 const critic = computed(() => Number.isFinite(props.criticRating) && (props.criticRating || 0) > 0 ? props.criticRating : undefined)
-const visible = computed(() => community.value !== undefined || critic.value !== undefined)
+const visible = computed(() => displayScopeAllows(generalPreferences.ratings, props.isMovie === true) && (community.value !== undefined || critic.value !== undefined))
 </script>
 
 <template>

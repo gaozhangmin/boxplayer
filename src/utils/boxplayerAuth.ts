@@ -120,3 +120,40 @@ export async function fetchBoxPlayerSubscription(): Promise<any> {
   }
   return data
 }
+
+export type BoxPlayerDeviceLogin = {
+  deviceCode: string
+  userCode: string
+  verificationURIComplete: string
+  expiresIn: number
+  interval: number
+}
+
+export async function startBoxPlayerDeviceLogin(signal: AbortSignal): Promise<BoxPlayerDeviceLogin> {
+  const response = await fetch(`${BOXPLAYER_SITE_URL}/api/app/device/start`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ platform: window.platform || 'desktop', sessionVersion: '2' }), signal
+  })
+  const data = await response.json()
+  if (!response.ok || !data.deviceCode || !data.verificationURIComplete) throw new Error(data.error || 'device_login_failed')
+  return data
+}
+
+export async function exchangeBoxPlayerDeviceLogin(deviceCode: string, signal: AbortSignal): Promise<{ pending: boolean; email?: string }> {
+  const response = await fetch(`${BOXPLAYER_SITE_URL}/api/app/device/exchange`, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ deviceCode }), signal
+  })
+  const data = await response.json()
+  if (data.error === 'authorization_pending' || data.error === 'authorization_scanned') return { pending: true }
+  if (!response.ok || !data.accessToken) throw new Error(data.error || 'device_login_failed')
+  if (signal.aborted) throw new DOMException('Aborted', 'AbortError')
+  // A confirmed device login replaces any older Supabase account on this device.
+  await getBoxPlayerSupabase()?.auth.signOut({ scope: 'local' })
+  // Device sessions are the same app-session tokens used by the OAuth exchange.
+  localStorage.setItem(BOXPLAYER_APP_ACCESS_TOKEN_KEY, data.accessToken)
+  for (const key of ['app_user_pro', 'app_user_plan', 'app_user_product_id', 'app_user_entitlement_scope']) localStorage.removeItem(key)
+  localStorage.setItem('app_user_email', data.email || '')
+  localStorage.setItem('app_user_authed', '1')
+  window.dispatchEvent(new CustomEvent('boxplayer-auth-restored', { detail: { email: data.email || '' } }))
+  return { pending: false, email: data.email || '' }
+}

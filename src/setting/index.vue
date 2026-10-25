@@ -2,6 +2,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '../store'
 import SettingPlay from './SettingPlay.vue'
+import SettingGeneral from './SettingGeneral.vue'
+import SettingSeriesVersions from './SettingSeriesVersions.vue'
 import SettingMediaServerPlayback from './SettingMediaServerPlayback.vue'
 import SettingDanmaku from './SettingDanmaku.vue'
 import SettingPan from './SettingPan.vue'
@@ -17,6 +19,15 @@ import SettingSecurity from './SettingSecurity.vue'
 import SettingDownloadAdvanced from './SettingDownloadAdvanced.vue'
 import SettingAPI from './SettingAPI.vue'
 import { t } from '../i18n'
+import { ExternalLink, Layers } from 'lucide-vue-next'
+import { openExternal } from '../utils/electronhelper'
+import { SETTINGS_FOLLOW_URL, SETTINGS_HELP_URL, buildSettingsSupportMailto } from '../utils/settingsSupportLinks'
+declare const __APP_VERSION__: string
+const supportAppVersion = ref(typeof __APP_VERSION__ === 'undefined' ? '—' : __APP_VERSION__)
+function reportSettingsError() {
+  openExternal(buildSettingsSupportMailto(supportAppVersion.value, navigator.userAgent))
+}
+onMounted(() => { window.WebPlatformSync?.((data: { appVersion?: string }) => { if (data.appVersion) supportAppVersion.value = data.appVersion }) })
 
 const appStore = useAppStore()
 withDefaults(defineProps<{ sidebarVisible?: boolean }>(), { sidebarVisible: true })
@@ -81,6 +92,8 @@ const sectionMeta: Record<string, { title: string }> = {
   SettingAPI: { title: 'settings.ai' },
   SettingSecurity: { title: 'settings.security' },
   SettingPlay: { title: 'settings.player' },
+  SettingGeneral: { title: 'general.generalTitlePage' },
+  SettingSeriesVersions: { title: 'seriesVersions.seriesVersions' },
   SettingMediaServerPlayback: { title: 'nav.mediaServer' },
   SettingDanmaku: { title: 'settings.danmaku' },
   SettingPan: { title: 'settings.pan' },
@@ -115,6 +128,8 @@ onMounted(() => {
     'SettingAccount',
     'SettingSecurity',
     'SettingPlay',
+    'SettingGeneral',
+    'SettingSeriesVersions',
     'SettingMediaServerPlayback',
     'SettingDanmaku',
     'SettingPan',
@@ -176,6 +191,14 @@ onUnmounted(() => {
           <template #icon><IconFont name="iconshipin" /></template>
           {{ t('settings.player') }}
         </a-menu-item>
+        <a-menu-item key="SettingGeneral">
+          <template #icon><IconFont name="iconsetting" /></template>
+          {{ t('general.generalTitlePage') }}
+        </a-menu-item>
+        <a-menu-item key="SettingSeriesVersions">
+          <template #icon><Layers :size="16" /></template>
+          {{ t('seriesVersions.seriesVersions') }}
+        </a-menu-item>
         <a-menu-item key="SettingMediaServerPlayback">
           <template #icon><IconFont name="iconshipin" /></template>
           {{ t('nav.mediaServer') }}
@@ -219,6 +242,11 @@ onUnmounted(() => {
           {{ t('settings.logs') }}
         </a-menu-item>
       </a-menu>
+      <div class="settings-support-links">
+        <button type="button" @click="openExternal(SETTINGS_FOLLOW_URL)"><span>{{ t('supportLinks.supportFollow') }}</span><ExternalLink :size="14" /></button>
+        <button type="button" @click="openExternal(SETTINGS_HELP_URL)"><span>{{ t('supportLinks.supportHelpCenter') }}</span><ExternalLink :size="14" /></button>
+        <button type="button" @click="reportSettingsError"><span>{{ t('supportLinks.supportReportError') }}</span><ExternalLink :size="14" /></button>
+      </div>
     </a-layout-sider>
     <Teleport to="body">
       <div v-if="settingSearch.trim()" class="settings-search-results settings-search-results-popup" :style="settingSearchPopupStyle">
@@ -245,6 +273,8 @@ onUnmounted(() => {
         <section id="SettingAPI" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAPI.title as Parameters<typeof t>[0]) }}</h2></div><SettingAPI /></section>
         <section id="SettingSecurity" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingSecurity.title as Parameters<typeof t>[0]) }}</h2></div><SettingSecurity /></section>
         <section id="SettingPlay" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingPlay.title as Parameters<typeof t>[0]) }}</h2></div><SettingPlay /></section>
+        <section id="SettingGeneral" class="settings-section"><div class="settings-section-header"><h2>{{ t('general.generalTitlePage') }}</h2></div><SettingGeneral /></section>
+        <section id="SettingSeriesVersions" class="settings-section"><div class="settings-section-header"><h2>{{ t('seriesVersions.seriesVersions') }}</h2></div><SettingSeriesVersions /></section>
         <section id="SettingMediaServerPlayback" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingMediaServerPlayback.title as Parameters<typeof t>[0]) }}</h2></div><SettingMediaServerPlayback /></section>
         <section id="SettingDanmaku" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDanmaku.title as Parameters<typeof t>[0]) }}</h2></div><SettingDanmaku /></section>
         <section id="SettingPan" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingPan.title as Parameters<typeof t>[0]) }}</h2></div><SettingPan /></section>
@@ -1053,4 +1083,40 @@ body[arco-theme='dark'] .settingcard .arco-radio-group-button .arco-radio-checke
     max-width: 100%;
   }
 }
+
+/* Approved settings design: flat rows, green line icons, one content surface. */
+#xbybody .settings-shell { background:var(--color-bg-1); }
+#xbybody .settings-sider { background:var(--color-bg-1) !important;box-shadow:none;backdrop-filter:none;border-right:1px solid #5c876432; }
+#xbybody .settings-side-title {background:none;border:0;box-shadow:none;border-radius:0;padding:12px 8px;min-height:64px;}
+#xbybody .settings-side-title strong {color:var(--color-text-1);font-size:23px;}
+#xbybody .settings-side-kicker {display:none;}
+#xbybody .settings-sider .arco-menu-inner {background:none;}
+#xbybody .settings-sider .arco-menu-item {border-radius:0;background:transparent;border-bottom:1px solid #63866a30;min-height:52px;}
+#xbybody .settings-sider .arco-menu-item .arco-icon, #xbybody .settings-sider .arco-menu-item .iconfont {color:#20c66d;}
+#xbybody .settings-sider .arco-menu-selected {background:#20c66d14;color:var(--color-text-1);}
+#xbybody #SettingObserver {background:var(--color-bg-1);padding:0 24px 24px !important;}
+#xbybody #SettingObserver .settings-section {background:transparent;border:0;border-radius:0;box-shadow:none;margin:0;padding:0;}
+#xbybody #SettingObserver .settings-section-header {padding:20px 22px 10px;border:0;background:none;}
+#xbybody #SettingObserver #SettingUI>.settings-section-header {display:none;}
+#xbybody #SettingObserver .settingcard {border:0;border-radius:0;background:transparent !important;box-shadow:none;padding:0;}
+#xbybody #SettingObserver .settingrow {border:0;border-bottom:1px solid #63866a35;border-radius:0;background:transparent !important;box-shadow:none;min-height:64px;margin:0 22px;padding:16px 0;}
+#xbybody #SettingObserver .settinghead {border-radius:0;background:transparent;box-shadow:none;padding:20px 22px 8px;color:var(--color-text-2);}
+#xbybody #SettingObserver .settingrow>.arco-icon,#xbybody #SettingObserver .settingrow>.iconfont {color:#20c66d;}
+#xbybody #SettingObserver .settings-app-hero {display:none;}
+#xbybody #SettingObserver .settings-app-actions {margin:0 22px;padding:20px 0;border-bottom:1px solid #63866a35;background:none;border-radius:0;box-shadow:none;}
+#xbybody #SettingObserver .setting-account-panel {background:none;border:0;box-shadow:none;padding:0;}
+@media(max-width:760px){#xbybody #SettingObserver{padding:0 0 20px !important;}.bp-settings-header{padding-inline:18px;}}
+
+#xbybody .settings-sider .xbyleftmenu .arco-menu-item:hover,#xbybody .settings-sider .xbyleftmenu .arco-menu-selected {background:#20c66d14 !important;color:var(--color-text-1) !important;box-shadow:none;transform:none;}
+#xbybody .settings-sider .xbyleftmenu .arco-menu-selected::before {background:#20c66d;left:0;top:12px;bottom:12px;width:2px;}
+
+#xbybody #SettingObserver .settings-app-version {font-size:12px;color:var(--color-text-3);margin-right:auto;}
+</style>
+
+<style scoped>
+.settings-support-links { margin:16px 10px 24px; padding-top:12px; border-top:1px solid var(--color-border-2) }
+.settings-support-links button { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; padding:12px; border:0; border-radius:7px; background:transparent; color:var(--color-text-2); cursor:pointer; text-align:left; font:inherit }
+.settings-support-links button:hover { background:var(--color-fill-2) }
+.settings-support-links button:focus-visible { outline:2px solid rgb(var(--primary-6)); outline-offset:1px }
+.settings-support-links svg { flex-shrink:0; opacity:.55 }
 </style>

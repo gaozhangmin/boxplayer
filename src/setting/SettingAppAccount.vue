@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { Github, Chrome, Mail, Loader2, LogOut, X, Gift } from 'lucide-vue-next'
+import BoxPlayerProBadge from '../components/BoxPlayerProBadge.vue'
+import { resolveBoxPlayerProTier } from '../utils/boxplayerProTier'
 import message from '../utils/message'
 import { openExternal } from '../utils/electronhelper'
 import { BOXPLAYER_SITE_URL, buildProPurchaseUrlForCurrentSession, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
@@ -13,10 +15,22 @@ const emailCode = ref('')
 const userEmail = ref('')
 const isLoggedIn = ref(false)
 const isPro = ref(false)
+const proTier = ref<'standard' | 'all' | 'android' | 'apple'>('standard')
+const proPlan = ref('')
+const proProductId = ref('')
 try {
   userEmail.value = localStorage.getItem('app_user_email') || ''
   isLoggedIn.value = localStorage.getItem('app_user_authed') === '1'
   isPro.value = localStorage.getItem('app_user_pro') === '1'
+  proPlan.value = localStorage.getItem('app_user_plan') || ''
+  proProductId.value = localStorage.getItem('app_user_product_id') || ''
+  proTier.value = resolveBoxPlayerProTier({
+    signedIn: isLoggedIn.value,
+    pro: isPro.value,
+    plan: proPlan.value,
+    productId: proProductId.value,
+    entitlementScope: localStorage.getItem('app_user_entitlement_scope') || '',
+  })
 } catch {}
 const upgrading = ref(false)
 const redeeming = ref(false)
@@ -38,11 +52,17 @@ function handleLogout() {
   localStorage.removeItem('app_user_email')
   localStorage.removeItem('app_user_authed')
   localStorage.removeItem('app_user_pro')
+  localStorage.removeItem('app_user_plan')
+  localStorage.removeItem('app_user_product_id')
+  localStorage.removeItem('app_user_entitlement_scope')
   clearBoxPlayerAppSession()
   supabase?.auth.signOut().catch(() => {})
   userEmail.value = ''
   isLoggedIn.value = false
   isPro.value = false
+  proTier.value = 'standard'
+  proPlan.value = ''
+  proProductId.value = ''
   message.success('已退出登录')
 }
 
@@ -145,6 +165,19 @@ async function refreshSubscription() {
   try {
     const sub = await fetchBoxPlayerSubscription()
     isPro.value = Boolean(sub.isPro)
+    proPlan.value = sub.plan || ''
+    proProductId.value = sub.productId || sub.product_id || ''
+    proTier.value = resolveBoxPlayerProTier({
+      signedIn: isLoggedIn.value,
+      pro: isPro.value,
+      plan: proPlan.value,
+      productId: proProductId.value,
+      source: sub.source || '',
+      entitlementScope: sub.entitlementScope || sub.entitlement_scope || '',
+    })
+    localStorage.setItem('app_user_plan', proPlan.value)
+    localStorage.setItem('app_user_product_id', proProductId.value)
+    localStorage.setItem('app_user_entitlement_scope', sub.entitlementScope || sub.entitlement_scope || '')
     if (isPro.value) localStorage.setItem('app_user_pro', '1')
     else localStorage.removeItem('app_user_pro')
   } catch (e: any) {
@@ -199,7 +232,7 @@ onMounted(() => {
         <template v-if="isLoggedIn">
           <div class='acc-logged'>
             <span class='acc-email'>{{ userEmail }}</span>
-            <span v-if="isPro" class='acc-pro-badge'>PRO</span>
+            <BoxPlayerProBadge :tier="proTier" compact />
             <button class='acc-logout' @click="handleLogout"><LogOut :size="13" /> 退出</button>
           </div>
         </template>

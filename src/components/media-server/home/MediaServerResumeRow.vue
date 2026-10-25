@@ -35,7 +35,7 @@
               @error="handleMediaImageError"
             />
             <div class="media-card-placeholder media-image-placeholder"><MediaPosterPlaceholder kind="resume" /></div>
-            <PosterRatingBadge :rating="item.rating" />
+            <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
             <div class="resume-overlay">
               <div class="resume-badge">{{ typeof item.progress === 'number' ? t('mediaServer.watchedPercent', { percent: Math.round(item.progress) }) : t('mediaServer.continueWatching') }}</div>
               <div v-if="typeof item.progress === 'number'" class="media-progress cinematic-progress">

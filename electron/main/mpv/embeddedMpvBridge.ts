@@ -9,6 +9,7 @@ export interface EmbeddedMpvLoadRequest {
   headers?: Record<string, string>
   title?: string
   startPosition?: number
+  audioOnly?: boolean
 }
 
 export interface EmbeddedMpvLoadResult {

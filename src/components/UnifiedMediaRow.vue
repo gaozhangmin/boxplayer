@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { generalPreferences } from '../utils/seriesVersionPreferences'
 import MediaPosterPlaceholder from './MediaPosterPlaceholder.vue'
 import PosterRatingBadge from './PosterRatingBadge.vue'
 import { Star, RefreshCw, Ban, ChevronRight } from 'lucide-vue-next'
@@ -99,10 +100,10 @@ const failedImages = ref(new Set<string>())
           <input v-if="selection" type="checkbox" :checked="selection.includes(card.key)" :aria-label="card.title" tabindex="-1" style="position:absolute;top:8px;left:8px;z-index:4" @click.stop="card.action()" />
           <MediaPosterPlaceholder v-if="!row.grouped" :kind="row.key === 'resume' ? 'resume' : row.key === 'music' ? 'music' : row.key === 'books' ? 'book' : 'film'" />
           <img v-if="card.image && !failedImages.has(card.image)" :src="row.grouped ? detailBackdropUrl(card.image) : card.image" :alt="card.title" loading="lazy" @error="failedImages.add(card.image!)" />
-          <WatchedIndicator v-if="row.key !== 'resume' && card.posterMenu" corner :watched="card.posterMenu.watched" />
-          <PosterRatingBadge :rating="card.rating" />
+          <WatchedIndicator v-if="generalPreferences.watchIndicators && row.key !== 'resume' && card.posterMenu" corner :watched="card.posterMenu.watched" />
+          <PosterRatingBadge :rating="card.rating" :is-movie="card.posterMenu ? !card.posterMenu.tv : undefined" />
           <span v-if="row.key === 'resume'" class="resume-play" aria-hidden="true">▶</span>
-          <progress v-if="row.key === 'resume' || (card.progress || 0) > 0" :aria-label="card.title" :value="card.progress || 0" max="100" />
+          <progress v-if="generalPreferences.watchIndicators && (row.key === 'resume' || (card.progress || 0) > 0)" :aria-label="card.title" :value="card.progress || 0" max="100" />
           <div v-if="row.grouped" class="group-copy"><img v-if="categoryNetworkLogo(card.title) && !failedImages.has(categoryNetworkLogo(card.title)!)" class="group-logo" :class="{ 'network-logo-original': card.title.trim().toLowerCase() === 'netflix' }" :src="categoryNetworkLogo(card.title)" :alt="card.title" @error="failedImages.add(categoryNetworkLogo(card.title)!)" /><strong v-else class="group-title">{{ card.title }}</strong><span v-if="card.subtitle" class="group-subtitle">{{ card.subtitle }}</span></div>
           <span v-if="row.grouped" class="group-arrow" aria-hidden="true"><ChevronRight :size="22" /></span>
         </div>
@@ -119,7 +120,7 @@ const failedImages = ref(new Set<string>())
           </div>
         </div>
         <template v-else>
-          <strong v-if="!row.grouped" :title="card.title">{{ card.title }}</strong>
+          <strong v-if="!row.grouped && generalPreferences.posterTitles" :title="card.title">{{ card.title }}</strong>
           <small v-if="card.subtitle">{{ card.subtitle }}</small>
         </template>
       </div>

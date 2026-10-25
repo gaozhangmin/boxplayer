@@ -304,7 +304,7 @@ function importLocalSongs() {
       description: tt('music.localTempSong'),
       encType: '',
       password: '',
-      local_url: URL.createObjectURL(file)
+      local_url: window.WebGetPathForFile?.(file) || URL.createObjectURL(file)
     }))
     message.success(tt('music.importLocalSuccess', { count: tracks.length }))
     playPageTracks(tracks)

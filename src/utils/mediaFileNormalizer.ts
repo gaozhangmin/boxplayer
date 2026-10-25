@@ -55,10 +55,9 @@ export class MediaFileNormalizer {
   private releaseYear(titleRegion: string, originalName: string): number | undefined {
     const bracketed = originalName.match(/[\(\[（【](19\d{2}|20\d{2})[\)\]）】]/)
     if (bracketed) return Number(bracketed[1])
-    if (this.technicalTagIndex(originalName) === undefined) return undefined
 
-    const separated = titleRegion.match(/(?:^|[._-])(19\d{2}|20\d{2})(?=$|[.\s_-])/)
-    return separated ? Number(separated[1]) : undefined
+    const separated = titleRegion.match(/(?:^|[.\s_-])(19\d{2}|20\d{2})(?=$|[.\s_-])/)
+    return separated && this.cleanTitle(titleRegion, Number(separated[1])).length > 0 ? Number(separated[1]) : undefined
   }
 
   private cleanTitle(value: string, releaseYear?: number): string {

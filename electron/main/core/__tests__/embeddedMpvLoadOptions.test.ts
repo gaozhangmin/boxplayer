@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { buildMpvLoadOptions } from '../../mpv/embeddedMpvLoadOptions'
 
 describe('embedded MPV load options', () => {
+  it('disables video and cover art for music while retaining authentication', () => {
+    expect(buildMpvLoadOptions({ audioOnly: true, headers: { Authorization: 'Bearer music' } }))
+      .toBe('vid=no,sid=no,http-header-fields=Authorization: Bearer music')
+    expect(buildMpvLoadOptions({ audioOnly: false })).toBe('')
+  })
   it('passes authenticated media headers to loadfile', () => {
     expect(buildMpvLoadOptions({
       headers: {

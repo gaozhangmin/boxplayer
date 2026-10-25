@@ -23,7 +23,7 @@ export class TmdbTransientError extends Error {
   }
 }
 
-async function fetchWithRetry(url: string, retries = 3, delayMs = 2000, timeoutMs = TMDB_REQUEST_TIMEOUT_MS): Promise<Response> {
+async function fetchWithRetry(url: string, retries = 3, delayMs = 2000, timeoutMs = TMDB_REQUEST_TIMEOUT_MS, consume?: (response: Response) => Promise<void>): Promise<Response> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
@@ -39,9 +39,13 @@ async function fetchWithRetry(url: string, retries = 3, delayMs = 2000, timeoutM
         }
         throw error
       }
-      if (resp.ok) return resp
+      if (resp.ok) {
+        // Keep the deadline active while the body is read, not just until headers.
+        if (consume) await consume(resp)
+        return resp
+      }
 
-      const retryable = resp.status === 429 || resp.status === 500 || resp.status === 502 || resp.status === 503 || resp.status === 504
+      const retryable = resp.status === 408 || resp.status === 429 || resp.status === 500 || resp.status === 502 || resp.status === 503 || resp.status === 504
       if (retryable && attempt < retries) {
         const fallbackDelay = delayMs * Math.pow(2, attempt)
         await waitForRetry(getRetryDelayMs(resp, fallbackDelay), controller.signal)
@@ -209,9 +213,10 @@ export class TmdbService {
         params.append('fileName', fileName)
       }
 
-      const response = await fetchWithRetry(`${TMDB_BASE_URL}/movie?${params}`)
-
-      const data: MovieItemResponse = await response.json()
+      let data!: MovieItemResponse
+      await fetchWithRetry(`${TMDB_BASE_URL}/movie?${params}`, 3, 2000, TMDB_REQUEST_TIMEOUT_MS, async response => {
+        data = await response.json()
+      })
       const item = unwrapTmdbResponse(data)
       await this.supplementCertification(item, false)
       return item
@@ -279,9 +284,10 @@ export class TmdbService {
         params.append('fileName', fileName)
       }
 
-      const response = await fetchWithRetry(`${TMDB_BASE_URL}/tv?${params}`)
-
-      const data: TvSeriesItemResponse = await response.json()
+      let data!: TvSeriesItemResponse
+      await fetchWithRetry(`${TMDB_BASE_URL}/tv?${params}`, 3, 2000, TMDB_REQUEST_TIMEOUT_MS, async response => {
+        data = await response.json()
+      })
       const item = unwrapTmdbResponse(data)
       await Promise.all([this.supplementCertification(item, true), this.supplementNetworks(item)])
       return item

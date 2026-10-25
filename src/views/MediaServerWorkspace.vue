@@ -403,7 +403,7 @@
                     <div v-if="currentRoute.kind === 'library-root' && !props.unifiedRoot" class="library-cover-overlay"></div>
                     <div v-if="currentRoute.kind === 'library-root' && !props.unifiedRoot" class="library-cover-title">{{ getListingHeading(item) }}</div>
                     <WatchedIndicator v-if="isDetailCandidate(item)" corner :watched="item.isPlayed === true" />
-                    <PosterRatingBadge :rating="item.rating" />
+                    <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
                     <div v-if="getListingOverlay(item)" class="listing-overlay-badge">{{ getListingOverlay(item) }}</div>
                   </div>
                   <h4 v-if="props.unifiedRoot">{{ getListingHeading(item) }}</h4>
@@ -504,7 +504,7 @@
                   />
                   <div class="media-card-placeholder media-image-placeholder"><MediaPosterPlaceholder /></div>
                   <WatchedIndicator v-if="isDetailCandidate(item)" corner :watched="item.isPlayed === true" />
-                  <PosterRatingBadge :rating="item.rating" />
+                  <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
                     <div v-if="getListingOverlay(item)" class="listing-overlay-badge">{{ getListingOverlay(item) }}</div>
                 </div>
                 <template v-if="currentListingBrowseMode === 'grid'">
@@ -698,7 +698,7 @@
                           />
                           <div class="media-card-placeholder media-image-placeholder"><MediaPosterPlaceholder /></div>
                           <div v-if="getListingOverlay(item)" class="person-poster-overlay">{{ getListingOverlay(item) }}</div>
-                          <PosterRatingBadge :rating="item.rating" />
+                          <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
                         </div>
                         <div class="person-rail-title">{{ item.title }}</div>
                         <div v-if="getListingSubtitle(item)" class="person-rail-subtitle">{{ getListingSubtitle(item) }}</div>
@@ -940,7 +940,7 @@
                             <span v-for="badge in detailMetaBadges" :key="badge" class="detail-meta-badge">{{ badge }}</span>
                             <span v-if="detailGenreLine">{{ detailGenreLine }}</span>
                           </div>
-                          <div class="detail-overview-block" :class="{ 'is-empty': !currentOverviewText }">
+                          <div v-if="!generalPreferences.hideSpoilers" class="detail-overview-block" :class="{ 'is-empty': !currentOverviewText }">
                             <p
                               class="detail-overview"
                               :class="{ 'is-empty': !currentOverviewText }"
@@ -951,6 +951,7 @@
                           </div>
                           <MediaSourceRatings
                             class="detail-score-row"
+                            :is-movie="currentDetail?.kind === 'movie'"
                             :rating="detailDisplayedItem.rating"
                             :critic-rating="detailDisplayedItem.criticRating"
                           />
@@ -1098,7 +1099,7 @@
                           />
                           <div class="media-card-placeholder media-image-placeholder"><MediaPosterPlaceholder /></div>
                           <WatchedIndicator v-if="isDetailCandidate(item)" corner :watched="item.isPlayed === true" /><div v-if="item.childCount" class="detail-recommendation-count">{{ item.childCount }}</div>
-                          <PosterRatingBadge :rating="item.rating" />
+                          <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
                         </div>
                         <div class="detail-recommendation-title">{{ item.title }}</div>
                       </button>
@@ -1392,6 +1393,7 @@
 </template>
 
 <script setup lang="ts">
+import { generalPreferences, displayScopeAllows } from '../utils/seriesVersionPreferences'
 import MediaPosterPlaceholder from '../components/MediaPosterPlaceholder.vue'
 import MediaLoadingIndicator from '../components/MediaLoadingIndicator.vue'
 import MediaPosterMenu from '../components/MediaPosterMenu.vue'
@@ -1986,7 +1988,7 @@ const detailBackdropUrl = computed(() => {
 })
 
 const detailLogoUrl = computed(() => {
-  if (!currentDetail.value || currentDetail.value.kind === 'movie' || detailLogoLoadFailed.value) return ''
+  if (!currentDetail.value || !displayScopeAllows(generalPreferences.logo, currentDetail.value.kind === 'movie') || detailLogoLoadFailed.value) return ''
   return wrapCacheUrl(resolveMediaServerImage(currentDetail.value, 'logo'))
 })
 

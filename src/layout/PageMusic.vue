@@ -10,7 +10,7 @@ import useMediaServerRegistryStore from '../store/mediaServerRegistry'
 import { getMediaServerPlaybackInfo } from '../media-server/contentGateway'
 import type { IPageMusicTrack } from '../store/appstore'
 import { fetchMusicMetadata, findActiveLineIndex, parseLrc, type LyricLine, type MusicMetadata } from '../utils/musicMetadata'
-import { bindAudio, ensureInit as initAudioEngine } from '../module/audioplayer/index'
+import { bindAudio, effectSettings, freqs, ensureInit as initAudioEngine } from '../module/audioplayer/index'
 import { shouldHandleMusicPlayerDblClick } from '../utils/pageMusicEvents'
 import { loadMusicTrackList, musicTrackKey, saveMusicTrackList } from '../utils/musicPlayerStorage'
 import { RotateCcw } from 'lucide-vue-next'
@@ -38,6 +38,54 @@ const appStore = useAppStore()
 const keyboardStore = useKeyboardStore()
 const musicPlayerStore = useMusicPlayerStore()
 const mediaServerRegistry = useMediaServerRegistryStore()
+let musicSessionId = ''
+let musicLoadGeneration = 0
+let musicDisposed = false
+let musicStatusTimer: ReturnType<typeof setTimeout> | undefined
+let musicPollingStarted = false
+let musicEnded = false
+let musicSourceReady = false
+
+async function mpvMusicControl(action: string, value?: number, extra?: Record<string, unknown>) {
+  if (!musicSessionId || musicDisposed) return
+  const owner = musicSessionId
+  const result = await window.WebMpvEmbeddedControl?.({ action, value, sessionId: owner, ...extra })
+  if (musicDisposed || owner !== musicSessionId) return
+  if (result && !result.ok) { errMsg.value = result.error || t('music.playbackError'); playing.value = false }
+  return result
+}
+
+async function pollMusicStatus() {
+  const owner = musicSessionId
+  try {
+    const result = await window.WebMpvEmbeddedStatus?.()
+    if (musicDisposed || owner !== musicSessionId) return
+    if (!musicSourceReady) return
+    if (result?.sessionId && result.sessionId !== owner) { playing.value = false; musicSourceReady = false; return }
+    if (result?.ok && result.status) {
+      const status = result.status
+      loading.value = !!status.loading || !!status.buffering
+      playing.value = !!status.playing && !status.paused
+      if (Number.isFinite(status.position)) curTime.value = Math.max(0, status.position)
+      if (Number.isFinite(status.duration)) dur.value = Math.max(0, status.duration)
+      if (status.ended && !musicEnded) { musicEnded = true; playNext(true) }
+    } else if (result?.error) { errMsg.value = result.error; loading.value = false; playing.value = false }
+  } catch (error: any) {
+    if (!musicDisposed && owner === musicSessionId) { errMsg.value = error?.message || t('music.playbackError'); loading.value = false }
+  } finally {
+    if (!musicDisposed) musicStatusTimer = setTimeout(pollMusicStatus, 250)
+  }
+}
+
+async function applyMpvMusicEffects() {
+  if (!musicSourceReady) return
+  const filters = freqs.map(frequency => `equalizer=f=${frequency}:t=o:w=1:g=${effectSettings.eq[`hz${frequency}`]}`)
+  if (effectSettings.panner.enabled) filters.push(`apulsator=hz=${Math.max(0.01, Math.min(2, effectSettings.panner.speed / 100))}:amount=1`)
+  await mpvMusicControl('setVideoProperty', undefined, { property: 'af', propertyValue: `lavfi=[${filters.join(',')}]` })
+  await mpvMusicControl('setSpeed', effectSettings.pitchShifter.playbackRate)
+}
+
+watch(effectSettings, () => { void applyMpvMusicEffects() }, { deep: true })
 
 keyboardStore.$subscribe((_m: any, state: KeyboardState) => {
   if (props.sidePanel) return // Embedded playback must not capture the main window's shortcuts.
@@ -826,14 +874,14 @@ function pushRec(t: IPageMusicTrack | undefined | null) {
 
 async function resolveUrl(idx: number) {
   const track = playlist.value[idx]
-  if (!track) return ''
-  if (track.local_url) return track.local_url
+  if (!track) return { url: '', headers: {} }
+  if (track.local_url) return { url: track.local_url, headers: {} }
   if (track.media_server_id && track.media_server_item_id) {
     mediaServerRegistry.ensureLoaded()
     const config = mediaServerRegistry.servers.find((server) => server.id === track.media_server_id)
     if (!config) throw new Error(t('music.serverConfigMissing'))
     const playback = await getMediaServerPlaybackInfo(config, track.media_server_item_id, track.media_server_source_id)
-    return playback.url
+    return { url: playback.url, headers: playback.headers || {} }
   }
   // Library tracks may belong to an account other than the active drive account.
   // Hydrate that exact account before provider routing; never guess Aliyun.
@@ -842,11 +890,16 @@ async function resolveUrl(idx: number) {
   const provider = token.tokenfrom !== 'unknown' ? token.tokenfrom : track.tokenfrom
   const d = await getRawUrl(track.user_id, track.drive_id, track.file_id, track.encType || '', track.password || '', false, 'audio', '', '', provider)
   if (typeof d === 'string') throw new Error(d || t('music.getUrlFailed'))
-  return d.url || ''
+  return { url: d.url || '', headers: d.headers || {} }
 }
 
 async function loadIdx(idx: number, auto = true) {
   if (!playlist.value.length) return
+  void mpvMusicControl('pause')
+  playing.value = false
+  const generation = ++musicLoadGeneration
+  musicSourceReady = false
+  musicEnded = false
   idx = Math.max(0, Math.min(idx, playlist.value.length - 1))
   curIdx.value = idx
   loadLyricTimeOffsetForTrack(playlist.value[idx])
@@ -864,24 +917,26 @@ async function loadIdx(idx: number, auto = true) {
   if (!a) return
   try {
     loading.value = true
-    const url = await resolveUrl(idx)
+    const { url, headers } = await resolveUrl(idx)
+    if (musicDisposed || generation !== musicLoadGeneration) return
     if (!url) throw new Error(t('music.noPlaybackUrl'))
-    a.src = url
-    a.load()
-    if (auto) {
-      try {
-        await a.play()
-        playing.value = true
-      } catch {
-        playing.value = false
-      }
-    }
+    a.pause()
+    musicSessionId = crypto.randomUUID()
+    const loaded = await window.WebMpvEmbeddedLoad?.({ sessionId: musicSessionId, url, headers, audioOnly: true, title: title.value })
+    if (musicDisposed || generation !== musicLoadGeneration) return
+    if (!loaded?.ok) throw new Error(loaded?.error || t('music.playbackError'))
+    musicSourceReady = true
+    await mpvMusicControl('setVolume', muted.value ? 0 : vol.value * 100)
+    await applyMpvMusicEffects()
+    await mpvMusicControl(auto ? 'play' : 'pause')
+    playing.value = auto
+    if (!musicPollingStarted) { musicPollingStarted = true; void pollMusicStatus() }
   } catch (e: any) {
     errMsg.value = e?.message || String(e)
     message.error(t('music.loadFailed', { message: errMsg.value }))
     playing.value = false
   } finally {
-    loading.value = false
+    if (generation === musicLoadGeneration) loading.value = false
   }
   await loadCustomCoverForTrack(curTrack.value)
   if (!(await loadCustomLyricForTrack())) loadMeta()
@@ -913,14 +968,9 @@ async function loadMeta() {
 }
 
 function togglePlay() {
-  const a = audioRef.value
-  if (!a) return
-  if (!a.src) return loadIdx(curIdx.value, true)
-  if (a.paused) a.play().then(() => playing.value = true).catch(() => playing.value = false)
-  else {
-    a.pause()
-    playing.value = false
-  }
+  if (!musicSourceReady) return loadIdx(curIdx.value, true)
+  void mpvMusicControl(playing.value ? 'pause' : 'play')
+  playing.value = !playing.value
 }
 function playPrev() {
   if (!playlist.value.length) return
@@ -975,6 +1025,8 @@ function removeQueueAt(index: number) {
     dur.value = 0
     playing.value = false
     showQueue.value = false
+    void mpvMusicControl('stop')
+    musicSourceReady = false
     try {
       if (audioRef.value) {
         audioRef.value.pause()
@@ -1033,22 +1085,23 @@ function handleShelfBoundaryScroll(direction: -1 | 1) {
   return false
 }
 function seekRel(d: number) {
-  const a = audioRef.value
-  if (a && dur.value) {
-    const next = Math.max(0, Math.min(dur.value, (a.currentTime || 0) + d))
-    a.currentTime = next
+  if (musicSourceReady && dur.value) {
+    const next = Math.max(0, Math.min(dur.value, curTime.value + d))
+    void mpvMusicControl('seek', next)
     curTime.value = next
     syncAudioClock()
   }
 }
 function seekTo(time: number) {
   const next = Math.max(0, Math.min(effectiveDur.value || time, time - lyricTimeOffsetSec.value))
-  if (audioRef.value) audioRef.value.currentTime = next
+  void mpvMusicControl('seek', next)
   curTime.value = next
   syncAudioClock()
 }
 function setVol(v: number) {
   vol.value = Math.max(0, Math.min(1, v))
+  if (vol.value > 0) muted.value = false
+  void mpvMusicControl('setVolume', muted.value ? 0 : vol.value * 100)
   if (audioRef.value) {
     audioRef.value.volume = vol.value
     if (vol.value > 0 && muted.value) {
@@ -1061,6 +1114,7 @@ function setVol(v: number) {
 function toggleMute() {
   if (!audioRef.value) return
   muted.value = !muted.value
+  void mpvMusicControl('setVolume', muted.value ? 0 : vol.value * 100)
   audioRef.value.muted = muted.value
 }
 function cycleMode() {
@@ -1088,7 +1142,7 @@ function onProgDown(e: MouseEvent) {
     window.removeEventListener('mousemove', mv)
     window.removeEventListener('mouseup', up)
     if (audioRef.value && seekPreview.value != null) {
-      audioRef.value.currentTime = seekPreview.value
+      void mpvMusicControl('seek', seekPreview.value)
       curTime.value = seekPreview.value
       syncAudioClock()
     }
@@ -1114,6 +1168,7 @@ function onVolDown(e: MouseEvent) {
 function handleHide() {
   if (props.sidePanel) { musicPlayerStore.hidePanel(); return }
   try { audioRef.value?.pause() } catch {}
+  void mpvMusicControl('stop')
   window.WebToWindow?.({ cmd: 'close' })
   if (!window.WebToWindow) window.close()
 }
@@ -1123,6 +1178,7 @@ function handleRootDblClick(e: MouseEvent) {
   if (shouldHandleMusicPlayerDblClick(e)) handleMax()
 }
 function syncAudioClock() {
+  if (musicSessionId) return
   const a = audioRef.value
   if (!a) return
   const nextTime = Number.isFinite(a.currentTime) ? a.currentTime : 0
@@ -1306,6 +1362,10 @@ watch(() => visualFx.value.liveBackgroundKeep, () => {
 })
 
 onBeforeUnmount(() => {
+  void mpvMusicControl('stop')
+  musicDisposed = true
+  musicLoadGeneration++
+  if (musicStatusTimer) clearTimeout(musicStatusTimer)
   window.removeEventListener('keydown', onKeyDown, true)
   stopClockLoop()
   if (beatChipTimer) window.clearTimeout(beatChipTimer)
@@ -1365,7 +1425,7 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
       :lyric-debug-title="lyricDebugTitle"
       :lyric-lines="lyricLines"
       :meta-load="metaLoad"
-      :audio-el="audioRef"
+      :audio-el="null"
       :beat-map="beatMap"
       :playing="playing"
       :show-lyrics="showLyrics"

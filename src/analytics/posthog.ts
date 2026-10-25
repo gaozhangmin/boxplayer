@@ -1,3 +1,4 @@
+import { generalPreferences } from '../utils/seriesVersionPreferences'
 import posthog from 'posthog-js'
 import axios from '../axios'
 import { POSTHOG_HOST, POSTHOG_PROJECT_API_KEY } from '../secrets.generated'
@@ -163,18 +164,20 @@ export const buildMediaScrapeUnrecognizedProperties = (input: MediaScrapeUnrecog
 }
 
 export const captureMediaScrapeUnrecognized = (input: MediaScrapeUnrecognizedInput) => {
-  if (!initialized) return
-  posthog.capture('media_scrape_unrecognized_filename', buildMediaScrapeUnrecognizedProperties(input))
+  if (!initialized || !generalPreferences.errorReports) return
+  posthog.capture('media_scrape_unrecognized_filename', {
+    stage: input.stage, tmdb_outcome: input.tmdbOutcome, ai_outcome: input.aiOutcome,
+    has_fingerprint: input.hasFingerprint, app_version: getAppVersion()
+  })
 }
 
 export const captureCloudApiFailure = (failure: CloudApiFailure) => {
   if (!initialized) return
+  if (!generalPreferences.errorReports) return
   posthog.capture('cloud_api_request_failed', {
     provider: failure.provider,
     failure_kind: failure.failureKind,
-    status_code: failure.statusCode || 0,
-    request_url: failure.requestUrl,
-    server_error: failure.serverError || ''
+    status_code: failure.statusCode || 0
   })
 }
 

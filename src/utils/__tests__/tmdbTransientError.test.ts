@@ -43,6 +43,26 @@ describe('TMDB scrape error classification', () => {
     }
   })
 
+  it('times out a stalled response body and preserves a retryable outcome', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      vi.stubGlobal('fetch', vi.fn(async (_url, init) => ({
+        ok: true,
+        json: () => new Promise((_resolve, reject) => {
+          init.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+        })
+      })))
+      const result = expect(TmdbService.getInstance().searchMovie('Arrival')).rejects.toBeInstanceOf(TmdbTransientError)
+      await vi.advanceTimersByTimeAsync(45_000)
+      await result
+    } finally {
+      vi.unstubAllGlobals()
+      vi.restoreAllMocks()
+      vi.useRealTimers()
+    }
+  })
+
   it('does not retry a definite HTTP failure such as 404', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, headers: new Headers() })

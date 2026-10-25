@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { seriesPreferences, movieVersionItems, generalPreferences, displayScopeAllows } from '../utils/seriesVersionPreferences'
 import { mediaWatchProgressPercent } from '../utils/mediaWatchProgress'
 import { homeRequests } from '../utils/homeRequestCoordinator'
 import UserDAL from '../user/userdal'
+import SidebarProBadge from '../components/SidebarProBadge.vue'
 import type { ITokenInfo } from '../user/userstore'
 import { makeScanFolder, tokenRootScanFolders, type ScanSourceTarget } from '../utils/fileSourceRoots'
 import { getWebDavConnections, saveWebDavConnection, removeWebDavConnection, type WebDavConnectionConfig } from '../utils/webdavClient'
@@ -364,7 +366,7 @@ const recommendationLibrary = homeLibrary
 const recommendationRanks = ref<{ daily: TmdbRankedEntry[]; topMovies: TmdbRankedEntry[] }>({ daily: [], topMovies: [] })
 const recommendationError = ref(false)
 const recommendationLoading = ref(false)
-const dailyRecommendations = computed(() => matchDailyLibraryRanking(recommendationLibrary.value, recommendationRanks.value.daily))
+const dailyRecommendations = computed(() => matchDailyLibraryRanking(recommendationLibrary.value, recommendationRanks.value.daily).filter(item => displayScopeAllows(generalPreferences.dailyPicks, item.type === 'movie')))
 const topMovieRecommendations = computed(() => matchLibraryRanking(recommendationLibrary.value, recommendationRanks.value.topMovies))
 async function loadLibraryRecommendations() {
   if (recommendationLoading.value) return
@@ -423,6 +425,7 @@ const customSeriesGroups = ref<CustomMediaSeries[]>(loadCustomSeries())
 const customSeriesCards = ref<Card[]>([])
 let seriesLoadVersion = 0
 async function showCustomSeries(id = '') {
+ if (!seriesPreferences.useCustom) return
  if (!id) { showCatalog('series'); return }
  const version = ++seriesLoadVersion
  customSeriesGroups.value = loadCustomSeries()
@@ -435,6 +438,12 @@ async function showCustomSeries(id = '') {
  try {
   const local = await DB.getMediaLibraryItemsByIds([...new Set(group.members.filter(member => !member.serverId).flatMap(member => [member.id, member.parentId || detailSeriesId(member.id)]))])
   if (version !== seriesLoadVersion) return
+  if (seriesPreferences.openDetail) {
+   const first = group.members[0]
+   if (first?.serverId) { showServer(first.serverId, { kind: 'item-detail', itemId: first.id, title: first.title }); return }
+   const item = first && libraryPlaylistMembers(local, [first.id])[0]
+   if (item) { await openVideo(item); return }
+  }
   customSeriesCards.value = group.members.flatMap(member => {
    if (member.serverId) return [{ key: member.serverId + ':' + member.id, title: member.title, action: () => showServer(member.serverId!, { kind: 'item-detail', itemId: member.id, title: member.title }) }]
    const item = libraryPlaylistMembers(local, [member.id])[0]
@@ -452,7 +461,8 @@ function syncCustomSeries() {
 
 const collectionMode = useLibraryBrowseMode()
 const localOnly = ref(false)
-const browseSort = ref<MediaBrowseSort>('title')
+const browseSort = ref<MediaBrowseSort>(generalPreferences.sort as MediaBrowseSort)
+watch(() => generalPreferences.sort, value => { browseSort.value = value as MediaBrowseSort })
 const serverSort = ref<MediaServerBrowseSort>('sortName')
 const serverSortDirection = ref<MediaServerSortDirection>('ascending')
 const serverSortSeed = ref(Date.now())
@@ -880,7 +890,7 @@ const localCard = (item: MediaLibraryItem, landscape = false, playlistName?: str
   if (playlistName && action === 'removePlaylistItem') { media.togglePlaylistItem(playlistName, item.id); return }
   if (playlistName && action === 'reorderPlaylistItem') { showHomeRow('local:playlist:group:' + encodeURIComponent(playlistName)); playlistReordering.value = true; return }
   void localPosterAction(item, action)
-} }, key: `local:${item.id}`, title: item.name, sortValues: { title: item.name, fileName: item.driveFiles[0]?.name, addedAt: item.addedAt, premiereDate: item.releaseDate }, image: landscape ? item.backdropUrl || item.posterUrl : item.posterUrl || item.backdropUrl, subtitle: posterYearAndSeasons(item.year, item.type === 'tv' ? item.seasons?.filter(season => season.seasonNumber > 0).length : undefined), progress: mediaWatchProgressPercent(item), action: () => { if (browseSelection.value && section.value === 'collection') toggleObjectSelection(item); else void openVideo(item) } })
+} }, key: `local:${item.id}${!seriesPreferences.mergeVersions ? ':file:' + item.driveFiles[0]?.id : ''}`, title: generalPreferences.showFileNames ? item.driveFiles[0]?.name || item.name : item.name, sortValues: { title: item.name, fileName: item.driveFiles[0]?.name, addedAt: item.addedAt, premiereDate: item.releaseDate }, image: landscape ? item.backdropUrl || item.posterUrl : item.posterUrl || item.backdropUrl, subtitle: posterYearAndSeasons(item.year, item.type === 'tv' ? item.seasons?.filter(season => season.seasonNumber > 0).length : undefined), progress: mediaWatchProgressPercent(item), action: () => { if (browseSelection.value && section.value === 'collection') toggleObjectSelection(item); else void openVideo(item) } })
 const serverCard = (item: MediaServerCardItem, landscape = false): Card => ({ overview: item.overview, certification: item.officialRating, rating: item.rating, posterMenu: { server: true, tv: item.kind === 'series' || item.kind === 'season', watched: item.isPlayed === true, favorite: item.isFavorite, disabled: item.kind === 'season' ? ['rating', 'playlist'] : ['playlist'], action: action => { void serverPosterAction(item, action) } }, key: `${item.serverId}:${item.id}`, title: item.title, sortValues: item, image: toMsCacheUrl(item.serverId, resolveMediaServerImage(item, landscape ? 'landscape' : 'portrait')), subtitle: item.kind === 'series' ? posterYearAndSeasons(item.year, item.seasonCount) : item.parentTitle || String(item.year || ''), progress: item.progress, action: () => showServer(item.serverId, { kind: 'item-detail', itemId: item.id, title: item.title }) })
 const searchRows = computed<Row[]>(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
@@ -905,7 +915,27 @@ function catalogHomeTitle(root: string, category: string, value = '') {
  return ['mini', 'concerts', 'shorts'].includes(category) ? label : `${prefix} - ${label}`
 }
 function localRow(items: MediaLibraryItem[], row: Omit<Row, 'cards'>, card: (item: MediaLibraryItem) => Card = localCard): Row {
-  return { ...row, count: items.length, get cards() { return items.map(card) }, preview: () => items.slice(0, 24).map(card) }
+  const movieList = row.key === libraryHomeId('movies/all')
+  const tvList = row.key === libraryHomeId('tv/all')
+  const groups: { id: string; title: string; members: MediaLibraryItem[] }[] = []
+  if ((movieList && seriesPreferences.showMovies) || (tvList && seriesPreferences.showTV)) {
+    if (seriesPreferences.useCustom) for (const group of customSeriesGroups.value) {
+      const members = libraryPlaylistMembers(homeLibrary.value, group.members.filter(member => !member.serverId).map(member => member.id))
+        .filter(item => item.type === (tvList ? 'tv' : 'movie'))
+      if (members.length) groups.push({ id: 'custom:' + group.id, title: group.title, members })
+    }
+    const customIDs = new Set(groups.flatMap(group => group.members.map(item => item.id)))
+    if (movieList) groups.push(...libraryMovieSeries(items).map(group => ({ ...group, members: group.members.filter(item => !customIDs.has(item.id)) })).filter(group => group.members.length))
+  }
+  const groupedIDs = new Set(groups.flatMap(group => group.members.map(item => item.id)))
+  const members = movieVersionItems(items.filter(item => !groupedIDs.has(item.id)))
+  const groupCards: Card[] = groups.map(group => ({ key: 'series:' + group.id, title: group.title, image: group.members[0]?.posterUrl,
+    subtitle: t('customSeries.memberCount', { count: group.members.length }), action: () => {
+      if (seriesPreferences.openDetail) void openVideo(group.members[0])
+      else if (group.id.startsWith('custom:')) void showCustomSeries(group.id.slice(7))
+      else showCatalog('series/' + group.id)
+    } }))
+  return { ...row, count: groupCards.length + members.length, get cards() { return [...groupCards, ...members.map(card)] }, preview: () => [...groupCards, ...members.slice(0, 24).map(card)].slice(0, 24) }
 }
 const localItemsById = computed(() => new Map(homeLibrary.value.map(item => ['local:' + item.id, item])))
 type HomeCategoryData = { root: string; category: string; route: string; id: string; members: MediaLibraryItem[]; groups: ReturnType<typeof libraryCategoryGroups>; grouped: boolean }
@@ -979,9 +1009,9 @@ const localRows = computed<Row[]>(() => {
   for (const group of libraryMovieSeries(homeLibrary.value)) {
     const key = 'catalog:series/' + group.id
     result.push({ key, title: group.title, count: group.members.length, get cards() { return group.members.map(item => localCard(item)) }, preview: () => group.members.slice(0, 24).map(item => localCard(item)), more: () => showCatalog('series/' + group.id) })
-    seriesCards.push({ key, title: group.title, image: group.members[0]?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }), action: () => showCatalog('series/' + group.id), contextMenu: (event: MouseEvent) => openCategoryMenu(event, 'series/' + group.id) })
+    seriesCards.push({ key, title: group.title, image: group.members[0]?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }), action: () => { if (seriesPreferences.openDetail && group.members[0]) void openVideo(group.members[0]); else showCatalog('series/' + group.id) }, contextMenu: (event: MouseEvent) => openCategoryMenu(event, 'series/' + group.id) })
   }
-  for (const group of customSeriesGroups.value) {
+  for (const group of (seriesPreferences.useCustom ? customSeriesGroups.value : [])) {
     const members = libraryPlaylistMembers(homeLibrary.value, group.members.filter(member => !member.serverId).map(member => member.id))
     const key = 'custom-series:' + group.id
     result.push({ key, title: group.title, count: members.length, get cards() { return members.map(item => localCard(item)) }, preview: () => members.slice(0, 24).map(item => localCard(item)), more: () => { void showCustomSeries(group.id) } })
@@ -1018,7 +1048,7 @@ const remoteRows = computed<Row[]>(() => {
   return result
 })
 const resumeRows = computed<Row[]>(() => {
-  const resume = media.continueWatching.filter(item => mediaWatchProgressPercent(item) < 100).map(item => ({ ...localCard(item, true), action: () => { void videoView.value?.resumeMedia(item) } }))
+  const resume = (generalPreferences.recentlyPlayed ? media.continueWatching : []).filter(item => mediaWatchProgressPercent(item) < 100).map(item => ({ ...localCard(item, true), action: () => { void videoView.value?.resumeMedia(item) } }))
   for (const server of registry.servers.filter(server => !homePreferences.hidden.includes('source:server:' + server.id))) resume.push(...content.currentHomeData(server.id).resume.map(item => ({ ...serverCard(item, true), action: () => { void serverPosterAction(item, 'play') } })))
   if (resume.length) return [{ key: 'resume', title: t('media.continueWatching'), cards: resume, landscape: true, more: () => showHomeRow('resume') }]
   return []
@@ -1478,7 +1508,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
       </div>
       <div class="sidebar-footer">
         <button class="sidebar-footer-toggle" :aria-label="t(sidebarCollapsed ? 'book.expandSidebar' : 'book.collapseSidebar')" @click="sidebarCollapsed = !sidebarCollapsed"><Ellipsis :size="20" /></button>
-        <button class="sidebar-pro" :aria-label="t('upgrade.title')" @click="openProPurchase"><span v-if="!sidebarCollapsed">{{ t('upgrade.title') }}</span><strong>{{ sidebarCollapsed ? 'PRO' : 'BoxPlayer PRO' }}</strong><ChevronRight v-if="!sidebarCollapsed" :size="18" /></button>
+        <SidebarProBadge :collapsed="sidebarCollapsed" @upgrade="openProPurchase" />
       </div>
     </aside>
     <main class="unified-pane" :class="{ 'search-pane': isSearchPage, 'music-pane': section === 'music' }">
@@ -1721,16 +1751,11 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
 .sidebar-navigation{flex:1;min-height:0;overflow-y:auto}
 .sidebar-footer{flex-shrink:0;padding-top:12px}
 .sidebar-footer-toggle{margin-bottom:24px;transform:rotate(90deg);color:var(--color-text-3)!important}
-.sidebar-pro{position:relative;display:flex!important;flex-direction:column;align-items:flex-start!important;width:100%;padding:14px 16px!important;border-radius:18px!important;background:var(--color-fill-3)!important;gap:4px!important}
-.sidebar-pro span{font-size:12px;color:var(--color-text-3)}
-.sidebar-pro strong{font-size:20px}
-.sidebar-pro svg{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--color-text-2)!important}
 .unified-sidebar.collapsed{width:76px!important;padding:16px 10px}
 .collapsed .nav-children,.collapsed .group-toggle,.collapsed .group-heading span,.collapsed .sidebar-search input{display:none!important}
 .collapsed .group-header{justify-content:center;margin-top:20px}
 .collapsed .group-heading{justify-content:center!important;padding:10px!important}
 .collapsed .sidebar-search{justify-content:center;padding:10px;cursor:text}
-.collapsed .sidebar-pro{align-items:center!important;padding:12px 4px!important}
 .unified-sidebar{width:258px;flex-shrink:0;padding:18px 12px;overflow-y:auto;border-right:1px solid var(--color-border-2);background:var(--color-bg-2)}
 .sidebar-search{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--color-border-2);border-radius:20px;margin-bottom:18px;color:var(--color-text-3)}
 .sidebar-search input{width:100%;min-width:0;border:0;outline:none;background:transparent;color:var(--color-text-1)}

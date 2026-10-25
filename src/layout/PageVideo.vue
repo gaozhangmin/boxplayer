@@ -1,4 +1,5 @@
 <script setup lang='ts'>
+import { generalPreferences, setGeneralPreference } from '../utils/seriesVersionPreferences'
 import { KeyboardState, useAppStore, useKeyboardStore, usePanFileStore, useSettingStore } from '../store'
 import { useMediaLibraryStore } from '../store/medialibrary'
 import type { MediaLibraryItem } from '../types/media'
@@ -1253,7 +1254,7 @@ const initEvent = (art: Artplayer) => {
         art.notice.show = t('video.ended')
         return
       }
-      if (pageVideo.playlist_loop || art.storage.get('autoPlayNext')) {
+      if (pageVideo.playlist_loop || generalPreferences.autoNext) {
         await jumpToNextVideo(art)
       }
     }
@@ -1313,7 +1314,7 @@ const initEvent = (art: Artplayer) => {
       }
       if (currentTime > 0 && endDuration > 0) {
         if (endDuration <= currentTime) {
-          if (art.storage.get('autoPlayNext')) {
+          if (generalPreferences.autoNext) {
             await jumpToNextVideo(art)
           }
         }
@@ -1466,7 +1467,7 @@ const refreshSetting = async (art: Artplayer, item: any) => {
 }
 
 const defaultSettings = async (art: Artplayer) => {
-  let autoPlayNext = art.storage.get('autoPlayNext') as boolean
+  let autoPlayNext = generalPreferences.autoNext as boolean
   let autoJumpCursor = art.storage.get('autoJumpCursor') as boolean
   let autoSkipBegin = art.storage.get('autoSkipBegin') as number
   let autoSkipEnd = art.storage.get('autoSkipEnd') as number
@@ -1495,7 +1496,7 @@ const defaultSettings = async (art: Artplayer) => {
       onSwitch: (item: SettingOption) => {
         item.tooltip = item.switch ? t('video.off') : t('video.on')
         art.notice.show = '自动连播' + item.tooltip
-        art.storage.set('autoPlayNext', !item.switch)
+        art.storage.set('autoPlayNext', !item.switch); setGeneralPreference('autoNext', !item.switch)
         return !item.switch
       }
     })
@@ -2738,6 +2739,7 @@ const getVideoInfo = async (art: Artplayer) => {
     }
     // 字幕列表
     await getSubTitleList(art)
+    void tryAutomaticSubtitleDownload(art)
   } else {
     const errorMessage = typeof data === 'string' ? data : t('video.getVideoUrlFailed')
     if (typeof data === 'string') message.error(errorMessage)
@@ -3144,6 +3146,32 @@ const updateSubtitleListControl = (art: Artplayer, subSelector: selectorItem[], 
 }
 
 // 内嵌字幕
+let availableSubtitleSourcesURL = ''
+let availableSubtitleSources = false
+const automaticSubtitleAttempts = new Set<string>()
+async function tryAutomaticSubtitleDownload(art: Artplayer) {
+  const key = `${pageVideo.drive_id}:${pageVideo.file_id}:${art.url}`
+  if (!generalPreferences.autoSubtitles || automaticSubtitleAttempts.has(key) || embedSubSelector.length || (availableSubtitleSourcesURL === art.url && availableSubtitleSources) || downloadedSubSelector.length) return
+  automaticSubtitleAttempts.add(key)
+  if (automaticSubtitleAttempts.size > 64) automaticSubtitleAttempts.delete(automaticSubtitleAttempts.values().next().value!)
+  const url = art.url
+  const query = String(pageVideo.html || pageVideo.file_name || '').replace(/<[^>]+>/g, '').trim()
+  if (!query) return
+  const current = () => art.url === url && generalPreferences.autoSubtitles && !embedSubSelector.length && !(availableSubtitleSourcesURL === art.url && availableSubtitleSources) && !downloadedSubSelector.length
+  try {
+    const results = await searchSubtitles(query, locale.value.startsWith('zh') ? 'zh-cn' : 'en')
+    if (!results[0] || !current()) return
+    const detail = await getSubtitleDownload(results[0].fileId)
+    if (!current()) return
+    const response = await fetch(detail.link)
+    if (!response.ok || !current()) return
+    const text = await response.text()
+    if (!current()) return
+    await loadSubtitleTextToPlayer(art, detail.fileName, getSubtitleExtension(detail.fileName), text)
+    addDownloadedSubtitleToSelector(detail.fileName, getSubtitleExtension(detail.fileName), text)
+  } catch { /* Optional subtitle failure never interrupts playback. */ }
+}
+
 let embedSubSelector: selectorItem[] = []
 let downloadedSubSelector: selectorItem[] = []
 
@@ -3156,6 +3184,8 @@ const getSubTitleList = async (art: Artplayer, autoLoad = true) => {
   let subSelector: selectorItem[]
   const includeSubfolders = useSettingStore().mediaLibrarySubtitleScope === 'include-subfolders'
   const onlineSubSelector = await getSubtitleFileList(includeSubfolders)
+  availableSubtitleSourcesURL = art.url
+  availableSubtitleSources = onlineSubSelector.length > 0
   // console.log('onlineSubSelector', onlineSubSelector)
   subSelector = dedupeSubtitleSelectors([...embedSubSelector, ...onlineSubSelector, ...downloadedSubSelector])
   if (subSelector.length === 0) {

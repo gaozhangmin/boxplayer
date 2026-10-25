@@ -275,6 +275,7 @@ function normalizeMpvEmbeddedLoadData(data: any) {
     url: String(data?.url || ''),
     headers,
     title: String(data?.title || ''),
+    audioOnly: data?.audioOnly === true,
     startPosition: typeof data?.startPosition === 'number' ? data.startPosition : Number(data?.startPosition || 0)
   }
 }

@@ -40,7 +40,7 @@ describe('mediaAIScrape', () => {
   it('parses JSON decisions wrapped in markdown fences', async () => {
     const { parseMediaAIScrapeDecision } = await import('../mediaAIScrape')
 
-    const decision = parseMediaAIScrapeDecision('```json\n{"type":"tv","title":"The Bear","year":2022,"season":2,"episode":3,"tmdbId":136315,"confidence":0.91,"allowOverwrite":true,"reason":"folder context"}\n```')
+    const decision = parseMediaAIScrapeDecision('```json\n{"type":"tv","title":"The Bear","year":2022,"season":2,"episode":3,"confidence":0.91,"allowOverwrite":true,"reason":"folder context"}\n```')
 
     expect(decision).toMatchObject({
       type: 'tv',
@@ -48,7 +48,6 @@ describe('mediaAIScrape', () => {
       year: 2022,
       season: 2,
       episode: 3,
-      tmdbId: 136315,
       confidence: 0.91,
       allowOverwrite: true
     })
@@ -100,7 +99,7 @@ describe('mediaAIScrape', () => {
     const searchMovie = vi.fn(async () => movie)
     const item = await applyAIScrapeResult(
       { file, folderName: 'Movies', folderId: 'folder-1' },
-      { ok: true, decision: { type: 'movie', title: 'Arrival', year: 2016, tmdbId: 42, confidence: 0.93, allowOverwrite: true, reason: 'exact' }, provider: 'test' },
+      { ok: true, decision: { type: 'movie', title: 'Arrival', year: 2016, confidence: 0.93, allowOverwrite: true, reason: 'exact' }, provider: 'test' },
       { tmdb: { searchMovie } as any }
     )
 
@@ -114,7 +113,7 @@ describe('mediaAIScrape', () => {
     })
     expect(item?.driveFiles).toEqual([file])
     expect(item?.aiScrape?.confidence).toBe(0.93)
-    expect(searchMovie).toHaveBeenCalledWith('Arrival', '2016', '42', {
+    expect(searchMovie).toHaveBeenCalledWith('Arrival', '2016', undefined, {
       fingerprintNamespace: 'aliyun:sha1',
       fingerprint: 'hash',
       fileSize: 1024
@@ -148,7 +147,7 @@ describe('mediaAIScrape', () => {
     const searchTV = vi.fn(async () => tv)
     const item = await applyAIScrapeResult(
       { file, folderName: 'Some Show', folderId: 'folder-2' },
-      { ok: true, decision: { type: 'tv', title: 'Some Show', tmdbId: 100, season: 2, episode: 3, confidence: 0.88, allowOverwrite: true, reason: 'episode naming' }, provider: 'test' },
+      { ok: true, decision: { type: 'tv', title: 'Some Show', season: 2, episode: 3, confidence: 0.88, allowOverwrite: true, reason: 'episode naming' }, provider: 'test' },
       { tmdb: { searchTV } as any }
     )
 
@@ -160,7 +159,15 @@ describe('mediaAIScrape', () => {
       driveFiles: [file]
     })
     expect(item?.folderId).toBe('folder-2')
-    expect(searchTV).toHaveBeenCalledWith('Some Show', 2, undefined, '100', expect.any(Object), 'messy.name.203.mkv')
+    expect(searchTV).toHaveBeenCalledWith('Some Show', 2, undefined, undefined, expect.any(Object), 'messy.name.203.mkv')
+  })
+
+  it('accepts season zero and maps multi-episode results', async () => {
+    const { normalizeMediaAIScrapeDecision, applyAIScrapeResult } = await import('../mediaAIScrape')
+    expect(normalizeMediaAIScrapeDecision({ type: 'tv', title: 'Specials', season: 0, episodes: [1, 2], confidence: 0.7 }).usable).toBe(true)
+    const tv = { id: 10, tv: { id: 10, name: 'Specials', overview: '', vote_average: 0, genres: [] }, current_season: { id: 11, season_number: 0, name: 'Specials', episode_count: 2, episodes: [{ id: 1, name: 'One', season_number: 0, episode_number: 1, vote_average: 0 }, { id: 2, name: 'Two', season_number: 0, episode_number: 2, vote_average: 0 }] } } as MediaLibraryTvSeriesItem
+    const result = await applyAIScrapeResult({ file: driveFile() }, { ok: true, decision: { type: 'tv', title: 'Specials', season: 0, episodes: [1, 2], confidence: 0.7, allowOverwrite: true, reason: '' } }, { tmdb: { searchTV: vi.fn(async () => tv) } as any })
+    expect(result?.seasons?.[0].episodes?.map(episode => episode.episodeNumber)).toEqual([1, 2])
   })
 
   it('tries AI-provided alternate titles after the primary title misses', async () => {

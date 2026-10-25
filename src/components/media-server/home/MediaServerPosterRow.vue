@@ -47,7 +47,7 @@
               @error="handleMediaImageError"
             />
             <WatchedIndicator v-if="['movie', 'series', 'season', 'episode'].includes(item.kind)" corner :watched="item.isPlayed === true" />
-            <PosterRatingBadge :rating="item.rating" />
+            <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
             <div class="media-card-placeholder media-image-placeholder"><MediaPosterPlaceholder /></div>
             <div v-if="showTopOverlay && resolveOverlay(item)" class="poster-overlay-badge">
               {{ resolveOverlay(item) }}
@@ -81,7 +81,7 @@
             @error="handleMediaImageError"
           />
           <WatchedIndicator v-if="['movie', 'series', 'season', 'episode'].includes(item.kind)" corner :watched="item.isPlayed === true" />
-          <PosterRatingBadge :rating="item.rating" />
+          <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
             <div class="media-card-placeholder media-image-placeholder"><MediaPosterPlaceholder /></div>
           <div v-if="showTopOverlay && resolveOverlay(item)" class="poster-overlay-badge">
             {{ resolveOverlay(item) }}

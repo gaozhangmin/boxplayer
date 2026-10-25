@@ -1,7 +1,7 @@
 import DebugLog from './debuglog'
 import message from './message'
 import { resolveAIProviderConfig } from './bookAI'
-import { isBoxPlayerCloudProvider, scrapeMediaWithBoxPlayerCloud, type BoxPlayerCloudMediaScrapeResult } from './boxplayerCloudAI'
+import { BoxPlayerMediaScrapeError, isBoxPlayerCloudProvider, scrapeMediaWithBoxPlayerCloud, type BoxPlayerCloudMediaScrapeResult } from './boxplayerCloudAI'
 import { checkAndIncrement, isPro } from './usageLimit'
 import { TmdbService, tmdbImageUrl } from './tmdb'
 import { scrapedMediaId } from './mediaScrapeMerge'
@@ -28,7 +28,7 @@ export interface MediaAIScrapeDecision {
   year?: number
   season?: number
   episode?: number
-  tmdbId?: number
+  episodes?: number[]
   altTitles?: string[]
   confidence: number
   allowOverwrite: boolean
@@ -47,10 +47,10 @@ export interface AIScrapeApplyOptions {
   now?: () => Date
 }
 
-const MIN_CONFIDENCE = 0.65
-// The API aborts DeepSeek after 45 seconds. Keep five seconds for the network
-// round trip so the UI never fails before the server can send its result.
-const MEDIA_SCRAPE_CLIENT_TIMEOUT_MS = 50_000
+const MIN_CONFIDENCE = 0.70
+const MEDIA_SCRAPE_CLIENT_TIMEOUT_MS = 60_000
+const MEDIA_SCRAPE_BATCH_SIZE = 10
+const MEDIA_SCRAPE_MAX_ATTEMPTS = 3
 
 export function canUseMediaAIScrape(options: { manual: boolean }): { allowed: boolean, message?: string } {
   if (options.manual) return checkAndIncrement('mediaAIScrape', 1, { metered: false })
@@ -78,7 +78,7 @@ export function normalizeMediaAIScrapeDecision(value: unknown): { usable: boolea
     year: optionalInt(raw.year),
     season: optionalInt(raw.season),
     episode: optionalInt(raw.episode),
-    tmdbId: optionalInt(raw.tmdbId),
+    episodes: normalizeEpisodes(raw.episodes),
     altTitles: normalizeAltTitles(raw.altTitles || raw.alt_titles),
     confidence,
     allowOverwrite: raw.allowOverwrite === true,
@@ -87,7 +87,7 @@ export function normalizeMediaAIScrapeDecision(value: unknown): { usable: boolea
   if (decision.type === 'unknown') return { usable: false, decision, reason: 'AI 无法识别该文件' }
   if (!decision.title) return { usable: false, decision, reason: 'AI 未返回片名' }
   if (decision.confidence < MIN_CONFIDENCE) return { usable: false, decision, reason: `AI 置信度过低：${decision.confidence}` }
-  if (decision.type === 'tv' && (!decision.season || !decision.episode)) return { usable: false, decision, reason: 'AI 未返回剧集季集信息' }
+  if (decision.type === 'tv' && (decision.season === undefined || (decision.episode === undefined && !decision.episodes?.length))) return { usable: false, decision, reason: 'AI 未返回剧集季集信息' }
   return { usable: true, decision }
 }
 
@@ -223,9 +223,10 @@ function movieToMediaItem(movie: MovieItem, files: DriveFileItem[], folderName: 
 
 function tvToMediaItem(tvResult: MediaLibraryTvSeriesItem, decision: MediaAIScrapeDecision, files: DriveFileItem[], folderName: string, folderId: string | undefined, folderPath: string, addedAt: Date): MediaLibraryItem | null {
   const season = tvResult.current_season
-  const matchedEpisode = season?.episodes?.find(ep => ep.episode_number === decision.episode)
-  if (!season || !matchedEpisode) return null
-  const episode: MediaEpisode = {
+  const episodeNumbers = decision.episodes?.length ? decision.episodes : decision.episode === undefined ? [] : [decision.episode]
+  const matchedEpisodes = episodeNumbers.map(number => season?.episodes?.find(ep => ep.episode_number === number)).filter((episode): episode is NonNullable<typeof episode> => !!episode)
+  if (!season || !matchedEpisodes.length) return null
+  const episodes: MediaEpisode[] = matchedEpisodes.map((matchedEpisode, index) => ({
     id: matchedEpisode.id,
     episodeNumber: matchedEpisode.episode_number,
     rating: matchedEpisode.vote_average,
@@ -237,40 +238,18 @@ function tvToMediaItem(tvResult: MediaLibraryTvSeriesItem, decision: MediaAIScra
     runtime: matchedEpisode.runtime,
     crew: matchedEpisode.crew,
     driveFiles: files
-  }
+  }))
   return {
-    id: scrapedMediaId('tv', tvResult.tv.id),
-    parentId: folderName,
-    folderId,
-    folderPath,
-    type: 'tv',
-    name: tvResult.tv.name || tvResult.tv.original_name || decision.title,
-    overview: tvResult.tv.overview,
-    posterUrl: tmdbImageUrl(tvResult.tv.poster_path) || undefined,
-    backdropUrl: tmdbImageUrl(tvResult.tv.backdrop_path) || undefined,
-    logoUrl: tmdbImageUrl(tvResult.tv.logo_path) || undefined,
-    year: tvResult.tv.first_air_date?.substring(0, 4),
-    certification: tvResult.tv.certification,
-    rating: tvResult.tv.vote_average,
-    genres: tvResult.tv.genres?.map(g => g.name) || [],
-    credits: season.credits || tvResult.tv.credits,
-    productionCountries: tvResult.tv.production_countries?.map(c => c.name) || [],
-    tmdbId: tvResult.tv.id,
-    imdbId: tvResult.tv.imdbId,
-    tvdbId: tvResult.tv.tvdbId,
-    seasons: [{
-      id: season.id,
-      seasonNumber: season.season_number,
-      name: season.name,
-      overview: season.overview,
-      posterPath: season.poster_path,
-      episodeCount: season.episode_count || season.episodes?.length || 0,
-      airDate: season.air_date,
-      credits: season.credits,
-      episodes: [episode]
-    }],
-    driveFiles: [],
-    addedAt
+    id: scrapedMediaId('tv', tvResult.tv.id), parentId: folderName, folderId, folderPath, type: 'tv',
+    name: tvResult.tv.name || tvResult.tv.original_name || decision.title, overview: tvResult.tv.overview,
+    posterUrl: tmdbImageUrl(tvResult.tv.poster_path) || undefined, backdropUrl: tmdbImageUrl(tvResult.tv.backdrop_path) || undefined,
+    logoUrl: tmdbImageUrl(tvResult.tv.logo_path) || undefined, year: tvResult.tv.first_air_date?.substring(0, 4),
+    certification: tvResult.tv.certification, rating: tvResult.tv.vote_average, genres: tvResult.tv.genres?.map(g => g.name) || [],
+    credits: season.credits || tvResult.tv.credits, productionCountries: tvResult.tv.production_countries?.map(c => c.name) || [],
+    tmdbId: tvResult.tv.id, imdbId: tvResult.tv.imdbId, tvdbId: tvResult.tv.tvdbId,
+    seasons: [{ id: season.id, seasonNumber: season.season_number, name: season.name, overview: season.overview,
+      posterPath: season.poster_path, episodeCount: season.episode_count || season.episodes?.length || 0,
+      airDate: season.air_date, credits: season.credits, episodes }], driveFiles: [], addedAt
   }
 }
 
@@ -330,6 +309,12 @@ function optionalInt(value: unknown): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+function normalizeEpisodes(value: unknown): number[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const episodes = Array.from(new Set(value.map(optionalInt).filter((episode): episode is number => !!episode && episode > 0)))
+  return episodes.length ? episodes : undefined
+}
+
 function clampNumber(value: unknown, min: number, max: number): number {
   const n = typeof value === 'number' ? value : parseFloat(String(value || '0'))
   if (!Number.isFinite(n)) return min
@@ -346,15 +331,19 @@ function buildInputLog(input: MediaAIScrapeInput): Record<string, unknown> {
   }
 }
 
-async function scrapeMediaWithAbortTimeout(items: Parameters<typeof scrapeMediaWithBoxPlayerCloud>[0], timeoutMs: number): Promise<BoxPlayerCloudMediaScrapeResult[]> {
+async function scrapeMediaWithAbortTimeout(items: Parameters<typeof scrapeMediaWithBoxPlayerCloud>[0], timeoutMs: number, signal?: AbortSignal): Promise<BoxPlayerCloudMediaScrapeResult[]> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const abort = () => controller.abort()
+  signal?.addEventListener('abort', abort, { once: true })
+  const timer = setTimeout(abort, timeoutMs)
   try {
-    return await scrapeMediaWithBoxPlayerCloud(items, controller.signal)
+    return (await scrapeMediaWithBoxPlayerCloud(items, controller.signal)).results
   } catch (error) {
+    if (signal?.aborted) throw new Error('AI 刮削已取消')
     if (controller.signal.aborted) throw new Error('AI 刮削超时')
     throw error
   } finally {
+    signal?.removeEventListener('abort', abort)
     clearTimeout(timer)
   }
 }
@@ -433,44 +422,54 @@ export async function batchScrapeMediaWithAI(files: BatchScrapeFileInfo[], folde
 async function scrapeSingleMediaWithBoxPlayerCloud(input: MediaAIScrapeInput, timeoutMs: number): Promise<MediaAIScrapeDecision> {
   const file = input.file || input.item?.driveFiles?.[0]
   if (!file) throw new Error('没有可供刮削的视频文件')
+  const id = `0:${crypto.randomUUID()}`
   const results = await scrapeMediaWithAbortTimeout([{
-    id: file.id || '0',
+    id,
     filename: file.name,
-    folderHint: input.folderName || input.item?.folderPath || input.folderContext?.join(' | ') || '',
-    pathHint: file.path
+    context: [input.folderName || input.item?.folderPath || input.folderContext?.join(' | ') || '', file.path].filter(Boolean).join('\n') || null
   }], timeoutMs)
-  const normalized = normalizeCloudMediaScrapeDecision(results[0])
+  const result = results[0]
+  if (!result || result.idx !== 0 || result.id !== id) throw new Error('AI 刮削返回的文件关联无效')
+  const normalized = normalizeCloudMediaScrapeDecision(result)
   if (!normalized.decision) throw new Error(normalized.reason || 'AI 未返回有效刮削决策')
-  DebugLog.mSaveLog('info', '[MediaAIScrape] cloud result ' + JSON.stringify(results[0]), undefined)
+  DebugLog.mSaveLog('info', '[MediaAIScrape] cloud result ' + JSON.stringify(result), undefined)
   return normalized.decision
 }
 
-async function scrapeBatchMediaWithBoxPlayerCloud(files: BatchScrapeFileInfo[], folderName: string): Promise<{ decisions: Array<MediaAIScrapeDecision | null>, candidates: Array<MediaAIScrapeDecision | null>, errors: Array<string | undefined> }> {
+async function scrapeBatchMediaWithBoxPlayerCloud(files: BatchScrapeFileInfo[], folderName: string, signal?: AbortSignal): Promise<{ decisions: Array<MediaAIScrapeDecision | null>, candidates: Array<MediaAIScrapeDecision | null>, errors: Array<string | undefined> }> {
   const decisions: Array<MediaAIScrapeDecision | null> = Array(files.length).fill(null)
   const candidates: Array<MediaAIScrapeDecision | null> = Array(files.length).fill(null)
   const errors: Array<string | undefined> = Array(files.length).fill(undefined)
-  const chunks = Array.from({ length: Math.ceil(files.length / 10) }, (_, index) => files.slice(index * 10, index * 10 + 10))
+  const chunks = Array.from({ length: Math.ceil(files.length / MEDIA_SCRAPE_BATCH_SIZE) }, (_, index) => files.slice(index * MEDIA_SCRAPE_BATCH_SIZE, index * MEDIA_SCRAPE_BATCH_SIZE + MEDIA_SCRAPE_BATCH_SIZE))
   for (const [chunkIndex, chunk] of chunks.entries()) {
+    const start = chunkIndex * MEDIA_SCRAPE_BATCH_SIZE
+    const ids = chunk.map((_, index) => `${start + index}:${crypto.randomUUID()}`)
     try {
-      const results = await scrapeMediaWithAbortTimeout(chunk.map((file, index) => ({
-        id: String(chunkIndex * 10 + index),
-        filename: file.name,
-        folderHint: folderName,
-        pathHint: file.path
-      })), MEDIA_SCRAPE_CLIENT_TIMEOUT_MS)
-      for (const result of results) {
-        const byId = Number(result.id)
-        const index = Number.isInteger(byId) ? byId : result.idx
-        const normalized = normalizeCloudMediaScrapeDecision(result)
-        if (typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < files.length) {
-          if (normalized.decision) candidates[index] = normalized.decision
-          if (normalized.usable && normalized.decision) decisions[index] = normalized.decision
+      let results: BoxPlayerCloudMediaScrapeResult[] = []
+      for (let attempt = 1; attempt <= MEDIA_SCRAPE_MAX_ATTEMPTS; attempt++) {
+        if (signal?.aborted) throw new Error('AI 刮削已取消')
+        try {
+          results = await scrapeMediaWithAbortTimeout(chunk.map((file, index) => ({ id: ids[index], filename: file.name, context: [folderName, file.path].filter(Boolean).join('\n') || null })), MEDIA_SCRAPE_CLIENT_TIMEOUT_MS, signal)
+          break
+        } catch (error) {
+          if (!(error instanceof BoxPlayerMediaScrapeError) || !error.retryable || attempt === MEDIA_SCRAPE_MAX_ATTEMPTS) throw error
         }
+      }
+      const seen = new Set<number>()
+      for (const result of results) {
+        const localIndex = result.idx
+        if (!Number.isInteger(localIndex) || localIndex < 0 || localIndex >= chunk.length || result.id !== ids[localIndex] || seen.has(localIndex)) throw new Error('AI 刮削返回的文件关联无效')
+        seen.add(localIndex)
+        const index = start + localIndex
+        const normalized = normalizeCloudMediaScrapeDecision(result)
+        if (normalized.decision) candidates[index] = normalized.decision
+        if (normalized.usable && normalized.decision) decisions[index] = normalized.decision
       }
     } catch (error: any) {
       const message = error?.message || 'AI 刮削请求失败'
       DebugLog.mSaveWarning(`[BatchAIScrape] chunk ${chunkIndex + 1} failed: ${message}`)
-      for (let index = chunkIndex * 10; index < Math.min(files.length, chunkIndex * 10 + chunk.length); index++) errors[index] = message
+      for (let index = start; index < start + chunk.length; index++) errors[index] = message
+      if (signal?.aborted) break
     }
   }
   return { decisions, candidates, errors }
@@ -478,13 +477,7 @@ async function scrapeBatchMediaWithBoxPlayerCloud(files: BatchScrapeFileInfo[], 
 
 function normalizeCloudMediaScrapeDecision(result: BoxPlayerCloudMediaScrapeResult | undefined): { usable: boolean, decision?: MediaAIScrapeDecision, reason?: string } {
   if (!result) return { usable: false, reason: 'AI 未返回刮削结果' }
-  return normalizeMediaAIScrapeDecision({
-    ...result,
-    tmdbId: result.tmdb_id,
-    altTitles: result.alt_titles,
-    allowOverwrite: true,
-    reason: ''
-  })
+  return normalizeMediaAIScrapeDecision({ ...result, altTitles: result.alt_titles, allowOverwrite: true, reason: '' })
 }
 
 function normalizeAltTitles(value: unknown): string[] {
@@ -498,7 +491,7 @@ function mediaTitles(decision: MediaAIScrapeDecision): string[] {
 
 async function searchMovieWithTitles(tmdb: Pick<TmdbService, 'searchMovie'>, decision: MediaAIScrapeDecision, file: DriveFileItem): Promise<MovieItem | null> {
   for (const title of mediaTitles(decision)) {
-    const movie = await tmdb.searchMovie(title, decision.year ? String(decision.year) : undefined, decision.tmdbId === undefined ? undefined : String(decision.tmdbId), buildMediaFingerprint(file), file.name)
+    const movie = await tmdb.searchMovie(title, decision.year ? String(decision.year) : undefined, undefined, buildMediaFingerprint(file), file.name)
     if (movie) return movie
   }
   return null
@@ -506,7 +499,7 @@ async function searchMovieWithTitles(tmdb: Pick<TmdbService, 'searchMovie'>, dec
 
 async function searchTvWithTitles(tmdb: Pick<TmdbService, 'searchTV'>, decision: MediaAIScrapeDecision, file: DriveFileItem): Promise<MediaLibraryTvSeriesItem | null> {
   for (const title of mediaTitles(decision)) {
-    const tv = await tmdb.searchTV(title, decision.season || 1, decision.year ? String(decision.year) : undefined, decision.tmdbId === undefined ? undefined : String(decision.tmdbId), buildMediaFingerprint(file), file.name)
+    const tv = await tmdb.searchTV(title, decision.season === undefined ? 1 : decision.season, decision.year ? String(decision.year) : undefined, undefined, buildMediaFingerprint(file), file.name)
     if (tv) return tv
   }
   return null

@@ -4,6 +4,7 @@ const escapeMpvHeaderValue = (value: unknown) => String(value).replace(/\\/g, '\
 
 export function buildMpvLoadOptions(request: EmbeddedMpvLoadRequest): string {
   const options: string[] = []
+  if (request.audioOnly) options.push('vid=no', 'sid=no')
   if (Number.isFinite(request.startPosition) && request.startPosition! > 0) options.push(`start=${request.startPosition}`)
 
   const headers = Object.entries(request.headers || {})

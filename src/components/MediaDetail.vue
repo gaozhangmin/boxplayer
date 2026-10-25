@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { seriesPreferences, orderedVersions, playbackVersions, generalPreferences, displayScopeAllows } from '../utils/seriesVersionPreferences'
 import MediaPosterPlaceholder from './MediaPosterPlaceholder.vue'
 import { detailBackdropUrl } from '../utils/mediaArtwork'
 import MediaCollectionPicker from './MediaCollectionPicker.vue'
@@ -60,7 +61,7 @@ const activeMediaItem = computed<MediaLibraryItem>(() => (props.mediaItem.collec
 const selectedSeason = ref(activeMediaItem.value.type === 'tv' && activeMediaItem.value.seasons?.length ? activeMediaItem.value.seasons[0].seasonNumber : 1)
 const detailLogoLoadFailed = ref(false)
 const detailLogoUrl = computed(() => {
-  if (activeMediaItem.value.type === 'movie' || detailLogoLoadFailed.value || !activeMediaItem.value.logoUrl) return ''
+  if (!displayScopeAllows(generalPreferences.logo, activeMediaItem.value.type === 'movie') || detailLogoLoadFailed.value || !activeMediaItem.value.logoUrl) return ''
   return activeMediaItem.value.logoUrl
 })
 watch(() => activeMediaItem.value.logoUrl, () => {
@@ -69,12 +70,13 @@ watch(() => activeMediaItem.value.logoUrl, () => {
 const selectedEpisode = ref<number>()
 const hasUserSelectedEpisode = ref(false)
 const selectedDriveFileId = ref('')
+const manuallySelectedVersion = ref(false)
 watch(() => props.mediaItem, () => {
   selectedCollectionMovieId.value = undefined
   selectedSeason.value = activeMediaItem.value.type === 'tv' && activeMediaItem.value.seasons?.length ? activeMediaItem.value.seasons[0].seasonNumber : 1
   selectedEpisode.value = undefined
   hasUserSelectedEpisode.value = false
-  selectedDriveFileId.value = ''
+  selectedDriveFileId.value = ''; manuallySelectedVersion.value = false
 })
 const handleCollectionMovieSelect = (movie: MediaCollectionMovie) => {
   selectedCollectionMovieId.value = movie.tmdbId
@@ -286,8 +288,8 @@ const currentEpisode = computed(() => {
 })
 
 const detailVersionFiles = computed<DriveFileItem[]>(() => {
-  if (activeMediaItem.value.type === 'tv') return currentEpisode.value?.driveFiles || []
-  return activeMediaItem.value.driveFiles || []
+  const files = activeMediaItem.value.type === 'tv' ? currentEpisode.value?.driveFiles || [] : activeMediaItem.value.driveFiles || []
+  return orderedVersions(files, seriesPreferences.defaultVersion)
 })
 
 const selectedDriveFile = computed<DriveFileItem | undefined>(() => {
@@ -455,6 +457,7 @@ const castList = computed(() => {
 
 const meaningfulOverview = (value?: string) => value?.trim() || ''
 const displayOverview = computed(() => {
+  if (generalPreferences.hideSpoilers) return ''
   if (activeMediaItem.value.type === 'tv') {
     return meaningfulOverview(currentEpisode.value?.overview)
       || meaningfulOverview(activeMediaItem.value.overview)
@@ -593,8 +596,8 @@ const playShuffledEpisodes = () => {
   }
   const first = episodes[0]
   if (!first) return
-  const playlist = episodes.map(episode => buildPlaylistEntry(buildAliFileModel(episode.driveFiles[0]), `${activeMediaItem.value.name} · S${episode.seasonNumber}E${episode.episodeNumber}`))
-  void menuOpenFile(buildAliFileModel(first.driveFiles[0]), '', { customPlaylistLabel: activeMediaItem.value.name, customPlaylist: playlist })
+  const playlist = episodes.map(episode => buildPlaylistEntry(buildAliFileModel(playbackVersions(episode.driveFiles)[0]), `${activeMediaItem.value.name} · S${episode.seasonNumber}E${episode.episodeNumber}`))
+  void menuOpenFile(buildAliFileModel(playbackVersions(first.driveFiles)[0]), '', { customPlaylistLabel: activeMediaItem.value.name, customPlaylist: playlist })
 }
 
 const buildAliFileModel = (driveFile: DriveFileItem): IAliGetFileModel => {
@@ -659,13 +662,13 @@ const resolvePlaylistEpisodeForItem = (item: MediaLibraryItem) => {
 const resolvePlaylistPlayableEntry = (item: MediaLibraryItem): IPageVideoPlaylistEntry | null => {
   if (item.type === 'tv') {
     const episode = resolvePlaylistEpisodeForItem(item)
-    const driveFile = episode?.driveFiles?.[0]
+    const driveFile = playbackVersions(episode?.driveFiles || [])[0]
     if (!episode || !driveFile) return null
     const aliFile = buildAliFileModel(driveFile)
     return buildPlaylistEntry(aliFile, `${item.name} · S${episode.seasonNumber}E${episode.episodeNumber} ${episode.name}`.trim())
   }
 
-  const driveFile = item.driveFiles?.[0]
+  const driveFile = playbackVersions(item.driveFiles || [])[0]
   if (!driveFile) return null
   const aliFile = buildAliFileModel(driveFile)
   return buildPlaylistEntry(aliFile, item.name)
@@ -680,7 +683,7 @@ const currentPlaylistEntries = computed<IPageVideoPlaylistEntry[]>(() => {
 
 const playEpisode = (episode: MediaEpisode, loop = false) => {
   if (episode.driveFiles && episode.driveFiles.length > 0) {
-    const driveFile = episode.driveFiles.find(file => file.id === selectedDriveFileId.value) || episode.driveFiles[0]
+    const driveFile = (manuallySelectedVersion.value ? episode.driveFiles.find(file => file.id === selectedDriveFileId.value) : orderedVersions(episode.driveFiles, seriesPreferences.playbackVersion === 'auto' ? seriesPreferences.defaultVersion : seriesPreferences.playbackVersion)[0]) || episode.driveFiles[0]
     const aliFile = buildAliFileModel(driveFile)
     menuOpenFile(aliFile, '', {
       customPlaylistLabel: props.activePlaylistName || '',
@@ -692,7 +695,7 @@ const playEpisode = (episode: MediaEpisode, loop = false) => {
 
 const playMovie = (loop = false) => {
   if (activeMediaItem.value.driveFiles && activeMediaItem.value.driveFiles.length > 0) {
-    const driveFile = activeMediaItem.value.driveFiles.find(file => file.id === selectedDriveFileId.value) || activeMediaItem.value.driveFiles[0]
+    const driveFile = (manuallySelectedVersion.value ? activeMediaItem.value.driveFiles.find(file => file.id === selectedDriveFileId.value) : orderedVersions(activeMediaItem.value.driveFiles, seriesPreferences.playbackVersion === 'auto' ? seriesPreferences.defaultVersion : seriesPreferences.playbackVersion)[0]) || activeMediaItem.value.driveFiles[0]
     const aliFile = buildAliFileModel(driveFile)
     menuOpenFile(aliFile, '', {
       customPlaylistLabel: props.activePlaylistName || '',
@@ -887,7 +890,7 @@ const getCastInitial = (name?: string): string => {
         <div class="hero-content">
           <div class="hero-poster">
             <WatchedIndicator corner :watched="isWatched" />
-            <PosterRatingBadge :rating="activeMediaItem.rating" />
+            <PosterRatingBadge :rating="activeMediaItem.rating" :is-movie="activeMediaItem.type === 'movie'" />
             <img v-if="activeMediaItem.posterUrl" :src="activeMediaItem.posterUrl" :alt="activeMediaItem.name" />
             <div v-else class="poster-placeholder">
               <MediaPosterPlaceholder />
@@ -907,7 +910,7 @@ const getCastInitial = (name?: string): string => {
             <div v-if="detailHeading" class="hero-episode-title">{{ detailHeading }}</div>
 
             <div class="hero-meta">
-              <MediaSourceRatings :rating="activeMediaItem.rating" />
+              <MediaSourceRatings :rating="activeMediaItem.rating" :is-movie="activeMediaItem.type === 'movie'" />
               <span v-if="activeMediaItem.type === 'tv' && totalEpisodeCount" class="meta-episodes">
                 共 {{ totalEpisodeCount }} 集
               </span>
@@ -965,7 +968,7 @@ const getCastInitial = (name?: string): string => {
                         v-for="file in detailVersionFiles"
                         :key="file.id"
                         class="detail-version-option"
-                        @click="selectedDriveFileId = file.id"
+                        @click="selectedDriveFileId = file.id; manuallySelectedVersion = true"
                       >
                         <span class="detail-version-option-name">{{ file.name }}</span>
                         <span v-if="selectedDriveFile?.id === file.id" class="detail-version-option-current">当前</span>
@@ -1024,7 +1027,7 @@ const getCastInitial = (name?: string): string => {
           >
             <div class="episode-thumbnail">
               <WatchedIndicator corner :watched="isMediaWatched(movie, mediaStore.watchedItems)" />
-              <PosterRatingBadge :rating="movie.rating" />
+              <PosterRatingBadge :rating="movie.rating" :is-movie="true" />
               <img v-if="movie.posterUrl" :src="movie.posterUrl" :alt="movie.name" class="episode-image" @error="handleImageError" />
               <div v-else class="thumbnail-placeholder"><MediaPosterPlaceholder /></div>
             </div>
@@ -1066,7 +1069,7 @@ const getCastInitial = (name?: string): string => {
           >
             <div class="episode-thumbnail">
               <WatchedIndicator corner :watched="mediaStore.isWatched(`${String(activeMediaItem.id).split('_').slice(0, -2).join('_') || activeMediaItem.id}_${episode.seasonNumber}_${episode.episodeNumber}`)" />
-              <PosterRatingBadge :rating="episode.rating" />
+              <PosterRatingBadge :rating="episode.rating" :is-movie="false" />
               <img
                 v-if="episode.stillPath || activeMediaItem.posterUrl"
                 :src="episode.stillPath || activeMediaItem.posterUrl"
@@ -1090,7 +1093,7 @@ const getCastInitial = (name?: string): string => {
               <div class="episode-title">
                 E{{ episode.episodeNumber }} · {{ episode.name }}
               </div>
-              <p class="episode-name">{{ episode.overview || '' }}</p>
+              <p class="episode-name">{{ generalPreferences.hideSpoilers ? '' : episode.overview || '' }}</p>
             </div>
           </div>
         </div>
@@ -2591,7 +2594,14 @@ const getCastInitial = (name?: string): string => {
 #xbybody .media-detail .hero-episode-title {
   grid-column: 2;
   grid-row: 1;
-  align-self: end;
+  /* These are now children of the column-flex hero-copy, not hero-info's grid. */
+  align-self: flex-start;
+}
+
+#xbybody .media-detail .hero-copy .hero-episode-title {
+  max-width: 100%;
+  text-align: left;
+  overflow-wrap: anywhere;
 }
 
 #xbybody .media-detail .hero-meta {

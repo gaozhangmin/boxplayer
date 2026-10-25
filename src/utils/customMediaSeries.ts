@@ -1,3 +1,4 @@
+import { seriesPreferences } from './seriesVersionPreferences'
 export interface SeriesMedia { id: string; title: string; serverId?: string; parentId?: string }
 export interface CustomMediaSeries { id: string; title: string; members: SeriesMedia[] }
 export const CUSTOM_SERIES_KEY = 'MediaLibrary_CustomSeries_v1'
@@ -6,5 +7,5 @@ function normalizedMember(item: SeriesMedia): SeriesMedia { return item.parentId
 export function seriesMediaKey(item: SeriesMedia): string { return JSON.stringify([item.serverId || 'local', item.id]) }
 export function saveCustomSeries(groups: CustomMediaSeries[]): void { localStorage.setItem(CUSTOM_SERIES_KEY, JSON.stringify(groups)); window.dispatchEvent(new Event('boxplayer:custom-series-changed')) }
 export function loadCustomSeries(): CustomMediaSeries[] { try { const data = JSON.parse(localStorage.getItem(CUSTOM_SERIES_KEY) || '[]'); return Array.isArray(data) ? data.filter(g => typeof g.id === 'string' && typeof g.title === 'string' && Array.isArray(g.members)).map(g => ({ ...g, members: [...new Map(g.members.filter((item: SeriesMedia) => item && typeof item.id === 'string' && !isSeriesContainer(item.id)).map((item: SeriesMedia) => { const normalized = normalizedMember(item); return [seriesMediaKey(normalized), normalized] })).values()] })) : [] } catch { return [] } }
-export function openCustomSeries(item: SeriesMedia): void { if (!isSeriesContainer(item.id)) window.dispatchEvent(new CustomEvent('boxplayer:custom-series', { detail: normalizedMember(item) })) }
+export function openCustomSeries(item: SeriesMedia): void { if (seriesPreferences.useCustom && !isSeriesContainer(item.id)) window.dispatchEvent(new CustomEvent('boxplayer:custom-series', { detail: normalizedMember(item) })) }
 export function toggleSeriesMember(group: CustomMediaSeries, item: SeriesMedia): CustomMediaSeries { if (isSeriesContainer(item.id)) return group; const member = normalizedMember(item); const key = seriesMediaKey(member); const exists = group.members.some(candidate => seriesMediaKey(normalizedMember(candidate)) === key); return { ...group, members: exists ? group.members.filter(candidate => seriesMediaKey(normalizedMember(candidate)) !== key) : [...group.members, member] } }
