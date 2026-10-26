@@ -28,6 +28,9 @@ jobs:
       - name: Verify scraping, source membership and library UI
         run: |
           pnpm exec vitest run \
+            src/utils/__tests__/startupTask.test.ts \
+            src/utils/__tests__/startupDiagnostics.test.ts \
+            electron/main/core/__tests__/embeddedMpvHostLifecycle.test.ts \
             scripts/__tests__/real-cloud-e2e-config.test.mjs \
             scripts/__tests__/checkPackagedMpv.test.mjs \
             scripts/__tests__/releaseDraftPolicy.test.mjs \
@@ -92,6 +95,9 @@ jobs:
     secrets: inherit
 
   embedded-mpv-windows-test:
+    # Shared fallback OAuth credentials must not refresh concurrently across runners.
+    needs: embedded-mpv-linux-test
+    if: ${{ !cancelled() }}
     name: Verify cloud providers except 115/Box/189, Emby and MPV on Windows x64
     uses: ./.github/workflows/embedded-mpv-windows-x64.yml
     with:
@@ -100,6 +106,9 @@ jobs:
     secrets: inherit
 
   embedded-mpv-macos-arm64-test:
+    # Shared fallback OAuth credentials must not refresh concurrently across runners.
+    needs: embedded-mpv-windows-test
+    if: ${{ !cancelled() }}
     name: Verify cloud providers except 115/Box/189 and Emby playback on macOS ARM64
     uses: ./.github/workflows/embedded-mpv-macos-arm64.yml
     with:
@@ -108,6 +117,9 @@ jobs:
     secrets: inherit
 
   embedded-mpv-macos-x64-test:
+    # Shared fallback OAuth credentials must not refresh concurrently across runners.
+    needs: embedded-mpv-macos-arm64-test
+    if: ${{ !cancelled() }}
     name: Verify cloud providers except 115/Box/189 and Emby playback on macOS x64
     uses: ./.github/workflows/embedded-mpv-macos-x64.yml
     with:

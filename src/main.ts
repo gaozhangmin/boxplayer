@@ -1,3 +1,4 @@
+import { summarizeStartupFailures } from './utils/startupDiagnostics'
 import { createApp } from 'vue'
 import App from './App.vue'
 import './styles/mediaPosters.css'
@@ -69,6 +70,7 @@ window.addEventListener('unhandledrejection', function (event) {
 
 const app = createApp(App)
 if (window.WebIsE2E) {
+  window.WebE2EStartupDiagnostics = () => summarizeStartupFailures(DebugLog.logList)
   window.WebE2ESeedCloudAccounts = async (accounts, defaultUserId) => {
     await DB.saveUserBatch(accounts as any[])
     await DB.saveValueString('uiDefaultUser', defaultUserId)

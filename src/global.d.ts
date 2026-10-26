@@ -9,6 +9,7 @@ declare global {
     openDatabase: any
     WebIsE2E: boolean
     WebE2EAllowTransfers: boolean
+    WebE2EStartupDiagnostics?: () => Array<{ provider: string; reason: string; httpStatus?: number }>
     WebE2ESeedCloudAccounts?: (accounts: unknown[], defaultUserId: string) => Promise<void>
     WebRelaunchAria: () => Promise<number>
     platform: string

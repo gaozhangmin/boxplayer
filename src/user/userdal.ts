@@ -23,7 +23,7 @@ import { createRemoteDriveAccount } from '../utils/remoteDriveAccount'
 import { supportsAliyunAutoSign } from './autoSignPolicy'
 import { getStoredTokenProvider } from '../utils/driveProvider'
 import { captureProviderLogin } from '../analytics/posthog'
-import { withStartupTimeout } from '../utils/startupTask'
+import { recoverLateStartupTask, withStartupTimeout } from '../utils/startupTask'
 import { loadInitialProviderRoot, selectInitialAliyunRoot, shouldRetryInitialRootLoad } from './startupProviderRootLoad'
 
 export const UserTokenMap = new Map<string, ITokenInfo>()
@@ -31,6 +31,7 @@ export const UserTokenMap = new Map<string, ITokenInfo>()
 const getTokenRefreshState = (token: ITokenInfo) => [token.access_token, token.refresh_token, token.expires_in, token.expire_time, token.token_type, token.default_drive_id].join('\u0000')
 
 export default class UserDAL {
+  private static loginRevision = 0
   private static cliSyncTimer: ReturnType<typeof setTimeout> | undefined
 
   private static toCliProvider(token: ITokenInfo): string {
@@ -120,12 +121,13 @@ export default class UserDAL {
       const ok = !!(token.user_id && (await AliUser.ApiTokenRefreshAccount(token, false)))
       return ok ? token : null
     } catch (err: any) {
-      DebugLog.mSaveDanger('ensureTokenReady', err)
+      DebugLog.mSaveDanger('ensureTokenReady ' + getStoredTokenProvider(token), err)
       return null
     }
   }
 
   static async aLoadFromDB() {
+    const loginRevision = ++this.loginRevision
     const tokenList = await DB.getUserAll()
     for (const connection of getWebDavConnections()) {
       const token = createRemoteDriveAccount(connection).token
@@ -163,8 +165,9 @@ export default class UserDAL {
     for (let index = 0; index < orderedTokens.length; index++) {
       const token = orderedTokens[index]
       // 还未选出可登录账号：依次尝试。任意一步失败都 fallback 到下一个
+      const initialization = this.ensureTokenReady(token)
       try {
-        const prepared = await withStartupTimeout(this.ensureTokenReady(token), `账号 ${token?.user_id || ''} 初始化`)
+        const prepared = await withStartupTimeout(initialization, `账号 ${token?.user_id || ''} 初始化`)
         if (!prepared?.user_id) continue
         await this.UserLogin(prepared)
         hasLogin = true
@@ -173,6 +176,20 @@ export default class UserDAL {
         break
       } catch (err: any) {
         DebugLog.mSaveDanger('aLoadFromDB userLogin ' + (token?.user_id || ''), err)
+        // The timeout bounds startup, but does not cancel the provider's HTTP
+        // refresh. Accept a late success only while nobody has signed in.
+        void recoverLateStartupTask(initialization,
+          prepared => Boolean(prepared?.user_id) && loginRevision === this.loginRevision && !hasLogin && !useUserStore().userLogined,
+          async prepared => {
+            hasLogin = true
+            try {
+              await this.UserLogin(prepared!)
+              useUserStore().userShowLogin = false
+            } catch (error) {
+              hasLogin = useUserStore().userLogined
+              throw error
+            }
+          }, error => DebugLog.mSaveDanger('aLoadFromDB late initialization', error))
         // 失败的账号 token 已在 UserTokenMap 中（顶部统一塞过），
         // UserInfo.vue 仍可列出并支持手动切换
       }
@@ -361,6 +378,7 @@ export default class UserDAL {
 
 
   static async UserLogin(token: ITokenInfo, isInteractive: boolean = false) {
+    ++this.loginRevision
     const loadingKey = 'userlogin_' + Date.now().toString()
     message.loading('加载用户信息中...', 0, loadingKey)
     const initialUserId = token.user_id
@@ -504,6 +522,7 @@ export default class UserDAL {
   }
 
   static async UserLogOff(user_id: string): Promise<boolean> {
+    ++this.loginRevision
     await DB.deleteUser(user_id)
     UserTokenMap.delete(user_id)
 

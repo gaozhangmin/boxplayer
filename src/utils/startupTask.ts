@@ -28,3 +28,13 @@ export const startBackgroundStartupTasks = (tasks: IBackgroundStartupTask[], onE
     void task.run().catch((error) => onError(task.label, error))
   }
 }
+
+/** Observe an already-running refresh after its startup timeout, without retrying HTTP. */
+export const recoverLateStartupTask = async <T>(task: Promise<T>, canRecover: (value: T) => boolean, recover: (value: T) => Promise<void>, onError: (error: unknown) => void): Promise<void> => {
+  try {
+    const value = await task
+    if (canRecover(value)) await recover(value)
+  } catch (error) {
+    onError(error)
+  }
+}

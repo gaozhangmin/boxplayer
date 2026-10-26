@@ -161,7 +161,9 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
           pending.delete(message.id)
         } else if (message?.type === 'error') {
           const error = new Error(String(message.error))
-          if (message.id && pending.has(message.id)) {
+          if (message.id) {
+            // A timed-out command may reply after the request was discarded.
+            // Its error must not poison the current playback session.
             pending.get(message.id)?.reject(error)
             pending.delete(message.id)
           } else fail(error)
@@ -181,8 +183,8 @@ export function createLinuxMpvHost(addonPath: string): EmbeddedMpvNativeInstance
     setSubtitleTrack: (id) => sendControl('setSubtitleTrack', id),
     setSubtitleStyle: (style: EmbeddedMpvSubtitleStyle) => sendControl('setSubtitleStyle', style),
     setVideoProperty: (name, value) => sendControl('setVideoProperty', name, value),
-    addAudio: (url, title) => sendControl('addAudio', url, title),
-    addSubtitle: (url, title) => sendControl('addSubtitle', url, title),
+    addAudio: (url, title) => command('addAudio', url, title),
+    addSubtitle: (url, title) => command('addSubtitle', url, title),
     getStatus: () => latestStatus,
     getTrackStatus: () => latestTracks,
     async refreshTrackStatus() {

@@ -60,4 +60,39 @@ describe('MPV host lifecycle', () => {
     await rejected
     host.destroy()
   })
+  it('returns a subtitle failure without marking video playback as failed', async () => {
+    const process = child()
+    const host = createLinuxMpvHost('/missing/mpv_texture.node')
+    const onError = vi.fn()
+    host.onError(onError)
+    host.create()
+    process.emit('message', { type: 'ready' })
+    const pending = host.addSubtitle!('subtitle.srt', 'external')
+    const rejected = expect(pending).rejects.toThrow('core not initialized')
+    await Promise.resolve()
+    const message = process.send.mock.calls.find(([value]) => value.method === 'addSubtitle')![0]
+    process.emit('message', { type: 'error', id: message.id, error: 'core not initialized' })
+    await rejected
+    expect(onError).not.toHaveBeenCalled()
+    host.destroy()
+  })
+
+  it('ignores an error reply from an expired optional command', async () => {
+    vi.useFakeTimers()
+    const process = child()
+    const host = createLinuxMpvHost('/missing/mpv_texture.node')
+    const onError = vi.fn()
+    host.onError(onError)
+    host.create()
+    process.emit('message', { type: 'ready' })
+    const pending = host.addSubtitle!('subtitle.srt')
+    const rejected = expect(pending).rejects.toThrow('timed out')
+    await vi.advanceTimersByTimeAsync(20001)
+    await rejected
+    const message = process.send.mock.calls.find(([value]) => value.method === 'addSubtitle')![0]
+    process.emit('message', { type: 'error', id: message.id, error: 'cancelled' })
+    expect(onError).not.toHaveBeenCalled()
+    host.destroy()
+  })
+
 })

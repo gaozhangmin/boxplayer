@@ -274,7 +274,11 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }, { realAccountRe
         if (message.type() === 'error' && !expectedMissingAria) consoleErrors.push(location ? `${text} (${location})` : text)
       })
       if (injectedRealAccounts) {
-        await page.locator('.user-avatar-trigger').waitFor({ state: 'visible', timeout: 45_000 })
+        await page.locator('.user-avatar-trigger').waitFor({ state: 'visible', timeout: 45_000 }).catch(async error => {
+          const diagnostics = await page.evaluate(() => window.WebE2EStartupDiagnostics?.() || []).catch(() => [])
+          await testInfo.attach('cloud-startup-diagnostics', { body: JSON.stringify(diagnostics), contentType: 'application/json' })
+          throw new Error(`Cloud account initialization failed: ${JSON.stringify(diagnostics)}`, { cause: error })
+        })
         // The copied profile may contain pending transfers targeting the user's real disk.
         // Clear only transfer databases in this isolated profile before enabling workers.
         await page.evaluate(async () => {
