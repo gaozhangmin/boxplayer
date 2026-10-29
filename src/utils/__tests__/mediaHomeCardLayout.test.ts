@@ -31,7 +31,7 @@ describe('compact media library home cards', () => {
     expect(row).toContain('.media-card.landscape { width: 280px; }')
   })
   it('preserves provider icons, image loading and menu/navigation behavior', () => {
-    expect(home).toContain('<MediaServerIcon v-if="sourceServer(card.key)"')
+    expect(home).toContain('<MediaServerIcon v-else-if="sourceServer(card.key)"')
     expect(row).toContain('@click="!reordering && clickCard(card)"')
     expect(row).toContain('@contextmenu="openMenu($event, card)"')
     expect(row).toContain('loading="lazy"')

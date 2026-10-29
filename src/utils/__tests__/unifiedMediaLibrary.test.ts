@@ -72,7 +72,7 @@ describe('unified media library navigation', () => {
     const videoNav = readFileSync(resolve(process.cwd(), 'src/components/MediaLibraryNav.vue'), 'utf8')
     expect(videoView).toContain('showAddFolder: () => mediaNav.value?.importLocalFolder()')
     expect(videoNav).toContain('importLocalFolder: handleImportLocalFolder')
-    expect(source).toContain('videoView.value?.removeFolder(folder)')
+    expect(source).toContain('confirmRemoveFavorite(() => media.removeFolder(folder.id))')
     expect(source).toContain('musicView.value?.playFromList(')
     expect(source).toContain('bookView.value?.openBook(item)')
     expect(source).toContain('music.loadFromDB()')
