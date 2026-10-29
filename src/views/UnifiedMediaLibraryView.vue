@@ -61,22 +61,22 @@ function isConnectedRootFolder(folder: MediaLibraryFolder) { return connectedFil
 function rootIsFavorite(root: ConnectedFileRoot) {
   return !!sourceOverrides.value[`root:${root.value}`]?.favorite || media.folders.some(folder => folder.isDriveRootFavorite && rootFolderMatches(root, folder))
 }
+const pendingRootFavorite = ref<ScanSourceTarget>()
+const rootFavoriteName = ref('')
 async function favoriteFileRoot(root: ScanSourceTarget) {
-  if ('drives' in root && (root as ConnectedFileRoot).drives?.length) {
-    const key = `root:${root.value}`
-    sourceOverrides.value[key] = { ...sourceOverrides.value[key], favorite: true }
-    persistSources()
-    return
+  pendingRootFavorite.value = root
+  rootFavoriteName.value = t('unified.allFiles')
+}
+function saveRootFavorite() {
+  const root = pendingRootFavorite.value, name = rootFavoriteName.value.trim() || t('unified.allFiles')
+  if (!root) return
+  pendingRootFavorite.value = undefined
+  const drives = (root as ConnectedFileRoot).drives
+  const targets = drives?.length ? drives : [root]
+  for (const target of targets) {
+    void MediaScanner.getInstance().favoriteFolder(target.folder, target.driveServerId, name, true)
+      .catch(error => message.error(String(error)))
   }
-  const userId = rootUserID(root)
-  // Same "All Files" card as on the other platforms; the drive card itself stays in Files.
-  const name = t('unified.allFiles')
-  const id = [root.driveServerId, userId, root.folder.drive_id, root.folder.file_id].map(value => encodeURIComponent(value)).join(':')
-  sourceOverrides.value[`folder:${id}`] = { ...sourceOverrides.value[`folder:${id}`], hiddenOnHome: false }
-  persistSources()
-  media.addFolder({ id, fileId: root.folder.file_id, name, path: root.folder.path || '/', userId,
-    driveId: root.folder.drive_id, driveServerId: root.driveServerId, scanDate: new Date(), itemCount: 0, isDriveRootFavorite: true, isFavorite: true })
-  await MediaScanner.getInstance().scanFolder({ ...root.folder, name }, root.driveServerId, { incremental: true, silent: true })
 }
 async function openConnectedFileRoot(root: ConnectedFileRoot) {
   if (root.drives && root.drives.length > 1) {
@@ -837,9 +837,12 @@ function togglePickerRootFavorite(id: string) {
   const root = connectedFileRoots.value.find(r => r.value === id)
   if (!root) return
   if (!rootIsFavorite(root)) { void favoriteFileRoot(root).catch(e => message.error(String(e))); return }
-  sourceOverrides.value[`root:${root.value}`] = { ...sourceOverrides.value[`root:${root.value}`], favorite: false }
-  for (const folder of [...media.folders]) if (folder.isDriveRootFavorite && rootFolderMatches(root, folder)) media.removeFolder(folder.id)
-  persistSources()
+  // Unfavoriting "All Files" clears the drive's scraped media, so it confirms first like every other entry.
+  void confirmRemoveFavorite(() => {
+    sourceOverrides.value[`root:${root.value}`] = { ...sourceOverrides.value[`root:${root.value}`], favorite: false }
+    for (const folder of [...media.folders]) if (folder.isDriveRootFavorite && rootFolderMatches(root, folder)) media.removeFolder(folder.id)
+    persistSources()
+  })
 }
 async function fileSourceConnected() {
   await loadConnectedFileRoots().catch(() => undefined)
@@ -1819,6 +1822,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         </div>
       </div>
     </Teleport>
+    <a-modal :visible="!!pendingRootFavorite" :title="t('unified.addToFavorites')" @cancel="pendingRootFavorite = undefined" @ok="saveRootFavorite"><a-input v-model="rootFavoriteName" :placeholder="t('mediaLibrary.folderName')" @press-enter="saveRootFavorite" /></a-modal>
     <a-modal :visible="!!sourceDialog" :title="t(('unified.' + (sourceDialog === 'rename' ? 'renameCollection' : sourceDialog)) as Parameters<typeof t>[0])" @cancel="sourceDialog = ''" @ok="saveSourceDialog">
       <a-input v-model="sourceText" />
     </a-modal>

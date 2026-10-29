@@ -26,6 +26,8 @@ const messages = {
     'source.chooseFolder': '选择文件夹',
     'source.plexResources': '选择 Plex 服务器',
     'source.waiting': '请在右侧完成登录或授权',
+    'source.allFolders': '所有文件夹',
+    'source.removeLocalFavoriteConfirmation': '只移除收藏卡片，保留本地文件夹授权和已刮削的媒体。',
 
     'unified.myComputer': '我的电脑',
     'membership.upgradeTo': '升级到',
@@ -527,6 +529,8 @@ const messages = {
     'source.chooseFolder': 'Choose folder',
     'source.plexResources': 'Choose Plex servers',
     'source.waiting': 'Complete sign-in or authorization on the right',
+    'source.allFolders': 'All Folders',
+    'source.removeLocalFavoriteConfirmation': 'Only the favorite card is removed. Folder access and scraped media stay in the library.',
 
     'unified.myComputer': 'My Computer',
     'membership.upgradeTo': 'Upgrade to',

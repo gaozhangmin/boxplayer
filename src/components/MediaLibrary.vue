@@ -563,6 +563,10 @@
       </template>
     </div>
 
+    <a-modal :visible="!!pendingFavoriteFolder" :title="t('unified.addToFavorites')" @ok="saveBrowserFolderFavorite" @cancel="pendingFavoriteFolder = undefined">
+      <a-form layout="vertical"><a-form-item :label="t('mediaLibrary.folderName')"><a-input v-model="folderFavoriteName" :placeholder="t('mediaLibrary.libraryNamePlaceholder')" @press-enter="saveBrowserFolderFavorite" /></a-form-item></a-form>
+    </a-modal>
+
     <!-- 添加文件夹对话框 -->
     <a-modal
       v-model:visible="showAddFolderModal"
@@ -618,6 +622,8 @@
 </template>
 
 <script setup lang="ts">
+import { MediaScanner } from '../utils/mediaScanner'
+import { isFileSourceRoot } from '../utils/fileSourceRoots'
 import { playbackVersions } from '../utils/seriesVersionPreferences'
 import { openMediaShare } from '../utils/mediaShare'
 import { openPersonalRating } from '../utils/mediaPersonalRating'
@@ -1486,6 +1492,23 @@ const openMedia = (item: MediaLibraryItem) => {
   showingDetail.value = true
 }
 
+const pendingFavoriteFolder = ref<IAliGetFileModel>()
+const folderFavoriteName = ref('')
+function saveBrowserFolderFavorite() {
+  const folder = pendingFavoriteFolder.value
+  if (!folder) return
+  // As on macOS, an emptied name keeps the default: "All Files" for a drive root, else the folder name.
+  const name = folderFavoriteName.value.trim() || (isFileSourceRoot(folder) ? t('unified.allFiles') : folder.name)
+  pendingFavoriteFolder.value = undefined
+  if (folder.drive_id === 'local') {
+    void MediaScanner.getInstance().scanLocalFolder(folder.file_id, name).catch(error => message.error(String(error)))
+    return
+  }
+  // Inside a favorite card everything was scraped with that favorite (macOS browsesInsideFavorite).
+  void MediaScanner.getInstance().favoriteFolder(folder, folder.drive_id, name, isFileSourceRoot(folder), favoriteBrowse.value)
+    .catch(error => message.error(String(error)))
+}
+
 const handleBrowserFileAction = async (action: string, file: IAliGetFileModel) => {
   if (action === 'download' && !file.isDir && file.drive_id !== 'local') {
     const settings = useSettingStore()
@@ -1498,15 +1521,17 @@ const handleBrowserFileAction = async (action: string, file: IAliGetFileModel) =
   const target = mediaStore.mediaItems.find(item => [...(item.driveFiles || []), ...(item.seasons || []).flatMap(season => (season.episodes || []).flatMap(episode => episode.driveFiles || []))].some(candidate => candidate.id === file.file_id || candidate.path === file.file_id))
   if (file.isDir && action === 'favorite') {
     const saved = mediaStore.folders.find(folder => folder.userId === mediaPanTreeStore.user_id && folder.driveId === file.drive_id && folder.fileId === file.file_id)
-    if (saved && saved.isFavorite !== false) {
+    if (saved && saved.isFavorite !== false && (!isFileSourceRoot(file) || saved.isDriveRootFavorite)) {
       // Removing a favorite also clears the media scraped from it; remote files stay.
       Modal.confirm({
         title: t('unified.removeFavoriteFolder'), content: t('unified.removeFavoriteConfirmation'),
         okText: t('unified.removeFavoriteFolder'), cancelText: t('common.cancel'), okButtonProps: { status: 'danger' },
         onOk: () => mediaStore.removeFolder(saved.id)
       })
-    } else if (saved) mediaStore.addFolder({ ...saved, isFavorite: true })
-    else mediaStore.addFolder({ id: JSON.stringify([mediaPanTreeStore.user_id, file.drive_id, file.file_id]), fileId: file.file_id, name: file.name, path: file.file_id, userId: mediaPanTreeStore.user_id, driveId: file.drive_id, driveServerId: file.drive_id, scanDate: new Date(), itemCount: 0, isFavorite: true })
+    } else {
+      pendingFavoriteFolder.value = { ...file, user_id: mediaPanTreeStore.user_id } as IAliGetFileModel
+      folderFavoriteName.value = saved?.name || (isFileSourceRoot(file) ? t('unified.allFiles') : file.name)
+    }
     return
   }
   if (['play', 'loop', 'shuffle'].includes(action)) {

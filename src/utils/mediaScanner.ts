@@ -59,6 +59,28 @@ export class MediaScanner {
     return MediaScanner.instance
   }
 
+  /**
+   * Saves a folder favorite and scans it unless an existing favorite already covers it.
+   * `coveredByAncestor` is set by browsers that reached the folder through a favorite,
+   * which matters for drives whose files carry no path (macOS `browsesInsideFavorite`).
+   */
+  async favoriteFolder(folder: IAliGetFileModel, driveServerId: string, name: string, isDriveRootFavorite: boolean, coveredByAncestor = false): Promise<void> {
+    const context = await this.resolveScanContext(folder, driveServerId)
+    const id = this.getScopedFolderKey(context, folder.file_id)
+    const saved = this.mediaStore.folders.find(item => item.id === id)
+    const covered = (coveredByAncestor && !isDriveRootFavorite) || this.mediaStore.folders.some(item => item.id !== id && item.isFavorite !== false && item.itemCount > 0
+      && item.userId === context.userId && item.driveId === context.driveId
+      && (item.isDriveRootFavorite || (!!folder.path && !!item.path && item.path !== '/'
+        && folder.path.startsWith(item.path.replace(/\/$/, '') + '/'))))
+    this.mediaStore.addFolder({ ...saved, id, fileId: folder.file_id, name: name.trim(),
+      path: folder.path || '', userId: context.userId, driveId: context.driveId,
+      driveServerId: saved?.driveServerId || context.driveServerId, scanDate: saved?.scanDate || new Date(),
+      itemCount: saved?.itemCount || 0, isFavorite: true, isDriveRootFavorite })
+    await this.mediaStore.flushPersistence()
+    if (!covered) await this.scanFolder({ ...folder, name: name.trim(), user_id: context.userId } as IAliGetFileModel,
+      saved?.driveServerId || context.driveServerId, { incremental: true, silent: true })
+  }
+
   // 统一扫描入口，按当前网盘类型分流
   async scanFolder(
     folder: IAliGetFileModel,
@@ -329,6 +351,8 @@ export class MediaScanner {
   }
 
   private getScopedFolderKey(scanContext: ScanContext, fileId: string): string {
+    const saved = this.mediaStore.folders.find(item => item.userId === scanContext.userId && item.driveId === scanContext.driveId && item.fileId === fileId)
+    if (saved) return saved.id
     return [scanContext.driveServerId, scanContext.userId, scanContext.driveId, fileId].map(value => encodeURIComponent(String(value || ''))).join(':')
   }
 

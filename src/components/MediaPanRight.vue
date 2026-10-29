@@ -140,6 +140,7 @@
 <script setup lang='ts'>
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { t } from '../i18n'
+import { isFileSourceRoot } from '../utils/fileSourceRoots'
 import { localWatchedKey, localWatchedKeys } from '../utils/localWatchedState'
 import { isContinueWatchingMember } from '../utils/continueWatchingAction'
 import DB from '../utils/db'
@@ -174,7 +175,7 @@ onUnmounted(() => { document.removeEventListener('keydown', closeFileMenu); docu
 const menuPosition = ref({ x: 0, y: 0 })
 const openFileMenu = (event: MouseEvent, file: IAliGetFileModel) => { menuFile.value = file; menuPosition.value = { x: event.clientX, y: event.clientY } }
 const fileMenuActions = computed<Array<{ id: string; icon: typeof Play; label: Parameters<typeof t>[0]; disabled?: boolean }>>(() => !menuFile.value ? [] : menuFile.value.isDir ? [
-  { id: 'play', icon: Play, label: 'unified.play' }, { id: 'loop', icon: RefreshCw, label: 'unified.loopPlay' }, { id: 'shuffle', icon: Shuffle, label: 'unified.shufflePlay' }, { id: 'favorite', icon: Star, label: library.folders.some(folder => folder.userId === browserTree.user_id && folder.driveId === menuFile.value?.drive_id && folder.fileId === menuFile.value?.file_id && folder.isFavorite !== false) ? 'unified.removeFavoriteFolder' : 'unified.addToFavorites' }
+  { id: 'play', icon: Play, label: 'unified.play' }, { id: 'loop', icon: RefreshCw, label: 'unified.loopPlay' }, { id: 'shuffle', icon: Shuffle, label: 'unified.shufflePlay' }, { id: 'favorite', icon: Star, label: library.folders.some(folder => folder.userId === browserTree.user_id && folder.driveId === menuFile.value?.drive_id && folder.fileId === menuFile.value?.file_id && folder.isFavorite !== false && (!isFileSourceRoot(menuFile.value!) || folder.isDriveRootFavorite)) ? 'unified.removeFavoriteFolder' : 'unified.addToFavorites' }
 ] : [
   { id: 'play', icon: Play, label: 'unified.play' }, { id: 'loop', icon: RefreshCw, label: 'unified.loopPlay' }, { id: 'select', icon: SquareCheck, label: 'unified.selectItems' }, { id: 'rating', icon: Star, label: 'media.rating' },
   { id: 'share', icon: Share2, label: 'fileContext.share' }, { id: 'download', icon: Download, label: 'fileContext.download', disabled: menuFile.value.drive_id === 'local' },

@@ -4,6 +4,10 @@ import type { IAliGetFileModel } from '../aliapi/alimodels'
 
 export type ScanSourceTarget = { value: string; label: string; folder: IAliGetFileModel; driveServerId: string }
 
+export function isFileSourceRoot(folder: Pick<IAliGetFileModel, 'file_id'>): boolean {
+  return ['root', '/', '0', 'google_root', 'google_shared', 'pikpak_root', 'dropbox_root', 'onedrive_root', 'cloud139_root', 'cloud189_root', 'guangya_root'].includes(folder.file_id)
+}
+
 function driveLabelFromToken(token: ITokenInfo): string {
   if (token.tokenfrom === 'cloud123') return t('drive.cloud123')
   if (token.tokenfrom === '115') return t('drive.drive115')
