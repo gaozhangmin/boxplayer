@@ -2517,7 +2517,7 @@ defineExpose({
 :global(.manager-settings-modal .arco-modal-content),
 :global(.arco-modal.manager-settings-modal .arco-modal-content) {
   padding: 0;
-  background: #fff;
+  background: var(--app-overlay-bg);
 }
 
 :global(.manager-settings-shell) {
@@ -2817,11 +2817,11 @@ defineExpose({
 /* 暗色主题适配 */
 body[arco-theme='dark'] :global(.manager-settings-modal .arco-modal-content),
 body[arco-theme='dark'] :global(.arco-modal.manager-settings-modal .arco-modal-content) {
-  background: #23232e;
+  background: var(--app-overlay-bg);
 }
 body[arco-theme='dark'] :global(.manager-settings-shell) {
   color: #d0d0d0;
-  background: linear-gradient(135deg, rgba(57, 147, 147, .1), transparent 42%), #23232e;
+  background: var(--app-overlay-bg);
 }
 body[arco-theme='dark'] :global(.manager-settings-sidebar) {
   border-right-color: rgba(255, 255, 255, .08);

@@ -1,106 +1,98 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { X, Loader2, Sparkles } from 'lucide-vue-next'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { X, Film, Cloud, Sparkles, Languages, AudioLines, RefreshCw } from 'lucide-vue-next'
 import { openExternal } from '../utils/electronhelper'
 import message from '../utils/message'
 import { buildProPurchaseUrlForCurrentSession } from '../utils/boxplayerAuth'
-import { t } from '../i18n'
-
+import { t, useLocale } from '../i18n'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ 'update:visible': [v: boolean] }>()
-
+const locale = useLocale()
+const en = computed(() => locale.value === 'en-US')
 const upgrading = ref(false)
-const isLoggedIn = ref(false)
-watch(() => props.visible, (v) => {
-  if (v) try { isLoggedIn.value = localStorage.getItem('app_user_authed') === '1' } catch {}
-})
-
-async function handleUpgrade() {
-  upgrading.value = true
-  try {
-    openExternal(await buildProPurchaseUrlForCurrentSession())
-  } catch (error: any) {
-    message.error(error?.message || t('settings.upgradeOpening'))
-  } finally {
-    upgrading.value = false
+const plans = computed(() => [
+  { name: en.value ? 'Monthly' : '每月', price: '$1.4', note: en.value ? 'Billed monthly' : '按月订阅' },
+  { name: en.value ? 'Yearly' : '每年', price: '$13.3', note: en.value ? 'Billed yearly' : '按年订阅', popular: true },
+  { name: en.value ? 'Lifetime' : '终身', price: '$139', note: en.value ? 'Lifetime Pro access' : '全平台终身专业版' }
+])
+const features = computed(() => [
+  { icon: Film, title: t('upgrade.videoMusicPlayback'), desc: en.value ? 'Enjoy your videos and music in one media library.' : '在统一媒体库中浏览与播放视频、音乐。' },
+  { icon: Cloud, title: t('upgrade.multiDrive'), desc: en.value ? 'Connect cloud drives and browse files across services.' : '连接多个网盘，集中管理与浏览云端文件。' },
+  { icon: Sparkles, title: t('upgrade.builtInAi'), desc: en.value ? 'Search, read and organize with built-in AI.' : '使用内置 AI，协助搜索、阅读与内容整理。' },
+  { icon: Languages, title: t('upgrade.instantTranslate'), desc: en.value ? 'Read with AI assistance and instant translation.' : '通过 AI 阅读助手和即时翻译，轻松理解内容。' },
+  { icon: AudioLines, title: t('upgrade.localTts'), desc: en.value ? 'Listen to your books with local text-to-speech.' : '使用本地语音朗读，随时聆听书籍内容。' },
+  { icon: RefreshCw, title: en.value ? 'Ongoing updates' : '持续更新', desc: en.value ? 'Keep enjoying new features and improvements.' : '持续获得功能更新与体验优化。' }
+])
+function close() { emit('update:visible', false) }
+const dialog = ref<HTMLElement>()
+let previousFocus: HTMLElement | null = null
+function onKey(event: KeyboardEvent) {
+  if (event.key === 'Escape') close()
+  if (event.key !== 'Tab') return
+  const buttons = dialog.value?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')
+  if (!buttons?.length) return
+  const first = buttons[0], last = buttons[buttons.length - 1]
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+}
+watch(() => props.visible, async visible => {
+  if (visible) {
+    previousFocus = document.activeElement as HTMLElement
+    window.addEventListener('keydown', onKey)
+    await nextTick()
+    dialog.value?.querySelector<HTMLButtonElement>('button')?.focus()
+  } else {
+    window.removeEventListener('keydown', onKey)
+    previousFocus?.focus()
   }
+}, { immediate: true })
+onUnmounted(() => window.removeEventListener('keydown', onKey))
+async function handleUpgrade() {
+  if (upgrading.value) return
+  upgrading.value = true
+  try { openExternal(await buildProPurchaseUrlForCurrentSession()) }
+  catch (error: any) { message.error(error?.message || t('settings.upgradeOpening')) }
+  finally { upgrading.value = false }
 }
 </script>
 
 <template>
-  <div v-if="visible" class="lim-mask" @click.self="emit('update:visible', false)">
-    <div class="lim-modal">
-      <button class="lim-close" @click="emit('update:visible', false)"><X :size="18" /></button>
-      <div class="lim-icon"><Sparkles :size="32" /></div>
-      <h2 class="lim-title">{{ t('upgrade.title') }}</h2>
-      <p class="lim-desc">{{ t('upgrade.desc') }}</p>
-
-      <table class="lim-table">
-        <thead>
-          <tr><th>{{ t('upgrade.feature') }}</th><th>{{ t('upgrade.openSource') }}</th><th class="pro-th">{{ t('upgrade.pro') }}</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>{{ t('upgrade.cloudFileManagement') }}</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.videoMusicPlayback') }}</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.localBookReading') }}</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.multiDrive') }}</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.builtInAi') }}</td><td class="no">—</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.aiSemanticSearch') }}</td><td class="no">—</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.aiAgentDriveSearch') }}</td><td class="limit">BYOK</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.aiReaderAssistant') }}</td><td class="no">—</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.localTts') }}</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.cloudTts') }}</td><td class="no">—</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.instantTranslate') }}</td><td class="no">—</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.webResourceSearch') }}</td><td class="limit">{{ t('upgrade.fivePerDay') }}</td><td class="yes">✓</td></tr>
-          <tr><td>{{ t('upgrade.prioritySupport') }}</td><td class="no">—</td><td class="yes">✓</td></tr>
-        </tbody>
-      </table>
-
-      <div class="lim-price-row">
-        <span class="lim-price-free">{{ t('upgrade.freePrice') }}</span>
-        <span class="lim-price-pro"><span class="lim-old-price">$199</span> {{ t('upgrade.proPrice') }}</span>
-      </div>
-
-      <button v-if="isLoggedIn" class="lim-btn" :disabled="upgrading" @click="handleUpgrade">
-        <Loader2 v-if="upgrading" :size="16" class="lim-spin" />
-        <span v-else>官网登录并购买</span>
-      </button>
-      <button v-else class="lim-btn" @click="handleUpgrade">
-        {{ t('upgrade.buyOnWebsite') }}
-      </button>
-      <button class="lim-skip" @click="emit('update:visible', false)">{{ t('upgrade.skip') }}</button>
+  <Teleport to="body">
+    <div v-if="visible" class="lim-mask" @click.self="close">
+      <section ref="dialog" class="lim-modal" role="dialog" aria-modal="true" aria-labelledby="bp-upgrade-title">
+        <header class="lim-header">
+          <button class="lim-close" :aria-label="en ? 'Close' : '关闭'" autofocus @click="close"><X :size="22" /></button>
+          <h2 id="bp-upgrade-title">{{ en ? 'Upgrade to BoxPlayer PRO' : '升级到 BoxPlayer PRO' }}</h2>
+          <span class="lim-platforms">{{ en ? 'All platforms' : '全平台通用' }}</span>
+        </header>
+        <div class="lim-content">
+          <div class="lim-plans">
+            <button v-for="plan in plans" :key="plan.name" class="lim-plan" :disabled="upgrading" @click="handleUpgrade">
+              <span v-if="plan.popular" class="lim-popular">{{ en ? 'Most popular' : '最受欢迎' }}</span>
+              <strong>{{ plan.name }}</strong><span class="lim-price">{{ plan.price }}</span><span class="lim-plan-note">{{ plan.note }}</span>
+            </button>
+          </div>
+          <div class="lim-features">
+            <article v-for="feature in features" :key="feature.title" class="lim-feature">
+              <component :is="feature.icon" :size="40" :stroke-width="1.5" />
+              <div><h3>{{ feature.title }}</h3><p>{{ feature.desc }}</p></div>
+            </article>
+          </div>
+          <p class="lim-note">{{ en ? 'Prices in USD. Select any plan to sign in and purchase on the official website. Final pricing, benefits and subscription terms are shown at checkout.' : '价格单位为美元。点击任意价格卡片，即可前往官网登录并购买。最终价格、权益与订阅条款以官网结算页面为准。' }}</p>
+          <p v-if="upgrading" class="lim-note" role="status">{{ en ? 'Opening website…' : '正在打开官网…' }}</p>
+        </div>
+      </section>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>
-.lim-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:2000}
-.lim-modal{position:relative;width:560px;max-width:94vw;max-height:90vh;overflow-y:auto;background:var(--color-bg-2);border:1px solid var(--color-border);border-radius:16px;padding:28px 24px 20px;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.2)}
-.lim-close{position:absolute;top:12px;right:12px;display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;color:var(--color-text-4);background:transparent;border:0;border-radius:6px;cursor:pointer}
-.lim-close:hover{background:var(--color-fill-2);color:var(--color-text-1)}
-.lim-icon{color:rgb(var(--primary-6));margin-bottom:8px}
-.lim-title{font-size:22px;font-weight:700;color:var(--color-text-1);margin:0 0 8px}
-.lim-desc{font-size:14px;color:var(--color-text-3);margin:0 0 16px;line-height:1.5}
-
-.lim-table{width:100%;border-collapse:collapse;margin-bottom:14px;text-align:left}
-.lim-table th,.lim-table td{padding:9px 12px;font-size:13px;border-bottom:1px solid var(--color-border)}
-.lim-table th{color:var(--color-text-3);font-weight:600;text-align:center}
-.lim-table th:first-child,.lim-table td:first-child{text-align:left;color:var(--color-text-2)}
-.pro-th{color:#b45309!important}
-.yes{text-align:center;color:rgb(var(--success-6));font-weight:700;font-size:15px}
-.no{text-align:center;color:var(--color-text-4);font-size:13px}
-.limit{text-align:center;color:var(--color-text-3);font-size:12px}
-
-.lim-price-row{display:flex;justify-content:center;gap:20px;margin-bottom:14px}
-.lim-price-free{font-size:13px;color:var(--color-text-3)}
-.lim-price-pro{font-size:13px;font-weight:700;color:#b45309}
-.lim-old-price{color:var(--color-text-4);text-decoration:line-through;margin-right:6px}
-.lim-btn{width:100%;padding:12px 0;font-size:15px;font-weight:600;color:#fff;background:linear-gradient(135deg,#f59e0b,#eab308);border:0;border-radius:10px;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px}
-.lim-btn:hover:not(:disabled){opacity:.9}
-.lim-btn:disabled{opacity:.5;cursor:default}
-.lim-skip{display:block;width:100%;padding:8px 0;font-size:13px;color:var(--color-text-4);background:transparent;border:0;cursor:pointer;font-family:inherit;margin-top:4px}
-.lim-skip:hover{color:var(--color-text-3)}
-.lim-spin{animation:lim-spin 1s linear infinite}
-@keyframes lim-spin{to{transform:rotate(360deg)}}
+.lim-mask{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:#0006;backdrop-filter:blur(8px)}
+.lim-modal{width:880px;max-width:100%;max-height:calc(100dvh - 48px);overflow:auto;border:1px solid var(--color-border-2);border-radius:22px;background:var(--color-bg-2);color:var(--color-text-1);box-shadow:0 24px 90px #0004}
+.lim-header{display:grid;grid-template-columns:130px 1fr 130px;align-items:center;gap:12px;padding:12px 14px}.lim-header h2{margin:0;text-align:center;font-size:16px;font-weight:700}.lim-close{display:grid;place-items:center;width:38px;height:38px;border:1px solid var(--color-border-2);border-radius:50%;background:var(--color-fill-1);color:var(--color-text-1);cursor:pointer}.lim-platforms{text-align:right;font-size:12px;color:var(--color-text-3)}
+.lim-content{padding:42px 48px 24px}.lim-plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.lim-plan{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:12px;min-height:164px;padding:30px 22px 24px;border:1px solid var(--color-border-1);border-radius:22px;background:var(--color-bg-1);color:var(--color-text-1);font:inherit;text-align:left;box-shadow:0 8px 26px #0000000c;cursor:pointer;transition:transform .15s,box-shadow .15s}.lim-plan:hover{transform:translateY(-3px);box-shadow:0 10px 28px #ff8a0020}.lim-plan:disabled{opacity:.6;cursor:wait}.lim-plan strong{font-size:20px}.lim-price{color:#ff8a00;font-size:36px;font-weight:750;line-height:1.1}.lim-plan-note{font-size:13px;color:var(--color-text-3)}.lim-popular{position:absolute;top:-17px;left:50%;transform:translateX(-50%);padding:7px 18px;border-radius:11px;background:#ff8a00;color:#fff;font-weight:700;white-space:nowrap}
+.lim-features{display:grid;grid-template-columns:1fr 1fr;column-gap:32px;row-gap:36px;margin:44px 0 34px}.lim-feature{display:flex;align-items:flex-start;gap:16px}.lim-feature>svg{flex-shrink:0;color:#ff8a00}.lim-feature h3{margin:0 0 6px;font-size:15px}.lim-feature p{margin:0;font-size:12px;line-height:1.6;color:var(--color-text-2)}.lim-note{margin:0;font-size:12px;line-height:1.6;color:var(--color-text-3)}button:focus-visible{outline:2px solid #ff8a00;outline-offset:4px}
+@media(max-width:680px){.lim-content{padding:34px 20px 20px}.lim-header{grid-template-columns:38px 1fr 38px}.lim-platforms{display:none}.lim-plans{gap:10px}.lim-plan{padding:28px 12px 18px;min-height:140px}.lim-price{font-size:28px}.lim-plan strong{font-size:17px}.lim-features{gap:24px 18px}.lim-feature{gap:10px}.lim-feature>svg{width:28px}.lim-popular{padding:6px 10px;font-size:12px}}
+@media(max-width:440px){.lim-mask{padding:12px}.lim-modal{max-height:calc(100dvh - 24px)}.lim-plans{grid-template-columns:1fr}.lim-plan{min-height:0;padding:24px}.lim-plans{gap:26px}.lim-features{grid-template-columns:1fr}}
 </style>

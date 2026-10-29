@@ -83,7 +83,7 @@ p[role=alert] { color: rgb(var(--danger-6)) }
   overflow: hidden;
 }
 :global(body[arco-theme='dark'] .arco-modal.media-collection-picker) {
-  background: #202020 !important;
+  background: var(--app-overlay-bg) !important;
   backdrop-filter: none !important;
 }
 :global(.arco-modal.media-collection-picker .arco-modal-header) {

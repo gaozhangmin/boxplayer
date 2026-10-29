@@ -1,0 +1,75 @@
+/* Settings layout: neutral surfaces, compact navigation, grouped form rows. */
+#xbybody .settings-shell{--settings-page:#fff;--settings-sidebar:#f5f5f7;--settings-card:#fff;--settings-line:#e4e4e9;--settings-ink:#242426;--settings-muted:#71717a;background:var(--settings-page)!important}
+body[arco-theme='dark'] #xbybody .settings-shell{--settings-page:#1c1c1e;--settings-sidebar:#232326;--settings-card:#262629;--settings-line:#3a3a3f;--settings-ink:#f2f2f4;--settings-muted:#a1a1aa}
+#xbybody .settings-shell .settings-sider{background:var(--settings-sidebar)!important;border:0;border-right:1px solid var(--settings-line);border-radius:0;box-shadow:none;padding:14px 10px;backdrop-filter:none}
+#xbybody .settings-shell .settings-side-title{min-height:48px;padding:8px 10px;margin-bottom:12px;background:none;border:0}
+#xbybody .settings-shell .settings-side-title strong{font-size:17px;font-weight:650;color:var(--settings-ink)}
+#xbybody .settings-shell .settings-search{margin:0 4px 16px}
+#xbybody .settings-shell .settings-search .arco-input-wrapper{border:1px solid var(--settings-line);border-radius:8px;box-shadow:none;background:var(--settings-card)}
+#xbybody .settings-shell .settings-menu-group{margin:16px 8px 4px;padding:0;border:0;font-size:11px;font-weight:500;color:var(--settings-muted)}
+#xbybody .settings-shell .settings-sider .xbyleftmenu .arco-menu-item{min-height:32px;height:32px;line-height:32px;margin:2px 0;padding:0 10px;border:0!important;border-radius:7px;background:transparent!important;color:var(--settings-ink)!important;font-size:13px;font-weight:500;box-shadow:none}
+#xbybody .settings-shell .settings-sider .xbyleftmenu .arco-menu-item:hover,#xbybody .settings-shell .settings-sider .xbyleftmenu .arco-menu-selected{background:var(--color-fill-3)!important;transform:none}
+#xbybody .settings-shell .settings-sider .xbyleftmenu .arco-menu-selected::before{display:none}
+#xbybody .settings-shell .settings-sider .xbyleftmenu .arco-icon,#xbybody .settings-shell .settings-sider .xbyleftmenu .iconfont{color:var(--settings-muted)!important;font-size:18px}
+#xbybody .settings-shell #SettingObserver{background:var(--settings-page)!important;padding:0 36px 48px!important;border-radius:0;border:0;box-shadow:none}
+#xbybody .settings-shell .settings-content-inner{max-width:960px;margin:0 auto;padding:0;width:100%;box-sizing:border-box}
+#xbybody .settings-shell #SettingObserver .settings-section{background:none!important;border:0!important;box-shadow:none!important;padding:0;margin:0 0 40px}
+#xbybody .settings-shell #SettingObserver .settings-section-header{padding:22px 0 16px;border-bottom:1px solid var(--settings-line);margin-bottom:24px;background:none!important}
+#xbybody .settings-shell #SettingObserver .settings-section-header h2{font-size:18px;font-weight:650;color:var(--settings-ink)}
+#xbybody .settings-shell #SettingObserver .settings-section-header::after{display:none}
+#xbybody .settings-shell #SettingObserver .settingcard{background:transparent!important;border:0;box-shadow:none;padding:0}
+#xbybody .settings-shell #SettingObserver .settinghead{margin:28px 0 14px;padding:0;min-height:0;font-size:15px;font-weight:650;line-height:24px;color:var(--settings-ink)!important;background:none!important;border:0}
+#xbybody .settings-shell #SettingObserver .settinghead::after,#xbybody .settings-shell #SettingObserver .settinghead::before{display:none}
+#xbybody .settings-shell #SettingObserver .settingspace{height:0;min-height:0;margin:0;padding:0}
+#xbybody .settings-shell #SettingObserver .settingrow{box-sizing:border-box;display:flex;align-items:center;flex-wrap:wrap;gap:12px;max-width:100%;min-height:56px;width:100%;margin:0;padding:16px 18px;border:1px solid var(--settings-line);border-radius:10px;background:var(--settings-card)!important;color:var(--settings-ink)!important;font-size:13px;box-shadow:none}
+#xbybody .settings-shell #SettingObserver .settingrow:has(+.settingrow){border-bottom-left-radius:0;border-bottom-right-radius:0}
+#xbybody .settings-shell #SettingObserver .settingrow+.settingrow{border-top:0;border-top-left-radius:0;border-top-right-radius:0}
+#xbybody .settings-shell #SettingObserver .settingrow>.myswitch{width:100%;display:flex;flex-direction:row-reverse;justify-content:space-between;height:auto;min-height:24px;gap:18px}
+#xbybody .settings-shell #SettingObserver .myswitchspan{margin:0;flex:1;color:var(--settings-ink);font-size:13px}
+#xbybody .settings-shell #SettingObserver .arco-switch{flex-shrink:0;background:#929297}
+#xbybody .settings-shell #SettingObserver .arco-switch-checked{background:#f58235}
+#xbybody .settings-shell #SettingObserver .settingrow>.arco-radio-group,#xbybody .settings-shell #SettingObserver .settingrow>.arco-select{margin-left:auto}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-group-button{background:var(--color-fill-2);padding:3px;border-radius:8px}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-button{background:transparent;border:0;border-radius:6px;color:var(--settings-muted)}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-checked{background:var(--settings-card);box-shadow:0 1px 4px #00000012}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-button-content{color:inherit}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-checked .arco-radio-button-content{color:var(--settings-ink)}
+#xbybody .settings-shell #SettingObserver .settings-account-disclosure{width:100%;margin:28px 0 14px;padding:0;min-height:24px;border:0;font-size:15px;font-weight:650;color:var(--settings-ink)}
+#xbybody .settings-shell .settings-support-links{border-color:var(--settings-line);margin:20px 4px}
+@media(max-width:900px){#xbybody .settings-shell #SettingObserver{padding:0 20px 32px!important}}
+/* Consistent page navigation and form control metrics. */
+#xbybody .settings-shell .settings-sider{width:200px!important;min-width:200px!important;max-width:200px!important;padding:18px 8px}
+#xbybody .settings-shell .settings-sider .xbyleftmenu .arco-menu-item{height:30px;min-height:30px;line-height:30px;margin:0 0 2px;padding:0 10px;font-size:13px;border-radius:6px}
+#xbybody .settings-shell .settings-menu-group{margin:18px 8px 6px;font-size:11px}
+#xbybody .settings-shell #SettingObserver .settings-section-header{position:sticky;top:0;z-index:5;background:var(--settings-page)!important;min-height:52px;box-sizing:border-box;display:flex;align-items:center;padding:12px 0;margin:0 0 30px;border-bottom:1px solid var(--settings-line)}
+#xbybody .settings-shell #SettingObserver .settings-section-header h2{font-size:18px;line-height:26px;margin:0;font-weight:650}
+#xbybody .settings-shell #SettingObserver .settinghead{font-size:15px;line-height:22px;margin:32px 0 16px;font-weight:600}
+#xbybody .settings-shell #SettingObserver .settingrow{min-height:54px;padding:13px 16px;gap:12px;font-size:13px;line-height:20px}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-btn{height:32px;font-size:13px;line-height:20px;padding:0 12px;border-radius:6px;box-sizing:border-box}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-input-wrapper,#xbybody .settings-shell #SettingObserver .settingrow .arco-select-view,#xbybody .settings-shell #SettingObserver .settingrow .arco-input-number{min-height:32px;border:1px solid var(--settings-line);border-radius:6px;background:var(--settings-card)!important;box-shadow:none}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-input,#xbybody .settings-shell #SettingObserver .settingrow .arco-select-view-value{font-size:13px;line-height:20px;color:var(--settings-ink)}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-button{font-size:12px;line-height:24px;min-height:24px;padding:0 10px}
+#xbybody .settings-shell #SettingObserver .settingrow .myswitchspan{line-height:20px;font-size:13px}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-switch{width:30px;min-width:30px;height:18px;line-height:18px}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-switch-handle{width:14px;height:14px;top:2px;left:2px}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-switch-checked .arco-switch-handle{left:calc(100% - 16px)}
+#xbybody .settings-shell .settings-sider{border-radius:0!important;box-shadow:none!important;margin:0!important}
+#xbybody .settings-shell .settings-sider .arco-menu-item{font-weight:400!important;font-size:13px!important}
+#xbybody .settings-shell .settings-sider .arco-menu-item:not(.arco-menu-selected){background:transparent!important}
+#xbybody .settings-shell #SettingObserver .settingrow>.arco-radio-group{margin-left:auto!important}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-checked{background:var(--settings-card)!important;color:var(--settings-ink)!important;border-color:transparent!important;box-shadow:0 1px 4px #0002}
+#xbybody .settings-shell #SettingObserver .settingrow .arco-radio-checked .arco-radio-button-content{color:var(--settings-ink)!important}
+#xbybody .settings-shell #SettingObserver .settings-row-label{font-size:13px;color:var(--settings-ink)}
+/* Compact spacing below the unchanged membership banner. */
+#xbybody .settings-shell #SettingObserver .settinghead{margin:18px 0 9px;font-size:14px;line-height:20px}
+#xbybody .settings-shell #SettingObserver .settingrow{min-height:44px;padding:8px 14px;gap:8px 12px}
+#xbybody .settings-shell #SettingObserver .settings-section-header{margin-bottom:18px}
+#xbybody .settings-shell #SettingObserver .play-setting-group{margin-bottom:18px;padding:0}
+#xbybody .settings-shell #SettingObserver .play-setting-header{margin-bottom:8px;padding:0;min-height:24px}
+#xbybody .settings-shell #SettingObserver .play-setting-header .settinghead{margin:0}
+#xbybody .settings-shell #SettingObserver .danmaku-grid{display:grid!important;grid-template-columns:minmax(100px,1fr) 180px!important;gap:0!important;padding:0 14px!important}
+#xbybody .settings-shell #SettingObserver .danmaku-grid>label{display:flex;align-items:center;min-height:44px;color:var(--settings-ink)!important;border-bottom:1px solid var(--settings-line);font-size:13px}
+#xbybody .settings-shell #SettingObserver .danmaku-grid>label+*{width:180px!important;max-width:100%;margin:0!important;justify-self:end;box-sizing:border-box}
+#xbybody .settings-shell #SettingObserver .danmaku-grid>.arco-input-number{height:30px;min-height:30px}
+#xbybody .settings-shell #SettingObserver .danmaku-grid>.arco-radio-group,#xbybody .settings-shell #SettingObserver .danmaku-grid>.arco-checkbox-group{width:auto!important;display:flex;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:600px){#xbybody .settings-shell #SettingObserver .danmaku-grid{grid-template-columns:minmax(85px,1fr) 160px!important}#xbybody .settings-shell #SettingObserver .danmaku-grid>label+*{width:160px!important}}

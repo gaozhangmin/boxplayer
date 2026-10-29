@@ -292,7 +292,7 @@ const useAppStore = defineStore('app', {
         if (tab == 'setting') DebugLog.aLoadFromDB()
       }
       this.appTabMenuMap.set(tab, menu)
-      if (tab == 'setting') document.getElementById(menu)?.scrollIntoView()
+
       onHideRightMenu()
     },
 
@@ -380,7 +380,7 @@ const useAppStore = defineStore('app', {
         case 'setting': {
           next(this.appTabMenuMap, this.appTab, ['SettingUI', 'SettingAccount', 'SettingSecurity', 'SettingPlay', 'SettingPan', 'SettingDown', 'SettingUpload', 'SettingDebug', 'SettingProxy', 'SettingAria', 'SettingDownloadAdvanced', 'SettingAPI', 'SettingLog'])
           const menu = this.appTabMenuMap.get('setting')!
-          document.getElementById(menu)?.scrollIntoView()
+          document.getElementById('SettingObserver')?.scrollTo({ top: 0 })
           break
         }
       }

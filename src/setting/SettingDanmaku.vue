@@ -78,15 +78,17 @@ const modeOptions: Array<{ label: string, value: DanmakuMode }> = [
       </div>
       <div class="settingrow play-setting-row danmaku-grid">
         <label>{{ t('settings.danmaku.duration') }}</label>
-        <a-input-number tabindex="-1" :min="1" :max="10" :step="1" :model-value="settingStore.danmakuSpeed" @update:model-value="update({ danmakuSpeed: Number($event) })" />
+        <a-input-number mode="button" :min="1" :max="10" :step="1" :model-value="settingStore.danmakuSpeed" @update:model-value="update({ danmakuSpeed: Number($event) })" />
         <label>{{ t('settings.danmaku.marginTop') }}</label>
-        <a-input-number tabindex="-1" :min="0" :max="200" :step="1" :model-value="settingStore.danmakuMarginTop" @update:model-value="update({ danmakuMarginTop: Number($event) })" />
+        <a-input-number mode="button" :min="0" :max="200" :step="1" :model-value="settingStore.danmakuMarginTop" @update:model-value="update({ danmakuMarginTop: Number($event) })" />
         <label>{{ t('settings.danmaku.marginBottom') }}</label>
-        <a-input tabindex="-1" :model-value="settingStore.danmakuMarginBottom" @update:model-value="update({ danmakuMarginBottom: $event })" />
+        <a-input-number mode="button" :min="0" :max="String(settingStore.danmakuMarginBottom).includes('%') ? 100 : 200" :step="1" :model-value="parseFloat(settingStore.danmakuMarginBottom) || 0" @update:model-value="update({ danmakuMarginBottom: String($event ?? 0) + (String(settingStore.danmakuMarginBottom).includes('%') ? '%' : '') })">
+          <template #suffix>{{ String(settingStore.danmakuMarginBottom).includes('%') ? '%' : 'px' }}</template>
+        </a-input-number>
         <label>{{ t('settings.danmaku.opacity') }}</label>
-        <a-input-number tabindex="-1" :min="0" :max="1" :step="0.1" :model-value="settingStore.danmakuOpacity" @update:model-value="update({ danmakuOpacity: Number($event) })" />
+        <a-input-number mode="button" :min="0" :max="1" :step="0.1" :model-value="settingStore.danmakuOpacity" @update:model-value="update({ danmakuOpacity: Number($event) })" />
         <label>{{ t('settings.danmaku.fontSize') }}</label>
-        <a-input-number tabindex="-1" :min="12" :max="80" :step="1" :model-value="settingStore.danmakuFontSize" @update:model-value="update({ danmakuFontSize: Number($event) })" />
+        <a-input-number mode="button" :min="12" :max="80" :step="1" :model-value="settingStore.danmakuFontSize" @update:model-value="update({ danmakuFontSize: Number($event) })" />
         <label>{{ t('settings.danmaku.defaultColor') }}</label>
         <a-input tabindex="-1" :model-value="settingStore.danmakuColor" @update:model-value="update({ danmakuColor: $event })" />
         <label>{{ t('settings.danmaku.defaultMode') }}</label>

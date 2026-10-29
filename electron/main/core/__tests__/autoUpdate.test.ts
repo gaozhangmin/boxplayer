@@ -16,13 +16,13 @@ class FakeUpdater extends EventEmitter {
 }
 
 describe('createAutoUpdateController', () => {
-  it('downloads an available update silently in the background', async () => {
+  it('waits for a click before downloading an available update', async () => {
     const updater = new FakeUpdater()
     const dialog = {
       showMessageBox: vi.fn().mockResolvedValue({ response: 0 })
     }
 
-    createAutoUpdateController({
+    const controller = createAutoUpdateController({
       updater,
       dialog,
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -33,6 +33,9 @@ describe('createAutoUpdateController', () => {
     updater.emit('update-available', { version: '4.0.12-beta', releaseNotes: '修复若干问题' })
     await Promise.resolve()
 
+    expect(updater.downloadUpdate).not.toHaveBeenCalled()
+    expect(controller.getState().status).toBe('available')
+    await controller.downloadNow?.()
     expect(dialog.showMessageBox).not.toHaveBeenCalled()
     expect(updater.downloadUpdate).toHaveBeenCalledTimes(1)
     expect(updater.allowPrerelease).toBe(true)
@@ -62,7 +65,8 @@ describe('createAutoUpdateController', () => {
       percent: 42.6,
       transferred: 426,
       total: 1000,
-      bytesPerSecond: 128
+      bytesPerSecond: 128,
+      releaseNotes: ''
     })
     expect(onStateChange).toHaveBeenLastCalledWith(controller.getState())
   })
@@ -85,7 +89,7 @@ describe('createAutoUpdateController', () => {
     expect(updater.checkForUpdates).toHaveBeenCalledTimes(1)
   })
 
-  it('prompts to restart after an update is downloaded', async () => {
+  it('automatically installs and restarts after download', async () => {
     const updater = new FakeUpdater()
     const dialog = {
       showMessageBox: vi.fn().mockResolvedValue({ response: 0 })
@@ -102,13 +106,7 @@ describe('createAutoUpdateController', () => {
     updater.emit('update-downloaded', { version: '4.0.12-beta' })
     await Promise.resolve()
 
-    expect(dialog.showMessageBox).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'info',
-      title: '更新已下载',
-      message: '新版本 4.0.12-beta 已在后台下载完成',
-      detail: '重启 App 即可完成更新安装。',
-      buttons: ['重启安装', '稍后']
-    }))
+    expect(dialog.showMessageBox).not.toHaveBeenCalled()
     expect(updater.quitAndInstall).toHaveBeenCalledWith(false, true)
   })
 
@@ -125,10 +123,10 @@ describe('createAutoUpdateController', () => {
   it('falls back to GitHub when the configured proxy cannot check for updates', async () => {
     const updater = new FakeUpdater()
     const dialog = { showMessageBox: vi.fn() }
-    createAutoUpdateController({ updater, dialog, logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, currentVersion: '4.0.11', isPackaged: true, updateProxy: { enabled: true, url: 'https://gh-proxy.com' } })
+    const controller = createAutoUpdateController({ updater, dialog, logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, currentVersion: '4.0.11', isPackaged: true, updateProxy: { enabled: true, url: 'https://gh-proxy.com' } })
 
     updater.emit('error', new Error('proxy unavailable'))
-    await Promise.resolve()
+    await controller.downloadNow?.()
 
     expect(updater.setFeedURL).toHaveBeenLastCalledWith('https://github.com/gaozhangmin/boxplayer/releases/latest/download/')
     expect(updater.checkForUpdates).toHaveBeenCalledTimes(1)
@@ -147,7 +145,7 @@ describe('createAutoUpdateController', () => {
 
     await controller.checkNow()
     updater.emit('update-available', { version: '4.0.12' })
-    await Promise.resolve()
+    await controller.downloadNow?.()
 
     expect(updater.setFeedURL).toHaveBeenLastCalledWith('https://update-proxy.example/https://github.com/gaozhangmin/boxplayer/releases/latest/download/')
     expect(updater.downloadUpdate).toHaveBeenCalledTimes(1)
@@ -169,7 +167,7 @@ describe('createAutoUpdateController', () => {
   it('falls back to GitHub and retries after a proxied download fails', async () => {
     const updater = new FakeUpdater()
     updater.downloadUpdate.mockRejectedValueOnce(new Error('proxy download unavailable')).mockResolvedValueOnce(undefined)
-    createAutoUpdateController({
+    const controller = createAutoUpdateController({
       updater,
       dialog: { showMessageBox: vi.fn() },
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
@@ -179,14 +177,33 @@ describe('createAutoUpdateController', () => {
     })
 
     updater.emit('update-available', { version: '4.0.12' })
+    await controller.downloadNow?.()
     await new Promise(resolve => setTimeout(resolve, 0))
 
     expect(updater.setFeedURL).toHaveBeenLastCalledWith('https://github.com/gaozhangmin/boxplayer/releases/latest/download/')
     expect(updater.checkForUpdates).toHaveBeenCalledTimes(1)
 
     updater.emit('update-available', { version: '4.0.12' })
-    await Promise.resolve()
+    await controller.downloadNow?.()
     expect(updater.downloadUpdate).toHaveBeenCalledTimes(2)
+  })
+
+  it('persists release notes and shows them after successful installation until acknowledged', async () => {
+    const directory = mkdtempSync(join(tmpdir(), 'boxplayer-installed-'))
+    const updateStatePath = join(directory, 'pending-update.json')
+    const updater = new FakeUpdater()
+    const options = { updater, dialog: { showMessageBox: vi.fn() }, logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() }, currentVersion: '4.0.11', isPackaged: true, updateStatePath }
+    createAutoUpdateController(options)
+    updater.emit('update-available', { version: '4.0.12', releaseNotes: '修复播放问题' })
+    updater.emit('update-downloaded', { version: '4.0.12' })
+    const installed = createAutoUpdateController({ ...options, updater: new FakeUpdater(), currentVersion: '4.0.12' })
+    expect(installed.getState()).toMatchObject({ status: 'installed', previousVersion: '4.0.11', version: '4.0.12', releaseNotes: '修复播放问题' })
+    await installed.checkNow()
+    expect(installed.getState().status).toBe('installed')
+    installed.acknowledge?.()
+    expect(installed.getState().status).toBe('idle')
+    const restarted = createAutoUpdateController({ ...options, updater: new FakeUpdater(), currentVersion: '4.0.12' })
+    expect(restarted.getState().status).toBe('idle')
   })
 
   it('reads the update proxy switch and URL from setting.config', () => {

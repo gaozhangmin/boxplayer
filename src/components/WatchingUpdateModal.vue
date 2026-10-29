@@ -20,5 +20,5 @@ button { border: 0; border-radius: 6px; background: var(--color-fill-3); color: 
 </style>
 <style>
 .watching-update-modal.arco-modal { width: min(280px, calc(100vw - 32px)) !important; border-radius: 6px !important }
-body[arco-theme='dark'] .arco-modal.watching-update-modal { background: #373a3a !important; backdrop-filter: none !important }
+body[arco-theme='dark'] .arco-modal.watching-update-modal { background: var(--app-overlay-bg) !important; backdrop-filter: none !important}
 </style>

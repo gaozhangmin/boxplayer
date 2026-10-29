@@ -11,6 +11,8 @@ import fs from 'node:fs'
 import message from '../utils/message'
 import { Sleep } from '../utils/format'
 import { BOXPLAYER_SITE_URL, buildProPurchaseUrlForCurrentSession, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
+import { appUpdate, initializeAppUpdate, checkAppUpdate, downloadAppUpdate } from '../utils/appUpdate'
+initializeAppUpdate()
 import SettingsMembershipHeader from '../components/SettingsMembershipHeader.vue'
 import { resolveBoxPlayerProTier } from '../utils/boxplayerProTier'
 import { t } from '../i18n'
@@ -299,28 +301,6 @@ const cb = (val: any) => {
 const installedAppVersion = ref(getPkgVersion())
 const getAppVersion = computed(() => installedAppVersion.value)
 
-const verLoading = ref(false)
-const handleCheckVer = async () => {
-  verLoading.value = true
-  try {
-    const state = await window.AutoUpdateCheck?.(true)
-    if (!state || state.status === 'unsupported') {
-      message.info('后台更新仅支持已打包的桌面版本')
-    } else if (state.status === 'downloading') {
-      message.info(state.version ? `新版本 ${state.version} 正在后台下载` : '新版本正在后台下载')
-    } else if (state.status === 'downloaded') {
-      message.success(state.version ? `新版本 ${state.version} 已下载，退出 App 后即可更新` : '新版本已下载，退出 App 后即可更新')
-    } else if (state.status === 'up-to-date') {
-      message.info(`已经是最新版 ${getAppVersion.value}`, 6)
-    } else if (state.status === 'error') {
-      message.error('检查更新失败，请检查网络是否正常')
-    } else {
-      message.info('正在检查更新')
-    }
-  } finally {
-    verLoading.value = false
-  }
-}
 const handleUpdateLog = () => {
   modalUpdateLog()
 }
@@ -329,39 +309,19 @@ function openSupport() {
   openExternal('https://xbyvideohub.com/support/')
 }
 
-const handleImportAsar = () => {
-  window.WebShowOpenDialogSync({
-    title: t('settings.selectAsar'),
-    buttonLabel: t('settings.importUpdateFile'),
-    filters: [{ name: 'app.asar', extensions: ['asar'] }],
-    properties: ['openFile', 'showHiddenFiles', 'noResolveAliases', 'treatPackageAsDirectory', 'dontAddToRecent']
-  }, async (files: string[] | undefined) => {
-    if (files && files.length > 0) {
-      // 导入到app.new
-      await fs.promises.cp(files[0], getAppNewPath())
-      message.info(t('settings.importUpdateSuccess'), 0)
-      await Sleep(1000)
-      window.WebToElectron({ cmd: 'relaunch' })
-    }
-  })
-}
 </script>
 
 <template>
   <div class='settingcard'>
     <SettingsMembershipHeader :signed-in="isLoggedIn" :email="accountEmail" :tier="isPro ? proTier : 'standard'"
-      @membership="isPro ? openAccountDetails() : showUpgradeModal = true" />
-    <div class='settings-app-hero'>
-      <div class='settings-app-badge'>{{ t('settings.application') }}</div>
-      <div class='appver'>
-        BoxPlayer {{ getAppVersion }}
-        <span class="appver-badge" :class="{ pro: isPro }">
-          <Crown v-if="isPro" :size="15" :stroke-width="2.2" />
-          <Code2 v-else :size="15" :stroke-width="2.2" />
-          {{ isPro ? 'PRO' : t('settings.openSource') }}
-        </span>
-      </div>
-    </div>
+      @membership="isPro ? openAccountDetails() : showUpgradeModal = true">
+      <template #actions>
+        <div v-if="['available', 'downloading', 'downloaded', 'error'].includes(appUpdate.status)" class="banner-update-status">
+          <a-button v-if="appUpdate.status === 'available'" class="banner-update-button" @click="downloadAppUpdate">↓ 更新到 v{{ appUpdate.version }}</a-button>
+          <a-button v-else-if="appUpdate.status === 'downloading' || appUpdate.status === 'downloaded'" class="banner-update-button" loading disabled>更新中… {{ Math.round(appUpdate.percent || 0) }}%</a-button>
+          <template v-else><span>更新失败：{{ appUpdate.message }}</span><a-button @click="checkAppUpdate">重试</a-button></template>
+          <span v-if="appUpdate.version">检测到新版本：{{ appUpdate.version }}</span>
+        </div>
     <div class='settings-app-actions'>
       <span class='settings-app-version'>BoxPlayer {{ getAppVersion }}</span>
       <a-button type='outline' status='success' size='small' @click='handleUpdateLog'>
@@ -370,18 +330,18 @@ const handleImportAsar = () => {
       <a-button type='outline' status='warning' size='small' @click='openSupport'>
         {{ t('settings.submitFeedback') }}
       </a-button>
-      <a-button type='outline' size='small' :loading='verLoading' @click='handleCheckVer'>
+      <a-button type='outline' size='small' :loading="appUpdate.status === 'checking'" @click='checkAppUpdate'>
         {{ t('settings.checkUpdates') }}
       </a-button>
-      <a-button v-if='platform !== "linux"' status='warning' type='outline' size='small' @click='handleImportAsar'>
-        {{ t('settings.import') }}
-      </a-button>
+
     </div>
+      </template>
+    </SettingsMembershipHeader>
     <div class='settingspace'></div>
-    <button class="settings-account-disclosure" :aria-expanded="showAccountControls" aria-controls="settings-account-controls" @click="showAccountControls = !showAccountControls">
-      <UserRound :size="24" aria-hidden="true" /><span>{{ t('settings.accountPro') }}</span><ChevronRight :size="18" :class="{ expanded: showAccountControls }" aria-hidden="true" />
-    </button>
-    <div v-show="showAccountControls" id="settings-account-controls" class='settingrow setting-account-row'>
+    <div class="settings-account-disclosure">
+      <UserRound :size="24" aria-hidden="true" /><span>{{ t('settings.accountPro') }}</span>
+    </div>
+    <div id="settings-account-controls" class='settingrow setting-account-row'>
       <div class='setting-account-panel'>
         <template v-if="isLoggedIn">
           <div class='setting-account-main'>
@@ -456,16 +416,14 @@ const handleImportAsar = () => {
     </div>
 
     <div class='settingspace'></div>
-    <div class='settinghead'>{{ t('settings.language') }}</div>
-    <div class='settingrow'>
+    <div class='settinghead'>{{ t('settings.appearance') }}</div>
+    <div class='settingrow'><span class='settings-row-label'>{{ t('settings.language') }}</span>
       <a-radio-group type='button' tabindex='-1' :model-value='settingStore.uiLanguage' @update:model-value='cb({ uiLanguage: $event })'>
         <a-radio tabindex='-1' value='zh-CN'>{{ t('settings.chinese') }}</a-radio>
         <a-radio tabindex='-1' value='en-US'>{{ t('settings.english') }}</a-radio>
       </a-radio-group>
     </div>
-    <div class='settingspace'></div>
-    <div class='settinghead'>{{ t('settings.appearance') }}</div>
-    <div class='settingrow'>
+    <div class='settingrow'><span class='settings-row-label'>{{ t('settings.appearance') }}</span>
       <a-radio-group type='button' tabindex='-1' :model-value='settingStore.uiTheme'
                      @update:model-value='cb({ uiTheme: $event })'>
         <a-radio tabindex='-1' value='system'>{{ t('common.system') }}</a-radio>
@@ -941,4 +899,8 @@ const handleImportAsar = () => {
 
 .settings-account-disclosure{display:flex;align-items:center;gap:18px;min-height:68px;width:calc(100% - 44px);margin:0 22px;padding:16px 0;border:0;border-bottom:1px solid #63866a35;background:transparent;color:var(--color-text-1);font:inherit;cursor:pointer;text-align:left;}
 .settings-account-disclosure>svg:first-child{color:#20c66d;flex-shrink:0}.settings-account-disclosure>span{flex:1}.settings-account-disclosure>svg:last-child{color:var(--color-text-3);transition:transform .15s}.settings-account-disclosure .expanded{transform:rotate(90deg)}
+</style>
+
+<style scoped>
+.banner-update-status{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 0;color:#fff}.banner-update-button{background:#fff!important;color:#e87300!important;border:0!important;border-radius:10px;font-weight:700;height:40px;padding:0 20px}
 </style>

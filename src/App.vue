@@ -9,6 +9,7 @@ import PageMain from './layout/PageMain.vue'
 import './assets/global.css'
 import './assets/fileitem.css'
 import './assets/antd.css'
+import './styles/overlaySurfaces.css'
 
 const PageVideoXBTVue = defineAsyncComponent(() => import('./layout/PageVideoXBT.vue'))
 const PageCode = defineAsyncComponent(() => import('./layout/PageCode.vue'))

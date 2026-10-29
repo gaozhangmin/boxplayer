@@ -134,10 +134,6 @@ export function modalUpdateLog() {
   useModalStore().showModal('showupdatelog', {})
 }
 
-export function modalUpdate(verData: IServerVerData) {
-  useModalStore().showModal('showupdate', { verData })
-}
-
 export function modalShowPost(msg: string, msgid: string) {
   useModalStore().showModal('showpostmodal', { msg, msgid })
 }

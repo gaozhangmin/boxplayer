@@ -307,7 +307,7 @@ button1:focus {
 }
 
 body[arco-theme='dark'] .arco-modal {
-    background: #2d2d3b !important;
+    background: var(--app-overlay-bg) !important;
     box-shadow: 0 2px 20px 0 rgb(0 0 0 / 45%) !important;
 }
 
@@ -1171,11 +1171,10 @@ body:not([arco-theme='dark']) .mr-eyebrow {
 body[arco-theme='dark'] .arco-dropdown,
 body[arco-theme='dark'] .arco-select-dropdown,
 body[arco-theme='dark'] .arco-popover-popup-content {
-    background:
-        linear-gradient(145deg, rgba(18,21,26,.94), rgba(8,9,13,.96)) !important;
+    background: var(--app-overlay-bg) !important;
     border: 1px solid rgba(255,255,255,.085) !important;
     box-shadow: 0 22px 60px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.06) !important;
-    backdrop-filter: blur(28px) saturate(1.18) !important;
+    backdrop-filter: none !important;
 }
 
 body[arco-theme='dark'] .arco-dropdown-option,
@@ -1241,7 +1240,7 @@ body:not([arco-theme='dark']) .rightmenu .arco-dropdown {
     padding: 6px !important;
     border: 1px solid var(--color-border-2) !important;
     border-radius: 14px !important;
-    background: var(--color-bg-1) !important;
+    background: var(--app-overlay-bg) !important;
     box-shadow: 0 18px 46px rgba(15,23,42,.10) !important;
 }
 
@@ -1254,11 +1253,10 @@ body:not([arco-theme='dark']) .rightmenu.arco-dropdown .arco-dropdown-option {
 
 /* --- Modal glass utility --- */
 body[arco-theme='dark'] .arco-modal {
-    background:
-        linear-gradient(145deg, rgba(18,21,26,.96), rgba(8,9,11,.98)) !important;
+    background: var(--app-overlay-bg) !important;
     border: 1px solid rgba(255,255,255,.085) !important;
     box-shadow: 0 28px 80px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.06) !important;
-    backdrop-filter: blur(30px) saturate(1.18) !important;
+    backdrop-filter: none !important;
 }
 
 body[arco-theme='dark'] .arco-modal-header {

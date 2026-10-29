@@ -512,3 +512,6 @@ ipcRenderer.on('webview-redirect', (e, webContentsId, url) => {
   const evt = new Event('will-redirect', { bubbles: true, cancelable: false })
   webview.dispatchEvent(Object.assign(evt, { url }))
 })
+
+window.AutoUpdateDownload = () => ipcRenderer.invoke('AutoUpdate:Download')
+window.AutoUpdateAcknowledge = () => ipcRenderer.invoke('AutoUpdate:Acknowledge')

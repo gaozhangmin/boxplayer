@@ -1,5 +1,6 @@
 <script setup lang='ts'>
 import { computed, h, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import SourceFormSurface from '../components/SourceFormSurface.vue'
 import { ITokenInfo, useAppStore, useSettingStore, useUserStore } from '../store'
 import UserDAL from '../user/userdal'
 import Config from '../config'
@@ -30,6 +31,31 @@ import { t } from '../i18n'
 import { createAListConnection, createWebDavConnection, saveWebDavConnection, testWebDavConnection } from '../utils/webdavClient'
 import { createRemoteDriveAccount } from '../utils/remoteDriveAccount'
 import { useMediaLibraryStore } from '../store/medialibrary'
+
+const props = defineProps<{ embedded?: boolean; provider?: string; sourceName?: string }>()
+const emit = defineEmits<{ connected: []; cancel: [] }>()
+const inlineVisible = ref(false)
+let disposed = false
+let loginCompleted = false
+const loginVisible = computed({
+  get: () => props.embedded ? inlineVisible.value : useUser.userShowLogin,
+  set: value => {
+    if (disposed) return
+    if (props.embedded) {
+      inlineVisible.value = value
+      if (!value) {
+        if (loginCompleted) emit('connected')
+        else emit('cancel')
+      }
+    } else useUser.userShowLogin = value
+  }
+})
+const saveLogin = async (token: ITokenInfo, interactive = false) => {
+  if (disposed || !loginVisible.value) return
+  const sourceName = ['webdav', 'alist'].includes(loginProvider.value) ? remoteDriveForm.value.name : props.sourceName
+  await UserDAL.UserLogin(token, interactive, props.embedded ? sourceName : undefined)
+  loginCompleted = true
+}
 
 const useUser = useUserStore()
 const settingStore = useSettingStore()
@@ -94,7 +120,7 @@ const googleState = ref('')
 const googleRedirectUri = ref('')
 const googleLoading = ref(false)
 const remoteDriveLoading = ref(false)
-const remoteDriveForm = ref({ name: '', url: '', username: '', password: '', rootPath: '/' })
+const remoteDriveForm = ref({ name: props.sourceName || '', url: '', username: '', password: '', rootPath: '/' })
 const drive115ClientId = ref(DRIVE115_APP_ID || '')
 const drive115Verifier = ref('')
 const drive115Uid = ref('')
@@ -132,7 +158,8 @@ const clearOpenTimers = () => {
 }
 
 const handleModalOpen = () => {
-  const stored = localStorage.getItem('login_provider')
+  if (disposed || !loginVisible.value) return
+  const stored = props.embedded ? props.provider : localStorage.getItem('login_provider')
   if (stored === 'cloud123' || stored === 'aliyun' || stored === '115' || stored === '139' || stored === '189' || stored === 'guangya' || stored === 'baidu' || stored === 'pikpak' || stored === 'quark' || stored === 'dropbox' || stored === 'onedrive' || stored === 'box' || stored === 'google' || stored === 'webdav' || stored === 'alist') {
     loginProvider.value = stored
   }
@@ -172,6 +199,7 @@ const handleModalOpen = () => {
 }
 
 const handleOauthCallback = (event: any) => {
+  if (!loginVisible.value) return
   if (loginProvider.value !== 'cloud123' && loginProvider.value !== 'baidu' && loginProvider.value !== 'dropbox' && loginProvider.value !== 'onedrive' && loginProvider.value !== 'box' && loginProvider.value !== 'google') return
   const url = event?.detail || ''
   if (!url) return
@@ -206,15 +234,21 @@ const handleOauthCallback = (event: any) => {
 }
 
 onMounted(() => {
+  if (props.embedded) {
+    useUser.loginFromFileSources = true
+    inlineVisible.value = true
+  }
   window.addEventListener('cloud123-oauth-callback', handleOauthCallback as EventListener)
 })
 
 onBeforeUnmount(() => {
+  disposed = true
+  if (props.embedded) { handleClose(); useUser.loginFromFileSources = false }
   window.removeEventListener('cloud123-oauth-callback', handleOauthCallback as EventListener)
 })
 
 watch(loginProvider, () => {
-  if (!useUser.userShowLogin) return
+  if (props.embedded || !loginVisible.value) return
   clearOpenTimers()
   if (loginProvider.value === 'cloud123') {
     handleOpenCloud123()
@@ -289,7 +323,7 @@ const refreshQrCodeStatus = (codeUrl: string = '', type: string = 'info', tips: 
 const handleOpen = () => {
   clearOpenTimers()
   loginOpenTimer = setTimeout(() => {
-    if (loginProvider.value !== 'aliyun' || !useUser.userShowLogin) return
+    if (loginProvider.value !== 'aliyun' || !loginVisible.value) return
     const webview = getAliyunLoginWebview()
     if (!webview) {
       message.error(t('login.loginFailed'))
@@ -375,7 +409,7 @@ const handleOpen = () => {
     if (load?.catch) {
       load.catch((err: any) => {
         loginLoading.value = false
-        if (loginProvider.value === 'aliyun' && useUser.userShowLogin) DebugLog.mSaveWarning('Aliyun login webview load failed ' + (err?.message || err))
+        if (loginProvider.value === 'aliyun' && loginVisible.value) DebugLog.mSaveWarning('Aliyun login webview load failed ' + (err?.message || err))
       })
     }
     webview.addEventListener('did-finish-load', () => {
@@ -388,6 +422,7 @@ const handleOpen = () => {
 }
 
 const handleClose = () => {
+  if (!props.embedded) useUser.loginFromFileSources = false
   aliyunWebviewInitialized = false
   loginLoading.value = true
   client_id.value = ALIYUN_APP_ID
@@ -456,13 +491,14 @@ const submitRemoteDrive = async () => {
   try {
     const connection = provider === 'alist' ? createAListConnection(form) : createWebDavConnection(form)
     await testWebDavConnection(connection)
+    if (disposed || !loginVisible.value) return
     saveWebDavConnection(connection)
     const account = createRemoteDriveAccount(connection)
     const mediaStore = useMediaLibraryStore()
     if (!mediaStore.folders.some((folder) => folder.id === account.folder.id)) mediaStore.addFolder(account.folder)
-    await UserDAL.UserLogin(account.token)
-    useAppStore().resetTab('pan')
-    useUser.userShowLogin = false
+    await saveLogin(account.token)
+    if (!props.embedded) useAppStore().resetTab('pan')
+    loginVisible.value = false
     message.success(`${provider === 'alist' ? 'AList' : 'WebDAV'} 已连接，可在网盘中浏览并对文件夹执行刮削`)
   } catch (error: any) {
     message.error(`连接失败：${error?.message || '请检查地址和登录信息'}`)
@@ -475,7 +511,7 @@ const handleOpenCloud123 = () => {
   loginLoading.value = false
   clearOpenTimers()
   cloud123OpenTimer = setTimeout(() => {
-    if (loginProvider.value !== 'cloud123' || !useUser.userShowLogin) return
+    if (loginProvider.value !== 'cloud123' || !loginVisible.value) return
     const authUrl = buildCloud123AuthUrl()
     window.Electron.shell.openExternal(authUrl)
   }, 50)
@@ -489,7 +525,7 @@ const handleReopenCloud123 = () => {
 const handleOpenBaidu = () => {
   loginLoading.value = false
   clearOpenTimers()
-  if (loginProvider.value !== 'baidu' || !useUser.userShowLogin) return
+  if (loginProvider.value !== 'baidu' || !loginVisible.value) return
   const authUrl = buildBaiduAuthUrl()
   baiduAuthUrl.value = authUrl
   window.Electron.shell.openExternal(authUrl)
@@ -512,6 +548,7 @@ const handleOpenDropbox = async () => {
   localStorage.setItem('dropbox_app_key', appKey)
   dropboxVerifier.value = createDropboxPkceVerifier()
   const authUrl = await buildDropboxAuthUrl(appKey, dropboxVerifier.value)
+  if (disposed || !loginVisible.value) return
   dropboxAuthUrl.value = authUrl
   window.Electron.shell.openExternal(authUrl)
 }
@@ -531,6 +568,7 @@ const handleOpenOneDrive = async () => {
   localStorage.setItem('onedrive_client_id', clientId)
   onedriveVerifier.value = createOneDrivePkceVerifier()
   const authUrl = await buildOneDriveAuthUrl(clientId, onedriveVerifier.value)
+  if (disposed || !loginVisible.value) return
   onedriveAuthUrl.value = authUrl
   window.Electron.shell.openExternal(authUrl)
 }
@@ -550,6 +588,7 @@ const handleOpenBox = async () => {
   localStorage.setItem('box_client_id', clientId)
   boxVerifier.value = createBoxPkceVerifier()
   const authUrl = await buildBoxAuthUrl(clientId, boxVerifier.value)
+  if (disposed || !loginVisible.value) return
   boxAuthUrl.value = authUrl
   window.Electron.shell.openExternal(authUrl)
 }
@@ -570,6 +609,7 @@ const handleOpenGoogle = async () => {
     return
   }
   const redirectUri = await window.Electron?.ipcRenderer?.invoke?.('GoogleOAuth:StartLoopback')
+  if (disposed || !loginVisible.value) return
   if (typeof redirectUri !== 'string' || !redirectUri.startsWith('http://127.0.0.1:')) {
     message.error('Google Drive 本机授权回调启动失败')
     return
@@ -578,7 +618,8 @@ const handleOpenGoogle = async () => {
   googleRedirectUri.value = redirectUri
   googleVerifier.value = createGooglePkceVerifier()
   googleState.value = crypto.randomUUID()
-  window.Electron.shell.openExternal(await buildGoogleAuthUrl(clientId, googleVerifier.value, redirectUri, googleState.value))
+  const authUrl = await buildGoogleAuthUrl(clientId, googleVerifier.value, redirectUri, googleState.value)
+  if (!disposed && loginVisible.value) window.Electron.shell.openExternal(authUrl)
 }
 
 const handleReopenGoogle = () => {
@@ -595,8 +636,8 @@ const submitCloud123Code = async () => {
   try {
     const token = await exchangeCloud123CodeForToken(cloud123Code.value.trim())
     if (token) {
-      await UserDAL.UserLogin(token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(token, true)
+      loginVisible.value = false
     }
   } catch (error) {
     console.error('123网盘登录失败:', error)
@@ -616,8 +657,8 @@ const submitBaiduCode = async () => {
   try {
     const token = await exchangeBaiduCodeForToken(baiduCode.value.trim())
     if (token) {
-      await UserDAL.UserLogin(token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(token, true)
+      loginVisible.value = false
     }
   } catch (error) {
     console.error('百度网盘登录失败:', error)
@@ -638,8 +679,8 @@ const submitDropboxCode = async (code: string) => {
   try {
     const token = await exchangeDropboxCodeForToken(code, appKey, dropboxVerifier.value)
     if (token) {
-      await UserDAL.UserLogin(token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(token, true)
+      loginVisible.value = false
     }
   } catch (error) {
     console.error('Dropbox 登录失败:', error)
@@ -660,8 +701,8 @@ const submitOneDriveCode = async (code: string) => {
   try {
     const token = await exchangeOneDriveCodeForToken(code, clientId, onedriveVerifier.value)
     if (token) {
-      await UserDAL.UserLogin(token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(token, true)
+      loginVisible.value = false
     }
   } catch (error) {
     console.error('OneDrive 登录失败:', error)
@@ -682,8 +723,8 @@ const submitBoxCode = async (code: string) => {
   try {
     const token = await exchangeBoxCodeForToken(code, clientId, boxVerifier.value)
     if (token) {
-      await UserDAL.UserLogin(token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(token, true)
+      loginVisible.value = false
     }
   } catch (error) {
     console.error('Box 登录失败:', error)
@@ -699,8 +740,8 @@ const submitGoogleCode = async (code: string) => {
   try {
     const token = await exchangeGoogleCodeForToken(code, googleClientId.value, googleVerifier.value, googleRedirectUri.value)
     if (token) {
-      await UserDAL.UserLogin(token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(token, true)
+      loginVisible.value = false
     }
   } catch (error) {
     console.error('Google Drive 登录失败:', error)
@@ -723,8 +764,8 @@ const submitPikPakLogin = async () => {
   pikpakLoading.value = true
   try {
     const token = await loginPikPak(username, pikpakPassword.value)
-    await UserDAL.UserLogin(token, true)
-    useUserStore().userShowLogin = false
+    await saveLogin(token, true)
+    loginVisible.value = false
   } catch (err: any) {
     message.error(err?.message || `PikPak ${t('login.loginFailed')}`)
   } finally {
@@ -741,8 +782,8 @@ const submitCloud139Login = async () => {
   cloud139Loading.value = true
   try {
     const token = normalizeCloud139Token(cloud139Authorization.value.trim())
-    await UserDAL.UserLogin(token, true)
-    useUserStore().userShowLogin = false
+    await saveLogin(token, true)
+    loginVisible.value = false
   } catch (err: any) {
     message.error(err?.message || `139 云盘 ${t('login.loginFailed')}`)
   } finally {
@@ -783,8 +824,8 @@ const submitGuangyaLogin = async () => {
   guangyaLoading.value = true
   try {
     const token = await submitGuangyaSmsCode(guangyaSmsState.value, code, guangyaDeviceId.value)
-    await UserDAL.UserLogin(token, true)
-    useUserStore().userShowLogin = false
+    await saveLogin(token, true)
+    loginVisible.value = false
   } catch (err: any) {
     message.error(err?.message || `光鸭云盘 ${t('login.loginFailed')}`)
   } finally {
@@ -827,7 +868,7 @@ const handleOpen189 = async () => {
 }
 
 const pollCloud189Status = async () => {
-  if (loginProvider.value !== '189' || !useUser.userShowLogin || !cloud189QrState.value) return
+  if (loginProvider.value !== '189' || !loginVisible.value || !cloud189QrState.value) return
   if (cloud189Polling) return
   cloud189Polling = true
   const state = cloud189QrState.value
@@ -838,8 +879,8 @@ const pollCloud189Status = async () => {
       clearCloud189Timer()
       cloud189QrStatusType.value = 'success'
       cloud189Tips.value = t('login.scanSuccessSigningIn')
-      await UserDAL.UserLogin(result.token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(result.token, true)
+      loginVisible.value = false
       return
     }
     if (result.status === 'expired' || result.status === 'failed') {
@@ -895,7 +936,7 @@ const handleOpenQuark = async () => {
 }
 
 const pollQuarkStatus = async () => {
-  if (loginProvider.value !== 'quark' || !useUser.userShowLogin || !quarkQrToken.value) return
+  if (loginProvider.value !== 'quark' || !loginVisible.value || !quarkQrToken.value) return
   if (quarkPolling) return
   quarkPolling = true
   const pollingToken = quarkQrToken.value
@@ -910,8 +951,8 @@ const pollQuarkStatus = async () => {
       quarkTips.value = t('login.scanSuccessSigningIn')
       try {
         const token = await completeQuarkQrLogin(status.serviceTicket)
-        await UserDAL.UserLogin(token, true)
-        useUserStore().userShowLogin = false
+        await saveLogin(token, true)
+        loginVisible.value = false
       } catch (err: any) {
         quarkQrStatusType.value = 'error'
         quarkTips.value = err?.message || t('login.loginFailed')
@@ -938,7 +979,7 @@ const pollQuarkStatus = async () => {
     if (quarkQrToken.value !== pollingToken) return
     quarkQrStatusType.value = 'error'
     quarkTips.value = err?.message || t('login.loginFailed')
-    if (loginProvider.value === 'quark' && useUser.userShowLogin && quarkQrToken.value) {
+    if (loginProvider.value === 'quark' && loginVisible.value && quarkQrToken.value) {
       quarkTimer = setTimeout(pollQuarkStatus, 2000)
     }
   } finally {
@@ -1009,8 +1050,8 @@ const poll115Status = async () => {
         return
       }
       await refreshDrive115UserInfo(token)
-      await UserDAL.UserLogin(token, true)
-      useUserStore().userShowLogin = false
+      await saveLogin(token, true)
+      loginVisible.value = false
       return
     }
   } catch (err: any) {
@@ -1248,7 +1289,7 @@ const handleRefreshQrCodeUrl = () => {
 }
 
 const loginSuccess = (token: ITokenInfo) => {
-  UserDAL.UserLogin(token, true)
+  saveLogin(token, true)
     .then(() => {
       if (window.WebClearCookies) {
         window.WebClearCookies({
@@ -1258,10 +1299,10 @@ const loginSuccess = (token: ITokenInfo) => {
       }
       refreshStepTips('process', 3)
       refreshQrCodeStatus()
-      useUserStore().userShowLogin = false
+      loginVisible.value = false
     })
     .catch(() => {
-      useUserStore().userShowLogin = false
+      loginVisible.value = false
       if (window.WebClearCookies) {
         window.WebClearCookies({
           origin: 'https://auth.aliyundrive.com',
@@ -1275,11 +1316,9 @@ const loginSuccess = (token: ITokenInfo) => {
 </script>
 
 <template>
-  <a-modal :title="t('login.driveAccount')" v-model:visible='useUser.userShowLogin'
-           :mask-closable='false' unmount-on-close :footer='false'
-           class='userloginmodal' @before-open='handleModalOpen' @close='handleClose'>
-    <div class="modalbody login-modal-body">
-      <aside class="login-provider-sidebar">
+  <SourceFormSurface :embedded="embedded" :visible="loginVisible" :title="embedded ? undefined : t('login.driveAccount')" :closable="!embedded" modal-class="userloginmodal" @update:visible="loginVisible = $event" @before-open="handleModalOpen" @close="handleClose">
+    <div class="modalbody login-modal-body" :class="{ 'login-embedded': embedded }">
+      <aside v-if="!embedded" class="login-provider-sidebar">
         <button
           v-for="provider in loginProviders"
           :key="provider"
@@ -1524,22 +1563,21 @@ const loginSuccess = (token: ITokenInfo) => {
       <div v-else-if="loginProvider === 'webdav' || loginProvider === 'alist'">
         <div id='logindiv'>
           <div class='logincontent'>
-            <div class="remote-drive-login-form">
-              <a-input v-model="remoteDriveForm.name" :placeholder="loginProvider === 'alist' ? '名称，例如：家庭 AList' : '名称，例如：NAS 影视库'" allow-clear />
-              <a-input v-model="remoteDriveForm.url" :placeholder="loginProvider === 'alist' ? 'AList 地址，例如：http://127.0.0.1:5244' : 'WebDAV 地址，例如：https://example.com/dav'" allow-clear />
-              <a-input v-model="remoteDriveForm.username" placeholder="用户名" allow-clear />
-              <a-input-password v-model="remoteDriveForm.password" placeholder="密码" allow-clear @press-enter="submitRemoteDrive" />
-              <a-input v-model="remoteDriveForm.rootPath" placeholder="挂载路径，默认 /" allow-clear />
-              <p class="remote-drive-hint">连接后会切换到当前网盘，可直接浏览文件夹，并通过文件夹菜单扫描或重新刮削。</p>
-              <a-button type="primary" long :loading="remoteDriveLoading" @click="submitRemoteDrive">连接并打开网盘</a-button>
-            </div>
+            <form class="remote-drive-login-form" :class="{ 'remote-drive-embedded': embedded }" @submit.prevent="submitRemoteDrive">
+              <label class="remote-field"><span>{{ t('mediaServer.name') }}</span><a-input v-model="remoteDriveForm.name" :placeholder="t('mediaServer.name')" :disabled="remoteDriveLoading" allow-clear /></label>
+              <label class="remote-field"><span>{{ t('mediaServer.address') }}</span><a-input v-model="remoteDriveForm.url" :placeholder="loginProvider === 'alist' ? 'http://127.0.0.1:5244' : 'https://example.com/dav'" :disabled="remoteDriveLoading" allow-clear /></label>
+              <label class="remote-field"><span>{{ t('mediaServer.username') }}</span><a-input v-model="remoteDriveForm.username" :disabled="remoteDriveLoading" autocomplete="username" allow-clear /></label>
+              <label class="remote-field"><span>{{ t('mediaServer.password') }}</span><a-input-password v-model="remoteDriveForm.password" :disabled="remoteDriveLoading" autocomplete="current-password" allow-clear /></label>
+              <label class="remote-field"><span>{{ t('mediaServer.path') }}</span><a-input v-model="remoteDriveForm.rootPath" placeholder="/" :disabled="remoteDriveLoading" allow-clear /></label>
+              <a-button html-type="submit" type="primary" :loading="remoteDriveLoading">{{ t('mediaServer.connect') }}</a-button>
+            </form>
           </div>
         </div>
       </div>
       </template>
       </section>
     </div>
-  </a-modal>
+  </SourceFormSurface>
 </template>
 <style lang="less" scoped>
 #logindiv {
@@ -1778,4 +1816,18 @@ const loginSuccess = (token: ITokenInfo) => {
   padding: 8px 0;
 }
 
+</style>
+
+<style scoped>
+.login-modal-body.login-embedded{width:100%;height:auto;min-height:440px;overflow:visible}
+.login-embedded .login-provider-content{padding:0;min-width:0}
+.login-embedded .login-provider-heading{display:none}
+.login-embedded #logindiv .logincontent{width:100%;max-width:400px;height:auto;min-height:400px}
+</style>
+
+<style scoped>
+.remote-field{display:grid;grid-template-columns:88px minmax(0,1fr);gap:16px;align-items:center;text-align:right;color:var(--color-text-2);font-size:14px}
+.remote-drive-embedded{padding-top:40px!important;width:100%;max-width:400px!important}
+.remote-drive-embedded :deep(.arco-input-wrapper){background:transparent;border-radius:4px}
+.remote-drive-embedded>.arco-btn{align-self:flex-start;margin-left:104px;min-width:130px}
 </style>

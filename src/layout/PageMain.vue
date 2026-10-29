@@ -1,4 +1,5 @@
 <script setup lang='ts'>
+import AppUpdateNotice from '../components/AppUpdateNotice.vue'
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
   KeyboardState,
@@ -457,6 +458,7 @@ onUnmounted(() => {
 })
 </script>
 <template>
+  <AppUpdateNotice />
   <a-layout style='height: 100vh' draggable='false'>
     <a-layout-header id='xbyhead' draggable='false'>
       <div id='xbyhead2' class='q-electron-drag'>
@@ -613,16 +615,7 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <div class='footerBar fix update-progress-foot' v-show="footStore.updateDownloadStatus === 'downloading'" :title="`${t('footer.newVersion')} ${Math.round(footStore.updateDownloadProgress)}%`">
-            <svg aria-hidden='true' class='update-progress-ring' viewBox='0 0 20 20'>
-              <circle class='update-progress-track' cx='10' cy='10' fill='none' r='8' stroke-width='2' />
-              <circle class='update-progress-value' cx='10' cy='10' fill='none' r='8' stroke-width='2' :style='{ strokeDashoffset: 50.27 * (1 - footStore.updateDownloadProgress / 100) }' />
-            </svg>
-            <span class='update-progress-label'>{{ Math.round(footStore.updateDownloadProgress) }}%</span>
-          </div>
-          <button class='footerBar fix update-progress-foot update-ready-foot' v-show="footStore.updateDownloadStatus === 'downloaded'" :title="`${footStore.updateDownloadVersion || t('footer.newVersion')} 已下载，点击重启安装`" @click='handleInstallUpdate'>
-            {{ footStore.updateDownloadVersion || t('footer.newVersion') }} · 安装
-          </button>
+
 
           <div class='footerBar fix'>
             <span class='footAria' :title="t('footer.ariaConnected')" v-if='footStore.ariaInfo'> {{ footStore.ariaInfo }} </span>
@@ -1342,7 +1335,6 @@ body {
 #xbybody .arco-table,
 #xbybody .arco-collapse,
 #xbybody .arco-tabs-card,
-#xbybody .arco-drawer,
 #xbybody .settings-card,
 #xbybody .settings-panel,
 #xbybody .settingcard,
@@ -1916,7 +1908,6 @@ body:not([arco-theme='dark']) #xbybody .arco-list,
 body:not([arco-theme='dark']) #xbybody .arco-table,
 body:not([arco-theme='dark']) #xbybody .arco-collapse,
 body:not([arco-theme='dark']) #xbybody .arco-tabs-card,
-body:not([arco-theme='dark']) #xbybody .arco-drawer,
 body:not([arco-theme='dark']) #xbybody .settings-card,
 body:not([arco-theme='dark']) #xbybody .settings-panel,
 body:not([arco-theme='dark']) #xbybody .settingcard,

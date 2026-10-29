@@ -80,6 +80,8 @@ watch(() => props.mediaItem, () => {
 })
 const handleCollectionMovieSelect = (movie: MediaCollectionMovie) => {
   selectedCollectionMovieId.value = movie.tmdbId
+  selectedDriveFileId.value = ''
+  manuallySelectedVersion.value = false
   selectedEpisode.value = undefined
   hasUserSelectedEpisode.value = false
   void syncPlayButtonWidth()
@@ -1012,33 +1014,6 @@ const getCastInitial = (name?: string): string => {
         </div>
       </div>
 
-      <div v-if="props.mediaItem.collectionMovies && props.mediaItem.collectionMovies.length > 1" class="episodes-section">
-        <div class="section-header">
-          <h3>{{ props.mediaItem.collectionName || props.mediaItem.name }}</h3>
-          <span class="episode-count">{{ props.mediaItem.collectionMovies.length }} 部电影</span>
-        </div>
-        <div class="episodes-grid">
-          <div
-            v-for="movie in props.mediaItem.collectionMovies"
-            :key="movie.tmdbId || movie.id"
-            class="episode-card"
-            :class="{ active: movie.tmdbId === activeMediaItem.tmdbId }"
-            @click="handleCollectionMovieSelect(movie)"
-          >
-            <div class="episode-thumbnail">
-              <WatchedIndicator corner :watched="isMediaWatched(movie, mediaStore.watchedItems)" />
-              <PosterRatingBadge :rating="movie.rating" :is-movie="true" />
-              <img v-if="movie.posterUrl" :src="movie.posterUrl" :alt="movie.name" class="episode-image" @error="handleImageError" />
-              <div v-else class="thumbnail-placeholder"><MediaPosterPlaceholder /></div>
-            </div>
-            <div class="episode-info">
-              <div class="episode-title">{{ movie.name }}</div>
-              <p class="episode-name">{{ movie.year || '未知年份' }} · {{ movie.driveFiles.length }} 个文件</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- 季选择器（仅电视剧显示） -->
       <div v-if="activeMediaItem.type === 'tv' && availableSeasons.length > 1" class="season-selector">
         <div class="season-tabs">
@@ -1099,60 +1074,6 @@ const getCastInitial = (name?: string): string => {
         </div>
       </div>
 
-      <!-- 标签元数据：与演员区保持纵向信息层级 -->
-      <div class="tags-section metadata-tags-section">
-        <div v-if="activeMediaItem.genres && activeMediaItem.genres.length" class="tag-group">
-          <h4 class="tag-group-title">类型</h4>
-          <div class="tag-list">
-            <span
-              v-for="genre in activeMediaItem.genres"
-              :key="genre"
-              class="tag-item clickable"
-              @click="handleTagClick('genre', genre)"
-            >
-              {{ genre }}
-            </span>
-          </div>
-        </div>
-
-        <div v-if="productionCompanies.length" class="tag-group">
-          <h4 class="tag-group-title">工作室</h4>
-          <div class="tag-list">
-            <span
-              v-for="company in productionCompanies"
-              :key="company.id"
-              class="tag-item clickable"
-              @click="handleTagClick('studio', company.name)"
-            >
-              {{ company.name }}
-            </span>
-          </div>
-        </div>
-
-        <div v-if="activeMediaItem.year" class="tag-group">
-          <h4 class="tag-group-title">制作年份</h4>
-          <div class="tag-list">
-            <span class="tag-item clickable" @click="handleTagClick('year', activeMediaItem.year)">
-              {{ activeMediaItem.year }}s
-            </span>
-          </div>
-        </div>
-
-        <div v-if="productionCountries.length" class="tag-group">
-          <h4 class="tag-group-title">地区</h4>
-          <div class="tag-list">
-            <span
-              v-for="country in productionCountries"
-              :key="country.iso31661"
-              class="tag-item clickable"
-              @click="handleTagClick('country', country.name)"
-            >
-              {{ country.name }}
-            </span>
-          </div>
-        </div>
-      </div>
-
       <!-- 演员列表 -->
       <div v-if="castList.length" class="cast-section">
         <div class="section-header">
@@ -1176,6 +1097,33 @@ const getCastInitial = (name?: string): string => {
             <div class="cast-info">
               <div class="cast-name">{{ cast.name }}</div>
               <div v-if="cast.character" class="cast-role">饰 {{ cast.character }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-if="props.mediaItem.collectionMovies && props.mediaItem.collectionMovies.length > 1" class="episodes-section">
+        <div class="section-header">
+          <h3>{{ props.mediaItem.collectionName || props.mediaItem.name }}</h3>
+          <span class="episode-count">{{ props.mediaItem.collectionMovies.length }} 部电影</span>
+        </div>
+        <div class="episodes-grid">
+          <div
+            v-for="movie in props.mediaItem.collectionMovies"
+            :key="movie.tmdbId || movie.id"
+            class="episode-card"
+            :class="{ active: movie.tmdbId === activeMediaItem.tmdbId }"
+            @click="handleCollectionMovieSelect(movie)"
+          >
+            <div class="episode-thumbnail">
+              <WatchedIndicator corner :watched="isMediaWatched(movie, mediaStore.watchedItems)" />
+              <PosterRatingBadge :rating="movie.rating" :is-movie="true" />
+              <img v-if="movie.posterUrl" :src="movie.posterUrl" :alt="movie.name" class="episode-image" @error="handleImageError" />
+              <div v-else class="thumbnail-placeholder"><MediaPosterPlaceholder /></div>
+            </div>
+            <div class="episode-info">
+              <div class="episode-title">{{ movie.name }}</div>
+              <p class="episode-name">{{ movie.year || '未知年份' }} · {{ movie.driveFiles.length }} 个文件</p>
             </div>
           </div>
         </div>
@@ -2085,16 +2033,13 @@ const getCastInitial = (name?: string): string => {
 
 .playlist-modal :deep(.arco-modal-content) {
   border-radius: 28px;
-  background:
-    radial-gradient(circle at 72% 8%, rgba(0, 245, 212, 0.08), transparent 28%),
-    radial-gradient(circle at 12% 72%, rgba(36, 66, 255, 0.1), transparent 34%),
-    var(--app-mineradio-bg, #08090b);
+  background: var(--app-overlay-bg);
   border: 1px solid var(--app-glass-line, rgba(255, 255, 255, 0.08));
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .playlist-modal :deep(.arco-modal-header) {
@@ -3267,10 +3212,7 @@ const getCastInitial = (name?: string): string => {
 /* 播放列表弹窗使用和视频页媒体管理弹窗一致的 Arco portal 外壳 */
 body[arco-theme='dark'] .playlist-modal.detail-media-modal .arco-modal,
 body[arco-theme='dark'] .playlist-modal.detail-media-modal .arco-modal-content {
-  background:
-    radial-gradient(circle at 72% 8%, rgba(0, 245, 212, 0.08), transparent 28%),
-    radial-gradient(circle at 12% 72%, rgba(36, 66, 255, 0.1), transparent 34%),
-    var(--app-mineradio-bg, #08090b) !important;
+  background: var(--app-overlay-bg) !important;
   border-color: var(--app-glass-line, rgba(255, 255, 255, 0.08)) !important;
   color: var(--app-mineradio-ink, #e8ecef) !important;
 }
@@ -3289,10 +3231,7 @@ body:not([arco-theme='dark']) .playlist-modal.detail-media-modal .arco-modal-con
   --app-mineradio-ink: rgba(17, 24, 39, 0.94);
   --app-glass-panel: rgba(255, 255, 255, 0.72);
   --app-glass-line: rgba(15, 23, 42, 0.08);
-  background:
-    radial-gradient(circle at 72% 8%, rgba(37, 99, 235, 0.1), transparent 30%),
-    radial-gradient(circle at 12% 72%, rgba(20, 184, 166, 0.08), transparent 34%),
-    rgba(255, 255, 255, 0.88) !important;
+  background: var(--app-overlay-bg) !important;
   border-color: rgba(15, 23, 42, 0.08) !important;
   color: rgba(17, 24, 39, 0.94) !important;
 }

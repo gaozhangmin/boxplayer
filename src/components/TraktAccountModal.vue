@@ -72,5 +72,5 @@ onUnmounted(() => { stop(); void cancelTraktLogin().catch(() => undefined) })
 </style>
 <style>
 .profile-close{position:absolute;right:10px;top:10px;border:0;background:transparent;color:#aaa;cursor:pointer;padding:6px;display:grid;place-items:center}.profile-close:focus-visible{outline:2px solid #1684ff;border-radius:50%}
-.trakt-profile-modal.arco-modal{background:#23211e;color:#eee;border-radius:12px;overflow:visible}.trakt-profile-modal .arco-modal-body{padding:16px 17px 28px;overflow:visible}.trakt-profile-modal .arco-modal-close-btn{top:10px;right:10px;color:#aaa}.trakt-profile-modal .arco-modal-header{display:none}
+.trakt-profile-modal.arco-modal{background: var(--app-overlay-bg);color:#eee;border-radius:12px;overflow:visible}.trakt-profile-modal .arco-modal-body{padding:16px 17px 28px;overflow:visible}.trakt-profile-modal .arco-modal-close-btn{top:10px;right:10px;color:#aaa}.trakt-profile-modal .arco-modal-header{display:none}
 </style>

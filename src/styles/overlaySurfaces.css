@@ -1,0 +1,159 @@
+/* Shared by every renderer window, including teleported dialogs and menus. */
+:root {
+  --app-overlay-bg: #fff;
+  --app-overlay-border: rgba(0, 0, 0, .12);
+  --app-overlay-shadow: 0 16px 48px rgba(0, 0, 0, .16);
+  --app-overlay-hover: rgba(0, 0, 0, .06);
+  --app-overlay-selected: rgba(var(--primary-6), .12);
+}
+body[arco-theme='dark'] {
+  --app-overlay-bg: #1c1c1e;
+  --app-overlay-border: rgba(255, 255, 255, .12);
+  --app-overlay-shadow: 0 16px 48px rgba(0, 0, 0, .36);
+  --app-overlay-hover: rgba(255, 255, 255, .08);
+  --app-overlay-selected: rgba(var(--primary-6), .2);
+}
+body {
+  --color-bg-popup: var(--app-overlay-bg);
+}
+
+/* Reader palettes may supply their own opaque paper color. */
+body .arco-modal,
+body .arco-modal-content,
+body .ant-modal-content,
+body .arco-drawer,
+body .arco-drawer-content,
+body .arco-dropdown,
+body .arco-dropdown-menu,
+body .arco-select-dropdown:not(.reader-settings-select-popup),
+body .arco-cascader-panel,
+body .arco-tree-select-dropdown,
+body .arco-picker-dropdown,
+body .arco-time-picker-dropdown,
+body .arco-popover-popup-content,
+body .arco-popconfirm-popup-content,
+body .arco-tooltip-content,
+body .arco-mention-popup,
+body .arco-color-picker-popup,
+body .arco-notification,
+body .arco-message-content,
+body .ant-dropdown-menu,
+body .ant-select-dropdown,
+body .ant-popover-inner,
+body .ant-popconfirm-inner,
+body .ant-tooltip-inner {
+  background: var(--app-overlay-bg) !important;
+  color: var(--color-text-1) !important;
+  border-color: var(--app-overlay-border) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body .arco-modal,
+body .arco-drawer,
+body .arco-dropdown,
+body .arco-select-dropdown,
+body .arco-cascader-panel,
+body .arco-picker-dropdown,
+body .arco-time-picker-dropdown,
+body .arco-popover-popup-content,
+body .arco-popconfirm-popup-content,
+body .ant-dropdown-menu,
+body .ant-select-dropdown,
+body .ant-popover-inner {
+  box-shadow: var(--app-overlay-shadow) !important;
+}
+
+body .arco-modal-header,
+body .arco-modal-body,
+body .arco-modal-footer,
+body .arco-drawer-header,
+body .arco-drawer-body,
+body .arco-drawer-footer,
+body .arco-dropdown-list-wrapper,
+body .arco-dropdown-list,
+body .arco-select-dropdown-list-wrapper,
+body .arco-select-dropdown-list {
+  background: transparent !important;
+}
+
+body .arco-modal-title,
+body .arco-popover-title,
+body .arco-popconfirm-content,
+body .arco-drawer-title {
+  color: var(--color-text-1) !important;
+}
+
+body .arco-popover-popup-arrow,
+body .arco-popover-arrow,
+body .arco-popconfirm-popup-arrow,
+body .arco-tooltip-popup-arrow,
+body .ant-popover-arrow::before,
+body .ant-tooltip-arrow::before {
+  background: var(--app-overlay-bg) !important;
+  border-color: var(--app-overlay-border) !important;
+}
+
+body .arco-dropdown-option:not(.arco-dropdown-option-disabled):not(.danger):hover,
+body .arco-dropdown-option-active:not(.arco-dropdown-option-disabled):not(.danger),
+body .arco-select-option-active:not(.arco-select-option-disabled),
+body .arco-select-option:not(.arco-select-option-disabled):hover {
+  background: var(--app-overlay-hover) !important;
+  box-shadow: none !important;
+}
+body .arco-select-option-selected:not(.arco-select-option-disabled) {
+  background: var(--app-overlay-selected) !important;
+}
+
+/* Native selects are also used in server settings and playback preferences. */
+body select option,
+body select optgroup {
+  background: var(--app-overlay-bg);
+  color: var(--color-text-1);
+}
+
+/* Bespoke popups use the same surface, outside the component library. */
+body .category-menu,
+body .al-card,
+body .lim-modal,
+body .library-queue-drawer,
+body .document-ai__sources-popover,
+body .document-ai__source-picker,
+body .document-ai__mention-picker,
+body .document-ai__citation-popover {
+  background: var(--app-overlay-bg) !important;
+  border-color: var(--app-overlay-border) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* These controls previously assumed a permanently dark popup. */
+body:not([arco-theme='dark']) :is(
+  .sound-effect-popover, .soundEffectModal, .quality-popover, .volume-popover,
+  .visual-guide-card, .hotkey-modal, .beat-modal, .collect-modal, .music-detail-modal,
+  .lyric-modal, .crop-modal, .danmaku-modal, .server-add-sheet, .server-speed-modal,
+  .trakt-profile-modal, .personal-rating-modal, .personal-rating,
+  .mpv-settings-popover, .mpv-playlist-popover
+) {
+  color: var(--color-text-1) !important;
+  border-color: var(--app-overlay-border) !important;
+}
+body:not([arco-theme='dark']) :is(
+  .sheet-heading h2, .sheet-field label, .sheet-field input, .sheet-advanced,
+  .sheet-back, .sheet-remove, .sheet-field select,
+  .sheet-actions button:not([type='submit']),
+  .quality-option, .quality-option small,
+  .lyric-sub, .lyric-close, .lyric-hint, .lyric-cancel, .lyric-save,
+  .crop-close, .crop-btn, .crop-zoom-val, .crop-cancel, .crop-commit,
+  .soundEffectModal .arco-tabs-tab, .soundEffectModal .arco-modal-close-btn
+) {
+  color: var(--color-text-1) !important;
+}
+body:not([arco-theme='dark']) :is(
+  .sheet-back, .sheet-remove, .sheet-field select,
+  .sheet-actions button:not([type='submit']), .quality-option, .lyric-input
+) {
+  background: var(--color-fill-2) !important;
+  border-color: var(--app-overlay-border) !important;
+  color: var(--color-text-1) !important;
+}

@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { serverFolderFavorites, serverFolderFavoriteKey } from '../media-server/folderFavorites'
 import { seriesPreferences, movieVersionItems, generalPreferences, displayScopeAllows } from '../utils/seriesVersionPreferences'
 import { mediaWatchProgressPercent } from '../utils/mediaWatchProgress'
 import { homeRequests } from '../utils/homeRequestCoordinator'
 import UserDAL from '../user/userdal'
+import AddFileSourceModal from '../components/AddFileSourceModal.vue'
+import { useUserStore } from '../store'
 import SidebarProBadge from '../components/SidebarProBadge.vue'
 import type { ITokenInfo } from '../user/userstore'
 import { makeScanFolder, tokenRootScanFolders, type ScanSourceTarget } from '../utils/fileSourceRoots'
@@ -18,12 +21,19 @@ async function loadConnectedFileRoots() {
   const roots: ConnectedFileRoot[] = users.flatMap(token => {
     const accountRoots = tokenRootScanFolders(token)
     const providerIcon = getDriveProviderIcon(token.tokenfrom)
+    if (token.tokenfrom === 'google' && accountRoots.length) {
+      const root = accountRoots[0]
+      return [{ ...root, providerIcon, drives: [
+        { ...root, label: '我的云端硬盘', folder: makeScanFolder(token, 'google', 'google_root', '我的云端硬盘', '/') },
+        { ...root, value: root.value + ':shared', label: '共享云端硬盘', folder: makeScanFolder(token, 'google', 'google_shared', '共享云端硬盘', '/') }
+      ] }]
+    }
     if (token.tokenfrom !== 'aliyun' || !accountRoots.length) return accountRoots.map(root => ({ ...root, providerIcon }))
     const firstLabel = accountRoots[0].label
-    const drives = token.default_drive_id && accountRoots[0].folder.drive_id === token.default_drive_id && accountRoots.length > 1
-      ? accountRoots.slice(1)
-      : accountRoots
-    return [{ value: `account:${token.user_id}:aliyun`, label: firstLabel.slice(0, firstLabel.lastIndexOf(' · ')),
+    const preferred = accountRoots.filter(root => [token.backup_drive_id, token.resource_drive_id].filter(Boolean).includes(root.folder.drive_id))
+    const drives = [...new Map((preferred.length ? preferred : accountRoots).map(root => [root.folder.drive_id, root])).values()]
+      .map(root => ({ ...root, label: root.folder.name }))
+    return [{ value: `account:${token.user_id}:aliyun`, label: token.source_name?.trim() || firstLabel.slice(0, firstLabel.lastIndexOf(' · ')),
       folder: makeScanFolder(token, drives[0].folder.drive_id, 'root', firstLabel),
       driveServerId: 'aliyun', drives, providerIcon }]
   })
@@ -39,6 +49,14 @@ function rootFolderMatches(root: ConnectedFileRoot, folder: MediaLibraryFolder) 
   const rootIds = ['/', '0', 'root', 'quark_root', 'baidu_root']
   return folder.userId === rootUserID(root) && drives.some(drive => folder.driveId === drive.folder.drive_id && (folder.fileId === drive.folder.file_id || (rootIds.includes(folder.fileId) && rootIds.includes(drive.folder.file_id))))
 }
+/** Tells several "All Files" favorites apart in the list view. */
+function rootFavoriteDriveName(folder: MediaLibraryFolder) {
+  const root = connectedFileRoots.value.find(root => rootFolderMatches(root, folder))
+  return root ? sourceOverrides.value[`root:${root.value}`]?.name || root.label : ''
+}
+function rootFolderMatchesAny(root: ConnectedFileRoot, folder: MediaLibraryFolder) {
+  return folder.userId === rootUserID(root) && (root.drives?.length ? root.drives : [root]).some(drive => drive.folder.drive_id === folder.driveId)
+}
 function isConnectedRootFolder(folder: MediaLibraryFolder) { return connectedFileRoots.value.some(root => rootFolderMatches(root, folder)) }
 function rootIsFavorite(root: ConnectedFileRoot) {
   return !!sourceOverrides.value[`root:${root.value}`]?.favorite || media.folders.some(folder => folder.isDriveRootFavorite && rootFolderMatches(root, folder))
@@ -51,7 +69,8 @@ async function favoriteFileRoot(root: ScanSourceTarget) {
     return
   }
   const userId = rootUserID(root)
-  const name = sourceOverrides.value[`root:${root.value}`]?.name || root.label
+  // Same "All Files" card as on the other platforms; the drive card itself stays in Files.
+  const name = t('unified.allFiles')
   const id = [root.driveServerId, userId, root.folder.drive_id, root.folder.file_id].map(value => encodeURIComponent(value)).join(':')
   sourceOverrides.value[`folder:${id}`] = { ...sourceOverrides.value[`folder:${id}`], hiddenOnHome: false }
   persistSources()
@@ -79,7 +98,7 @@ import LibraryObjectActions from '../components/LibraryObjectActions.vue'
 import UnifiedLibraryBrowser from '../components/UnifiedLibraryBrowser.vue'
 import useLibraryBookmarks from '../store/unifiedLibraryBookmarks'
 import useCategoryPlacement from '../store/categoryPlacement'
-import { categoryRouteForHomeId } from '../utils/categoryPlacement'
+import { categoryRouteForHomeId, isIndependentCategoryRoute } from '../utils/categoryPlacement'
 import { reorderFileSourceIds, applyFileSourceOrder } from '../utils/fileSourceOrder'
 import { LIBRARY_CATEGORY_IDS, LIBRARY_SIDEBAR_ROUTES, MOVIE_CATEGORY_IDS, TV_CATEGORY_IDS, libraryHomeId, libraryGroupRoute, libraryGroupLabel, libraryCategoryGroups, filterLibraryCategory, libraryPlaylistMembers, libraryMovieSeries } from '../utils/unifiedLibraryCategories'
 import MediaLoadingIndicator from '../components/MediaLoadingIndicator.vue'
@@ -87,8 +106,7 @@ import WatchingUpdateModal from '../components/WatchingUpdateModal.vue'
 import { isContinueWatchingMember, toggleContinueWatching } from '../utils/continueWatchingAction'
 import { X, ChevronRight, Eye, ListPlus } from 'lucide-vue-next'
 import { FilePlay } from 'lucide-vue-next'
-import { openExternal } from '../utils/electronhelper'
-import { buildProPurchaseUrl } from '../utils/boxplayerAuth'
+import LimitReachedModal from '../setting/LimitReachedModal.vue'
 import { openMediaShare } from '../utils/mediaShare'
 import MediaPersonalRatingModal from '../components/MediaPersonalRatingModal.vue'
 import TraktAccountModal from '../components/TraktAccountModal.vue'
@@ -203,7 +221,16 @@ async function libraryObjectAction(event: Event) {
  const { route, action } = (event as CustomEvent<{ route: string; action: string }>).detail
  if (action === 'home' || action === 'favorite') { promptCatalogPlacement(route, action); return }
  if (action === 'remove') { removeCatalogPlacement(route); return }
+ if (action === 'removeFavorite') { removeFavoriteCard(route); return }
+ if (action === 'hideFavorite' || action === 'showFavorite') {
+  sourceOverrides.value[route] = { ...sourceOverrides.value[route], hiddenOnHome: action === 'hideFavorite' }
+  persistSources(); categoryMenu.value = undefined; return
+ }
+ if (action === 'favoriteCover') { categoryMenu.value = undefined; openFavoriteCoverDialog(route); return }
  if (action === 'renameFavorite') { promptCatalogPlacement(route, 'rename'); return }
+ if (['play', 'loop', 'shuffle'].includes(action) && isIndependentCategoryRoute(route)) {
+  await playServerCategory(route, action as 'play' | 'loop' | 'shuffle'); return
+ }
  if (['play', 'loop', 'shuffle'].includes(action)) {
   categoryMenu.value = { route, x: 0, y: 0 }; await playCategoryMenu(action as 'play' | 'loop' | 'shuffle'); return
  }
@@ -244,8 +271,19 @@ function closeCategoryMenu(event: KeyboardEvent) {
 onMounted(() => document.addEventListener('keydown', closeCategoryMenu))
 onUnmounted(() => document.removeEventListener('keydown', closeCategoryMenu))
 const catalogPlacement = ref<{ route: string; action: 'home' | 'favorite' | 'rename'; name: string }>()
+const categoryFavoriteQueue = ref<string[]>([])
+function favoriteServerCategories(routes: string[]) {
+  categoryFavoriteQueue.value = routes.filter(route => !placement.state(route).favorite)
+  nextServerCategoryFavorite()
+}
+function nextServerCategoryFavorite() {
+  const route = categoryFavoriteQueue.value.shift()
+  if (route) promptCatalogPlacement(route, 'favorite')
+}
 function promptCatalogPlacement(route: string, action: 'home' | 'favorite' | 'rename') {
-  if (action !== 'rename' && placement.state(route).placed) { categoryMenu.value = undefined; return }
+  const current = placement.state(route)
+  const occupied = isIndependentCategoryRoute(route) ? (action === 'home' ? current.home : current.favorite) : current.placed
+  if (action !== 'rename' && occupied) { categoryMenu.value = undefined; return }
   const fallback = categoryPlacementTitle(route)
   catalogPlacement.value = { route, action, name: action === 'rename' ? libraryBookmarks.titles[route] || fallback : fallback }
   categoryMenu.value = undefined
@@ -254,12 +292,26 @@ function removeCatalogPlacement(route: string) {
   placement.change(route, 'remove')
   categoryMenu.value = undefined
 }
-function removeFavoriteCard(route: string) { removeCatalogPlacement(route) }
+function removeFavoriteCard(route: string) {
+  if (!isIndependentCategoryRoute(route)) { removeCatalogPlacement(route); return }
+  placement.change(route, 'removeFavorite')
+  categoryMenu.value = undefined
+}
+/** Plays a media server category like a folder favorite: its first (or a random) title. */
+async function playServerCategory(route: string, mode: 'play' | 'loop' | 'shuffle') {
+  categoryMenu.value = undefined
+  const id = decodeURIComponent(route.slice('home-entry/'.length))
+  const server = registry.servers.find(server => id.startsWith(server.id + ':'))
+  if (!server) return
+  if (!serverWorkspace.value) { showServer(server.id); await nextTick() }
+  await serverWorkspace.value?.playServerCategory(server.id, id.slice(server.id.length + 1), mode)
+}
 async function saveCatalogPlacement() {
   const entry = catalogPlacement.value
   if (!entry?.name.trim()) return
   await placement.change(entry.route, entry.action, entry.name)
   catalogPlacement.value = undefined
+  nextServerCategoryFavorite()
 }
 function handleCatalogPlacement(route: string, action: 'home' | 'favorite' | 'rename' | 'remove' | 'removeFavorite') {
   if (action === 'remove') removeCatalogPlacement(route)
@@ -568,6 +620,16 @@ function toggleFileSourceSelection() { fileSourceSelection.value = !fileSourceSe
 function toggleAllFileSources() { selectedFileSources.value = allFileSourcesSelected.value ? [] : fileSourceCards.value.map(card => card.key) }
 async function deleteSelectedFileSource() {
   if (!selectedFileSources.value.length) return
+  const shortcutKeys = selectedFileSources.value.filter(key => key.startsWith('server-folder:') || key.startsWith('server-category:'))
+  if (shortcutKeys.length) {
+    for (const key of shortcutKeys) {
+      const card = folderFavoriteCards.value.find(card => card.key === key)
+      if (card) await serverPosterAction(card.item, 'favorite')
+      else removeCatalogPlacement(key.slice('server-category:'.length))
+    }
+    selectedFileSources.value = selectedFileSources.value.filter(key => !shortcutKeys.includes(key))
+    if (!selectedFileSources.value.length) return
+  }
   // Bare connection deletion remains in its existing account-management UI.
   if (selectedFileSources.value.some(key => key.startsWith('root:'))) return
   if (selectedFileSources.value.length > 1) {
@@ -657,9 +719,11 @@ async function sourceAction(id: string) {
   const root = connectedFileRoots.value.find(root => `root:${root.value}` === key)
   if (root && id === 'addToFavorites') { await favoriteFileRoot(root); return }
   if (root && id === 'removeRootFavorite') {
-    sourceOverrides.value[key] = { ...sourceOverrides.value[key], favorite: false }
-    persistSources()
-    for (const folder of media.folders.filter(folder => folder.isDriveRootFavorite && rootFolderMatches(root, folder))) media.addFolder({ ...folder, isDriveRootFavorite: false })
+    await confirmRemoveFavorite(() => {
+      sourceOverrides.value[key] = { ...sourceOverrides.value[key], favorite: false }
+      persistSources()
+      for (const folder of media.folders.filter(folder => folder.isDriveRootFavorite && rootFolderMatches(root, folder))) media.removeFolder(folder.id)
+    })
     return
   }
   if (root && id === 'editShare') {
@@ -701,6 +765,15 @@ async function sourceAction(id: string) {
     else addRegistryView.value?.editServer(key.slice(7))
   }
 }
+/** Cover of a media server card in Favorites; Home and Files read the same override. */
+function openFavoriteCoverDialog(key: string) {
+  sourceTarget.value = key
+  sourceText.value = sourceOverrides.value[key]?.cover || ''
+  sourceDialog.value = 'cover'
+}
+function favoriteCover(key: string) {
+  return sourceOverrides.value[key.startsWith('server-category:') ? key.slice('server-category:'.length) : key]?.cover
+}
 function saveSourceDialog() {
   if (sourceDialog.value === 'cover') {
     const cover = sourceText.value.trim()
@@ -723,7 +796,14 @@ function moveSource(key: string, offset: number) {
 }
 const failedProviderIcons = ref(new Set<string>())
 function markProviderIconFailed(key: string) { failedProviderIcons.value = new Set([...failedProviderIcons.value, key]) }
-const fileSourceCards = computed(() => [...connectedFileRoots.value.map(root => ({ key: `root:${root.value}`, title: sourceOverrides.value[`root:${root.value}`]?.name || root.label, server: null, providerIcon: root.providerIcon || '', icon: root.driveServerId === 'webdav' ? Network : Folder, action: () => { void openConnectedFileRoot(root) } })), ...registry.servers.map(server => ({ key: 'server:' + server.id, title: server.name, server, providerIcon: '', icon: Star, action: () => showServer(server.id) })), ...media.folders.filter(folder => !isConnectedRootFolder(folder)).map(folder => ({ key: 'folder:' + folder.id, title: folder.name, server: null, providerIcon: folder.isDriveRootFavorite || ['/', '0', 'root', 'quark_root', 'baidu_root'].includes(folder.fileId) ? getDriveProviderIcon(getDriveProviderById(folder.driveId || folder.driveServerId)) : '', icon: Star, action: () => { void showFolder(folder) } }))].sort((a,b) => ((sourceOverrides.value[a.key]?.order ?? 9999) - (sourceOverrides.value[b.key]?.order ?? 9999)) || a.title.localeCompare(b.title) * (fileSourceDescending.value ? -1 : 1)))
+const serverFolderMenu = ref<{ item: MediaServerCardItem; x: number; y: number }>()
+const folderFavoriteCards = computed(() => serverFolderFavorites.value.filter(entry =>
+ registry.servers.some(server => server.id === entry.item.serverId && (server.userId || '') === entry.userId)
+).map(entry => ({ key: serverFolderFavoriteKey(entry.item), title: entry.item.title, item: entry.item,
+ action: () => entry.item.id === '__all__' ? showServer(entry.item.serverId) : entry.item.kind === 'folder' ? showServer(entry.item.serverId, { kind: 'library-page', libraryId: entry.item.id, title: entry.item.title }) : showServer(entry.item.serverId, { kind: 'item-detail', itemId: entry.item.id, title: entry.item.title }) })))
+const fileSourceCards = computed(() => [
+ ...folderFavoriteCards.value.map(card => ({ ...card, server: null, providerIcon: '', icon: Folder })),
+ ...libraryBookmarks.favorites.filter(route => route.startsWith('home-entry/')).map(route => ({ key: 'server-category:' + route, title: libraryBookmarks.titles[route] || categoryBookmarkTitle(route), server: null, providerIcon: '', icon: Folder, action: () => showCatalog(route) })),...connectedFileRoots.value.filter(root => !media.folders.some(folder => folder.isFavorite !== false && rootFolderMatchesAny(root, folder))).map(root => ({ key: `root:${root.value}`, title: sourceOverrides.value[`root:${root.value}`]?.name || root.label, server: null, providerIcon: root.providerIcon || '', icon: root.driveServerId === 'webdav' ? Network : Folder, action: () => { void openConnectedFileRoot(root) } })), ...registry.servers.map(server => ({ key: 'server:' + server.id, title: server.name, server, providerIcon: '', icon: Star, action: () => showServer(server.id) })), ...media.folders.filter(folder => (!isConnectedRootFolder(folder) || folder.isDriveRootFavorite) && folder.isFavorite !== false).map(folder => ({ key: 'folder:' + folder.id, title: folder.name, subtitle: folder.isDriveRootFavorite ? rootFavoriteDriveName(folder) : '', server: null, providerIcon: folder.isDriveRootFavorite || ['/', '0', 'root', 'quark_root', 'baidu_root'].includes(folder.fileId) ? getDriveProviderIcon(getDriveProviderById(folder.driveId || folder.driveServerId)) : '', icon: Star, action: () => { void showFolder(folder) } }))].sort((a,b) => ((sourceOverrides.value[a.key]?.order ?? 9999) - (sourceOverrides.value[b.key]?.order ?? 9999)) || a.title.localeCompare(b.title) * (fileSourceDescending.value ? -1 : 1)))
 function sourceServer(key: string) { return registry.servers.find(server => key === 'source:server:' + server.id) }
 function openFileSource(card: typeof fileSourceCards.value[number]) { if (fileSourceReordering.value || sourceDragKey.value || sourceDragSuppressClick) return; if (!fileSourceSelection.value) { card.action(); return }; selectedFileSources.value = selectedFileSources.value.includes(card.key) ? selectedFileSources.value.filter(key => key !== card.key) : [...selectedFileSources.value, card.key] }
 const serverRootSelection = ref(false)
@@ -751,10 +831,20 @@ function renameCurrentHomeMenu() { renameText.value = title.value || ''; renameV
 const isCategoryPage = computed(() => section.value === 'collection' || (section.value === 'video' && !selectedFolder.value) || (section.value === 'server' && ['library-page', 'genre-page', 'studio-page', 'collection-page'].includes(navigation.currentRoute.kind)))
 const expanded = ref({ home: true, library: true, files: true })
 const sidebarCollapsed = ref(false)
-function openProPurchase() {
-  // No app session credentials are sent to the external purchase page.
-  openExternal(buildProPurchaseUrl())
+const showAddFileSource = ref(false)
+watch(() => useUserStore().userShowLogin, visible => { if (!visible) void loadConnectedFileRoots().catch(() => undefined) })
+function togglePickerRootFavorite(id: string) {
+  const root = connectedFileRoots.value.find(r => r.value === id)
+  if (!root) return
+  if (!rootIsFavorite(root)) { void favoriteFileRoot(root).catch(e => message.error(String(e))); return }
+  sourceOverrides.value[`root:${root.value}`] = { ...sourceOverrides.value[`root:${root.value}`], favorite: false }
+  for (const folder of [...media.folders]) if (folder.isDriveRootFavorite && rootFolderMatches(root, folder)) media.removeFolder(folder.id)
+  persistSources()
 }
+async function fileSourceConnected() {
+  await loadConnectedFileRoots().catch(() => undefined)
+}
+const showProPurchase = ref(false)
 const section = computed(() => app.mediaLibrarySection)
 watch([section, selectedCategory, selectedFolder], () => { detailTagTitle.value = '' })
 registry.ensureLoaded()
@@ -867,7 +957,7 @@ async function serverPosterAction(item: MediaServerCardItem, action: PosterActio
   homeActionPending.add(key)
   try {
    if (action === 'watched') { await updateMediaServerPlayedState(config, item.id, item.isPlayed === true); item.isPlayed = !item.isPlayed }
-   if (action === 'favorite') { await updateMediaServerFavoriteState(config, item.id, item.isFavorite === true); item.isFavorite = !item.isFavorite }
+   if (action === 'favorite') { await updateMediaServerFavoriteState(config, item.id, item.isFavorite === true, item); item.isFavorite = !item.isFavorite }
    // Refresh only shelves containing the changed item, plus its dependent collections.
    const data = content.currentHomeData(config.id)
    const affected = data.libraries.filter(library => library.items.some(entry => entry.id === item.id))
@@ -1073,7 +1163,7 @@ const sourceCards = computed<Card[]>(() => [
   { key: 'source:music', title: t('nav.music'), action: () => { app.mediaLibrarySection = 'music' } },
   { key: 'source:book', title: t('nav.books'), action: () => { app.mediaLibrarySection = 'book' } },
   ...registry.servers.map(server => ({ key: `source:server:${server.id}`, title: server.name, action: () => showServer(server.id) })),
-  ...media.folders.filter(folder => !isConnectedRootFolder(folder)).map(folder => ({ key: `source:folder:${folder.id}`, title: folder.name, action: () => { void showFolder(folder) } }))
+  ...media.folders.filter(folder => (!isConnectedRootFolder(folder) || folder.isDriveRootFavorite) && folder.isFavorite !== false).map(folder => ({ key: `source:folder:${folder.id}`, title: folder.name, action: () => { void showFolder(folder) } }))
 ])
 const favoriteShortcuts = computed(() => [
   { key: 'library', title: t('media.library'), icon: GalleryVerticalEnd, action: () => showCatalog() },
@@ -1101,6 +1191,10 @@ function categoryBookmarkTitle(route: string): string {
  return ({ library: t('media.library'), playlist: t('media.playlist'), series: t('unified.series'), daily: t('unified.dailyPicks'), movies: t('media.movie'), tv: t('media.tv'), other: t('unified.other'), music: t('nav.music'), books: t('nav.books') } as Record<string, string>)[root] || root
 }
 function categoryPlacementTitle(route: string) {
+ if (route.startsWith('home-entry/')) {
+  const key = decodeURIComponent(route.slice('home-entry/'.length))
+  return rawRows.value.find(row => row.key === key)?.title || homePreferences.titles[key] || key
+ }
  const title = categoryBookmarkTitle(route)
  const [root, sub, value] = route.split('/')
  if ((root === 'movies' || root === 'tv') && sub) return catalogHomeTitle(root, sub, value ? decodeURIComponent(value) : '')
@@ -1129,8 +1223,9 @@ const libraryShortcutCards = computed(() => LIBRARY_CATEGORY_IDS.map(key => ({
 const favoriteReordering = ref(false)
 const draggedFavoriteKey = ref('')
 const favoriteCards = computed(() => [
- ...libraryBookmarks.favorites.map(key => ({ key, title: libraryBookmarks.titles[key] || categoryBookmarkTitle(key), action: () => showCatalog(key) })),
- ...connectedFileRoots.value.filter(rootIsFavorite).map(root => ({ key: `root:${root.value}`, title: sourceOverrides.value[`root:${root.value}`]?.name || root.label, action: () => { void openConnectedFileRoot(root) } })),
+ ...folderFavoriteCards.value,
+ ...libraryBookmarks.favorites.filter(key => !(isIndependentCategoryRoute(key) && sourceOverrides.value[key]?.hiddenOnHome)).map(key => ({ key, title: libraryBookmarks.titles[key] || categoryBookmarkTitle(key), action: () => showCatalog(key) })),
+ ...connectedFileRoots.value.filter(root => rootIsFavorite(root) && !media.folders.some(folder => folder.isDriveRootFavorite && rootFolderMatches(root, folder))).map(root => ({ key: `root:${root.value}`, title: sourceOverrides.value[`root:${root.value}`]?.name || root.label, action: () => { void openConnectedFileRoot(root) } })),
  ...visibleSourceCards.value.filter(card => card.key.startsWith('source:server:') || (card.key.startsWith('source:folder:') && media.folders.some(folder => `source:folder:${folder.id}` === card.key && (folder.isFavorite || folder.isDriveRootFavorite || folder.id === `${folder.driveId}_${folder.fileId}`))))
 ])
 const favoritesSortByTitle = ref(localStorage.getItem('boxplayer:favorite-cards-sort-title') === 'true')
@@ -1187,7 +1282,18 @@ function finishFavoritePointer(event: PointerEvent) {
  draggedFavoriteKey.value = ''
 }
 function favoriteSourceMenuKey(key: string) { return key.startsWith('source:') ? key.slice('source:'.length) : key }
+function openFolderFavoriteMenu(event: MouseEvent, key: string) {
+ const card = folderFavoriteCards.value.find(card => card.key === key)
+ if (!card) return
+ serverFolderMenu.value = { item: card.item, x: Math.max(8, Math.min(event.clientX, window.innerWidth - 240)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 450)) }
+}
+function openFileCardMenu(event: MouseEvent, key: string) {
+ if (key.startsWith('server-folder:')) openFolderFavoriteMenu(event, key)
+ else if (key.startsWith('server-category:')) openCategoryMenu(event, key.slice('server-category:'.length), true)
+ else void openSourceMenu(event, key)
+}
 function openFavoriteCardMenu(event: MouseEvent, key: string) {
+ if (key.startsWith('server-folder:')) { openFolderFavoriteMenu(event, key); return }
  if (key.startsWith('root:') || key.startsWith('source:server:') || key.startsWith('source:folder:')) openSourceMenu(event, favoriteSourceMenuKey(key), true)
  else openCategoryMenu(event, key, true)
 }
@@ -1450,12 +1556,24 @@ async function addFolder() {
   await showCategory('home')
   videoView.value?.showAddFolder()
 }
-async function removeFolder(folder: MediaLibraryFolder) {
-  app.mediaLibrarySection = 'video'
+async function openLocalDevice() {
+  await showCategory('home')
   await nextTick()
-  videoView.value?.removeFolder(folder)
-  app.mediaLibrarySection = 'files'
+  videoView.value?.showLocalDevice()
 }
+const localDeviceName = /mac/i.test(navigator.platform) ? 'Mac' : t('unified.myComputer')
+/** Removing a favorite (a subfolder or a whole drive) also clears the media scraped from it. */
+function confirmRemoveFavorite(remove: () => void) {
+  return new Promise<void>(resolve => Modal.confirm({
+    title: t('unified.removeFavoriteFolder'), content: t('unified.removeFavoriteConfirmation'),
+    okText: t('unified.removeFavoriteFolder'), cancelText: t('common.cancel'), okButtonProps: { status: 'danger' },
+    onOk: () => { remove(); resolve() }, onCancel: () => resolve()
+  }))
+}
+async function removeFolder(folder: MediaLibraryFolder) {
+  await confirmRemoveFavorite(() => media.removeFolder(folder.id))
+}
+
 function manageSources() { showRegistry.value = true }
 function useManagedServer(id: string) { showRegistry.value = false; showServer(id) }
 async function addServer(type?: MediaServerType) {
@@ -1508,7 +1626,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
       </div>
       <div class="sidebar-footer">
         <button class="sidebar-footer-toggle" :aria-label="t(sidebarCollapsed ? 'book.expandSidebar' : 'book.collapseSidebar')" @click="sidebarCollapsed = !sidebarCollapsed"><Ellipsis :size="20" /></button>
-        <SidebarProBadge :collapsed="sidebarCollapsed" @upgrade="openProPurchase" />
+        <SidebarProBadge :collapsed="sidebarCollapsed" @upgrade="showProPurchase = true" />
       </div>
     </aside>
     <main class="unified-pane" :class="{ 'search-pane': isSearchPage, 'music-pane': section === 'music' }">
@@ -1592,7 +1710,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
             </template>
           </template>
         </a-dropdown>
-        <a-dropdown v-if="section === 'files'" trigger="click" position="br"><button class="add-source file-source-add"><Plus :size="16" />{{ t('unified.addSource') }}</button><template #content><a-doption class="unified-action-option" @click="addServer('emby')"><template #icon><MediaServerIcon :server="{ type: 'emby' }" :size="16" /></template>{{ t('mediaServer.addServer', { type: 'Emby' }) }}</a-doption><a-doption class="unified-action-option" @click="addServer('jellyfin')"><template #icon><MediaServerIcon :server="{ type: 'jellyfin' }" :size="16" /></template>{{ t('mediaServer.addServer', { type: 'Jellyfin' }) }}</a-doption><a-doption class="unified-action-option" @click="addServer('plex')"><template #icon><MediaServerIcon :server="{ type: 'plex' }" :size="16" /></template>{{ t('mediaServer.addServer', { type: 'Plex' }) }}</a-doption><a-doption class="unified-action-option" @click="addFolder"><template #icon><Folder :size="16" /></template>{{ t('unified.addLocalFolder') }}</a-doption></template></a-dropdown>
+        <button v-if="section === 'files'" class="add-source file-source-add" @click="showAddFileSource = true"><Plus :size="16" />{{ t('unified.addSource') }}</button>
       </header>
       <div v-if="media.isScanning" class="library-scan-status" role="status" aria-live="polite" aria-atomic="true" data-testid="library-scan-status">
         <MediaLoadingIndicator :size="18" aria-hidden="true" />
@@ -1606,7 +1724,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
           <div class="row-heading"><h2>{{ entry.item.title }}</h2><button @click="openHomeMenu('sources')">{{ t('mediaServer.seeAllPlain') }}</button></div>
           <div class="horizontal-row">
             <button v-for="card in favoritePageCards" :key="card.key" class="favorite-shortcut favorite-library" :class="favoriteCardClasses(card.key)" @click="card.action" @contextmenu.prevent="openFavoriteCardMenu($event, card.key)">
-              <div class="favorite-shortcut-art"><MediaServerIcon v-if="sourceServer(card.key)" :server="sourceServer(card.key)!" :size="70" /><component :is="libraryCategoryIcon(card.key)" v-else :size="70" :stroke-width="2.8" aria-hidden="true" /></div>
+              <div class="favorite-shortcut-art"><img v-if="favoriteCover(card.key)" class="favorite-shortcut-cover" :src="favoriteCover(card.key)" alt="" draggable="false" /><MediaServerIcon v-else-if="sourceServer(card.key)" :server="sourceServer(card.key)!" :size="70" /><component :is="libraryCategoryIcon(card.key)" v-else :size="70" :stroke-width="2.8" aria-hidden="true" /></div>
               <strong>{{ card.title }}</strong>
             </button>
           </div>
@@ -1620,7 +1738,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         <div v-if="isCatalogPage && selectedHomeRowKey === 'catalog:favorites'" class="favorite-page-wrap" :class="{ 'is-reordering': favoriteReordering }">
           <div v-if="favoriteReordering" class="source-reorder-hint" role="status"><span>{{ t('unified.dragSourceHint') }}</span><button @click="finishFavoriteReordering">{{ t('unified.reorderDone') }}</button></div>
           <div class="favorite-page-grid" data-testid="library-favorites">
-          <button v-for="card in favoritePageCards" :key="card.key" :data-favorite-key="card.key" class="favorite-shortcut favorite-library" :class="[favoriteCardClasses(card.key), { 'source-dragging': draggedFavoriteKey === card.key }]" :draggable="favoriteReordering ? 'true' : 'false'" @dragstart="startFavoriteDrag($event, card.key)" @dragenter.prevent @dragover.prevent="$event.dataTransfer && ($event.dataTransfer.dropEffect = 'move')" @drop.prevent="dropFavoriteCard(card.key)" @dragend="draggedFavoriteKey = ''" @pointerdown="startFavoritePointer($event, card.key)" @pointermove="moveFavoritePointer" @pointerup="finishFavoritePointer" @pointercancel="finishFavoritePointer" @click="favoriteReordering ? undefined : card.action()" @contextmenu.prevent="!favoriteReordering && openFavoriteCardMenu($event, card.key)"><div class="favorite-shortcut-art"><MediaServerIcon v-if="sourceServer(card.key)" :server="sourceServer(card.key)!" :size="70" /><component :is="libraryCategoryIcon(card.key)" v-else :size="70" :stroke-width="2.8" aria-hidden="true" /></div><strong>{{ card.title }}</strong></button>
+          <button v-for="card in favoritePageCards" :key="card.key" :data-favorite-key="card.key" class="favorite-shortcut favorite-library" :class="[favoriteCardClasses(card.key), { 'source-dragging': draggedFavoriteKey === card.key }]" :draggable="favoriteReordering ? 'true' : 'false'" @dragstart="startFavoriteDrag($event, card.key)" @dragenter.prevent @dragover.prevent="$event.dataTransfer && ($event.dataTransfer.dropEffect = 'move')" @drop.prevent="dropFavoriteCard(card.key)" @dragend="draggedFavoriteKey = ''" @pointerdown="startFavoritePointer($event, card.key)" @pointermove="moveFavoritePointer" @pointerup="finishFavoritePointer" @pointercancel="finishFavoritePointer" @click="favoriteReordering ? undefined : card.action()" @contextmenu.prevent="!favoriteReordering && openFavoriteCardMenu($event, card.key)"><div class="favorite-shortcut-art"><img v-if="favoriteCover(card.key)" class="favorite-shortcut-cover" :src="favoriteCover(card.key)" alt="" draggable="false" /><MediaServerIcon v-else-if="sourceServer(card.key)" :server="sourceServer(card.key)!" :size="70" /><component :is="libraryCategoryIcon(card.key)" v-else :size="70" :stroke-width="2.8" aria-hidden="true" /></div><strong>{{ card.title }}</strong></button>
           </div>
         </div>
         <div v-else-if="isCatalogPage && selectedHomeRowKey === 'catalog:daily' && recommendationLoading" class="unified-loading-state"><MediaLoadingIndicator /></div>
@@ -1652,8 +1770,8 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
       </div>
       <div v-else-if="section === 'files'" class="file-source-browser" :class="{ 'file-source-list': collectionMode === 'list', 'is-reordering': fileSourceReordering }">
         <div v-if="fileSourceReordering" class="source-reorder-hint" role="status"><span>{{ t('unified.dragSourceHint') }}</span><button @click="finishSourceReordering">{{ t('unified.reorderDone') }}</button></div>
-        <button v-for="card in fileSourceCards" :key="card.key" :data-source-key="card.key" class="file-source-card" :style="sourceDragStyle(card.key)" :class="{ 'source-selected': fileSourceSelection && selectedFileSources.includes(card.key), 'source-dragging': sourceDragKey === card.key, 'source-drop-target': sourceDropKey === card.key && sourceDragKey !== card.key }" :aria-pressed="fileSourceSelection ? selectedFileSources.includes(card.key) : undefined" @pointerdown="collectionMode === 'grid' && fileSourceReordering && startSourcePointer($event, card.key)" @keydown="fileSourceReordering && sourceReorderKeydown($event, card.key)" @click="openFileSource(card)" @contextmenu.prevent="openSourceMenu($event, card.key)">
-<div class="file-source-art"><img v-if="card.providerIcon && !failedProviderIcons.has(card.key)" class="file-source-provider-icon" :src="card.providerIcon" :alt="card.title" draggable="false" @error="markProviderIconFailed(card.key)" /><img v-else-if="!card.server && sourceOverrides[card.key]?.cover" :src="sourceOverrides[card.key].cover" alt="" draggable="false" /><MediaServerIcon v-else-if="card.server" :server="card.server" :size="collectionMode === 'grid' ? 56 : 28" /><component v-else :is="card.icon" :size="collectionMode === 'grid' ? 56 : 28" /><input v-if="fileSourceSelection" type="checkbox" :checked="selectedFileSources.includes(card.key)" tabindex="-1" :aria-label="card.title" /></div><strong>{{ card.title }}</strong><span v-if="collectionMode === 'list'" class="file-source-handle" role="button" tabindex="0" :aria-label="t('unified.reorder', { name: card.title })" @click.stop @pointerdown.stop="startSourcePointer($event, card.key)" @keydown="sourceReorderKeydown($event, card.key)"><List :size="22" /></span>
+        <button v-for="card in fileSourceCards" :key="card.key" :data-source-key="card.key" class="file-source-card" :style="sourceDragStyle(card.key)" :class="{ 'source-selected': fileSourceSelection && selectedFileSources.includes(card.key), 'source-dragging': sourceDragKey === card.key, 'source-drop-target': sourceDropKey === card.key && sourceDragKey !== card.key }" :aria-pressed="fileSourceSelection ? selectedFileSources.includes(card.key) : undefined" @pointerdown="collectionMode === 'grid' && fileSourceReordering && startSourcePointer($event, card.key)" @keydown="fileSourceReordering && sourceReorderKeydown($event, card.key)" @click="openFileSource(card)" @contextmenu.prevent="openFileCardMenu($event, card.key)">
+<div class="file-source-art"><img v-if="card.providerIcon && !failedProviderIcons.has(card.key)" class="file-source-provider-icon" :src="card.providerIcon" :alt="card.title" draggable="false" @error="markProviderIconFailed(card.key)" /><img v-else-if="!card.server && favoriteCover(card.key)" :src="favoriteCover(card.key)" alt="" draggable="false" /><MediaServerIcon v-else-if="card.server" :server="card.server" :size="collectionMode === 'grid' ? 56 : 28" /><component v-else :is="card.icon" :size="collectionMode === 'grid' ? 56 : 28" /><input v-if="fileSourceSelection" type="checkbox" :checked="selectedFileSources.includes(card.key)" tabindex="-1" :aria-label="card.title" /></div><strong>{{ card.title }}<small v-if="collectionMode === 'list' && 'subtitle' in card && card.subtitle" class="file-source-subtitle">{{ card.subtitle }}</small></strong><span v-if="collectionMode === 'list'" class="file-source-handle" role="button" tabindex="0" :aria-label="t('unified.reorder', { name: card.title })" @click.stop @pointerdown.stop="startSourcePointer($event, card.key)" @keydown="sourceReorderKeydown($event, card.key)"><List :size="22" /></span>
         </button>
       </div>
       <div v-if="section === 'files' && fileSourceSelection" class="file-source-selection-bar">
@@ -1672,18 +1790,28 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
           <VideoLibrary v-if="section === 'video' || section === 'home' || section === 'collection'" v-show="section === 'video'" ref="videoView" @tag-title-change="detailTagTitle = $event" @detail-visibility-change="localDetailVisible = $event" @browse-context-change="selectedFolder = $event.folderId; selectedCategory = $event.category || selectedCategory" :nav-visible="false" :unified-browse="true" :unified-files="isFolderPage" :folder-descending="folderDescending" :browse-mode="collectionMode" :local-only="localOnly" :browse-sort="isCategoryPage ? browseSort : undefined" :browse-selection="isFolderPage ? folderSelection : browseSelection" />
         </KeepAlive>
         <KeepAlive>
-          <ServerWorkspace ref="serverWorkspace" v-if="section === 'server' || section === 'home'" v-show="section === 'server'" :unified-root="isServerRootPage" :root-selection="serverRootSelection" :unified-browse="isCategoryPage" :browse-mode="collectionMode" :server-sort="serverSort" :server-sort-direction="serverSortDirection" :server-sort-seed="serverSortSeed" />
+          <ServerWorkspace @category-favorites="favoriteServerCategories" @category-context="openCategoryMenu" ref="serverWorkspace" v-if="section === 'server' || section === 'home'" v-show="section === 'server'" :unified-root="isServerRootPage" :root-selection="serverRootSelection" :unified-browse="isCategoryPage" :browse-mode="collectionMode" :server-sort="serverSort" :server-sort-direction="serverSortDirection" :server-sort-seed="serverSortSeed" />
           <MusicLibrary v-else-if="section === 'music'" ref="musicView" data-testid="unified-section-music" :sidebar-visible="toolsVisible" />
           <BookLibrary v-else-if="section === 'book'" ref="bookView" data-testid="unified-section-book" :sidebar-visible="toolsVisible" />
         </KeepAlive>
       </div>
     </main>
     <Teleport to="body">
+      <div v-if="serverFolderMenu" class="source-context-dismiss" @pointerdown="serverFolderMenu = undefined" @contextmenu.prevent="serverFolderMenu = undefined" @keydown.esc="serverFolderMenu = undefined">
+        <div class="source-context-menu" :style="{ left: serverFolderMenu.x + 'px', top: serverFolderMenu.y + 'px' }" @pointerdown.stop>
+          <!-- A series card in Favorites: play like a folder, toggle the account's favorite, choose a cover. -->
+          <button role="menuitem" @click="serverPosterAction(serverFolderMenu.item, 'play'); serverFolderMenu = undefined"><Play :size="17" />{{ t('unified.play') }}</button>
+          <button role="menuitem" @click="serverPosterAction(serverFolderMenu.item, 'loop'); serverFolderMenu = undefined"><RefreshCw :size="17" />{{ t('unified.loopPlay') }}</button>
+          <button role="menuitem" @click="serverPosterAction(serverFolderMenu.item, 'shuffle'); serverFolderMenu = undefined"><Shuffle :size="17" />{{ t('unified.shufflePlay') }}</button>
+          <button role="menuitem" @click="serverPosterAction(serverFolderMenu.item, 'favorite'); serverFolderMenu = undefined"><Star :size="17" />{{ t(serverFolderMenu.item.isFavorite === false ? 'mediaServer.addFavorite' : 'mediaServer.removeFavorite') }}</button>
+          <button role="menuitem" @click="openFavoriteCoverDialog(serverFolderFavoriteKey(serverFolderMenu.item)); serverFolderMenu = undefined"><Image :size="17" />{{ t('unified.cover') }}</button>
+        </div>
+      </div>
       <div v-if="categoryMenu" class="source-context-dismiss" @pointerdown="categoryMenu = undefined" @contextmenu.prevent="categoryMenu = undefined" @keydown.esc="categoryMenu = undefined"><div class="source-context-menu" role="menu" :style="{ left: categoryMenu.x + 'px', top: categoryMenu.y + 'px' }" @pointerdown.stop>
         <template v-if="categoryMenu.favoriteCard && categoryMenu.route === 'library'">
           <button role="menuitem" @click="startFavoriteReordering"><Move :size="17" />{{ t('unified.sourceReorder') }}</button>
         </template>
-        <LibraryObjectActions :route="categoryMenu.route" @action="categoryMenu = undefined" />
+        <LibraryObjectActions :route="categoryMenu.route" :hidden-on-home="!!sourceOverrides[categoryMenu.route]?.hiddenOnHome" @action="categoryMenu = undefined" />
       </div></div>
       <div v-if="sourceMenu" class="source-context-dismiss" @pointerdown="sourceMenu = null" @contextmenu.prevent="sourceMenu = null" @keydown.esc="sourceMenu = null">
         <div class="source-context-menu" role="menu" :style="{ left: sourceMenu.x + 'px', top: sourceMenu.y + 'px' }" @pointerdown.stop>
@@ -1708,7 +1836,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
     </a-modal>
     <a-modal :visible="!!playlistAssignment" :title="t('media.playlist')" @cancel="playlistAssignment = undefined" @ok="savePlaylistAssignment"><a-checkbox-group v-if="playlistAssignment" v-model="playlistAssignment.selected" :options="Object.keys(media.playlists)" /><a-input v-model="playlistCreateName" :placeholder="t('libraryObject.newPlaylist')" /></a-modal>
     <a-modal :visible="!!objectPrompt" :title="objectPrompt?.action === 'delete' ? t(objectPrompt.route.startsWith('playlist/') ? 'libraryObject.deletePlaylist' : 'libraryObject.deleteSeries') : t(objectPrompt?.route.startsWith('playlist/') ? 'libraryObject.renamePlaylist' : 'customSeries.rename')" @cancel="objectPrompt = undefined" @ok="saveObjectPrompt"><a-input v-if="objectPrompt?.action === 'rename'" v-model="objectPrompt.value" @press-enter="saveObjectPrompt" /><p v-else>{{ objectPrompt?.value }}</p></a-modal>
-    <a-modal :visible="!!catalogPlacement" :title="catalogPlacement?.action === 'home' ? t('libraryBrowse.addHome') : catalogPlacement?.action === 'favorite' ? t('unified.addToFavorites') : t('unified.renameCollection')" @cancel="catalogPlacement = undefined" @ok="saveCatalogPlacement"><a-input v-if="catalogPlacement" v-model="catalogPlacement.name" @press-enter="saveCatalogPlacement" /></a-modal>
+    <a-modal :visible="!!catalogPlacement" :title="catalogPlacement?.action === 'home' ? t('libraryBrowse.addHome') : catalogPlacement?.action === 'favorite' ? t('unified.addToFavorites') : t('unified.renameCollection')" @cancel="catalogPlacement = undefined; categoryFavoriteQueue = []" @ok="saveCatalogPlacement"><a-input v-if="catalogPlacement" v-model="catalogPlacement.name" @press-enter="saveCatalogPlacement" /></a-modal>
     <a-modal v-model:visible="renameVisible" :title="t('unified.renameCollection')" @ok="saveCollectionName"><a-input v-model="renameText" /></a-modal>
     <ServerRegistry ref="addRegistryView" form-only @open-server="useManagedServer" />
     <MediaServerEndpointsModal :server-id="endpointServerId" @close="endpointServerId = ''" />
@@ -1720,6 +1848,8 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
     </a-modal>
   </div>
 <MediaShareModal /><MediaPersonalRatingModal /><CustomMediaSeriesModal /><WatchingUpdateModal />
+<AddFileSourceModal @toggle-root="togglePickerRootFavorite" :device-name="localDeviceName" :sources="connectedFileRoots.map(root => ({ id: root.value, name: root.label, icon: root.providerIcon, favorite: rootIsFavorite(root), folder: root.folder, driveServerId: root.driveServerId, drives: root.drives })).concat(registry.servers.map(server => ({ id: 'server:' + server.id, name: server.name, icon: '', favorite: false, server, folder: makeScanFolder({ user_id: server.userId || '' } as ITokenInfo, 'media_server', '__all__', server.name), driveServerId: 'media_server', drives: undefined })))"  :visible="showAddFileSource" @close="showAddFileSource = false" @connected="fileSourceConnected" />
+<LimitReachedModal :visible="showProPurchase" @update:visible="showProPurchase = $event" />
 <TraktAccountModal :visible="showTraktAccount" @close="showTraktAccount = false" />
 </template>
 
@@ -1780,7 +1910,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .favorite-shortcut{padding:0;border:0;background:transparent;color:var(--color-text-1);width:172px;flex-shrink:0;text-align:left;cursor:pointer}
 .favorite-shortcut-art{aspect-ratio:1.8;height:auto;border-radius:10% / 18%;display:flex;align-items:center;justify-content:center;color:#ffffffb8;background:linear-gradient(90deg,#ff5b00,#ff9600)}
 .favorite-shortcut-art :deep(svg),.favorite-shortcut-art :deep(.media-server-provider-icon){width:48px!important;height:48px!important}
-.favorite-movies .favorite-shortcut-art{background:linear-gradient(90deg,#0075ff,#17c9e8)}
+.favorite-shortcut-art{position:relative;overflow:hidden}.favorite-shortcut-cover{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}.favorite-movies .favorite-shortcut-art{background:linear-gradient(90deg,#0075ff,#17c9e8)}
 .favorite-tv .favorite-shortcut-art{background:linear-gradient(90deg,#ff1c61,#e434f1)}
 .favorite-other .favorite-shortcut-art{background:linear-gradient(90deg,#20c866,#08dfc2)}
 .favorite-music .favorite-shortcut-art{background:linear-gradient(90deg,#3288c8,#25c1df)}
@@ -1809,7 +1939,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 :global(.arco-dropdown-option.unified-action-option){box-sizing:border-box;min-width:190px;width:max-content!important;max-width:calc(100vw - 48px);padding:0 12px!important;line-height:28px!important;margin:2px 4px!important;font-size:13px}:global(.unified-action-option .arco-dropdown-option-icon){display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:16px;margin-right:9px}:global(.unified-action-option .arco-dropdown-option-content){white-space:nowrap;line-height:28px}:global(.unified-action-option svg){display:block;flex-shrink:0}
 :global(.arco-dropdown-option.server-root-option){min-width:132px;padding:0 8px!important;margin:1px 3px!important;line-height:25px!important}:global(.server-root-option .arco-dropdown-option-icon){color:#ff8b25!important}
 :global(.arco-dropdown-option.browse-sort-option){color:#fff!important}:global(.browse-sort-option .arco-dropdown-option-icon){color:#ff8800!important}
-.file-source-browser{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,174px);align-content:start;gap:22px;padding:22px 36px}.file-source-card{padding:0;border:0;background:transparent;color:var(--color-text-1);text-align:left}.file-source-art{position:relative;aspect-ratio:2/3;border-radius:16px;background:var(--color-fill-2);display:grid;place-items:center;color:#ff8b25}.file-source-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}.file-source-art input{position:absolute;top:8px;right:8px}.file-source-card strong{display:block;font-size:13px;margin-top:10px}.file-source-list{display:flex;flex-direction:column;padding:0 16px;gap:0}.file-source-list .file-source-card{display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--color-border-2)}.file-source-list .file-source-art{width:86px;height:129px;flex-shrink:0;border-radius:8px}.file-source-list strong{margin:0;font-size:14px}.file-source-handle{margin-left:auto;color:var(--color-text-3)}.file-source-add{background:#ff8700!important;color:white!important;border-radius:22px}
+.file-source-browser{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,174px);align-content:start;gap:22px;padding:22px 36px}.file-source-card{padding:0;border:0;background:transparent;color:var(--color-text-1);text-align:left}.file-source-art{position:relative;aspect-ratio:2/3;border-radius:16px;background:var(--color-fill-2);display:grid;place-items:center;color:#ff8b25}.file-source-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}.file-source-art input{position:absolute;top:8px;right:8px}.file-source-card strong{display:block;font-size:13px;margin-top:10px}.file-source-list{display:flex;flex-direction:column;padding:0 16px;gap:0}.file-source-list .file-source-card{display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--color-border-2)}.file-source-list .file-source-art{width:86px;height:129px;flex-shrink:0;border-radius:8px}.file-source-list strong{margin:0;font-size:14px}.file-source-subtitle{display:block;margin-top:4px;font-size:12px;font-weight:400;color:var(--color-text-3)}.file-source-handle{margin-left:auto;color:var(--color-text-3)}.file-source-add{background:#ff8700!important;color:white!important;border-radius:22px}
 .file-source-art :deep(img.media-server-provider-icon) { position: static; inset: auto; object-fit: contain; border-radius: 0 }
 .file-source-art img.file-source-provider-icon{position:static;width:56px;height:56px;object-fit:contain;border-radius:0}
 .file-source-list .file-source-art img.file-source-provider-icon{width:28px;height:28px}
@@ -1821,10 +1951,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 .file-source-selection-bar{position:fixed;right:20px;bottom:36px;z-index:100;display:flex;align-items:center;gap:16px;max-width:calc(100vw - 300px);padding:10px 14px;border:1px solid var(--color-border-2);border-radius:24px;background:var(--color-bg-popup);color:var(--color-text-1);box-shadow:0 6px 20px #0003;overflow-x:auto;white-space:nowrap;font-size:12px}
 .file-source-selection-bar button{display:flex;align-items:center;gap:6px;padding:0;border:0;background:transparent;color:inherit;cursor:pointer;font-size:12px;white-space:nowrap}.file-source-selection-bar button svg{color:#ff8800}.file-source-selection-bar button:disabled{opacity:.4;cursor:not-allowed}.file-source-selection-bar .danger svg{color:#ff375f}.file-source-card.source-selected .file-source-art{background:#684220!important;outline:1px solid #ff8800}.file-source-card.source-selected input{accent-color:#ff8800}.file-source-browser:has(+ .file-source-selection-bar){padding-bottom:90px}
 .source-context-dismiss{position:fixed;inset:0;z-index:2000}
-.source-context-menu{position:absolute;min-width:145px;padding:5px;border:1px solid var(--color-border-3);border-radius:12px;background:var(--color-bg-popup);box-shadow:0 10px 26px #0004;color:var(--color-text-1)}
+.source-context-menu{position:absolute;min-width:145px;padding:5px;border:1px solid var(--color-border-3);border-radius:12px;background: var(--app-overlay-bg);box-shadow:0 10px 26px #0004;color:var(--color-text-1)}
 .source-context-menu button{display:flex;align-items:center;gap:7px;width:100%;min-height:25px;padding:3px 8px;border:0;border-radius:5px;background:transparent;color:inherit;font-size:13px;cursor:pointer;text-align:left}
 .source-context-menu button svg{color:#ff8700;flex-shrink:0}.source-context-menu button:hover,.source-context-menu button:focus-visible{background:var(--color-fill-3)}
-body[arco-theme='dark'] .source-context-menu{background:#191919;color:#e5e5e5;border-color:#484848}
+body[arco-theme='dark'] .source-context-menu{background: var(--app-overlay-bg);color:#e5e5e5;border-color:#484848}
 .source-reorder>div{display:flex;gap:8px;align-items:center;padding:8px}.source-reorder span{flex:1}.source-reorder button{border:0;background:var(--color-fill-2);color:var(--color-text-1);padding:6px;border-radius:5px}
 </style>
 

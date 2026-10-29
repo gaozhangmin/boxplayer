@@ -1,7 +1,7 @@
 <template>
-  <a-modal :visible="visible" :footer="false" :closable="false" :mask-closable="!loading" width="540px" modal-class="server-add-sheet" @cancel="emit('update:visible', false)">
+  <SourceFormSurface :embedded="embedded" :visible="visible" :mask-closable="!loading" modal-class="server-add-sheet" @update:visible="emit('update:visible', $event)">
     <template #title><div class="sheet-heading"><button class="sheet-back" :disabled="loading" :aria-label="t('unified.back')" @click="emit('update:visible', false)"><ChevronLeft :size="24" /></button><h2>{{ editingServer ? form.name : t('mediaServer.addServer', { type: serverTypeTitle }) }}</h2><button v-if="editingServer" type="button" class="sheet-remove" :disabled="loading" @click="emit('remove', editingServer.id)">{{ t('mediaServer.removeShare') }}</button></div></template>
-    <form class="server-add-form" @submit.prevent="handleSubmit">
+    <form v-if="form.type !== 'plex' || editingServer" class="server-add-form" @submit.prevent="handleSubmit">
       <div class="sheet-field"><label for="server-add-name">{{ t('mediaServer.name') }}</label><input id="server-add-name" v-model="form.name" :placeholder="defaultName" :disabled="loading" autocomplete="off" /></div>
       <div class="sheet-field"><label>{{ t('mediaServer.protocol') }}</label><span class="protocol-value">{{ serverTypeTitle }}</span></div>
       <div class="sheet-field"><label for="server-add-host">{{ t('mediaServer.address') }}</label><input id="server-add-host" v-model="form.host" placeholder="iMac.local" :disabled="loading" :readonly="!!editingServer" autocapitalize="off" spellcheck="false" /></div>
@@ -21,12 +21,18 @@
         </template>
       </div>
     </form>
-  </a-modal>
+    <form v-else class="server-add-form" @submit.prevent="handleSubmit">
+      <div class="sheet-field"><label for="plex-source-name">{{ t('mediaServer.name') }}</label><input id="plex-source-name" v-model="form.name" :placeholder="defaultName" :disabled="loading" /></div>
+      <div class="sheet-field"><label>{{ t('mediaServer.protocol') }}</label><span class="protocol-value">Plex</span></div>
+      <div class="sheet-actions"><button type="submit" :disabled="loading">{{ t('mediaServer.connect') }}</button></div>
+    </form>
+  </SourceFormSurface>
   <MediaServerSpeedTestModal v-if="editingServer" v-model:visible="showSpeedTest" :server="editingServer" />
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import SourceFormSurface from '../SourceFormSurface.vue'
 import MediaServerSpeedTestModal from './MediaServerSpeedTestModal.vue'
 import { ChevronLeft, ChevronUp, ChevronDown } from 'lucide-vue-next'
 import { buildMediaServerAddress, type ServerHttpsMode } from '../../utils/mediaServerAddress'
@@ -36,6 +42,7 @@ import { t } from '../../i18n'
 
 const props = defineProps<{
   visible: boolean
+  embedded?: boolean
   loading?: boolean
   editingServer?: MediaServerConfig | null
   defaultType?: MediaServerType
@@ -148,7 +155,7 @@ const fillForm = () => {
   form.useHttps = false
   form.httpsMode = 'auto'
   form.libraryMode = false
-  advanced.value = true
+  advanced.value = !props.embedded
   form.syncFlag = true
   form.backupAddresses = []
 }
@@ -164,6 +171,10 @@ watch(() => props.defaultType, () => {
 
 const handleSubmit = () => {
   if (props.loading) return
+  if (form.type === 'plex' && !props.editingServer) {
+    emit('submit', { type: 'plex', name: form.name.trim() || defaultName.value, nameCustomized: !!form.name.trim(), baseUrl: '' })
+    return
+  }
   if (!form.host.trim()) {
     message.error(t('mediaServer.fillServerHost'))
     return
@@ -198,7 +209,7 @@ const handleSubmit = () => {
 
 </script>
 <style>
-.server-add-sheet.arco-modal,body[arco-theme='dark'] .arco-modal.server-add-sheet{background:#1e1e1e!important;color:#dedede;border:1px solid #484848!important;border-radius:18px!important;width:min(660px,calc(100vw - 32px))!important;max-height:calc(100vh - 32px);overflow:auto}
+.server-add-sheet.arco-modal,body[arco-theme='dark'] .arco-modal.server-add-sheet{background: var(--app-overlay-bg) !important;color:#dedede;border:1px solid #484848!important;border-radius:18px!important;width:min(660px,calc(100vw - 32px))!important;max-height:calc(100vh - 32px);overflow:auto}
 .server-add-sheet .arco-modal-header,body[arco-theme='dark'] .server-add-sheet .arco-modal-header{height:64px;border:0!important;padding:0 20px;position:relative}
 .server-add-sheet .arco-modal-title{width:100%}.server-add-sheet .arco-modal-body{padding:0 32px 36px!important;max-height:none!important}
 </style>
@@ -211,4 +222,15 @@ const handleSubmit = () => {
 .protocol-value{color:#949494;font-size:16px;padding-left:4px}.sheet-advanced{display:flex;align-items:center;gap:12px;margin:22px 0 4px;padding:12px 0;border:0;background:transparent;color:#ddd;font:inherit;font-size:16px;cursor:pointer}
 .sheet-field select{background:#303030;color:#ddd;border:0;border-radius:7px;font:inherit;font-size:16px;padding:8px 12px;min-width:0;width:100%;height:38px;max-width:260px;cursor:pointer}.sheet-checkbox input{width:16px;height:16px;margin:0;accent-color:#ff8700;cursor:pointer}.sheet-actions{display:flex;justify-content:center;gap:12px;margin-top:30px;flex-wrap:wrap}.sheet-actions button{min-height:42px;min-width:145px;padding:0 20px;border:1px solid #555;border-radius:9px;background:#303030;color:#eee;font:inherit;font-size:16px;cursor:pointer}.sheet-actions button[type=submit]{background:#ff8700;color:#111;border-color:#ff8700}.sheet-actions button:disabled{opacity:.5;cursor:default}.sheet-back:disabled{opacity:.5;cursor:default}
 @media(max-width:560px){:global(.server-add-sheet .arco-modal-body){padding:0 24px 40px!important}.sheet-field{grid-template-columns:92px minmax(0,1fr);gap:12px}.sheet-advanced{margin-left:104px}}
+</style>
+
+<style scoped>
+.source-form-surface .sheet-heading h2{color:var(--color-text-1);font-size:17px}
+.source-form-surface .sheet-field{grid-template-columns:100px minmax(0,1fr);gap:16px;border:0;min-height:40px}
+.source-form-surface .sheet-field label{text-align:right;color:var(--color-text-2);font-size:14px}
+.source-form-surface .sheet-field input:not([type=checkbox]){color:var(--color-text-1);font-size:14px}
+.source-form-surface .sheet-back{left:0;color:var(--color-text-1);background:var(--color-fill-2);border-color:var(--color-border-2)}
+.source-form-surface .sheet-advanced,.source-form-surface .sheet-actions{margin-left:116px;justify-content:flex-start}
+.source-form-surface .sheet-advanced{color:var(--color-text-2);font-size:14px}
+.source-form-surface .sheet-field select{background:var(--color-fill-2);color:var(--color-text-1);font-size:14px}
 </style>

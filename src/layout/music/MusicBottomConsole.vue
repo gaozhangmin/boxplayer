@@ -511,9 +511,9 @@ const qualityOptions = [
   padding: 8px;
   border: 1px solid rgba(157,184,207,.24);
   border-radius: 14px;
-  background: rgba(10,11,14,.82);
+  background: var(--app-overlay-bg);
   box-shadow: 0 18px 48px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.08);
-  backdrop-filter: blur(24px) saturate(1.25);
+  backdrop-filter: none;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%) translateY(8px);
@@ -607,9 +607,9 @@ const qualityOptions = [
   padding: 0 12px;
   border: 1px solid rgba(255,255,255,.09);
   border-radius: 14px;
-  background: rgba(12,12,16,.78);
+  background: var(--app-overlay-bg);
   box-shadow: 0 18px 48px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.07);
-  backdrop-filter: blur(24px) saturate(1.12);
+  backdrop-filter: none;
   opacity: 0;
   pointer-events: none;
   transform: translateX(-50%) translateY(8px);

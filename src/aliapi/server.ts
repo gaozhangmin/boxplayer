@@ -3,7 +3,7 @@ import { getPkgVersion } from '../utils/utils'
 import axios, { AxiosResponse } from 'axios'
 import { IShareSiteGroupModel, IShareSiteModel, useServerStore, useSettingStore } from '../store'
 import ShareDAL from '../share/share/ShareDAL'
-import { modalShowPost, modalUpdate } from '../utils/modal'
+import { modalShowPost } from '../utils/modal'
 import message from '../utils/message'
 import path from 'path'
 import DebugLog from '../utils/debuglog'
@@ -185,69 +185,6 @@ export default class ServerHttp {
   }
 
   static async CheckUpgrade(showMessage: boolean = true): Promise<void> {
-    const settingStore = useSettingStore()
-    axios
-      .get(ServerHttp.updateUrl, {
-        withCredentials: false,
-        responseType: 'json',
-        timeout: 30000
-      })
-      .then(async (response: AxiosResponse) => {
-        console.log('CheckUpgrade', response)
-        if (!response.data || !response.data.assets || !response.data.html_url) {
-          showMessage && message.error('获取新版本出错')
-          return
-        }
-        let tagName = response.data.tag_name  // 版本号
-        let remoteVer = tagName.replaceAll('v', '').trim()
-        let verHtml = response.data.html_url // 详情
-        let verInfo = response.data.body // 日志
-        let verData: IServerVerData = {
-          version: remoteVer,
-          verName: '',
-          verUrl: '',
-          verInfo: verInfo,
-          verHtml: verHtml,
-          fileExt: '',
-          fileSize: 0
-        }
-        let assets = response.data.assets     // 文件
-        function isMatchingPlatformAndExtension(platform: string, fileName: string, extension: string): boolean {
-          return platform === window.platform && fileName.indexOf(process.arch) > 0 && fileName.endsWith(extension)
-        }
-
-        for (let asset of assets) {
-          if (asset.name.endsWith('.asar')) {
-            verData.fileSize = asset.size
-            verData.fileExt = path.extname(asset.name)
-            verData.verUrl = asset.browser_download_url
-            verData.verName = asset.name
-            break
-          }
-          if (isMatchingPlatformAndExtension('win32', asset.name, '.exe') ||
-            isMatchingPlatformAndExtension('darwin', asset.name, '.dmg')) {
-            verData.fileSize = asset.size
-            verData.fileExt = path.extname(asset.name)
-            verData.verUrl = asset.browser_download_url
-            verData.verName = asset.name
-          }
-        }
-        if (remoteVer) {
-          const configVer = this.getInstalledVersion()
-          if (settingStore.uiUpdateProxyEnable) {
-            verData.verUrl = buildUpdateProxyUrl(settingStore.uiUpdateProxyUrl, verData.verUrl)
-          }
-          if (this.compareVer(remoteVer, configVer) > 0) {
-            // 打开更新弹窗
-            modalUpdate(verData)
-          } else if (showMessage) {
-            message.info('已经是最新版 ' + configVer, 6)
-          }
-        }
-      })
-      .catch((err: any) => {
-        showMessage && message.info('检查更新失败，请检查网络是否正常')
-        // DebugLog.mSaveDanger('CheckUpgrade', err)
-      })
+    await window.AutoUpdateCheck?.(showMessage)
   }
 }

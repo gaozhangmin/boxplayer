@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Check, ChevronLeft, ChevronRight, Menu, Minus, Pencil, Plus, X } from 'lucide-vue-next'
 import { t } from '../i18n'
+import { categoryRouteForHomeId, isIndependentCategoryRoute } from '../utils/categoryPlacement'
 import { homeItemTitle, homeMenuTitle, isHomeItemEnabled, mergeHomeOrder, moveHomeItem, visibleHomeItems, type HomeManagementGroup, type HomeManagementItem, type HomeManagementNode, type UnifiedHomeSettings } from '../utils/unifiedHomeManagement'
 
 const props = defineProps<{ items: HomeManagementItem[]; groups: HomeManagementGroup[]; settings: UnifiedHomeSettings; canEnable?: (id: string) => boolean; placementState?: (id: string) => { home: boolean; favorite: boolean } }>()
@@ -87,6 +88,8 @@ onBeforeUnmount(() => dragCleanup?.())
 const renameTarget = ref<HomeManagementItem>()
 const renameText = ref('')
 const favoriteOnly = (item: HomeManagementItem) => {
+  // A media server category's Favorites card never counts as a Home shelf.
+  if (isIndependentCategoryRoute(categoryRouteForHomeId(item.id))) return false
   const state = props.placementState?.(item.id)
   return !!state?.favorite && !state.home
 }
@@ -105,7 +108,7 @@ const currentNode = computed(() => {
   return opened ? nodesById.value.get(opened.id) || opened : undefined
 })
 const currentNodes = computed(() => currentNode.value?.children || [])
-const currentTitle = computed(() => currentNode.value?.title || t('nav.home'))
+const currentTitle = computed(() => currentNode.value?.title || t('libraryBrowse.addHome'))
 function title(item: HomeManagementItem) { return homeItemTitle(item, draft.value) }
 function toggle(item: HomeManagementItem) {
   const enabled = isHomeItemEnabled(item, draft.value)
@@ -140,7 +143,7 @@ watch(() => props.items, items => { draft.value.order = mergeHomeOrder(draft.val
   <div class="home-management" :class="{ 'sorting-view': !editing }" data-testid="unified-home-management">
     <header>
       <button class="circle" :aria-label="path.length ? t('unified.back') : t('common.close')" @click="path.length ? path.pop() : emit('close')"><ChevronLeft v-if="path.length" :size="20" /><X v-else :size="18" /></button>
-      <h2>{{ editing ? currentTitle : t('nav.home') }}</h2>
+      <h2>{{ editing ? currentTitle : t('libraryBrowse.addHome') }}</h2>
       <button v-if="editing" class="circle confirm" :aria-label="t('common.save')" @click="save"><Check :size="22" /></button>
       <button v-else class="edit" @click="editing = true">{{ t('unified.edit') }}</button>
     </header>
@@ -193,6 +196,6 @@ watch(() => props.items, items => { draft.value.order = mergeHomeOrder(draft.val
 <style>
 .unified-home-management-modal.arco-modal{width:660px!important;max-width:calc(100vw - 32px)!important}
 .unified-home-management-modal .arco-modal-body{width:100%;box-sizing:border-box}
-.unified-home-management-modal:has(.sorting-view){background:var(--color-bg-1)}
-body[arco-theme='dark'] .unified-home-management-modal:has(.sorting-view){background:#000}
+.unified-home-management-modal:has(.sorting-view){background: var(--app-overlay-bg)}
+body[arco-theme='dark'] .unified-home-management-modal:has(.sorting-view){background: var(--app-overlay-bg)}
 </style>

@@ -244,10 +244,10 @@ const handleMediaImageLoad = (event: Event) => {
   min-width: 184px;
   padding: 7px;
   border-radius: 18px;
-  background: rgba(18, 22, 30, 0.94);
+  background: var(--app-overlay-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 18px 42px rgba(45, 35, 25, 0.2);
-  backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: none;
 }
 
 .home-card-context-item {
@@ -299,7 +299,7 @@ const handleMediaImageLoad = (event: Event) => {
 }
 
 [arco-theme='dark'] .home-card-context-menu {
-  background: rgba(24, 28, 36, 0.9);
+  background: var(--app-overlay-bg);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.38);
 }

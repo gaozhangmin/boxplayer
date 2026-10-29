@@ -3717,9 +3717,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 34% 18%, rgba(255, 255, 255, .035), transparent 26%),
-    linear-gradient(135deg, #1b1b1b 0%, #242424 48%, #181818 100%);
+  background: var(--app-overlay-bg);
   color: #f1f1f1;
 }
 
@@ -4162,9 +4160,7 @@ onBeforeUnmount(() => {
   height: min(650px, calc(100vh - 80px));
   overflow: hidden;
   flex-direction: column;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(63, 131, 255, .12), transparent 34%),
-    #15171b;
+  background: var(--app-overlay-bg);
   color: #f1f1f1;
 }
 

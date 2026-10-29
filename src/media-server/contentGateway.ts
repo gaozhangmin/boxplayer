@@ -1,3 +1,4 @@
+import { rememberServerFolderFavorite } from './folderFavorites'
 import { serverPageOrder, type MediaServerPageSort } from '../utils/mediaServerPageSort'
 import type { MediaServerConfig } from '../types/mediaServer'
 import { serverFavoriteType } from './favoriteCategories'
@@ -1364,18 +1365,21 @@ export const updateMediaServerPlayedState = async (
 export const updateMediaServerFavoriteState = async (
   config: MediaServerConfig,
   itemId: string,
-  isFavorite: boolean
+  isFavorite: boolean,
+  item?: MediaServerCardItem
 ) => {
   ensureServerContext(config)
   if (config.type === 'plex') {
     await updatePlexMediaServerFavoriteState(config, itemId, isFavorite)
-    return
+  } else {
+    await mediaServerFetchVoid(
+      config,
+      `/Users/${config.userId}/FavoriteItems/${encodeURIComponent(itemId)}`,
+      { method: isFavorite ? 'DELETE' : 'POST' }
+    )
   }
-  await mediaServerFetchVoid(
-    config,
-    `/Users/${config.userId}/FavoriteItems/${encodeURIComponent(itemId)}`,
-    { method: isFavorite ? 'DELETE' : 'POST' }
-  )
+  // Persist shortcuts only after the owning server accepted the favorite change.
+  if (item) rememberServerFolderFavorite(config, item, !isFavorite)
 }
 
 export const getMediaServerSimilarItems = async (

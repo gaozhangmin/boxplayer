@@ -2803,9 +2803,7 @@ body:not([arco-theme='dark']) .mineradio-player {
   width: min(460px, calc(100vw - 42px));
   border: 1px solid rgba(0,245,212,.18);
   border-radius: 22px;
-  background:
-    radial-gradient(circle at 0% 0%, rgba(0,245,212,.12), transparent 44%),
-    linear-gradient(145deg, rgba(18,22,28,.88), rgba(5,6,9,.94));
+  background: var(--app-overlay-bg);
   box-shadow: 0 34px 110px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.10);
   color: var(--music-stage-text);
   overflow: hidden;
@@ -3258,7 +3256,7 @@ body:not([arco-theme='dark']) .mineradio-player {
   border: 1px solid rgba(0,245,212,.16);
   border-radius: 20px;
   color: var(--music-stage-text);
-  background: linear-gradient(145deg, rgba(14,16,20,.92), rgba(5,6,8,.96));
+  background: var(--app-overlay-bg);
   box-shadow: 0 28px 90px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.08);
 }
 .music-detail-head {
@@ -3340,7 +3338,7 @@ body:not([arco-theme='dark']) .mineradio-player {
   }
   .music-detail-modal {
     border-color: rgba(255,255,255,.58);
-    background: rgba(242,248,250,.82);
+    background: var(--app-overlay-bg);
     box-shadow: 0 24px 72px rgba(55,78,94,.20), inset 0 1px 0 rgba(255,255,255,.74);
   }
   .music-fx-reset,

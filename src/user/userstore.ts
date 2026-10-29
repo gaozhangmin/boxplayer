@@ -19,6 +19,7 @@ export interface ITokenInfo {
   expires_in: number
   token_type: string
   user_id: string
+  source_name?: string
   user_name: string
 
   avatar: string
@@ -61,12 +62,14 @@ export interface UserState {
   user_id: string
   userLogined: boolean
   userShowLogin: boolean
+  loginFromFileSources: boolean
 }
 
 const useUserStore = defineStore('user', {
   state: (): UserState => ({
     user_id: '',
     userLogined: false,
+    loginFromFileSources: false,
     userShowLogin: false
   }),
 

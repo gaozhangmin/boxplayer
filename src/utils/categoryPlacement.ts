@@ -21,7 +21,7 @@ export interface CategoryPlacementSnapshot {
   /** Stable object identities survive playlist renames; routes remain navigation addresses. */
   identities: Record<string, string>
 }
-export type CategoryPlacementAction = 'home' | 'favorite' | 'rename' | 'remove'
+export type CategoryPlacementAction = 'home' | 'favorite' | 'rename' | 'remove' | 'removeFavorite'
 export function categoryGroupValue(category: string, value: string): string {
   if (category === 'ratings') {
     if (['前 30', 'Top 30'].includes(value)) return 'rating:top30'
@@ -105,6 +105,11 @@ function appendHomePlacement(snapshot: CategoryPlacementSnapshot, id: string, ca
     .filter(item => (!item.child || item.id.includes(':group:')) && isHomeItemEnabled(item, snapshot.home)).map(item => item.id)
   return [...unique([...existing, ...snapshot.home.order]).filter(key => key !== id), id]
 }
+/** Media server categories may sit on Home and in Favorites at once; local categories stay exclusive. */
+export function isIndependentCategoryRoute(address: string) {
+  const route = categoryRoute(address)
+  return route.startsWith('home-entry/') && !libraryHomeId(route).startsWith('local:')
+}
 export function categoryPlacementState(snapshot: CategoryPlacementSnapshot, address: string, catalog: HomeManagementItem[] = []) {
   const route = categoryRoute(address), id = libraryHomeId(route)
   const item = catalog.find(item => item.id === id)
@@ -115,11 +120,17 @@ export function categoryPlacementState(snapshot: CategoryPlacementSnapshot, addr
 }
 export function changeCategoryPlacement(snapshot: CategoryPlacementSnapshot, address: string, action: CategoryPlacementAction, name = '', catalog: HomeManagementItem[] = [], favoriteKeys: string[] = []): CategoryPlacementSnapshot {
   const state = categoryPlacementState(snapshot, address, catalog)
-  if ((action === 'home' || action === 'favorite') && state.placed) return snapshot
-  if (action === 'rename' && !state.placed) return snapshot
-  if (action !== 'remove' && !name.trim()) return snapshot
+  const independent = isIndependentCategoryRoute(state.route)
+  if (action === 'home' && (independent ? state.home : state.placed)) return snapshot
+  if (action === 'favorite' && (independent ? state.favorite : state.placed)) return snapshot
+  if (action === 'rename' && !(independent ? state.favorite : state.placed)) return snapshot
+  if (action !== 'remove' && action !== 'removeFavorite' && !name.trim()) return snapshot
   const next = structuredClone(snapshot)
-  if (action === 'remove') {
+  if (action === 'removeFavorite') {
+    // Only the Favorites card goes; the category keeps its Home shelf.
+    next.bookmarks.favorites = next.bookmarks.favorites.filter(route => route !== state.route)
+    next.favoriteOrder = next.favoriteOrder.filter(key => key !== state.route)
+  } else if (action === 'remove') {
     next.home.hidden = unique([...next.home.hidden, state.homeId])
     next.bookmarks.favorites = next.bookmarks.favorites.filter(route => route !== state.route)
     next.favoriteOrder = next.favoriteOrder.filter(key => key !== state.route)
@@ -143,6 +154,7 @@ export function applyCategoryHomeSettings(snapshot: CategoryPlacementSnapshot, s
   // Home management may reorder legacy dual placements, but cannot introduce a
   // new one. Checking the old state also preserves explicit default removals.
   for (const route of next.bookmarks.favorites) {
+    if (isIndependentCategoryRoute(route)) continue
     if (!categoryPlacementState(snapshot, route, catalog).home && categoryPlacementState(next, route, catalog).home) next.home.hidden = unique([...next.home.hidden, libraryHomeId(route)])
   }
   return next

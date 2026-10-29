@@ -9,6 +9,20 @@ import { defaultHomeSettings } from '../unifiedHomeManagement'
 const blank = () => migrateCategoryPlacement(defaultHomeSettings(), { favorites: [] })
 
 describe('category placement identity and state', () => {
+  it('lets a media server category sit on Home and in Favorites at once', () => {
+    const route = 'home-entry/' + encodeURIComponent('emby-1:global-series')
+    const catalog = [{ id: 'emby-1:global-series', title: 'Global Series', sourceId: 'emby-1', available: true, optIn: true }]
+    const favorite = changeCategoryPlacement(blank(), route, 'favorite', 'Global Series', catalog)
+    const both = changeCategoryPlacement(favorite, route, 'home', 'Latest Global Series', catalog)
+    expect(categoryPlacementState(both, route, catalog)).toMatchObject({ home: true, favorite: true })
+    const unfavorited = changeCategoryPlacement(both, route, 'removeFavorite', '', catalog)
+    expect(categoryPlacementState(unfavorited, route, catalog)).toMatchObject({ home: true, favorite: false })
+    expect(applyCategoryHomeSettings(both, both.home, catalog).home.hidden).not.toContain('emby-1:global-series')
+  })
+  it('keeps local categories exclusive', () => {
+    const favorite = changeCategoryPlacement(blank(), 'movies/genres/Drama', 'favorite', 'Drama')
+    expect(changeCategoryPlacement(favorite, 'movies/genres/Drama', 'home', 'Drama')).toBe(favorite)
+  })
   it.each(['movies', 'tv', 'movies/genres', 'tv/genres', 'movies/genres/Science%20Fiction', 'tv/years/2020%2B', 'playlist/Mix%2F2026', 'custom-series/42', 'series/42'])('round trips %s through the only home identity adapter', route => {
     expect(categoryRouteForHomeId(libraryHomeId(route))).toBe(route)
   })

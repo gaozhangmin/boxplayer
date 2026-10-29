@@ -377,7 +377,8 @@ export default class UserDAL {
   }
 
 
-  static async UserLogin(token: ITokenInfo, isInteractive: boolean = false) {
+  static async UserLogin(token: ITokenInfo, isInteractive: boolean = false, sourceName?: string) {
+    const keepFileSourcesPage = useUserStore().loginFromFileSources
     ++this.loginRevision
     const loadingKey = 'userlogin_' + Date.now().toString()
     message.loading('加载用户信息中...', 0, loadingKey)
@@ -421,6 +422,7 @@ export default class UserDAL {
     } else if (token.user_id) {
       useUserStore().userLogin(token.user_id)
     }
+    if (sourceName?.trim()) token.source_name = sourceName.trim()
     UserDAL.SaveUserToken(token)
     window.WebUserToken({
       user_id: token.user_id,
@@ -437,13 +439,13 @@ export default class UserDAL {
     if (isInteractive && token.tokenfrom !== 'unknown') captureProviderLogin(token.tokenfrom)
     // 刷新所有状态
     PanDAL.aReLoadQuickFile(token.user_id)
-    useAppStore().resetTab(useSettingStore().uiDefaultTab || 'pan')
+    if (!keepFileSourcesPage) useAppStore().resetTab(useSettingStore().uiDefaultTab || 'pan')
     useMyShareStore().$reset()
     useMyFollowingStore().$reset()
     useOtherFollowingStore().$reset()
     useFootStore().mSaveUserInfo(token)
     message.success('加载用户成功!', 2, loadingKey)
-    if (isInteractive && token.user_id) {
+    if (isInteractive && token.user_id && !keepFileSourcesPage) {
       const label = token.nick_name || token.user_name || token.user_id
       promptAutoScanForUser(token.user_id, label).catch(() => { /* ignore */ })
     }

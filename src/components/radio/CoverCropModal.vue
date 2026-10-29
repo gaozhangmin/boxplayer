@@ -85,7 +85,7 @@ function commit() {
 .crop-modal {
   width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 40px);
   border-radius: 18px; border: 1px solid rgba(0,245,212,.14);
-  background: linear-gradient(145deg, rgba(14,16,20,.94), rgba(5,6,8,.96));
+  background: var(--app-overlay-bg);
   box-shadow: 0 28px 80px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.06);
   padding: 18px; color: #fff; overflow: hidden;
 }

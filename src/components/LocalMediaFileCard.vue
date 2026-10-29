@@ -2,10 +2,10 @@
 import WatchedIndicator from './WatchedIndicator.vue'
 import MediaPosterPlaceholder from './MediaPosterPlaceholder.vue'
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { Folder, Check } from 'lucide-vue-next'
+import { Folder, Check, Star } from 'lucide-vue-next'
 import { getLocalVideoPreview, type LocalVideoPreview } from '../utils/localVideoPreview'
 import { t } from '../i18n'
-const props = defineProps<{ name: string; path?: string; thumbnail?: string; duration?: string | number; height?: number; mode?: 'grid' | 'list'; portraitList?: boolean; directory?: boolean; watched?: boolean; selection?: boolean; selected?: boolean }>()
+const props = defineProps<{ name: string; metadata?: { title?: string; rating?: number; year?: string; certification?: string; overview?: string }; path?: string; thumbnail?: string; duration?: string | number; height?: number; mode?: 'grid' | 'list'; portraitList?: boolean; directory?: boolean; watched?: boolean; selection?: boolean; selected?: boolean }>()
 const emit = defineEmits<{ open: []; watched: []; context: [event: MouseEvent] }>()
 const root = ref<HTMLElement>()
 const preview = ref<LocalVideoPreview>({ thumbnail: '', duration: 0, height: 0 })
@@ -38,8 +38,16 @@ onUnmounted(() => { version++; observer?.disconnect() })
       <input v-if="selection" type="checkbox" tabindex="-1" :checked="selected" :aria-label="name" />
     </div>
     <div class="local-file-info">
-      <strong :title="name">{{ mode === 'list' ? name : name.replace(/\.[^.]+$/, '') }}</strong>
-      <template v-if="mode === 'list' && !directory">
+      <strong :title="metadata?.title || name">{{ mode === 'list' ? metadata?.title || name : name }}</strong>
+      <template v-if="mode === 'list' && !directory && metadata">
+        <div class="local-file-meta">
+          <span v-if="metadata.rating != null"><Star :size="13" />{{ metadata.rating.toFixed(1) }}</span>
+          <span v-if="metadata.year">{{ metadata.year }}</span>
+          <span v-if="metadata.certification" class="local-file-certification">{{ metadata.certification }}</span>
+        </div>
+        <p v-if="metadata.overview" class="local-file-overview">{{ metadata.overview }}</p>
+      </template>
+      <template v-if="mode === 'list' && !directory && !portraitList">
         <small><span v-if="Number(duration) || preview.duration">{{ t('unified.durationMinutes', { count: Math.max(1, Math.ceil((Number(duration) || preview.duration) / 60)) }) }}</span><span v-if="height || preview.height">{{ height || preview.height }}p</span></small>
         <button v-if="!selection" :class="['local-file-watched', { 'is-watched': watched }]" :aria-pressed="!!watched" :aria-label="t(watched ? 'mediaServer.markUnwatched' : 'mediaServer.markWatched')" @click.stop="emit('watched')" @keydown.stop><Check :size="14" />{{ t(watched ? 'unified.watched' : 'mediaServer.markWatched') }}</button>
       </template>
@@ -55,6 +63,11 @@ onUnmounted(() => { version++; observer?.disconnect() })
 .local-file-watched.is-watched{background:#ff8800;color:#fff}.local-file-watched.is-watched:hover{background:#e87900}
 @media(max-width:900px){.local-file-list .local-file-art{width:180px;height:101px}}
 .local-file-portrait-list{gap:22px;padding:12px 0}.local-file-list.local-file-portrait-list .local-file-art{width:98px;height:147px;aspect-ratio:2/3}
+
+.local-file-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--color-text-3);margin-top:6px}
+.local-file-meta span{display:inline-flex;align-items:center;gap:4px}
+.local-file-certification{border:1px solid currentColor;border-radius:3px;padding:0 4px}
+.local-file-overview{font-size:13px;color:var(--color-text-2);line-height:1.5;margin:8px 0 0;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 </style>
 <style>
 body[arco-theme='dark'] .local-file-card .local-file-art{background:#222}

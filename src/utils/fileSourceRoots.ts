@@ -16,10 +16,12 @@ function driveLabelFromToken(token: ITokenInfo): string {
   if (token.tokenfrom === 'dropbox') return 'Dropbox'
   if (token.tokenfrom === 'onedrive') return 'OneDrive'
   if (token.tokenfrom === 'box') return 'Box'
+  if (token.tokenfrom === 'google') return 'Google Drive'
   return t('drive.aliyun')
 }
 
 function scanAccountLabel(token: ITokenInfo): string {
+  if (token.source_name?.trim()) return token.source_name.trim()
   return `${driveLabelFromToken(token)} · ${token.nick_name || token.user_name || token.name || token.user_id}`
 }
 
@@ -67,6 +69,9 @@ export function tokenRootScanFolders(token: ITokenInfo): ScanSourceTarget[] {
     }))
   }
 
+  if (token.tokenfrom === 'google') {
+    return [{ value: `account:${token.user_id}:google:root`, label, driveServerId: 'google', folder: makeScanFolder(token, 'google', 'google_root', label, '/') }]
+  }
   const nonAliRoot: Record<string, { driveId: string; fileId: string; path?: string }> = {
     cloud123: { driveId: 'cloud123', fileId: '0' },
     '115': { driveId: 'drive115', fileId: '0' },

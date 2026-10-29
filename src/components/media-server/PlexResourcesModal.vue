@@ -1,15 +1,5 @@
 <template>
-  <a-modal
-    :visible="visible"
-    title="选择 Plex 服务器"
-    width="720px"
-    modal-class="media-server-modal"
-    :ok-text="'保存'"
-    :ok-loading="loading"
-    :ok-button-props="{ disabled: selectedIds.length === 0 }"
-    @ok="handleConfirm"
-    @cancel="emit('update:visible', false)"
-  >
+  <SourceFormSurface :embedded="embedded" :visible="visible" :title="t('source.plexResources')" :width="720" :mask-closable="!loading" modal-class="media-server-modal" @update:visible="emit('update:visible', $event)">
     <div class="plex-modal">
       <div v-if="resources.length === 0" class="plex-empty">没有可用的 Plex 资源</div>
 
@@ -37,15 +27,19 @@
         </button>
       </div>
     </div>
-  </a-modal>
+    <div class="plex-actions"><a-button :disabled="loading" @click="emit('update:visible', false)">{{ t('common.cancel') }}</a-button><a-button type="primary" :loading="loading" :disabled="selectedIds.length === 0" @click="handleConfirm">{{ t('common.save') }}</a-button></div>
+  </SourceFormSurface>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import SourceFormSurface from '../SourceFormSurface.vue'
+import { t } from '../../i18n'
 import type { PlexResource } from '../../types/mediaServerPlex'
 
 const props = defineProps<{
   visible: boolean
+  embedded?: boolean
   resources: PlexResource[]
   loading?: boolean
 }>()
@@ -206,4 +200,8 @@ const handleConfirm = () => {
 [arco-theme='dark'] .plex-resource-subtitle {
   color: rgba(191, 201, 216, 0.72);
 }
+</style>
+
+<style scoped>
+.plex-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:24px}
 </style>

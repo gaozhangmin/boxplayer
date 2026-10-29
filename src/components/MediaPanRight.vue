@@ -1,10 +1,10 @@
 <!-- MediaPanRight.vue - 媒体库专用的文件列表组件 -->
 <template>
   <div class='media-pan-right'>
-    <div v-if="props.unifiedFiles" class="folder-browser" :class="{ 'folder-browser-list': props.browseMode === 'list' }">
+    <div v-if="props.unifiedFiles" class="folder-browser" :class="{ 'folder-browser-list': browseMode === 'list' }">
       <template v-for="item in browserItems" :key="item.file_id">
-        <LocalMediaFileCard v-if="item.drive_id === 'local'" :name="item.name" :path="item.file_id" :thumbnail="item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir" :mode="props.browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
-      <FileBrowserCard v-else :key="item.file_id" :name="item.name" :directory="item.isDir" :thumbnail="item.thumbnail" :size-text="item.isDir ? '' : (item.sizeStr || formatBrowserFileSize(item.size))" :mode="props.browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" @context="openFileMenu($event, item)" @open="props.browseSelection ? handleSelect(item.file_id, $event, true) : handleOpenFile($event, item)" />
+        <LocalMediaFileCard :portrait-list="browserMetadata.has(item.file_id)" v-if="item.drive_id === 'local'" :name="item.name" :metadata="browserMetadata.get(item.file_id)" :path="item.file_id" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
+      <FileBrowserCard v-else :downloadable="!item.isDir && item.category === 'video'" :download-label="t('fileContext.download')" @download="emit('fileAction', 'download', item)" :key="item.file_id" :name="item.name" :directory="item.isDir" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :size-text="item.isDir ? '' : browserSubtitle(item)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" @context="openFileMenu($event, item)" @open="props.browseSelection ? handleSelect(item.file_id, $event, true) : handleOpenFile($event, item)" />
       </template>
     </div>
     <!-- 加载状态 -->
@@ -138,7 +138,7 @@
 </template>
 
 <script setup lang='ts'>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { t } from '../i18n'
 import { localWatchedKey, localWatchedKeys } from '../utils/localWatchedState'
 import { isContinueWatchingMember } from '../utils/continueWatchingAction'
@@ -148,7 +148,7 @@ import LocalMediaFileCard from './LocalMediaFileCard.vue'
 import FileBrowserCard from './FileBrowserCard.vue'
 import { useMediaLibraryStore } from '../store/medialibrary'
 import { IAliGetFileModel } from '../aliapi/alimodels'
-import { useMediaPanFileStore } from './stores'
+import { useMediaPanFileStore, useMediaPanTreeStore } from './stores'
 import { menuOpenFile } from '../utils/openfile'
 
 const sizeFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 })
@@ -174,17 +174,19 @@ onUnmounted(() => { document.removeEventListener('keydown', closeFileMenu); docu
 const menuPosition = ref({ x: 0, y: 0 })
 const openFileMenu = (event: MouseEvent, file: IAliGetFileModel) => { menuFile.value = file; menuPosition.value = { x: event.clientX, y: event.clientY } }
 const fileMenuActions = computed<Array<{ id: string; icon: typeof Play; label: Parameters<typeof t>[0]; disabled?: boolean }>>(() => !menuFile.value ? [] : menuFile.value.isDir ? [
-  { id: 'play', icon: Play, label: 'unified.play' }, { id: 'loop', icon: RefreshCw, label: 'unified.loopPlay' }, { id: 'shuffle', icon: Shuffle, label: 'unified.shufflePlay' }, { id: 'favorite', icon: Star, label: 'unified.addToFavorites' }
+  { id: 'play', icon: Play, label: 'unified.play' }, { id: 'loop', icon: RefreshCw, label: 'unified.loopPlay' }, { id: 'shuffle', icon: Shuffle, label: 'unified.shufflePlay' }, { id: 'favorite', icon: Star, label: library.folders.some(folder => folder.userId === browserTree.user_id && folder.driveId === menuFile.value?.drive_id && folder.fileId === menuFile.value?.file_id && folder.isFavorite !== false) ? 'unified.removeFavoriteFolder' : 'unified.addToFavorites' }
 ] : [
   { id: 'play', icon: Play, label: 'unified.play' }, { id: 'loop', icon: RefreshCw, label: 'unified.loopPlay' }, { id: 'select', icon: SquareCheck, label: 'unified.selectItems' }, { id: 'rating', icon: Star, label: 'media.rating' },
-  { id: 'share', icon: Share2, label: 'fileContext.share' }, { id: 'download', icon: Download, label: 'fileContext.download', disabled: true },
+  { id: 'share', icon: Share2, label: 'fileContext.share' }, { id: 'download', icon: Download, label: 'fileContext.download', disabled: menuFile.value.drive_id === 'local' },
   { id: 'metadata', icon: Pencil, label: 'fileContext.editMetadata' }, { id: 'watched', icon: Eye, label: localFileWatched(menuFile.value!) ? 'mediaServer.markUnwatched' : 'mediaServer.markWatched' },
   { id: 'continue', icon: Bookmark, label: fileInContinueWatching.value ? 'fileContext.removeContinue' : 'fileContext.continue' }, { id: 'playlist', icon: ListPlus, label: 'media.playlist' }, { id: 'series', icon: Library, label: 'fileContext.series' }, { id: 'delete', icon: Trash2, label: 'common.delete', disabled: true }
 ])
 const runFileAction = (action: string) => { const file = menuFile.value; menuFile.value = undefined; if (!file) return; if (action === 'select') handleSelect(file.file_id, {} as MouseEvent, true); else if (action === 'watched') toggleLocalFileWatched(file); else emit('fileAction', action, file) }
 const viewlist = ref()
 const mediaPanFileStore = useMediaPanFileStore()
-const props = defineProps<{ unifiedFiles?: boolean; browseMode?: 'grid' | 'list'; browseSelection?: boolean; descending?: boolean }>()
+const props = defineProps<{ unifiedFiles?: boolean; favoriteBrowse?: boolean; browseMode?: 'grid' | 'list'; browseSelection?: boolean; descending?: boolean }>()
+// Favorites may be browsed as a list or a grid, like any other folder.
+const browseMode = computed(() => props.browseMode)
 const library = useMediaLibraryStore()
 const fileInContinueWatching = computed(() => {
   const file = menuFile.value
@@ -202,7 +204,80 @@ const toggleLocalFileWatched = async (file: IAliGetFileModel) => {
   if (library.isWatched(localWatchedKey(file.file_id)) !== watched) return
   for (const item of matches) library.markWatched(item.id, watched)
 }
-const browserItems = computed(() => [...mediaPanFileStore.ListDataShow].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true }) * (props.descending ? -1 : 1)))
+const browserMetadata = ref(new Map<string, { title?: string; rating?: number; year?: string; certification?: string; overview?: string }>())
+const browserPosters = ref(new Map<string, string>())
+/** Scraped overviews shown under list rows instead of "date - size". */
+const browserOverviews = ref(new Map<string, string>())
+function browserSubtitle(item: IAliGetFileModel) {
+  const overview = browserOverviews.value.get(item.file_id)
+  if (overview) return overview
+  const size = item.sizeStr || formatBrowserFileSize(item.size)
+  return item.timeStr ? `${item.timeStr} - ${size}` : size
+}
+const browserTree = useMediaPanTreeStore()
+let artworkRequest = 0
+watch(
+  [() => props.unifiedFiles, () => mediaPanFileStore.ListDataShow, () => library.mediaItems, () => library.isScanning, () => browserTree.user_id],
+  async () => {
+    const request = ++artworkRequest
+    browserPosters.value = new Map()
+    browserOverviews.value = new Map()
+    browserMetadata.value = new Map()
+    if (!props.unifiedFiles) return
+    const files = [...mediaPanFileStore.ListDataShow]
+    const userID = browserTree.user_id
+    const fileMatches = (candidate: import('../types/media').DriveFileItem, file: IAliGetFileModel) => {
+      if (file.drive_id === 'local') {
+        if (candidate.driveId !== 'local' && candidate.driveServerId !== 'local') return false
+        return file.isDir
+          ? candidate.path.startsWith((file.path || file.file_id).replace(/\/$/, '') + '/')
+          : candidate.path === file.file_id || candidate.id === file.file_id
+      }
+      if (candidate.driveId !== file.drive_id || (userID && candidate.userId !== userID && candidate.driveServerId !== userID)) return false
+      return file.isDir
+        ? candidate.parentFileId === file.file_id || (!!file.path && file.path !== '/' && candidate.path.startsWith(file.path.replace(/\/$/, '') + '/'))
+        : candidate.id === file.file_id
+    }
+    try {
+      const records = await DB.getMediaLibraryPage({
+        limit: Number.MAX_SAFE_INTEGER,
+        predicate: item => {
+          const media = [item, ...(item.collectionMovies || [])]
+          return media.some(member => [
+            ...(member.driveFiles || []),
+            ...('seasons' in member ? member.seasons || [] : []).flatMap(season => (season.episodes || []).flatMap(episode => episode.driveFiles || []))
+          ].some(candidate => files.some(file => fileMatches(candidate, file))))
+        }
+      })
+      if (request !== artworkRequest) return
+      const posters = new Map<string, string>()
+      const overviews = new Map<string, string>()
+      const metadata = new Map<string, { title?: string; rating?: number; year?: string; certification?: string; overview?: string }>()
+      for (const file of files) {
+        const matches = records.flatMap(item => [item, ...(item.collectionMovies || [])]).filter(item => [
+          ...(item.driveFiles || []),
+          ...('seasons' in item ? item.seasons || [] : []).flatMap(season => (season.episodes || []).flatMap(episode => episode.driveFiles || []))
+        ].some(candidate => fileMatches(candidate, file)))
+        if (matches.length && (!file.isDir || new Set(matches.map(item => item.id)).size === 1)) {
+          if (matches[0].posterUrl) posters.set(file.file_id, matches[0].posterUrl)
+          if (!file.isDir && matches[0].type !== 'unmatched') {
+            const item = matches[0]
+            metadata.set(file.file_id, { title: item.name, rating: item.rating, year: item.year, certification: item.certification, overview: item.overview })
+          }
+          if (!file.isDir && matches[0].overview) overviews.set(file.file_id, matches[0].overview)
+        }
+      }
+      browserPosters.value = posters
+      browserOverviews.value = overviews
+      browserMetadata.value = metadata
+    } catch (error) {
+      console.warn('Unable to load scraped file artwork', error)
+    }
+  },
+  { immediate: true }
+)
+onUnmounted(() => { artworkRequest++ })
+const browserItems = computed(() => [...mediaPanFileStore.ListDataShow].filter(file => !props.favoriteBrowse || file.isDir || file.category === 'video').sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true }) * (props.descending ? -1 : 1)))
 const listViewportHeight = computed(() => Math.min(500, Math.max(50, mediaPanFileStore.ListDataShow.length * 50)))
 
 const handleListScroll = () => {
@@ -399,5 +474,5 @@ defineExpose({
 }
 </style>
 <style>
-.file-browser-context-menu{position:fixed;z-index:2100;padding:5px;min-width:174px;background:var(--color-bg-popup);border:1px solid var(--color-border-2);border-radius:12px;box-shadow:0 8px 24px #0004}.file-browser-context-menu button{display:flex;align-items:center;gap:7px;width:100%;border:0;border-radius:5px;background:transparent;padding:5px 9px;text-align:left;color:var(--color-text-1);font-size:13px;cursor:pointer}.file-browser-context-menu button svg{color:#ff8b25}.file-browser-context-menu button:hover:not(:disabled){background:var(--color-fill-2)}.file-browser-context-menu button:disabled{opacity:.4;cursor:not-allowed}body[arco-theme=dark] .file-browser-context-menu{background:#191919}
+.file-browser-context-menu{position:fixed;z-index:2100;padding:5px;min-width:174px;background: var(--app-overlay-bg);border:1px solid var(--color-border-2);border-radius:12px;box-shadow:0 8px 24px #0004}.file-browser-context-menu button{display:flex;align-items:center;gap:7px;width:100%;border:0;border-radius:5px;background:transparent;padding:5px 9px;text-align:left;color:var(--color-text-1);font-size:13px;cursor:pointer}.file-browser-context-menu button svg{color:#ff8b25}.file-browser-context-menu button:hover:not(:disabled){background:var(--color-fill-2)}.file-browser-context-menu button:disabled{opacity:.4;cursor:not-allowed}body[arco-theme=dark] .file-browser-context-menu{background: var(--app-overlay-bg)}
 </style>

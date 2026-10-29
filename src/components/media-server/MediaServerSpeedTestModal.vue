@@ -152,7 +152,7 @@ onBeforeUnmount(stop)
 </script>
 
 <style>
-.server-speed-modal.arco-modal,body[arco-theme='dark'] .arco-modal.server-speed-modal{width:min(820px,calc(100vw - 32px))!important;min-width:min(820px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:hidden;background:#1e1e1e!important;color:#dedede}
+.server-speed-modal.arco-modal,body[arco-theme='dark'] .arco-modal.server-speed-modal{width:min(820px,calc(100vw - 32px))!important;min-width:min(820px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:hidden;background: var(--app-overlay-bg) !important;color:#dedede}
 .server-speed-modal .arco-modal-body{box-sizing:border-box;width:100%;min-width:0;padding:0!important}
 </style>
 <style scoped>

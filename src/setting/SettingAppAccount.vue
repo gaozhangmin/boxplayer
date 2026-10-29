@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { Github, Chrome, Mail, Loader2, LogOut, X, Gift } from 'lucide-vue-next'
+import { Github, Chrome, Mail, Loader2, LogOut, Gift } from 'lucide-vue-next'
+import LimitReachedModal from './LimitReachedModal.vue'
 import BoxPlayerProBadge from '../components/BoxPlayerProBadge.vue'
 import { resolveBoxPlayerProTier } from '../utils/boxplayerProTier'
 import message from '../utils/message'
 import { openExternal } from '../utils/electronhelper'
-import { BOXPLAYER_SITE_URL, buildProPurchaseUrlForCurrentSession, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
+import { BOXPLAYER_SITE_URL, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
 
 const loading = ref(false)
 const emailInput = ref('')
@@ -32,7 +33,6 @@ try {
     entitlementScope: localStorage.getItem('app_user_entitlement_scope') || '',
   })
 } catch {}
-const upgrading = ref(false)
 const redeeming = ref(false)
 const redeemCode = ref('')
 const showUpgradeModal = ref(false)
@@ -104,14 +104,6 @@ async function handleEmailVerify() {
     if (error) message.error(error.message)
     else if (data.user) { clearBoxPlayerAppSession(); saveLogin(data.user.email || email); message.success('登录成功') }
   } finally { loading.value = false }
-}
-
-async function handleUpgrade() {
-  upgrading.value = true
-  try {
-    openExternal(await buildProPurchaseUrlForCurrentSession())
-  } catch (e: any) { message.error(e?.message || '打开官网购买页面失败') }
-  finally { upgrading.value = false }
 }
 
 function getRedeemErrorMessage(code: string): string {
@@ -277,48 +269,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Upgrade modal -->
-    <div v-if="showUpgradeModal" class="upg-mask" @click.self="showUpgradeModal = false">
-      <div class="upg-modal">
-        <button class="upg-close" @click="showUpgradeModal = false"><X :size="18" /></button>
-        <h2 class="upg-title">版本对比</h2>
-
-        <table class="upg-table">
-          <thead>
-            <tr><th>功能</th><th>开源版</th><th class="upg-th-pro">专业版</th></tr>
-          </thead>
-          <tbody>
-            <tr><td>网盘文件管理</td><td class="upg-yes">✓</td><td class="upg-yes">✓</td></tr>
-            <tr><td>视频 / 音乐播放</td><td class="upg-yes">✓</td><td class="upg-yes">✓</td></tr>
-            <tr><td>本地书籍阅读</td><td class="upg-yes">✓</td><td class="upg-yes">✓</td></tr>
-            <tr><td>多网盘同时连接</td><td class="upg-yes">✓</td><td class="upg-yes">✓</td></tr>
-            <tr><td>BYOK · 自带 API Key 使用 AI</td><td class="upg-yes">登录后可用</td><td class="upg-yes">✓</td></tr>
-            <tr><td>内置 BoxPlayer AI 模型</td><td class="upg-no">✗</td><td class="upg-yes">✓</td></tr>
-            <tr><td>AI 智能搜索与语义索引</td><td class="upg-no">✗</td><td class="upg-yes">✓</td></tr>
-            <tr><td>AI Agent 网盘搜索</td><td class="upg-yes">BYOK 可用</td><td class="upg-yes">✓</td></tr>
-            <tr><td>AI 阅读助手</td><td class="upg-no">✗</td><td class="upg-yes">✓</td></tr>
-            <tr><td>阅读器语音朗读（本地）</td><td class="upg-yes">✓</td><td class="upg-yes">✓</td></tr>
-            <tr><td>阅读器即时翻译</td><td class="upg-no">✗</td><td class="upg-yes">✓</td></tr>
-            <tr><td>全网资源搜索</td><td class="upg-yes">5 次/天</td><td class="upg-yes">✓ 无限</td></tr>
-            <tr><td>TMDB + 豆瓣电影发现</td><td class="upg-no">✗</td><td class="upg-yes">✓</td></tr>
-            <tr><td>优先技术支持</td><td class="upg-no">✗</td><td class="upg-yes">✓</td></tr>
-            <tr><td colspan="3" class="upg-coming">阅读器云端高品质朗读 — 即将推出</td></tr>
-          </tbody>
-        </table>
-
-        <div class="upg-price">
-          <div class="upg-price-main"><span class="upg-old-price">$199</span> $139</div>
-          <div class="upg-price-sub">一次买断 · 终身使用 · 7 天免费试用 · 7 折首发优惠</div>
-        </div>
-
-        <button v-if="isLoggedIn" class="upg-btn" :disabled="upgrading" @click="handleUpgrade">
-          <Loader2 v-if="upgrading" :size="14" class="spin" /> <span v-else>官网登录并购买</span>
-        </button>
-        <button v-else class="upg-btn upg-btn-login" @click="handleUpgrade">
-          官网登录并购买
-        </button>
-      </div>
-    </div>
+    <LimitReachedModal :visible="showUpgradeModal" @update:visible="showUpgradeModal = $event" />
   </div>
 </template>
 
@@ -371,30 +322,6 @@ onMounted(() => {
 .acc-redeem-input { text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
 .acc-redeem-input::placeholder { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .acc-redeem-btn { min-width: 72px; justify-content: center; }
-
-/* ── upgrade modal ── */
-.upg-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:2000}
-.upg-modal{position:relative;width:640px;max-width:95vw;max-height:90vh;overflow-y:auto;background:var(--color-bg-2);border:1px solid var(--color-border);border-radius:20px;padding:28px 28px 24px;box-shadow:0 20px 60px rgba(0,0,0,.24)}
-.upg-close{position:absolute;top:14px;right:14px;display:flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0;color:var(--color-text-4);background:transparent;border:0;border-radius:8px;cursor:pointer}
-.upg-close:hover{background:var(--color-fill-2);color:var(--color-text-1)}
-.upg-title{font-size:20px;font-weight:800;color:var(--color-text-1);text-align:center;margin:0 0 18px}
-.upg-table{width:100%;border-collapse:collapse;margin-bottom:18px}
-.upg-table th,.upg-table td{padding:9px 14px;font-size:13px;text-align:center;border-bottom:1px solid var(--color-border)}
-.upg-table th{color:var(--color-text-3);font-weight:700;font-size:12px}
-.upg-table th:first-child,.upg-table td:first-child{text-align:left;color:var(--color-text-2)}
-.upg-th-pro{color:#b45309 !important}
-.upg-yes{color:rgb(var(--success-6));font-weight:700}
-.upg-no{color:var(--color-text-4)}
-.upg-coming{color:var(--color-text-4);font-size:12px;font-style:italic}
-.upg-coming td{padding-top:12px}
-.upg-price{text-align:center;margin-bottom:14px}
-.upg-price-main{font-size:28px;font-weight:800;color:var(--color-text-1)}
-.upg-old-price{font-size:16px;color:var(--color-text-4);text-decoration:line-through;margin-right:10px;font-weight:500}
-.upg-price-sub{font-size:12px;color:var(--color-text-4);margin-top:4px}
-.upg-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px 0;font-size:14px;font-weight:700;color:#fff;background:linear-gradient(135deg,#f59e0b,#eab308);border:0;border-radius:10px;cursor:pointer;font-family:inherit}
-.upg-btn:hover:not(:disabled){opacity:.92}
-.upg-btn:disabled{opacity:.5;cursor:default}
-.upg-btn-login{background:var(--color-fill-3);color:var(--color-text-2)}
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

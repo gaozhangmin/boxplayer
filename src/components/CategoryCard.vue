@@ -9,12 +9,10 @@
     </div>
     <div class="category-card__shade" />
     <div class="category-card__copy"><img v-if="type === 'network' && categoryNetworkLogo(name) && !failed.has(categoryNetworkLogo(name)!)" class="network-logo" :class="{ 'network-logo-original': name.trim().toLowerCase() === 'netflix' }" :src="categoryNetworkLogo(name)" :alt="name" @error="failed.add(categoryNetworkLogo(name)!)" /><strong v-else>{{ name }}</strong><span>{{ t('customSeries.memberCount', { count }) }}</span></div>
-    <span class="category-card__arrow" aria-hidden="true"><ChevronRight :size="22" /></span>
   </div>
 </template>
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
-import { ChevronRight } from 'lucide-vue-next'
 import { t } from '../i18n'
 import { categoryBannerStyle, categoryNetworkLogo } from '../utils/categoryBannerTheme'
 import { detailBackdropUrl } from '../utils/mediaArtwork'
@@ -31,10 +29,9 @@ const artwork = computed(() => (props.coverImages.length ? props.coverImages : p
 .category-card__art { position: absolute; inset: 0 0 0 26%; display: flex; mask-image: linear-gradient(90deg, transparent, #000 45%); }
 .category-card__art img { min-width: 0; flex: 1; width: 0; height: 100%; object-fit: cover; object-position: 70% center; }
 .category-card__shade { position: absolute; inset: 0; background: linear-gradient(90deg, var(--banner-start), transparent 85%); }
-.category-card__copy { position: absolute; left: 24px; right: 72px; top: 50%; transform: translateY(-50%); }
+.category-card__copy { position: absolute; left: 24px; right: 24px; top: 50%; transform: translateY(-50%); }
 .category-card__copy strong { display: block; font-size: 28px; line-height: 1.2; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .category-card__copy span { display: block; margin-top: 8px; font-size: 13px; color: #ffffffd9; }
-.category-card__arrow { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #ffffff26; border: 1px solid #ffffff35; }
 .category-card:hover { box-shadow: 0 8px 22px #0003; }
 .category-card:focus-visible { outline: 3px solid #88baff; outline-offset: 3px; }
 </style>

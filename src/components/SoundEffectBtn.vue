@@ -386,9 +386,9 @@ function handleResetPitch() {
   padding: 0 !important;
   border: 1px solid rgba(255, 255, 255, .12) !important;
   border-radius: 12px !important;
-  background: rgba(18, 18, 24, .96) !important;
+  background: var(--app-overlay-bg) !important;
   box-shadow: 0 18px 48px rgba(0, 0, 0, .45), inset 0 0 0 1px rgba(255, 255, 255, .04) !important;
-  backdrop-filter: blur(18px) saturate(1.2);
+  backdrop-filter: none;
 }
 
 :global(.sound-effect-popover .arco-popover-popup-content),
@@ -399,7 +399,7 @@ function handleResetPitch() {
 }
 
 :global(.sound-effect-popover .arco-popover-arrow) {
-  background: rgba(18, 18, 24, .96);
+  background: var(--app-overlay-bg);
   border-color: rgba(255, 255, 255, .12);
 }
 
@@ -407,12 +407,10 @@ function handleResetPitch() {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, .12);
   border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .03)),
-    rgba(18, 18, 24, .96);
+  background: var(--app-overlay-bg);
   color: rgba(255, 255, 255, .86);
   box-shadow: 0 24px 70px rgba(0, 0, 0, .48), inset 0 0 0 1px rgba(255, 255, 255, .04);
-  backdrop-filter: blur(20px) saturate(1.18);
+  backdrop-filter: none;
 }
 
 :global(.soundEffectModal .arco-modal-header),

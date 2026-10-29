@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useAppStore } from '../store'
 import SettingPlay from './SettingPlay.vue'
 import SettingGeneral from './SettingGeneral.vue'
@@ -32,7 +32,7 @@ onMounted(() => { window.WebPlatformSync?.((data: { appVersion?: string }) => { 
 const appStore = useAppStore()
 withDefaults(defineProps<{ sidebarVisible?: boolean }>(), { sidebarVisible: true })
 
-let observer: any
+
 
 const hideSetting = computed(() => appStore.appTab !== 'setting')
 const settingSearch = ref('')
@@ -63,9 +63,9 @@ const refreshSettingSearch = async () => {
   }
   const rows = Array.from(document.querySelectorAll<HTMLElement>('#SettingObserver .settingrow'))
   settingSearchResults.value = rows
-    .filter((row) => matchesSettingSearch(row.innerText.replace(/\s+/g, ' '), query))
+    .filter((row) => matchesSettingSearch((row.textContent || '').replace(/\s+/g, ' '), query))
     .slice(0, 20)
-    .map((element) => ({ label: element.innerText.replace(/\s+/g, ' ').trim(), element }))
+    .map((element) => ({ label: (element.textContent || '').replace(/\s+/g, ' ').trim(), element }))
   updateSettingSearchPopupPosition()
 }
 
@@ -80,6 +80,10 @@ const updateSettingSearchPopupPosition = () => {
 }
 
 const locateSettingSearchResult = (result: { element: HTMLElement }) => {
+  const page = result.element.closest<HTMLElement>('.settings-section')?.id
+  if (page) appStore.toggleTabMenu('setting', page)
+  nextTick(() => result.element.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+  // Highlight the selected result after switching pages.
   result.element.scrollIntoView({ behavior: 'smooth', block: 'center' })
   result.element.classList.remove('settings-search-hit')
   window.requestAnimationFrame(() => result.element.classList.add('settings-search-hit'))
@@ -106,60 +110,21 @@ const sectionMeta: Record<string, { title: string }> = {
   SettingLog: { title: 'settings.logs' }
 }
 
-onMounted(() => {
-  window.addEventListener('resize', updateSettingSearchPopupPosition)
-  const root = document.getElementById('SettingObserver')
-  if (!root) return
-
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries.length > 0 && entries[0].isIntersecting) {
-        appStore.toggleTabSetting('setting', entries[0].target.id)
-      }
-    },
-    {
-      root,
-      threshold: 0.5
-    }
-  )
-
-  const sectionIds = [
-    'SettingUI',
-    'SettingAccount',
-    'SettingSecurity',
-    'SettingPlay',
-    'SettingGeneral',
-    'SettingSeriesVersions',
-    'SettingMediaServerPlayback',
-    'SettingDanmaku',
-    'SettingPan',
-    'SettingDown',
-    'SettingDownloadAdvanced',
-    'SettingUpload',
-    'SettingDebug',
-    'SettingProxy',
-    'SettingAria',
-    'SettingAPI',
-    'SettingLog'
-  ]
-
-  sectionIds.forEach((id) => {
-    const element = document.getElementById(id)
-    if (element instanceof Element) {
-      observer.observe(element)
-    }
-  })
+const activeSettingsPage = computed(() => sectionMeta[appStore.GetAppTabMenu] ? appStore.GetAppTabMenu : 'SettingUI')
+watch(activeSettingsPage, async () => {
+  await nextTick()
+  document.getElementById('SettingObserver')?.scrollTo({ top: 0 })
 })
+onMounted(() => window.addEventListener('resize', updateSettingSearchPopupPosition))
 
 onUnmounted(() => {
-  if (observer) observer.disconnect()
   window.removeEventListener('resize', updateSettingSearchPopupPosition)
 })
 </script>
 
 <template>
   <a-layout class="settings-shell">
-    <a-layout-sider v-show="sidebarVisible" hide-trigger :width="188" class="xbyleft settings-sider single-boundary-sidebar" tabindex="-1" @keydown.tab.prevent="() => true">
+    <a-layout-sider v-show="sidebarVisible" hide-trigger :width="200" class="xbyleft settings-sider single-boundary-sidebar" tabindex="-1" @keydown.tab.prevent="() => true">
       <div class='headdesc settings-side-title'>
         <span class="settings-side-kicker">{{ t('settings.preferences') }}</span>
         <strong>{{ t('settings.center') }}</strong>
@@ -268,23 +233,23 @@ onUnmounted(() => {
 <!--          </div>-->
 <!--        </div>-->
 
-        <section id="SettingUI" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingUI.title as Parameters<typeof t>[0]) }}</h2></div><SettingUI /></section>
-        <section id="SettingAccount" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAccount.title as Parameters<typeof t>[0]) }}</h2></div><SettingAccount /></section>
-        <section id="SettingAPI" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAPI.title as Parameters<typeof t>[0]) }}</h2></div><SettingAPI /></section>
-        <section id="SettingSecurity" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingSecurity.title as Parameters<typeof t>[0]) }}</h2></div><SettingSecurity /></section>
-        <section id="SettingPlay" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingPlay.title as Parameters<typeof t>[0]) }}</h2></div><SettingPlay /></section>
-        <section id="SettingGeneral" class="settings-section"><div class="settings-section-header"><h2>{{ t('general.generalTitlePage') }}</h2></div><SettingGeneral /></section>
-        <section id="SettingSeriesVersions" class="settings-section"><div class="settings-section-header"><h2>{{ t('seriesVersions.seriesVersions') }}</h2></div><SettingSeriesVersions /></section>
-        <section id="SettingMediaServerPlayback" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingMediaServerPlayback.title as Parameters<typeof t>[0]) }}</h2></div><SettingMediaServerPlayback /></section>
-        <section id="SettingDanmaku" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDanmaku.title as Parameters<typeof t>[0]) }}</h2></div><SettingDanmaku /></section>
-        <section id="SettingPan" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingPan.title as Parameters<typeof t>[0]) }}</h2></div><SettingPan /></section>
-        <section id="SettingDown" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDown.title as Parameters<typeof t>[0]) }}</h2></div><SettingDown /></section>
-        <section id="SettingDownloadAdvanced" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDownloadAdvanced.title as Parameters<typeof t>[0]) }}</h2></div><SettingDownloadAdvanced /></section>
-        <section id="SettingUpload" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingUpload.title as Parameters<typeof t>[0]) }}</h2></div><SettingUpload /></section>
-        <section id="SettingDebug" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDebug.title as Parameters<typeof t>[0]) }}</h2></div><SettingDebug /></section>
-        <section id="SettingProxy" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingProxy.title as Parameters<typeof t>[0]) }}</h2></div><SettingProxy /></section>
-        <section id="SettingAria" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAria.title as Parameters<typeof t>[0]) }}</h2></div><SettingAria /></section>
-        <section id="SettingLog" class="settings-section">
+        <section v-show="activeSettingsPage === 'SettingUI'" id="SettingUI" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingUI.title as Parameters<typeof t>[0]) }}</h2></div><SettingUI /></section>
+        <section v-show="activeSettingsPage === 'SettingAccount'" id="SettingAccount" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAccount.title as Parameters<typeof t>[0]) }}</h2></div><SettingAccount /></section>
+        <section v-show="activeSettingsPage === 'SettingAPI'" id="SettingAPI" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAPI.title as Parameters<typeof t>[0]) }}</h2></div><SettingAPI /></section>
+        <section v-show="activeSettingsPage === 'SettingSecurity'" id="SettingSecurity" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingSecurity.title as Parameters<typeof t>[0]) }}</h2></div><SettingSecurity /></section>
+        <section v-show="activeSettingsPage === 'SettingPlay'" id="SettingPlay" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingPlay.title as Parameters<typeof t>[0]) }}</h2></div><SettingPlay /></section>
+        <section v-show="activeSettingsPage === 'SettingGeneral'" id="SettingGeneral" class="settings-section"><div class="settings-section-header"><h2>{{ t('general.generalTitlePage') }}</h2></div><SettingGeneral /></section>
+        <section v-show="activeSettingsPage === 'SettingSeriesVersions'" id="SettingSeriesVersions" class="settings-section"><div class="settings-section-header"><h2>{{ t('seriesVersions.seriesVersions') }}</h2></div><SettingSeriesVersions /></section>
+        <section v-show="activeSettingsPage === 'SettingMediaServerPlayback'" id="SettingMediaServerPlayback" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingMediaServerPlayback.title as Parameters<typeof t>[0]) }}</h2></div><SettingMediaServerPlayback /></section>
+        <section v-show="activeSettingsPage === 'SettingDanmaku'" id="SettingDanmaku" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDanmaku.title as Parameters<typeof t>[0]) }}</h2></div><SettingDanmaku /></section>
+        <section v-show="activeSettingsPage === 'SettingPan'" id="SettingPan" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingPan.title as Parameters<typeof t>[0]) }}</h2></div><SettingPan /></section>
+        <section v-show="activeSettingsPage === 'SettingDown'" id="SettingDown" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDown.title as Parameters<typeof t>[0]) }}</h2></div><SettingDown /></section>
+        <section v-show="activeSettingsPage === 'SettingDownloadAdvanced'" id="SettingDownloadAdvanced" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDownloadAdvanced.title as Parameters<typeof t>[0]) }}</h2></div><SettingDownloadAdvanced /></section>
+        <section v-show="activeSettingsPage === 'SettingUpload'" id="SettingUpload" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingUpload.title as Parameters<typeof t>[0]) }}</h2></div><SettingUpload /></section>
+        <section v-show="activeSettingsPage === 'SettingDebug'" id="SettingDebug" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingDebug.title as Parameters<typeof t>[0]) }}</h2></div><SettingDebug /></section>
+        <section v-show="activeSettingsPage === 'SettingProxy'" id="SettingProxy" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingProxy.title as Parameters<typeof t>[0]) }}</h2></div><SettingProxy /></section>
+        <section v-show="activeSettingsPage === 'SettingAria'" id="SettingAria" class="settings-section"><div class="settings-section-header"><h2>{{ t(sectionMeta.SettingAria.title as Parameters<typeof t>[0]) }}</h2></div><SettingAria /></section>
+        <section v-show="activeSettingsPage === 'SettingLog'" id="SettingLog" class="settings-section">
           <div class="settings-section-header"><h2>{{ t(sectionMeta.SettingLog.title as Parameters<typeof t>[0]) }}</h2></div>
           <div v-if="hideSetting" style="min-height: 602px"></div>
           <SettingLog v-else />
@@ -1111,6 +1076,17 @@ body[arco-theme='dark'] .settingcard .arco-radio-group-button .arco-radio-checke
 #xbybody .settings-sider .xbyleftmenu .arco-menu-selected::before {background:#20c66d;left:0;top:12px;bottom:12px;width:2px;}
 
 #xbybody #SettingObserver .settings-app-version {font-size:12px;color:var(--color-text-3);margin-right:auto;}
+/* Neutral settings surfaces share the media library orange accent. */
+#xbybody .settings-shell{background:var(--color-bg-2)}
+#xbybody .settings-sider{background:var(--color-bg-2)!important;border-color:var(--color-border-2)}
+#xbybody #SettingObserver{background:var(--color-bg-2)}
+#xbybody .settings-sider .xbyleftmenu .arco-menu-item .arco-icon,#xbybody .settings-sider .xbyleftmenu .arco-menu-item .iconfont{color:#ff8a00}
+#xbybody .settings-sider .xbyleftmenu .arco-menu-item:hover,#xbybody .settings-sider .xbyleftmenu .arco-menu-selected{background:#ff8a0018!important}
+#xbybody .settings-sider .xbyleftmenu .arco-menu-selected::before{background:#ff8a00}
+#xbybody #SettingObserver .settinghead::after{background:linear-gradient(90deg,#ff8a00,#ff8a0030)}
+
+body:not([arco-theme='dark']) #xbybody .settings-shell,body:not([arco-theme='dark']) #xbybody #SettingObserver,body:not([arco-theme='dark']) #xbybody .settings-sider{background:#f3f3f7!important}
+body[arco-theme='dark'] #xbybody .settings-shell,body[arco-theme='dark'] #xbybody #SettingObserver,body[arco-theme='dark'] #xbybody .settings-sider{background:#1c1c1e!important}
 </style>
 
 <style scoped>
@@ -1119,4 +1095,7 @@ body[arco-theme='dark'] .settingcard .arco-radio-group-button .arco-radio-checke
 .settings-support-links button:hover { background:var(--color-fill-2) }
 .settings-support-links button:focus-visible { outline:2px solid rgb(var(--primary-6)); outline-offset:1px }
 .settings-support-links svg { flex-shrink:0; opacity:.55 }
+
 </style>
+
+<style src="./settings-reference.css"></style>

@@ -700,6 +700,7 @@ defineExpose({
   playBrowse: (mode: 'play' | 'loop' | 'shuffle') => mediaLibrary.value?.playBrowse(mode),
   addFolderToLibrary,
   showAddFolder: () => mediaNav.value?.importLocalFolder(),
+  showLocalDevice: () => mediaNav.value?.showLocalDevice(),
   removeFolder: (folder: MediaLibraryFolder) => mediaNav.value?.removeFolder(folder),
   manageLibrary: handleManageLibrary,
   selectCategory: handleCategorySelected,

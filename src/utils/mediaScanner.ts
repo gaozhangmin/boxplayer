@@ -380,7 +380,7 @@ export class MediaScanner {
     return this.scanFolder(rootFolder, 'webdav')
   }
 
-  async scanLocalFolder(folderPath: string): Promise<void> {
+  async scanLocalFolder(folderPath: string, displayName?: string): Promise<void> {
     if (this.isScanning) {
       message.warning('正在扫描中，请稍后...')
       return
@@ -405,8 +405,10 @@ export class MediaScanner {
     let previousFileIds: string[] = []
 
     try {
-      const folderName = path.basename(folderPath)
       sourceId = `local_${folderPath}`
+      const existingFolder = this.mediaStore.folders.find(source => source.id === sourceId)
+      const folderName = displayName?.trim() || existingFolder?.name || path.basename(folderPath)
+      const isFavorite = displayName ? true : (existingFolder?.isFavorite ?? true)
       sourceWasExisting = this.mediaStore.folders.some(source => source.id === sourceId)
       previousFileIds = await DB.getMediaLibraryFolderFileIds(sourceId)
       const seenFileIds = new Set<string>()
@@ -422,6 +424,7 @@ export class MediaScanner {
             id: sourceId,
             fileId: folderPath,
             name: folderName,
+            isFavorite,
             path: folderPath,
             userId: 'local',
             driveId: 'local',
@@ -452,11 +455,6 @@ export class MediaScanner {
       }
       if (!this.shouldStop) await processBatch()
 
-      if (!videoCount) {
-        message.info('未在该文件夹中找到视频文件')
-        return
-      }
-
       if (!this.shouldStop) {
         await this.mediaStore.flushPersistence()
         await DB.reconcileMediaLibraryFolder(sourceId, [...seenFileIds])
@@ -465,6 +463,7 @@ export class MediaScanner {
           id: `local_${folderPath}`,
           fileId: folderPath,
           name: folderName,
+          isFavorite,
           path: folderPath,
           userId: 'local',
           driveId: 'local',

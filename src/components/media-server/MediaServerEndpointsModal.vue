@@ -74,11 +74,11 @@ h4 { margin: 20px 18px 6px; color: var(--color-text-3); font-size: 12px }
 p[role=alert] { color: rgb(var(--danger-6)); font-size: 12px; margin: 0 }
 </style>
 <style>
-.media-server-endpoints-modal.arco-modal { width: min(620px, calc(100vw - 32px)) !important; border-radius: 28px !important; border: 1px solid var(--color-border-3); background: var(--color-bg-2); max-height: calc(100vh - 32px); overflow: auto }
-.media-server-endpoint-editor.arco-modal { width: min(320px, calc(100vw - 32px)) !important; border: 1px solid var(--color-border-3); border-radius: 8px !important; background: var(--color-bg-2) }
+.media-server-endpoints-modal.arco-modal { width: min(620px, calc(100vw - 32px)) !important; border-radius: 28px !important; border: 1px solid var(--color-border-3); background: var(--app-overlay-bg); max-height: calc(100vh - 32px); overflow: auto }
+.media-server-endpoint-editor.arco-modal { width: min(320px, calc(100vw - 32px)) !important; border: 1px solid var(--color-border-3); border-radius: 8px !important; background: var(--app-overlay-bg)}
 .media-server-endpoints-modal .arco-modal-body { padding: 8px 16px 16px }
-body[arco-theme='dark'] .arco-modal.media-server-endpoints-modal { background: #202020 !important; backdrop-filter: none !important }
-body[arco-theme='dark'] .arco-modal.media-server-endpoint-editor { background: #252929 !important; backdrop-filter: none !important }
+body[arco-theme='dark'] .arco-modal.media-server-endpoints-modal { background: var(--app-overlay-bg) !important; backdrop-filter: none !important}
+body[arco-theme='dark'] .arco-modal.media-server-endpoint-editor { background: var(--app-overlay-bg) !important; backdrop-filter: none !important}
 body[arco-theme='dark'] .media-server-endpoints-modal .endpoint-address,
 body[arco-theme='dark'] .media-server-endpoints-modal .endpoint-add,
 body[arco-theme='dark'] .media-server-endpoint-editor .endpoint-fields,

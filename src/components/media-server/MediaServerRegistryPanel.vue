@@ -1,6 +1,12 @@
 <template>
   <div class="media-server-registry-panel">
+    <div v-if="embedded && submitting && !showServerModal && !showPlexResourcesModal" class="source-pending">
+      <a-spin :size="32" />
+      <p>{{ t('source.waiting') }}</p>
+      <a-button @click="emit('close')">{{ t('unified.back') }}</a-button>
+    </div>
     <AddMediaServerModal
+      :embedded="embedded"
       v-model:visible="showServerModal"
       :loading="submitting"
       :editing-server="editingServer"
@@ -9,6 +15,7 @@
       @remove="handleRemoveFromEditor"
     />
     <PlexResourcesModal
+      :embedded="embedded"
       v-model:visible="showPlexResourcesModal"
       :resources="plexResources"
       :loading="submitting"
@@ -340,7 +347,7 @@ import { fetchMediaServerLoginProfile, signInMediaServer } from '../../media-ser
 import { createPlexServerConfigs, signInPlex, verifyPlexServerConfig } from '../../media-server/plexAuth'
 import { t } from '../../i18n'
 
-defineProps<{ formOnly?: boolean }>()
+const props = defineProps<{ formOnly?: boolean; embedded?: boolean; defaultType?: MediaServerType }>()
 const registry = useMediaServerRegistryStore()
 type ListOption = 'showAddress' | 'showMediaStatistics' | 'showConnectionStatus' | 'showWatchTime'
 const serverStatistics = ref<Record<string, MediaServerHomeStatistics>>({})
@@ -359,13 +366,17 @@ watch(() => [registry.preferences.serverListView, registry.preferences.showMedia
   }
 }, { immediate: true })
 const navigation = useMediaServerNavigationStore()
-const emit = defineEmits<{ (event: 'open-server', id: string): void }>()
+const emit = defineEmits<{ (event: 'open-server', id: string): void; (event: 'close'): void; (event: 'saved'): void }>()
 const MEDIA_SERVER_ICON_SET_URLS_KEY = 'MediaServer_IconSetUrls'
-const showServerModal = ref(false)
+const showServerModal = ref(!!props.embedded)
 const showPlexResourcesModal = ref(false)
 const editingServer = ref<MediaServerConfig | null>(null)
-const pendingType = ref<MediaServerType>('jellyfin')
+const pendingType = ref<MediaServerType>(props.defaultType || 'jellyfin')
+const pendingPlexName = ref('')
 const submitting = ref(false)
+watch([showServerModal, showPlexResourcesModal, submitting], ([form, resources, busy]) => {
+  if (props.embedded && !form && !resources && !busy) emit('close')
+})
 const renameModalVisible = ref(false)
 const renameServerId = ref('')
 const renameServerName = ref('')
@@ -483,7 +494,7 @@ const handleAddServer = () => {
 }
 
 const handleQuickAdd = (type: MediaServerType) => {
-  if (type === 'plex') {
+  if (type === 'plex' && !props.embedded) {
     void handlePlexSignIn()
     return
   }
@@ -789,7 +800,8 @@ const handleConfirmPlexResources = async (resources: PlexResource[]) => {
         const serverName = await verifyPlexServerConfig(server)
         const saved = registry.addServer({
           ...server,
-          name: server.nameCustomized ? server.name : (serverName || server.name),
+          name: pendingPlexName.value || (server.nameCustomized ? server.name : (serverName || server.name)),
+          nameCustomized: !!pendingPlexName.value || server.nameCustomized,
           loginStatus: 'success',
           lastLoginCheckedAt: Date.now()
         })
@@ -804,13 +816,14 @@ const handleConfirmPlexResources = async (resources: PlexResource[]) => {
       message.error(t('mediaServer.selectedPlexUnavailable'))
       return
     }
-    if (firstServerId) {
+    if (firstServerId && !props.embedded) {
       registry.setCurrentServer(firstServerId)
       navigation.goHome()
       emit('open-server', firstServerId)
     }
     showPlexResourcesModal.value = false
     plexResources.value = []
+    emit('saved')
     message.success(failedCount > 0 ? t('mediaServer.plexServersAddedPartial', { saved: savedCount, failed: failedCount }) : t('mediaServer.plexServersAdded', { saved: savedCount }))
   } catch (error: any) {
     console.error('保存 Plex 服务器失败:', error)
@@ -839,6 +852,7 @@ const handleSubmitServer = async (payload: {
   try {
     submitting.value = true
     if (payload.type === 'plex' && !editingServer.value) {
+      pendingPlexName.value = payload.nameCustomized ? payload.name : ''
       showServerModal.value = false
       await handlePlexSignIn()
       return
@@ -888,6 +902,7 @@ const handleSubmitServer = async (payload: {
 
     showServerModal.value = false
     editingServer.value = null
+    emit('saved')
 
     if (savedServer && shouldVerifyInBackground) {
       void runBackgroundServerLogin(savedServer.id, payload)
@@ -903,6 +918,7 @@ defineExpose({ openAddServer: handleAddServer, openProvider: handleQuickAdd, edi
 </script>
 
 <style scoped>
+.source-pending{display:flex;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:32px;color:var(--color-text-2)}
 .media-server-registry-panel {
   height: 100%;
   overflow: auto;
@@ -1234,9 +1250,9 @@ defineExpose({ openAddServer: handleAddServer, openProvider: handleQuickAdd, edi
   padding: 7px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(18, 22, 30, 0.94);
+  background: var(--app-overlay-bg);
   box-shadow: 0 22px 48px rgba(35, 28, 21, 0.18);
-  backdrop-filter: blur(22px) saturate(145%);
+  backdrop-filter: none;
 }
 
 .server-context-item {
@@ -1635,7 +1651,7 @@ defineExpose({ openAddServer: handleAddServer, openProvider: handleQuickAdd, edi
 }
 
 [arco-theme='dark'] .server-context-menu {
-  background: rgba(24, 28, 36, 0.9);
+  background: var(--app-overlay-bg);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow: 0 22px 48px rgba(0, 0, 0, 0.36);
 }

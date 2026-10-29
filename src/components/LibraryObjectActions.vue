@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Play, Repeat, Shuffle, House, Star, Pencil, RefreshCw, Move, Trash2, Eye, EyeOff, ListPlus, SquareCheck } from 'lucide-vue-next'
+import { Play, Repeat, Shuffle, House, Star, Pencil, RefreshCw, Move, Trash2, Eye, EyeOff, ListPlus, SquareCheck, Image } from 'lucide-vue-next'
 import { t } from '../i18n'
 import useCategoryPlacement from '../store/categoryPlacement'
-const props = defineProps<{ route: string; toolbar?: boolean }>()
+import { isIndependentCategoryRoute } from '../utils/categoryPlacement'
+const props = defineProps<{ route: string; toolbar?: boolean; hiddenOnHome?: boolean }>()
 const emit = defineEmits<{ action: [action: string] }>()
 const placement = useCategoryPlacement()
 const placed = computed(() => placement.state(props.route).placed)
+// Media server categories: Favorites only here; their Home shelf lives in the Add to Home sheet.
+const serverCategory = computed(() => isIndependentCategoryRoute(props.route))
+const favorite = computed(() => placement.state(props.route).favorite)
 const playlist = computed(() => props.route.startsWith('playlist/'))
 const series = computed(() => props.route.startsWith('custom-series/'))
 const group = computed(() => playlist.value || series.value || props.route.split('/').length >= 3)
@@ -20,7 +24,17 @@ function run(action: string) { window.dispatchEvent(new CustomEvent('boxplayer:l
       <button v-if="series" role="menuitem" @click="run('select')"><SquareCheck :size="18" />{{ t('unified.selectItems') }}</button>
       <button role="menuitem" @click="run('shuffle')"><Shuffle :size="18" />{{ t('unified.shufflePlay') }}</button>
     </template>
-    <template v-if="placed">
+    <template v-if="serverCategory">
+      <template v-if="favorite">
+        <button class="destructive" role="menuitem" @click="run('removeFavorite')"><Star :size="18" />{{ t('unified.removeFavoriteFolder') }}</button>
+        <button role="menuitem" @click="run('renameFavorite')"><Pencil :size="18" />{{ t('unified.renameCollection') }}</button>
+        <!-- Hiding only takes the card off Home; Files keeps it. -->
+        <button role="menuitem" @click="run(props.hiddenOnHome ? 'showFavorite' : 'hideFavorite')"><component :is="props.hiddenOnHome ? Eye : EyeOff" :size="18" />{{ t(props.hiddenOnHome ? 'unified.showFavoriteOnHome' : 'unified.hideFavoriteOnHome') }}</button>
+        <button role="menuitem" @click="run('favoriteCover')"><Image :size="18" />{{ t('unified.cover') }}</button>
+      </template>
+      <button v-else role="menuitem" @click="run('favorite')"><Star :size="18" />{{ t('unified.addToFavorites') }}</button>
+    </template>
+    <template v-else-if="placed">
       <button role="menuitem" @click="run('remove')"><House :size="18" />{{ t('unified.removeHome') }}</button>
       <button role="menuitem" @click="run('renameFavorite')"><Pencil :size="18" />{{ t('unified.renameCollection') }}</button>
     </template>

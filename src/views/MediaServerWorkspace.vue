@@ -381,6 +381,7 @@
                   class="library-card interactive"
                   :class="[listingCardClass, { 'library-card-hero': currentRoute.kind === 'library-root' }]"
                   @click="props.unifiedRoot && props.rootSelection ? toggleRootLibrary(item.id) : handleLibraryItemClick(item.id, item.title, item)"
+                  @contextmenu.prevent="openLibraryCategoryMenu($event, item)"
                 >
                   <div
                     class="library-cover media-image-frame"
@@ -433,6 +434,7 @@
                       <WatchedIndicator v-if="isDetailCandidate(item)" :watched="item.isPlayed === true" :disabled="watchedPending.has(item.id)" @toggle="handleHomeMediaAction(item, 'watched')" />
                       <div v-if="item.genres?.length" class="library-list-genres"><span v-for="genre in item.genres" :key="genre">{{ genre }}</span></div>
                     </div>
+                    <button v-if="item.kind !== 'series' && item.kind !== 'season' && isDetailCandidate(item)" type="button" class="server-file-download" :aria-label="t('mediaServer.download')" @click.stop="handleHomeMediaAction(item, 'download')" @keydown.enter.stop><Download :size="22" /></button>
                   </template>
                 </div>
 <template #content><MediaPosterMenu v-if="isDetailCandidate(item)" server :tv="item.kind === 'series' || item.kind === 'season'" :watched="item.isPlayed" :favorite="item.isFavorite" :disabled="item.kind === 'season' ? ['rating', 'playlist'] : ['playlist']" @action="handleServerPosterAction(item, $event)" /></template>
@@ -533,6 +535,7 @@
                       <WatchedIndicator v-if="isDetailCandidate(item)" :watched="item.isPlayed === true" :disabled="watchedPending.has(item.id)" @toggle="handleHomeMediaAction(item, 'watched')" />
                       <div v-if="item.genres?.length" class="library-list-genres"><span v-for="genre in item.genres" :key="genre">{{ genre }}</span></div>
                   </div>
+                  <button v-if="item.kind !== 'series' && item.kind !== 'season' && isDetailCandidate(item)" type="button" class="server-file-download" :aria-label="t('mediaServer.download')" @click.stop="handleHomeMediaAction(item, 'download')" @keydown.enter.stop><Download :size="22" /></button>
                 </template>
               </div>
 <template #content><MediaPosterMenu v-if="isDetailCandidate(item)" server :tv="item.kind === 'series' || item.kind === 'season'" :watched="item.isPlayed" :favorite="item.isFavorite" :disabled="item.kind === 'season' ? ['transcode', 'rating', 'share', 'playlist'] : ['transcode', 'share', 'playlist']" @action="handleServerPosterAction(item, $event)" /></template>
@@ -1401,7 +1404,7 @@ import type { PosterAction } from '../utils/mediaPosterMenu'
 import { openCustomSeries } from '../utils/customMediaSeries'
 import { detailResumeState } from '../utils/detailResume'
 import MediaEmptyFolder from '../components/MediaEmptyFolder.vue'
-import { Folder, Play, UserRound, Heart, Star, ListPlus, Ellipsis, ChevronDown, Eye, EyeOff } from 'lucide-vue-next'
+import { Download, Folder, Play, UserRound, Heart, Star, ListPlus, Ellipsis, ChevronDown, Eye, EyeOff } from 'lucide-vue-next'
 import { openMediaShare } from '../utils/mediaShare'
 import { openServerPersonalRating } from '../utils/mediaPersonalRating'
 import MediaServerPlaylistModal from '../components/MediaServerPlaylistModal.vue'
@@ -1409,6 +1412,12 @@ import { openServerPlaylist } from '../media-server/playlists'
 import WatchedIndicator from '../components/WatchedIndicator.vue'
 import PosterRatingBadge from '../components/PosterRatingBadge.vue'
 import { compareMediaServerItems, type MediaServerBrowseSort, type MediaServerSortDirection } from '../utils/mediaServerBrowseSort'
+const emit = defineEmits<{ categoryContext: [event: MouseEvent, route: string]; categoryFavorites: [routes: string[]] }>()
+function openLibraryCategoryMenu(event: MouseEvent, item: MediaServerLibraryNode) {
+  if (currentRoute.value.kind !== 'library-root') return
+  const server = registry.currentServer
+  if (server) emit('categoryContext', event, 'home-entry/' + encodeURIComponent(`${server.id}:${item.id}`))
+}
 const props = defineProps<{ unifiedRoot?: boolean; rootSelection?: boolean; unifiedBrowse?: boolean; browseMode?: 'grid' | 'list'; serverSort?: MediaServerBrowseSort; serverSortDirection?: MediaServerSortDirection; serverSortSeed?: number }>()
 function sortListing<T extends MediaServerLibraryNode>(items: T[]): T[] {
   if (!props.unifiedBrowse && !props.unifiedRoot) return items
@@ -1801,8 +1810,8 @@ const currentCollectionKind = computed<'latest' | 'nextup' | null>(() => {
 })
 const selectedRootLibraries = ref<string[]>([])
 function toggleRootLibrary(id: string) { selectedRootLibraries.value = selectedRootLibraries.value.includes(id) ? selectedRootLibraries.value.filter(key => key !== id) : [...selectedRootLibraries.value, id] }
-async function favoriteSelectedLibraries() { for (const item of currentLibraryItems.value.filter(item => selectedRootLibraries.value.includes(item.id))) await handleHomeMediaAction(item, 'favorite') }
-defineExpose({ favoriteSelectedLibraries, posterAction: (item: MediaServerCardItem | MediaServerLibraryNode, action: PosterAction) => handleServerPosterAction(item, action) })
+function favoriteSelectedLibraries() { const server = registry.currentServer; if (server) emit('categoryFavorites', currentLibraryItems.value.filter(item => selectedRootLibraries.value.includes(item.id)).map(item => 'home-entry/' + encodeURIComponent(`${server.id}:${item.id}`))) }
+defineExpose({ favoriteSelectedLibraries, playServerCategory: (serverId: string, libraryId: string, mode: 'play' | 'loop' | 'shuffle') => playServerCategory(serverId, libraryId, mode), posterAction: (item: MediaServerCardItem | MediaServerLibraryNode, action: PosterAction) => handleServerPosterAction(item, action) })
 const currentListingPosterType = computed(() => {
   if (props.unifiedRoot) return 'landscape' as const
   if (props.unifiedBrowse) return 'portrait' as const
@@ -2914,6 +2923,21 @@ const playHomeMediaItem = async (item: MediaServerCardItem | MediaServerLibraryN
   }
 }
 
+/** A category plays like a folder favorite: its first title, or a random one for shuffle. */
+const playServerCategory = async (serverId: string, libraryId: string, mode: 'play' | 'loop' | 'shuffle') => {
+  const server = registry.servers.find(server => server.id === serverId)
+  if (!server) return
+  try {
+    const children = (await content.loadLibraryPage(server, libraryId, false, true))
+      .filter(child => ['movie', 'episode', 'series', 'season'].includes(child.kind))
+    if (children.length === 0) throw new Error('没有找到可播放内容')
+    const first = mode === 'shuffle' ? children[Math.floor(Math.random() * children.length)] : children[0]
+    await playHomeMediaItem({ ...first, serverId: server.id } as MediaServerLibraryNode, mode)
+  } catch (error: any) {
+    message.error(error?.message || '媒体服务器播放失败')
+  }
+}
+
 const serverDeletePending = new Set<string>()
 const handleServerPosterAction = async (item: MediaServerCardItem | MediaServerLibraryNode, action: PosterAction) => {
  if (action === 'playlist') {
@@ -2990,7 +3014,8 @@ const handleHomeMediaAction = async (item: MediaServerCardItem | MediaServerLibr
     }
 
     const wasFavorite = item.isFavorite === true
-    await updateMediaServerFavoriteState(server, item.id, wasFavorite)
+    await updateMediaServerFavoriteState(server, item.id, wasFavorite, item)
+    item.isFavorite = !wasFavorite
     await refreshHomeAfterMediaAction()
     message.success(wasFavorite ? '已取消收藏' : '已加入收藏')
   } catch (error: any) {
@@ -3257,7 +3282,7 @@ const handleDetailAction = async (action: 'watched' | 'favorite') => {
   }
   const wasFavorite = detailIsFavorite.value
   try {
-    await updateMediaServerFavoriteState(server, itemId, wasFavorite)
+    await updateMediaServerFavoriteState(server, itemId, wasFavorite, detailDisplayedItem.value)
     await content.loadItemDetail(server, itemId, true)
     if (currentDetail.value?.id && currentDetail.value.id !== itemId) {
       await content.loadItemDetail(server, currentDetail.value.id, true)
@@ -3650,6 +3675,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.server-file-download{flex-shrink:0;padding:12px;border:0;background:transparent;color:var(--color-text-2);cursor:pointer}.server-file-download:focus-visible{outline:2px solid #ff8b25}
 .media-server-workspace {
   height: 100%;
   overflow: hidden;
@@ -3925,13 +3951,12 @@ onUnmounted(() => {
   padding: 8px;
   min-width: 240px;
   border-radius: 24px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(244, 248, 255, 0.36));
+  background: var(--app-overlay-bg);
   border: 1px solid rgba(255, 255, 255, 0.56);
   box-shadow:
     0 22px 48px rgba(0, 0, 0, 0.16),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
-  backdrop-filter: blur(24px) saturate(145%);
+  backdrop-filter: none;
 }
 
 :deep(.server-switch-dropdown .arco-dropdown-list-wrapper),
@@ -7043,9 +7068,9 @@ onUnmounted(() => {
 
 .detail-media-modal :deep(.ant-modal-content) {
   border-radius: 28px;
-  background: rgba(247, 241, 234, 0.72);
+  background: var(--app-overlay-bg);
   border: 1px solid rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(24px);
+  backdrop-filter: none;
   box-shadow: 0 28px 60px rgba(56, 44, 30, 0.18);
 }
 
@@ -7557,7 +7582,7 @@ onUnmounted(() => {
 }
 
 [arco-theme='dark'] .detail-media-modal :deep(.ant-modal-content) {
-  background: rgba(18, 22, 30, 0.92);
+  background: var(--app-overlay-bg);
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: 0 28px 60px rgba(0, 0, 0, 0.4);
 }
@@ -8433,10 +8458,10 @@ body:not([arco-theme='dark']) .home-library-manager-modal-shell .arco-modal-cont
 body:not([arco-theme='dark']) .detail-media-modal-shell .arco-modal-content {
   color: rgba(17, 24, 39, 0.94) !important;
   border: 1px solid rgba(15, 23, 42, 0.08) !important;
-  background: rgba(255, 255, 255, 0.88) !important;
+  background: var(--app-overlay-bg) !important;
   box-shadow: 0 28px 60px rgba(15, 23, 42, 0.14) !important;
-  backdrop-filter: blur(24px) saturate(1.2) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 body:not([arco-theme='dark']) .home-library-manager-modal .arco-modal-title,
@@ -8477,10 +8502,10 @@ body:not([arco-theme='dark']) .home-library-manager-modal-shell .home-library-ma
 body:not([arco-theme='dark']) .server-switch-menu {
   color: rgba(17, 24, 39, 0.92) !important;
   border: 1px solid rgba(15, 23, 42, 0.08) !important;
-  background: rgba(255, 255, 255, 0.88) !important;
+  background: var(--app-overlay-bg) !important;
   box-shadow: 0 24px 52px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
-  backdrop-filter: blur(24px) saturate(1.2) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.2) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 body:not([arco-theme='dark']) .server-switch-menu .arco-dropdown-option,
@@ -8498,15 +8523,12 @@ body[arco-theme='dark'] .home-library-manager-modal.detail-media-modal .arco-mod
 body[arco-theme='dark'] .home-library-manager-modal-shell.detail-media-modal-shell .arco-modal-content {
   color: var(--app-mineradio-ink, #e8ecef) !important;
   border-color: var(--app-glass-line, rgba(255, 255, 255, 0.08)) !important;
-  background:
-    radial-gradient(circle at 72% 8%, rgba(0, 245, 212, 0.08), transparent 28%),
-    radial-gradient(circle at 12% 72%, rgba(36, 66, 255, 0.1), transparent 34%),
-    var(--app-mineradio-bg, #08090b) !important;
+  background: var(--app-overlay-bg) !important;
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 body[arco-theme='dark'] .home-library-manager-modal.detail-media-modal .arco-modal-header,
@@ -8915,26 +8937,6 @@ body[arco-theme='dark'] #xbybody .media-server-workspace .media-image-placeholde
 
 body[arco-theme='dark'] #xbybody .media-server-workspace .media-image-placeholder:has(> .media-poster-placeholder-icon) {
   background: #232625 !important;
-}
-
-/* ── popup/dropdown glass background ── */
-#xbybody .arco-select-popup-container .arco-select-popup-inner,
-#xbybody .arco-trigger-popup-wrapper .arco-dropdown-list,
-#xbybody .arco-trigger-popup {
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 14px;
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-}
-
-body[arco-theme='dark'] #xbybody .arco-select-popup-container .arco-select-popup-inner,
-body[arco-theme='dark'] #xbybody .arco-trigger-popup-wrapper .arco-dropdown-list,
-body[arco-theme='dark'] #xbybody .arco-trigger-popup {
-  background: linear-gradient(180deg, rgba(24, 29, 40, 0.92), rgba(17, 21, 30, 0.88));
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
 /* ── Cinematic media detail, matched to the compact Emby-style reference. ── */
@@ -9719,6 +9721,7 @@ body:not([arco-theme='dark']) #xbybody .media-server-workspace .detail-backdrop-
 </style>
 
 <style scoped>
+.server-file-download{flex-shrink:0;padding:12px;border:0;background:transparent;color:var(--color-text-2);cursor:pointer}.server-file-download:focus-visible{outline:2px solid #ff8b25}
 #xbybody .media-server-workspace .detail-play-row:not(.has-version) {
   grid-template-columns: minmax(0, 1fr);
 }

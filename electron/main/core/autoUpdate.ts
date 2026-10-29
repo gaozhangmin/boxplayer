@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import type { UpdateInfo } from 'electron-updater'
 import is from 'electron-is'
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const UPDATE_CHECK_DELAY_MS = 1000
@@ -26,7 +26,9 @@ type UpdateProxyPreferences = {
   autoCheckOnLaunch?: boolean
 }
 export type AutoUpdateState = {
-  status: 'idle' | 'checking' | 'downloading' | 'downloaded' | 'up-to-date' | 'error' | 'unsupported'
+  status: 'available' | 'installed' | 'idle' | 'checking' | 'downloading' | 'downloaded' | 'up-to-date' | 'error' | 'unsupported'
+  previousVersion?: string
+  releaseNotes?: string
   version?: string
   message?: string
   percent?: number
@@ -72,7 +74,7 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
 
   let downloadInProgress = false
   let hasDownloaded = false
-  let hasPromptedRestart = false
+
   let hasStartedFallback = false
   let hasChecked = false
   let activeCheck: Promise<AutoUpdateState> | null = null
@@ -81,12 +83,24 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
     try { return String(JSON.parse(readFileSync(updateStatePath, 'utf8'))?.version || '') } catch { return '' }
   }
   const clearPendingVersion = () => {
-    if (updateStatePath) unlinkSync(updateStatePath, { force: true })
+    if (updateStatePath) rmSync(updateStatePath, { force: true })
   }
   const pendingVersion = readPendingVersion()
-  if (pendingVersion && pendingVersion === currentVersion) clearPendingVersion()
+  if (pendingVersion && pendingVersion === currentVersion) {
+    try { setState({ ...JSON.parse(readFileSync(updateStatePath!, 'utf8')), status: 'installed' }) } catch {}
+  }
+  const acknowledge = () => { clearPendingVersion(); setState({ status: 'idle' }); return true }
+  const downloadNow = async () => {
+    if (state.status !== 'available' || downloadInProgress) return getState()
+    downloadInProgress = true
+    setState({ ...state, status: 'downloading', percent: 0 })
+    try { await updater.downloadUpdate() }
+    catch (err) { downloadInProgress = false; setState({ ...state, status: 'error', message: String(err) }); fallbackToNextFeed(err) }
+    return getState()
+  }
 
   const checkNow = async (force = false) => {
+    if (state.status === 'installed') return getState()
     if (state.status === 'checking' && activeCheck) return activeCheck
     if (state.status === 'downloading' || state.status === 'downloaded') return getState()
     if (hasChecked && !force) return getState()
@@ -124,19 +138,14 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
       logger.info('[auto-update] update already downloaded, skipping duplicate download', info.version)
       return
     }
-    downloadInProgress = true
-    setState({ status: 'downloading', version: info.version, percent: 0 })
-    logger.info('[auto-update] update available, downloading in background', info.version)
-    updater.downloadUpdate().catch((err: unknown) => {
-      logger.warn('[auto-update] download failed', err)
-      downloadInProgress = false
-      fallbackToNextFeed(err)
-    })
+    const releaseNotes = typeof info.releaseNotes === 'string' ? info.releaseNotes : (info.releaseNotes || []).map(note => `${note.version}\n${note.note}`).join('\n\n')
+    setState({ status: 'available', version: info.version, releaseNotes })
   })
 
   updater.on('download-progress', (progress: { percent: number; transferred: number; total: number; bytesPerSecond: number }) => {
     if (hasDownloaded) return
     setState({
+      ...state,
       status: 'downloading',
       version: state.version,
       percent: Math.max(0, Math.min(100, progress.percent)),
@@ -147,27 +156,14 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
   })
 
   updater.on('update-downloaded', (info: UpdateInfo) => {
+    if (hasDownloaded) return
     hasDownloaded = true
     downloadInProgress = false
-    setState({ status: 'downloaded', version: info.version, percent: 100 })
+    setState({ ...state, status: 'downloaded', version: info.version, percent: 100 })
     if (updateStatePath) {
-      try { writeFileSync(updateStatePath, JSON.stringify({ version: info.version, downloadedAt: Date.now() })) } catch (err) { logger.warn('[auto-update] unable to persist downloaded version', err) }
+      try { writeFileSync(updateStatePath, JSON.stringify({ version: info.version, previousVersion: currentVersion, releaseNotes: state.releaseNotes, downloadedAt: Date.now() })) } catch (err) { logger.warn('[auto-update] unable to persist downloaded version', err) }
     }
-    if (hasPromptedRestart) return
-    hasPromptedRestart = true
-    dialog.showMessageBox({
-      type: 'info',
-      title: '更新已下载',
-      message: `新版本 ${info.version} 已在后台下载完成`,
-      detail: '重启 App 即可完成更新安装。',
-      buttons: ['重启安装', '稍后'],
-      defaultId: 0,
-      cancelId: 1
-    }).then(({ response }) => {
-      if (response === 0) updater.quitAndInstall(false, true)
-    }).catch((err: unknown) => {
-      logger.warn('[auto-update] restart prompt failed', err)
-    })
+    updater.quitAndInstall(false, true)
   })
 
   updater.on('update-not-available', (info: UpdateInfo) => {
@@ -180,7 +176,7 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
     fallbackToNextFeed(err)
   })
 
-  if (updateProxy.autoCheckOnLaunch !== false) {
+  if (state.status !== 'installed' && updateProxy.autoCheckOnLaunch !== false) {
     setTimeout(() => {
       void checkNow()
     }, UPDATE_CHECK_DELAY_MS)
@@ -192,7 +188,7 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
     return true
   }
 
-  return { getState, checkNow, installNow }
+  return { getState, checkNow, installNow, downloadNow, acknowledge }
 }
 
 export function readUpdateProxyPreferences(userDataPath: string): UpdateProxyPreferences {
@@ -244,5 +240,9 @@ export function registerAutoUpdate() {
   ipcMain.removeHandler('AutoUpdate:Install')
   ipcMain.handle('AutoUpdate:GetState', () => controller.getState())
   ipcMain.handle('AutoUpdate:Check', (_event, force?: boolean) => controller.checkNow(force === true))
+  ipcMain.removeHandler('AutoUpdate:Download')
+  ipcMain.removeHandler('AutoUpdate:Acknowledge')
+  ipcMain.handle('AutoUpdate:Download', () => controller.downloadNow?.())
+  ipcMain.handle('AutoUpdate:Acknowledge', () => controller.acknowledge?.())
   ipcMain.handle('AutoUpdate:Install', () => controller.installNow())
 }

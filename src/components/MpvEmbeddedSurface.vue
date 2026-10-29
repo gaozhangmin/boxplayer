@@ -1843,9 +1843,7 @@ watch(chapters, (nextChapters) => {
   border: 1px solid rgba(122, 255, 170, .16);
   border-radius: 14px;
   padding: 12px;
-  background:
-    radial-gradient(circle at 12% 0, rgba(122, 255, 170, .12), transparent 36%),
-    linear-gradient(180deg, rgba(22, 27, 34, .98), rgba(8, 10, 14, .96));
+  background: var(--app-overlay-bg);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), 0 16px 42px rgba(0, 0, 0, .42);
 }
 
@@ -1858,7 +1856,7 @@ watch(chapters, (nextChapters) => {
   height: 12px;
   border-left: 1px solid rgba(122, 255, 170, .16);
   border-top: 1px solid rgba(122, 255, 170, .16);
-  background: rgba(22, 27, 34, .98);
+  background: var(--app-overlay-bg);
   content: '';
   transform: rotate(45deg);
 }
@@ -2122,14 +2120,14 @@ watch(chapters, (nextChapters) => {
 :global(.mpv-subtitle-search-modal .arco-modal) {
   border: 1px solid rgba(255, 255, 255, .1);
   border-radius: 18px;
-  background: rgba(11, 13, 18, .96);
+  background: var(--app-overlay-bg);
   box-shadow: 0 28px 80px rgba(0, 0, 0, .56);
   overflow: hidden;
 }
 
 :global(.mpv-subtitle-search-modal-body) {
   padding: 0;
-  background: #0b0d12;
+  background: var(--app-overlay-bg);
 }
 
 :global(.mpv-subtitle-modal) {
@@ -2144,7 +2142,7 @@ watch(chapters, (nextChapters) => {
   gap: 16px;
   padding: 0 24px;
   border-bottom: 1px solid rgba(255, 255, 255, .08);
-  background: radial-gradient(circle at 18% 0, rgba(63, 131, 255, .14), transparent 42%), linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, .02));
+  background: var(--app-overlay-bg);
 }
 
 :global(.mpv-subtitle-modal-close) {
