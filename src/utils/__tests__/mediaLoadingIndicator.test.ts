@@ -8,7 +8,7 @@ describe('shared media library loading indicator', () => {
     const page = source('layout/PageMain.vue')
     expect(page).toContain('loadingComponent: MediaLibraryLoading, delay: 0')
     expect(source('components/MediaLibraryLoading.vue')).toContain('<MediaLoadingIndicator />')
-    expect(source('views/UnifiedMediaLibraryView.vue')).toContain("section === 'home' && !homeLayout.length && refreshing")
+    expect(source('views/UnifiedMediaLibraryView.vue')).toContain("section === 'home' && homeIsEmpty && refreshing")
   })
   it('removes native button padding so the avatar stays centered inside its circle', () => {
     expect(source('views/UnifiedMediaLibraryView.vue')).toContain('.unified-toolbar .round-button{padding:0;box-sizing:border-box;overflow:hidden;place-items:center}')
