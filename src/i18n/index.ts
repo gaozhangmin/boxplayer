@@ -13,6 +13,11 @@ const locale = ref<AppLocale>(detectSystemLocale())
 
 const messages = {
   'zh-CN': {
+    'source.emptyAdd': '新增文件来源',
+    'source.emptyHomeTitle': '主屏幕为空',
+    'source.emptyHomeDescription': '现在让我们找一些视频添加到您的主屏幕',
+    'source.emptyFilesTitle': '文件屏幕为空',
+    'source.emptyFilesDescription': '现在让我们找一些视频添加到您的文件',
     'source.add': '添加 {type}',
     'source.defaultName': '我的 {type}',
     'source.network': '网络共享',
@@ -516,6 +521,11 @@ const messages = {
     , 'pan.files': '网盘文件', 'pan.shortcuts': '快捷方式', 'pan.noFolderSelected': '没有选择任何文件夹！', 'file.download': '下载', 'file.quickTransfer': '快传', 'file.favorite': '收藏', 'file.unfavorite': '取消收藏', 'file.rename': '重命名', 'file.openLocation': '打开位置', 'file.delete': '删除', 'file.trash': '放回收站', 'file.deletePermanently': '彻底删除', 'file.cannotRestore': '删除后无法还原', 'file.more': '更多', 'file.moveTo': '移动到...', 'file.copyTo': '复制到...', 'file.properties': '属性', 'file.copyName': '复制文件名', 'file.new': '新建', 'file.newFile': '新建文件', 'file.newFolder': '新建文件夹', 'file.dateFolder': '日期+序号', 'file.upload': '上传', 'file.uploadFile': '上传文件', 'file.uploadFolder': '上传文件夹', 'file.importShare': '导入分享', 'file.createAlbum': '创建相册', 'file.refresh': '刷新', 'file.expandAll': '展开全部', 'file.collapseAll': '折叠全部', 'file.directory': '目录', 'file.scan': '扫描数据', 'file.startScan': '开始扫描', 'file.operations': '操作', 'file.moveToAlbum': '移入相册', 'file.removeFromAlbum': '移出相册', 'file.clearTrash': '清空回收站', 'file.restoreSelected': '还原选中', 'file.restore': '恢复选中', 'file.copyTree': '复制目录树', 'file.clearHistory': '清除历史', 'file.markEncrypted': '标记加密', 'file.clearMark': '清除标记', 'file.video': '视频', 'file.audio': '音频', 'file.book': '书籍', 'file.analyzeWithAi': '用 AI 分析', 'file.share': '分享', 'file.emptyFavorites': '清空收藏夹', 'file.nowWatching': '正在观看', 'file.allAlbums': '全部专辑', 'file.luckyBottle': '好运瓶', 'file.normalNew': '普通新建', 'file.encryptedNew': '加密新建', 'file.privateNew': '私密新建', 'file.encrypted': '加密', 'file.private': '私密', 'file.normalUpload': '普通上传', 'file.encryptedUpload': '加密上传', 'file.privateUpload': '私密上传', 'file.uploadPhotosVideos': '上传照片/视频', 'file.mark': '标记', 'file.videoRed': '视频红', 'file.aiRescrape': 'AI 重刮削', 'file.sprite': '雪碧图', 'file.dlna': 'DLNA投屏', 'file.m3u8Download': 'M3U8下载', 'file.drive115CloudDownload': '115 云下载', 'file.drive115Transcode': '115 转码', 'file.vipTranscode': 'VIP 加速转码', 'file.mapleTranscode': '枫叶加速转码', 'file.selectScanFolder': '请先选择要扫描的文件夹', 'file.scanFolderOnly': '请选择文件夹进行扫描', 'file.scanning': '正在扫描中，请稍后...', 'file.selectScanType': '请至少勾选一种扫描类型', 'file.accountMissing': '无法识别当前账号', 'file.aiRescrapeFailed': 'AI 批量刮削失败，请稍后重试', 'file.documentAiUnsupported': '请选择一个 PDF、DOCX、EPUB、TXT 或 Markdown 文档', 'user.login': '登录', 'user.refresh': '刷新', 'user.signIn': '签到', 'user.logout': '退出', 'user.switchAccount': '切换到其他账号', 'user.current': '当前', 'user.selectMe': '选我', 'user.delete': '删除', 'user.loginNew': '登录一个新账号', 'user.notLoggedIn': '还没登录账号?', 'login.driveAccount': '网盘账号登录', 'login.firstScan': '第一次扫码', 'login.scanOrAccount': '扫码或账号登录', 'login.secondScan': '第二次扫码', 'login.mobileAuth': '手机授权', 'login.browserOpenedPrefix': '已在系统浏览器中打开', 'login.authPageSuffix': '授权页面', 'login.browserContinue': '请在浏览器中完成登录，授权后将自动跳转回应用', 'login.reopenBrowser': '重新打开浏览器', 'login.refreshQrCode': '刷新二维码', 'login.smsCode': '短信验证码', 'login.sendSmsCode': '发送验证码', 'login.resendSmsCode': '重新发送验证码', 'login.scanWithAliyun': '请用阿里云盘 App 扫码', 'login.scanWith115': '请使用 115 App 扫码', 'login.scanWithQuark': '请使用夸克 App 扫码', 'login.scanWithCloud189': '请使用天翼云盘 App 扫码', 'login.gettingQr': '正在获取登录二维码...', 'login.scanSuccessSigningIn': '扫码成功，正在登录...', 'login.qrExpired': '二维码已失效，请刷新', 'login.loginFailed': '登录失败', 'login.authCodeMissing': '未获取到授权 code', 'login.authExpired': '授权信息已失效，请重新打开授权页面', 'login.enterAccountPassword': '请输入账号和密码', 'login.smsSent': '验证码已发送', 'login.sendSmsFirst': '请先发送短信验证码', 'login.enterSmsCode': '请输入短信验证码', 'login.enterDeveloperAccount': '输入开发者账号', 'login.clientId': '客户端 ID', 'login.clientSecret': '客户端密钥', 'login.enterDeveloperAccountWarn': '请输入开发者账号', 'login.retryLogin': '请重新登录', 'login.parseFailed': '解析失败', 'login.retry': '请重试', 'login.waitingScan': '状态：等待扫码登录'
   },
   'en-US': {
+    'source.emptyAdd': 'Add File Source',
+    'source.emptyHomeTitle': 'Home screen is empty',
+    'source.emptyHomeDescription': 'Let’s find some videos to add to your Home screen',
+    'source.emptyFilesTitle': 'Files screen is empty',
+    'source.emptyFilesDescription': 'Let’s find some videos to add to your files',
     'source.add': 'Add {type}',
     'source.defaultName': 'My {type}',
     'source.network': 'Network shares',

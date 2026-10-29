@@ -19,7 +19,7 @@ import { libraryObjectCover } from '../utils/libraryObjectCover'
 import LibraryObjectActions from './LibraryObjectActions.vue'
 import MediaLoadingIndicator from './MediaLoadingIndicator.vue'
 
-const props = defineProps<{ route: string; mode: 'grid' | 'list'; sort: MediaBrowseSort; localOnly: boolean; dailyItems: MediaLibraryItem[]; selection?: string[]; card: (item: MediaLibraryItem, landscape?: boolean, playlistName?: string, seriesID?: string) => UnifiedLibraryCard }>()
+const props = withDefaults(defineProps<{ route: string; mode: 'grid' | 'list'; sort: MediaBrowseSort; sortDescending?: boolean; localOnly: boolean; dailyItems: MediaLibraryItem[]; selection?: string[]; card: (item: MediaLibraryItem, landscape?: boolean, playlistName?: string, seriesID?: string) => UnifiedLibraryCard }>(), { sortDescending: undefined })
 const emit = defineEmits<{ navigate: [route: string]; play: [items: MediaLibraryItem[], mode: 'play' | 'loop' | 'shuffle', title: string]; title: [title: string]; customSeries: [id: string]; toggleHome: [route: string]; placement: [route: string, action: 'home' | 'favorite' | 'rename' | 'remove' | 'removeFavorite'] }>()
 const media = useMediaLibraryStore()
 const home = useHomePreferences()
@@ -114,7 +114,7 @@ const sortedMembers = computed(() => {
     : [...selectedMembers.value].sort((a, b) => compareMediaBrowseValues(
       { title: a.name, fileName: a.driveFiles[0]?.name, addedAt: a.addedAt, premiereDate: a.releaseDate },
       { title: b.name, fileName: b.driveFiles[0]?.name, addedAt: b.addedAt, premiereDate: b.releaseDate },
-      props.sort))
+      props.sort, props.sortDescending))
 })
 const row = computed<UnifiedLibraryRow>(() => {
   const grouped = facetPage.value || props.route === 'playlist'

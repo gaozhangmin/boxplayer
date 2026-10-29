@@ -117,10 +117,11 @@ const showTraktAccount = ref(false)
 import { openPersonalRating, openServerPersonalRating } from '../utils/mediaPersonalRating'
 import CustomMediaSeriesModal from '../components/CustomMediaSeriesModal.vue'
 import MediaEmptyFolder from '../components/MediaEmptyFolder.vue'
+import SourceEmptyState from '../components/SourceEmptyState.vue'
 import { compareMediaBrowseValues, nextMediaBrowseSort, type MediaBrowseSort } from '../utils/mediaBrowseSort'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { Modal } from '@arco-design/web-vue'
-import { History, EyeOff, CalendarDays, Drama, Move, Image, Trash2, ArrowDown, ArrowUpDown, Check, Clapperboard, GalleryVerticalEnd, FileImage, TvMinimal, BookOpen, Calendar, ChevronDown, ChevronLeft, Ellipsis, Film, Folder, Grid2X2, House, LockKeyhole, Library, List, ListFilter, Music, Network, Pencil, Play, Plus, RefreshCw, Search, Shuffle, SquareCheck, Star, Tv } from 'lucide-vue-next'
+import { History, EyeOff, CalendarDays, Drama, Move, Image, Trash2, ArrowDown, ArrowUp, Check, Clapperboard, GalleryVerticalEnd, FileImage, TvMinimal, BookOpen, Calendar, ChevronDown, ChevronLeft, Ellipsis, Film, Folder, Grid2X2, House, LockKeyhole, Library, List, ListFilter, Music, Network, Pencil, Play, Plus, RefreshCw, Search, Shuffle, SquareCheck, Star, Tv } from 'lucide-vue-next'
 import { useAppStore } from '../store'
 import { useMediaLibraryStore } from '../store/medialibrary'
 import useMusicLibraryStore from '../store/musiclibrary'
@@ -514,12 +515,19 @@ function syncCustomSeries() {
 const collectionMode = useLibraryBrowseMode()
 const localOnly = ref(false)
 const browseSort = ref<MediaBrowseSort>(generalPreferences.sort as MediaBrowseSort)
+const browseSortDescending = ref(['addedAt', 'premiereDate'].includes(browseSort.value))
+watch(browseSort, sort => { browseSortDescending.value = ['addedAt', 'premiereDate'].includes(sort) })
+function selectBrowseSort(sort: MediaBrowseSort) {
+  if (sort === browseSort.value) browseSortDescending.value = !browseSortDescending.value
+  else browseSort.value = sort
+}
 watch(() => generalPreferences.sort, value => { browseSort.value = value as MediaBrowseSort })
 const serverSort = ref<MediaServerBrowseSort>('sortName')
 const serverSortDirection = ref<MediaServerSortDirection>('ascending')
 const serverSortSeed = ref(Date.now())
 const serverSortMenuVisible = ref(false)
 function selectServerSort(sort: MediaServerBrowseSort) {
+  if (serverSort.value === sort) serverSortDirection.value = serverSortDirection.value === 'ascending' ? 'descending' : 'ascending'
   serverSort.value = sort
   if (sort === 'random') serverSortSeed.value = Date.now()
   serverSortMenuVisible.value = false
@@ -1384,6 +1392,13 @@ const managementGroups = computed<HomeManagementGroup[]>(() => {
     { id: 'local', title: t('media.library'), nodes: localNodes }
   ]
 })
+const homeIsEmpty = computed(() => {
+  const navigationRows = ['library', 'movies', 'tv'].map(libraryHomeId)
+  if (rows.value.some(row => row.loading || row.error || (row.cards.length && !navigationRows.includes(row.key)))) return false
+  const hasNoSourcesOrMedia = !registry.servers.length && !media.mediaItems.length
+    && !media.folders.some(folder => folder.isFavorite !== false) && !serverFolderFavorites.value.length
+  return !homeLayout.value.length || hasNoSourcesOrMedia
+})
 const homeLayout = computed(() => visibleHomeSections(homeItems.value, homePreferences).map(item => ({ item: { ...item, title: homeMenuTitle(item, homePreferences) }, row: rows.value.find(row => row.key === item.id) })).filter(entry => entry.item.id === 'sources' ? visibleSourceCards.value.length > 0 : !!entry.row && (!!(entry.row.count ?? entry.row.cards.length) || !!entry.row.loading || !!entry.row.error)))
 const rows = computed<Row[]>(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
@@ -1403,12 +1418,12 @@ const rows = computed<Row[]>(() => {
 })
 
 const selectedHomeRow = computed(() => {
- if (selectedHomeRowKey.value.startsWith('custom-series:')) return { key: selectedHomeRowKey.value, title: customSeriesGroups.value.find(group => group.id === selectedHomeRowKey.value.slice('custom-series:'.length))?.title || t('unified.series'), cards: browseSort.value === 'addedAt' ? customSeriesCards.value : [...customSeriesCards.value].sort((a, b) => compareMediaBrowseValues(a.sortValues || a, b.sortValues || b, browseSort.value)), more: () => {} }
+ if (selectedHomeRowKey.value.startsWith('custom-series:')) return { key: selectedHomeRowKey.value, title: customSeriesGroups.value.find(group => group.id === selectedHomeRowKey.value.slice('custom-series:'.length))?.title || t('unified.series'), cards: [...customSeriesCards.value].sort((a, b) => compareMediaBrowseValues(a.sortValues || a, b.sortValues || b, browseSort.value, browseSortDescending.value)), more: () => {} }
 
   const row = rawRows.value.find(row => row.key === selectedHomeRowKey.value)
   const localIds = new Set(homeLibrary.value.filter(hasLocalMedia).map(item => `local:${item.id}`))
   const cards = (localOnly.value ? row?.cards.filter(card => localIds.has(card.key)) : row?.cards) || []
-  const sortedCards = ['local:daily', 'local:top-rated', 'local:playlist', 'custom-series'].includes(selectedHomeRowKey.value) || selectedHomeRowKey.value.startsWith('local:playlist:group:') ? cards : [...cards].sort((a, b) => compareMediaBrowseValues(a.sortValues || a, b.sortValues || b, browseSort.value))
+  const sortedCards = ['local:daily', 'local:top-rated', 'local:playlist', 'custom-series'].includes(selectedHomeRowKey.value) || selectedHomeRowKey.value.startsWith('local:playlist:group:') ? cards : [...cards].sort((a, b) => compareMediaBrowseValues(a.sortValues || a, b.sortValues || b, browseSort.value, browseSortDescending.value))
   return row ? { ...row, cards: sortedCards, title: homePreferences.titles[row.key] || row.title } : undefined
 })
 function homeNavigationIcon(id: string) {
@@ -1647,11 +1662,20 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         <button v-if="section === 'home'" class="round-button" aria-label="Trakt" title="Trakt" @click="showTraktAccount = true"><TraktAvatar v-if="traktStatus.connected" :src="traktAccount?.avatar" :size="32" /><img v-else :src="traktLogo" alt="Trakt" width="26" height="26" /></button>
         <button v-if="(isCategoryPage || isServerRootPage || isFolderPage || section === 'files') && !isGenreIndexPage && !isLibrarySettingsPage && !isSearchPage" class="round-button" :aria-label="collectionMode === 'grid' ? t('mediaServer.listView') : t('mediaServer.gridView')" @click="collectionMode = collectionMode === 'grid' ? 'list' : 'grid'"><Grid2X2 v-if="collectionMode === 'grid'" :size="18" /><List v-else :size="18" /></button>
         <button v-if="section === 'collection' && (browseSelection || playlistReordering)" class="round-button" @click="browseSelection = false; selectedObjectItems = []; playlistReordering = false; libraryBrowser?.finishReorder()">{{ t('unified.reorderDone') }}</button>
-        <a-dropdown v-if="isServerCategoryPage" v-model:popup-visible="serverSortMenuVisible" trigger="click" position="br">
-          <button class="round-button more-button server-sort-button" :aria-label="t('unified.sortLabel')" data-testid="server-category-sort"><ArrowUpDown :size="20" /><ChevronDown :size="10" /></button>
+        <a-dropdown v-if="isCategoryPage && !isServerCategoryPage && !isGenreIndexPage && !isLibrarySettingsPage && !isSearchPage && (isCatalogPage ? isCatalogMediaPage : !['local:daily', 'local:top-rated', 'local:playlist', 'custom-series'].includes(selectedHomeRowKey) && !selectedHomeRowKey.startsWith('local:playlist:group:'))" trigger="click" position="br">
+          <button class="round-button more-button server-sort-button" :aria-label="t('unified.sortLabel')"><span>{{ t(`unified.sort.${browseSort}`) }}</span><ArrowDown v-if="browseSortDescending" :size="16" /><ArrowUp v-else :size="16" /></button>
           <template #content>
             <div class="server-sort-menu" role="menu">
-              <button v-for="sort in mediaServerSortOptions" :key="sort" role="menuitemradio" :aria-checked="serverSort === sort" @click="selectServerSort(sort)"><Check :size="13" :class="{ invisible: serverSort !== sort }" /><span>{{ t(`unified.serverSort.${sort}`) }}</span></button>
+              <button v-for="sort in (['title', 'fileName', 'addedAt', 'premiereDate'] as MediaBrowseSort[])" :key="sort" role="menuitemradio" :aria-checked="browseSort === sort" @click="selectBrowseSort(sort)"><ArrowDown v-if="browseSort === sort && browseSortDescending" :size="13" /><ArrowUp v-else-if="browseSort === sort" :size="13" /><span v-else class="sort-menu-spacer" /><span>{{ t(`unified.sort.${sort}`) }}</span></button>
+            </div>
+          </template>
+        </a-dropdown>
+        <button v-if="section === 'files' || isFolderPage || isServerRootPage" class="round-button server-sort-button" :aria-label="t('unified.sortLabel')" @click="section === 'files' ? (fileSourceDescending = !fileSourceDescending) : isFolderPage ? (folderDescending = !folderDescending) : (serverSort = 'title', serverSortDirection = serverSortDirection === 'ascending' ? 'descending' : 'ascending')"><span>{{ isServerRootPage ? t(`unified.serverSort.${serverSort}`) : t('unified.sort.title') }}</span><ArrowDown v-if="section === 'files' ? fileSourceDescending : isFolderPage ? folderDescending : serverSortDirection === 'descending'" :size="16" /><ArrowUp v-else :size="16" /></button>
+        <a-dropdown v-if="isServerCategoryPage" v-model:popup-visible="serverSortMenuVisible" trigger="click" position="br">
+          <button class="round-button more-button server-sort-button" :aria-label="t('unified.sortLabel')" data-testid="server-category-sort"><span>{{ t(`unified.serverSort.${serverSort}`) }}</span><ArrowUp v-if="serverSortDirection === 'ascending'" :size="16" /><ArrowDown v-else :size="16" /></button>
+          <template #content>
+            <div class="server-sort-menu" role="menu">
+              <button v-for="sort in mediaServerSortOptions" :key="sort" role="menuitemradio" :aria-checked="serverSort === sort" @click="selectServerSort(sort)"><ArrowUp v-if="serverSort === sort && serverSortDirection === 'ascending'" :size="13" /><ArrowDown v-else-if="serverSort === sort" :size="13" /><span v-else class="sort-menu-spacer" /><span>{{ t(`unified.serverSort.${sort}`) }}</span></button>
               <div class="server-sort-divider" role="separator"></div>
               <button role="menuitemradio" :aria-checked="serverSortDirection === 'ascending'" @click="serverSortDirection = 'ascending'; serverSortMenuVisible = false"><Check :size="13" :class="{ invisible: serverSortDirection !== 'ascending' }" /><span>{{ t('unified.serverSort.ascending') }}</span></button>
               <button role="menuitemradio" :aria-checked="serverSortDirection === 'descending'" @click="serverSortDirection = 'descending'; serverSortMenuVisible = false"><Check v-if="serverSortDirection === 'descending'" :size="13" /><ArrowDown v-else :size="13" /><span>{{ t('unified.serverSort.descending') }}</span></button>
@@ -1720,9 +1744,9 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         <span>{{ t('footer.scanningMedia') }}</span>
         <span v-if="media.scanProgress > 0" class="library-scan-count">{{ t('unified.scanProcessed', { count: media.scanProgress }) }}</span>
       </div>
-      <div v-show="section === 'home' || (section === 'collection' && selectedHomeRowKey === 'sources')" class="unified-home" ref="homeElement" @scroll="section === 'home' && (homeScrollTop = ($event.target as HTMLElement).scrollTop)">
+      <div v-show="section === 'home' || (section === 'collection' && selectedHomeRowKey === 'sources')" class="unified-home" :class="{ 'source-screen-empty': section === 'home' && homeIsEmpty }" ref="homeElement" @scroll="section === 'home' && (homeScrollTop = ($event.target as HTMLElement).scrollTop)">
         <UnifiedMediaRow v-for="row in rows.filter(item => item.key === 'resume')" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :key="row.key" :row="row" />
-        <template v-for="entry in homeLayout" :key="entry.item.id">
+        <template v-for="entry in (section === 'home' && homeIsEmpty ? [] : homeLayout)" :key="entry.item.id">
         <section v-if="entry.item.id === 'sources'" class="home-row source-shortcuts">
           <div class="row-heading"><h2>{{ entry.item.title }}</h2><button @click="openHomeMenu('sources')">{{ t('mediaServer.seeAllPlain') }}</button></div>
           <div class="horizontal-row">
@@ -1734,8 +1758,8 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         </section>
         <HomeShelfViewport v-else-if="entry.row" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :snapshot="homeShelfSnapshot(entry.item.id)" :landscape="entry.row.landscape" @visible="visible => homeRowVisibility(entry.item.id, visible)"><UnifiedMediaRow :row="entry.row" /></HomeShelfViewport>
         </template>
-        <div v-if="section === 'home' && !homeLayout.length && refreshing" class="unified-loading-state"><MediaLoadingIndicator /></div>
-        <MediaEmptyFolder v-if="section === 'home' && !homeLayout.length && !refreshing" />
+        <div v-if="section === 'home' && homeIsEmpty && refreshing" class="unified-loading-state"><MediaLoadingIndicator /></div>
+        <SourceEmptyState v-if="section === 'home' && homeIsEmpty && !refreshing" home @add="showAddFileSource = true" />
       </div>
       <div v-if="section === 'collection' && selectedHomeRowKey !== 'sources'" class="unified-home category-collection" :class="{ 'library-settings-page': isLibrarySettingsPage }" :style="isLibrarySettingsPage ? { background: '#1e1e1e !important' } : undefined">
         <div v-if="isCatalogPage && selectedHomeRowKey === 'catalog:favorites'" class="favorite-page-wrap" :class="{ 'is-reordering': favoriteReordering }">
@@ -1746,7 +1770,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         </div>
         <div v-else-if="isCatalogPage && selectedHomeRowKey === 'catalog:daily' && recommendationLoading" class="unified-loading-state"><MediaLoadingIndicator /></div>
         <div v-else-if="isCatalogPage && selectedHomeRowKey === 'catalog:daily' && recommendationError && !dailyRecommendations.length" role="alert">{{ t('unified.rankingFailed') }} <button @click="loadLibraryRecommendations()">{{ t('common.retry') }}</button></div>
-        <UnifiedLibraryBrowser v-else-if="isCatalogPage" ref="libraryBrowser" :route="selectedHomeRowKey.slice(8)" :mode="collectionMode" :sort="browseSort" :local-only="localOnly" :daily-items="dailyRecommendations" :card="localCard" :selection="browseSelection ? selectedObjectKeys : undefined" @navigate="showCatalog" @title="catalogTitle = $event" @play="playCatalog" @custom-series="showCustomSeries" @placement="handleCatalogPlacement" />
+        <UnifiedLibraryBrowser v-else-if="isCatalogPage" ref="libraryBrowser" :route="selectedHomeRowKey.slice(8)" :mode="collectionMode" :sort="browseSort" :sort-descending="browseSortDescending" :local-only="localOnly" :daily-items="dailyRecommendations" :card="localCard" :selection="browseSelection ? selectedObjectKeys : undefined" @navigate="showCatalog" @title="catalogTitle = $event" @play="playCatalog" @custom-series="showCustomSeries" @placement="handleCatalogPlacement" />
         <div v-else-if="isSearchPage" class="sidebar-search-results">
           <div v-if="searchLoading" class="unified-loading-state"><MediaLoadingIndicator /></div>
           <div v-else-if="searchError" role="alert">{{ searchError }} <button @click="runSidebarSearch()">{{ t('common.retry') }}</button></div>
@@ -1771,8 +1795,9 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         </div>
         <MediaEmptyFolder v-else class="collection-empty-folder" />
       </div>
-      <div v-else-if="section === 'files'" class="file-source-browser" :class="{ 'file-source-list': collectionMode === 'list', 'is-reordering': fileSourceReordering }">
+      <div v-else-if="section === 'files'" class="file-source-browser" :class="{ 'file-source-list': collectionMode === 'list', 'is-reordering': fileSourceReordering, 'file-sources-empty': !fileSourceCards.length }">
         <div v-if="fileSourceReordering" class="source-reorder-hint" role="status"><span>{{ t('unified.dragSourceHint') }}</span><button @click="finishSourceReordering">{{ t('unified.reorderDone') }}</button></div>
+        <SourceEmptyState v-if="!fileSourceCards.length" @add="showAddFileSource = true" />
         <button v-for="card in fileSourceCards" :key="card.key" :data-source-key="card.key" class="file-source-card" :style="sourceDragStyle(card.key)" :class="{ 'source-selected': fileSourceSelection && selectedFileSources.includes(card.key), 'source-dragging': sourceDragKey === card.key, 'source-drop-target': sourceDropKey === card.key && sourceDragKey !== card.key }" :aria-pressed="fileSourceSelection ? selectedFileSources.includes(card.key) : undefined" @pointerdown="collectionMode === 'grid' && fileSourceReordering && startSourcePointer($event, card.key)" @keydown="fileSourceReordering && sourceReorderKeydown($event, card.key)" @click="openFileSource(card)" @contextmenu.prevent="openFileCardMenu($event, card.key)">
 <div class="file-source-art"><img v-if="card.providerIcon && !failedProviderIcons.has(card.key)" class="file-source-provider-icon" :src="card.providerIcon" :alt="card.title" draggable="false" @error="markProviderIconFailed(card.key)" /><img v-else-if="!card.server && favoriteCover(card.key)" :src="favoriteCover(card.key)" alt="" draggable="false" /><MediaServerIcon v-else-if="card.server" :server="card.server" :size="collectionMode === 'grid' ? 56 : 28" /><component v-else :is="card.icon" :size="collectionMode === 'grid' ? 56 : 28" /><input v-if="fileSourceSelection" type="checkbox" :checked="selectedFileSources.includes(card.key)" tabindex="-1" :aria-label="card.title" /></div><strong>{{ card.title }}<small v-if="collectionMode === 'list' && 'subtitle' in card && card.subtitle" class="file-source-subtitle">{{ card.subtitle }}</small></strong><span v-if="collectionMode === 'list'" class="file-source-handle" role="button" tabindex="0" :aria-label="t('unified.reorder', { name: card.title })" @click.stop @pointerdown.stop="startSourcePointer($event, card.key)" @keydown="sourceReorderKeydown($event, card.key)"><List :size="22" /></span>
         </button>
@@ -1790,7 +1815,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
       </div>
       <div v-show="!['home', 'files', 'collection'].includes(section)" class="embedded-workspace">
         <KeepAlive>
-          <VideoLibrary v-if="section === 'video' || section === 'home' || section === 'collection'" v-show="section === 'video'" ref="videoView" @tag-title-change="detailTagTitle = $event" @detail-visibility-change="localDetailVisible = $event" @browse-context-change="selectedFolder = $event.folderId; selectedCategory = $event.category || selectedCategory" :nav-visible="false" :unified-browse="true" :unified-files="isFolderPage" :folder-descending="folderDescending" :browse-mode="collectionMode" :local-only="localOnly" :browse-sort="isCategoryPage ? browseSort : undefined" :browse-selection="isFolderPage ? folderSelection : browseSelection" />
+          <VideoLibrary v-if="section === 'video' || section === 'home' || section === 'collection'" v-show="section === 'video'" ref="videoView" @tag-title-change="detailTagTitle = $event" @detail-visibility-change="localDetailVisible = $event" @browse-context-change="selectedFolder = $event.folderId; selectedCategory = $event.category || selectedCategory" :nav-visible="false" :unified-browse="true" :unified-files="isFolderPage" :folder-descending="folderDescending" :browse-mode="collectionMode" :local-only="localOnly" :browse-sort="isCategoryPage ? browseSort : undefined" :browse-sort-descending="isCategoryPage ? browseSortDescending : undefined" :browse-selection="isFolderPage ? folderSelection : browseSelection" />
         </KeepAlive>
         <KeepAlive>
           <ServerWorkspace @category-favorites="favoriteServerCategories" @category-context="openCategoryMenu" ref="serverWorkspace" v-if="section === 'server' || section === 'home'" v-show="section === 'server'" :unified-root="isServerRootPage" :root-selection="serverRootSelection" :unified-browse="isCategoryPage" :browse-mode="collectionMode" :server-sort="serverSort" :server-sort-direction="serverSortDirection" :server-sort-seed="serverSortSeed" />
@@ -1939,10 +1964,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .source-list{overflow:auto;flex:1;padding:0 18px}.source-list>button{display:flex;align-items:center;gap:18px;padding:16px;width:100%;border:0;border-bottom:1px solid var(--color-border-2);background:transparent;text-align:left}.source-list strong{flex:1}.source-list span{color:var(--color-text-3)}.source-art{width:86px;height:125px;display:grid;place-items:center;border-radius:9px;background:var(--color-fill-2);color:#ff8b25}.source-chevron{transform:rotate(180deg)}
 .source-item{display:flex;align-items:center;border-bottom:1px solid var(--color-border-2);padding-right:16px}.source-open{display:flex;align-items:center;gap:18px;padding:16px;flex:1;min-width:0;border:0;background:transparent;text-align:left}.source-open strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.source-art{flex-shrink:0}
 .embedded-workspace{flex:1;min-height:0;overflow:hidden}.home-empty{display:flex;align-items:center;flex-direction:column;padding:40px;color:var(--color-text-3);gap:12px}.load-error{padding:12px;background:var(--color-fill-2);border-radius:8px;margin-bottom:14px}.load-error button{background:transparent;border:0;color:#ff8b25}.spinning{animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.spinning{animation:none}}@media(max-width:1050px){.unified-sidebar{width:220px}.unified-home{padding:20px}}
-.server-category-subtitle{margin-left:14px}.server-sort-button{background:var(--color-fill-3)}.server-sort-menu{min-width:132px;padding:4px;color:var(--color-text-1);max-height:calc(100vh - 90px);overflow-y:auto}.server-sort-menu button{display:flex;align-items:center;gap:7px;width:100%;min-height:25px;padding:3px 7px;border:0;border-radius:4px;background:transparent;color:inherit;font-size:13px;text-align:left;white-space:nowrap;cursor:pointer}.server-sort-menu button:hover,.server-sort-menu button:focus-visible{background:var(--color-fill-3)}.server-sort-menu .invisible{visibility:hidden}.server-sort-divider{height:1px;margin:5px 3px;background:var(--color-border-2)}
+.server-category-subtitle{margin-left:14px}.unified-toolbar .server-sort-button{display:flex;width:auto;min-width:72px;max-width:240px;gap:7px;padding:0 12px;border-radius:20px;background:var(--color-fill-3);color:#ff8700;white-space:nowrap}.server-sort-button span{overflow:hidden;text-overflow:ellipsis}.sort-menu-spacer{width:13px;flex-shrink:0}.server-sort-menu{min-width:132px;padding:4px;color:var(--color-text-1);max-height:calc(100vh - 90px);overflow-y:auto}.server-sort-menu button{display:flex;align-items:center;gap:7px;width:100%;min-height:25px;padding:3px 7px;border:0;border-radius:4px;background:transparent;color:inherit;font-size:13px;text-align:left;white-space:nowrap;cursor:pointer}.server-sort-menu button:hover,.server-sort-menu button:focus-visible{background:var(--color-fill-3)}.server-sort-menu .invisible{visibility:hidden}.server-sort-divider{height:1px;margin:5px 3px;background:var(--color-border-2)}
 :global(.arco-dropdown-option.unified-action-option){box-sizing:border-box;min-width:190px;width:max-content!important;max-width:calc(100vw - 48px);padding:0 12px!important;line-height:28px!important;margin:2px 4px!important;font-size:13px}:global(.unified-action-option .arco-dropdown-option-icon){display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:16px;margin-right:9px}:global(.unified-action-option .arco-dropdown-option-content){white-space:nowrap;line-height:28px}:global(.unified-action-option svg){display:block;flex-shrink:0}
 :global(.arco-dropdown-option.server-root-option){min-width:132px;padding:0 8px!important;margin:1px 3px!important;line-height:25px!important}:global(.server-root-option .arco-dropdown-option-icon){color:#ff8b25!important}
 :global(.arco-dropdown-option.browse-sort-option){color:#fff!important}:global(.browse-sort-option .arco-dropdown-option-icon){color:#ff8800!important}
+.source-screen-empty{display:flex;flex-direction:column}.source-screen-empty>.source-empty-state{flex:1;min-height:0}
+.file-source-browser.file-sources-empty{display:flex;align-items:stretch}.file-sources-empty>.source-empty-state{flex:1;min-height:0}
 .file-source-browser{flex:1;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,174px);align-content:start;gap:22px;padding:22px 36px}.file-source-card{padding:0;border:0;background:transparent;color:var(--color-text-1);text-align:left}.file-source-art{position:relative;aspect-ratio:2/3;border-radius:16px;background:var(--color-fill-2);display:grid;place-items:center;color:#ff8b25}.file-source-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit}.file-source-art input{position:absolute;top:8px;right:8px}.file-source-card strong{display:block;font-size:13px;margin-top:10px}.file-source-list{display:flex;flex-direction:column;padding:0 16px;gap:0}.file-source-list .file-source-card{display:flex;align-items:center;gap:16px;padding:16px;border-bottom:1px solid var(--color-border-2)}.file-source-list .file-source-art{width:86px;height:129px;flex-shrink:0;border-radius:8px}.file-source-list strong{margin:0;font-size:14px}.file-source-subtitle{display:block;margin-top:4px;font-size:12px;font-weight:400;color:var(--color-text-3)}.file-source-handle{margin-left:auto;color:var(--color-text-3)}.file-source-add{background:#ff8700!important;color:white!important;border-radius:22px}
 .file-source-art :deep(img.media-server-provider-icon) { position: static; inset: auto; object-fit: contain; border-radius: 0 }
 .file-source-art img.file-source-provider-icon{position:static;width:56px;height:56px;object-fit:contain;border-radius:0}

@@ -1,5 +1,10 @@
 import type { EmbeddedMpvLoadRequest } from './embeddedMpvBridge'
 
+// loadfile parses key/value options before http-header-fields parses its list.
+// Protect the entire value so commas survive the outer parser. libmpv counts
+// UTF-8 bytes, rather than JavaScript UTF-16 characters.
+const quoteMpvOption = (value: string) => `%${Buffer.byteLength(value, 'utf8')}%${value}`
+
 const escapeMpvHeaderValue = (value: unknown) => String(value).replace(/\\/g, '\\\\').replace(/,/g, '\\,')
 
 export function buildMpvLoadOptions(request: EmbeddedMpvLoadRequest): string {
@@ -15,8 +20,8 @@ export function buildMpvLoadOptions(request: EmbeddedMpvLoadRequest): string {
     .filter(([key]) => !['user-agent', 'referer', 'referrer'].includes(key.toLowerCase()))
     .map(([key, value]) => `${key}: ${escapeMpvHeaderValue(value)}`)
 
-  if (userAgent) options.push(`user-agent=${String(userAgent)}`)
-  if (referrer) options.push(`referrer=${String(referrer)}`)
-  if (headerFields.length) options.push(`http-header-fields=${headerFields.join(',')}`)
+  if (userAgent) options.push(`user-agent=${quoteMpvOption(String(userAgent))}`)
+  if (referrer) options.push(`referrer=${quoteMpvOption(String(referrer))}`)
+  if (headerFields.length) options.push(`http-header-fields=${quoteMpvOption(headerFields.join(','))}`)
   return options.join(',')
 }

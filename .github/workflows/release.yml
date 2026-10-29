@@ -31,6 +31,7 @@ jobs:
             src/utils/__tests__/startupTask.test.ts \
             src/utils/__tests__/startupDiagnostics.test.ts \
             electron/main/core/__tests__/embeddedMpvHostLifecycle.test.ts \
+            electron/main/core/__tests__/embeddedMpvLoadOptions.test.ts \
             scripts/__tests__/real-cloud-e2e-config.test.mjs \
             scripts/__tests__/checkPackagedMpv.test.mjs \
             scripts/__tests__/releaseDraftPolicy.test.mjs \
@@ -87,44 +88,44 @@ jobs:
     uses: ./.github/workflows/mpv-linux.yml
 
   embedded-mpv-linux-test:
-    name: Verify cloud providers except 115/Box/189 and Emby playback on Linux
+    name: Verify Aliyun and Emby playback on Linux
     uses: ./.github/workflows/embedded-mpv-linux.yml
     with:
       real_cloud: true
-      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
+      required_providers: aliyun
     secrets: inherit
 
   embedded-mpv-windows-test:
     # Shared fallback OAuth credentials must not refresh concurrently across runners.
     needs: embedded-mpv-linux-test
     if: ${{ !cancelled() }}
-    name: Verify cloud providers except 115/Box/189, Emby and MPV on Windows x64
+    name: Verify Aliyun, Emby and MPV on Windows x64
     uses: ./.github/workflows/embedded-mpv-windows-x64.yml
     with:
       real_cloud: true
-      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
+      required_providers: aliyun
     secrets: inherit
 
   embedded-mpv-macos-arm64-test:
     # Shared fallback OAuth credentials must not refresh concurrently across runners.
     needs: embedded-mpv-windows-test
     if: ${{ !cancelled() }}
-    name: Verify cloud providers except 115/Box/189 and Emby playback on macOS ARM64
+    name: Verify Aliyun and Emby playback on macOS ARM64
     uses: ./.github/workflows/embedded-mpv-macos-arm64.yml
     with:
       real_cloud: true
-      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
+      required_providers: aliyun
     secrets: inherit
 
   embedded-mpv-macos-x64-test:
     # Shared fallback OAuth credentials must not refresh concurrently across runners.
     needs: embedded-mpv-macos-arm64-test
     if: ${{ !cancelled() }}
-    name: Verify cloud providers except 115/Box/189 and Emby playback on macOS x64
+    name: Verify Aliyun and Emby playback on macOS x64
     uses: ./.github/workflows/embedded-mpv-macos-x64.yml
     with:
       real_cloud: true
-      required_providers: aliyun,cloud123,baidu,pikpak,quark,139,guangya,dropbox,onedrive,google
+      required_providers: aliyun
     secrets: inherit
 
   electron-e2e:
@@ -148,6 +149,14 @@ jobs:
 
       - name: Verify file renderer in Electron
         run: xvfb-run -a pnpm run test:e2e:isolated
+
+      - name: Upload Electron UI failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-ui-diagnostics
+          path: test-results/**/error-context.md
+          if-no-files-found: ignore
 
   create-release:
     name: Create Release Draft

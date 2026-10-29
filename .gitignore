@@ -94,3 +94,9 @@ electron/**/*.d.ts.map
 !e2e/assets/mpv-sample.mp4
 *.mov
 *.py
+
+# Local assistant permissions may contain private command history.
+.claude/
+
+# Windows embedded runtime is supplied by the release workflow.
+static/engine/win32/x64/mpv-texture/

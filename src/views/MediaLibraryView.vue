@@ -27,6 +27,7 @@
           :browseMode="props.browseMode"
           :localOnly="props.localOnly"
           :browseSort="props.browseSort"
+          :browse-sort-descending="props.browseSortDescending"
           :browseSelection="props.browseSelection"
           :activeCategory="activeCategory"
           :selectedFolder="selectedFolder"
@@ -106,7 +107,7 @@ const mediaNav = ref()
 const mediaLibrary = ref()
 
 // Props
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   navVisible?: boolean
   unifiedBrowse?: boolean
   unifiedFiles?: boolean
@@ -114,8 +115,9 @@ const props = defineProps<{
   browseMode?: 'grid' | 'list'
   localOnly?: boolean
   browseSort?: MediaBrowseSort
+  browseSortDescending?: boolean
   browseSelection?: boolean
-}>()
+}>(), { browseSortDescending: undefined })
 const emit = defineEmits<{ tagTitleChange: [title: string]; detailVisibilityChange: [visible: boolean]; browseContextChange: [context: { folderId: string; category: string }] }>()
 
 // 状态

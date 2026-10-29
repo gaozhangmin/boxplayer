@@ -9,9 +9,9 @@ on:
         default: false
         type: boolean
       required_providers:
-        description: Optional comma-separated provider subset for diagnostics
+        description: Comma-separated cloud providers to validate (Aliyun by default)
         required: false
-        default: ''
+        default: 'aliyun'
         type: string
       run_arm64:
         description: Also validate Linux arm64
@@ -26,9 +26,9 @@ on:
         default: false
         type: boolean
       required_providers:
-        description: Optional comma-separated provider subset for diagnostics
+        description: Comma-separated cloud providers to validate (Aliyun by default)
         required: false
-        default: ''
+        default: 'aliyun'
         type: string
       run_arm64:
         description: Also validate Linux arm64

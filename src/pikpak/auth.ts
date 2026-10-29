@@ -74,7 +74,7 @@ const pikpakJson = async <T>(url: string, init: RequestInit, fallback: string): 
   const resp = await fetch(url, init)
   const data = await resp.json().catch(() => undefined)
   if (!resp.ok || data?.error) {
-    throw new Error(parsePikPakError(data, fallback))
+    throw new Error(`PikPak HTTP ${resp.status}: ${parsePikPakError(data, fallback)}`)
   }
   return data as T
 }

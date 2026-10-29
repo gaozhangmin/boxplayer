@@ -59,6 +59,7 @@ test('application settings persist after the production renderer reloads', async
 test('AI scraping preference persists after the production renderer reloads', async ({ boxPlayer }) => {
   const { page, pageErrors, consoleErrors } = boxPlayer
   await openApplicationSettings(page)
+  await page.getByTestId('settings-ai-menu').click()
   let setting = page.locator('#SettingAPI').getByTestId('ai-media-scrape-setting')
   await setting.scrollIntoViewIfNeeded()
   await expect(setting).toBeVisible()
@@ -71,6 +72,7 @@ test('AI scraping preference persists after the production renderer reloads', as
   await page.reload()
   await page.waitForLoadState('domcontentloaded')
   await openApplicationSettings(page)
+  await page.getByTestId('settings-ai-menu').click()
   setting = page.locator('#SettingAPI').getByTestId('ai-media-scrape-setting')
   const reloadedToggle = setting.locator('.arco-switch')
   await expect(reloadedToggle).toHaveAttribute('aria-checked', initialChecked === 'true' ? 'false' : 'true')

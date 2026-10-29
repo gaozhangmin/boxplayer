@@ -685,7 +685,7 @@ type MediaListItem = MediaLibraryItem & {
   continueEpisodeLabel?: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   activeCategory?: string
   selectedFolder?: any
   selectedGenre?: string
@@ -699,8 +699,9 @@ const props = defineProps<{
   browseMode?: 'grid' | 'list'
   localOnly?: boolean
   browseSort?: MediaBrowseSort
+  browseSortDescending?: boolean
   browseSelection?: boolean
-}>()
+}>(), { browseSortDescending: undefined })
 const localSelection = ref(false)
 const effectiveBrowseSelection = computed(() => props.browseSelection || localSelection.value)
 const playlistVisible = ref(false)
@@ -984,7 +985,7 @@ const loadMediaPage = async (reset = false) => {
 }
 
 const loadNextPage = () => void loadMediaPage(false)
-watch(() => props.browseSort, () => void loadMediaPage(true))
+watch(() => [props.browseSort, props.browseSortDescending], () => void loadMediaPage(true))
 watch(() => props.browseSelection, () => { localSelection.value = false; selectedBrowseIds.value = [] })
 watch(() => props.localOnly, () => void loadMediaPage(true))
 
@@ -2090,7 +2091,7 @@ const playFromMenu = async (loop = false, shuffle = false) => {
 
 function compareBrowseItems(a: MediaLibraryItem, b: MediaLibraryItem) {
   const values = (item: MediaLibraryItem) => ({ title: item.name, fileName: item.driveFiles[0]?.name || item.seasons?.flatMap(season => season.episodes || [])[0]?.driveFiles[0]?.name, addedAt: item.addedAt, premiereDate: item.releaseDate })
-  return compareMediaBrowseValues(values(a), values(b), props.browseSort || 'fileName')
+  return compareMediaBrowseValues(values(a), values(b), props.browseSort || 'fileName', props.browseSortDescending)
 }
 
 async function playBrowse(mode: 'play' | 'loop' | 'shuffle', folderId?: string) {

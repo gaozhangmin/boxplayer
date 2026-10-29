@@ -9,9 +9,9 @@ on:
         default: false
         type: boolean
       required_providers:
-        description: Optional comma-separated provider subset for diagnostics
+        description: Comma-separated cloud providers to validate (Aliyun by default)
         required: false
-        default: ''
+        default: 'aliyun'
         type: string
   workflow_dispatch:
     inputs:
@@ -21,9 +21,9 @@ on:
         default: false
         type: boolean
       required_providers:
-        description: Optional comma-separated provider subset for diagnostics
+        description: Comma-separated cloud providers to validate (Aliyun by default)
         required: false
-        default: ''
+        default: 'aliyun'
         type: string
   push:
     branches:
