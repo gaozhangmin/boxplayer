@@ -1,9 +1,12 @@
 import type { EmbeddedMpvLoadRequest } from './embeddedMpvBridge'
 
 // loadfile parses key/value options before http-header-fields parses its list.
-// Protect the entire value so commas survive the outer parser. libmpv counts
-// UTF-8 bytes, rather than JavaScript UTF-16 characters.
-const quoteMpvOption = (value: string) => `%${Buffer.byteLength(value, 'utf8')}%${value}`
+// Keep ordinary values in the same form as the known-good 5.0.37 path.
+// Only use length quoting when the outer parser could interpret delimiters or
+// quoting syntax. Lengths are UTF-8 bytes, not JavaScript UTF-16 characters.
+const quoteMpvOption = (value: string) => /[,\\'"\s]|^[%\[]/.test(value)
+  ? `%${Buffer.byteLength(value, 'utf8')}%${value}`
+  : value
 
 const escapeMpvHeaderValue = (value: unknown) => String(value).replace(/\\/g, '\\\\').replace(/,/g, '\\,')
 

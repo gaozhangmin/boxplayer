@@ -19,12 +19,12 @@ const expectedCloudHeaders: Record<string, string> = {
   'x-urlp': '/signed/video.mp4'
 }
 
-async function startAuthenticatedMediaServer(): Promise<{ server: Server; url: string; received: () => IncomingHttpHeaders | undefined }> {
+async function startAuthenticatedMediaServer(expectedHeaders = expectedCloudHeaders): Promise<{ server: Server; url: string; received: () => IncomingHttpHeaders | undefined }> {
   const sample = readFileSync(path.resolve('e2e/assets/mpv-sample.mp4'))
   let receivedHeaders: IncomingHttpHeaders | undefined
   const server = createServer((request, response) => {
     receivedHeaders = request.headers
-    const authorized = Object.entries(expectedCloudHeaders).every(([key, value]) => request.headers[key] === value)
+    const authorized = Object.entries(expectedHeaders).every(([key, value]) => request.headers[key] === value)
     if (!authorized) {
       response.writeHead(403, { 'content-type': 'text/plain' })
       response.end('missing cloud playback headers')
@@ -370,3 +370,24 @@ for (const closeWhileLoading of [false, true]) {
     }
   })
 }
+
+// Exercise the simple Aliyun header path against libmpv itself, rather than
+// only asserting the serialized loadfile string in a unit test.
+test('embedded MPV sends ordinary Aliyun-style headers unchanged', async ({ boxPlayer }) => {
+  const headers = { 'user-agent': 'aDrive/4.12.0', referer: 'https://www.aliyundrive.com/' }
+  const media = await startAuthenticatedMediaServer(headers)
+  try {
+    const load = await boxPlayer.page.evaluate(({ url, headers }) =>
+      window.WebMpvEmbeddedLoad({ url, headers, title: 'Aliyun header regression' }), { url: media.url, headers })
+    expect(load.ok, load.error).toBe(true)
+    await expect.poll(async () => {
+      const result = await boxPlayer.page.evaluate(() => window.WebMpvEmbeddedStatus())
+      return Boolean(result.ok && result.status?.duration > 0 && result.status?.position > 0)
+    }, { timeout: 30_000 }).toBe(true)
+    for (const [key, value] of Object.entries(headers)) expect(media.received()?.[key]).toBe(value)
+  } finally {
+    await boxPlayer.page.evaluate(() => window.WebMpvEmbeddedControl({ action: 'stop' })).catch(() => undefined)
+    media.server.closeAllConnections()
+    await new Promise<void>(resolve => media.server.close(() => resolve()))
+  }
+})
