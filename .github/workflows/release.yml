@@ -201,7 +201,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ windows-latest, ubuntu-latest, macos-14, macos-15-intel ]
+        # One macOS publisher builds both architectures and their shared updater
+        # metadata. Separate macOS jobs overwrite the same release assets.
+        os: [ windows-latest, ubuntu-latest, macos-14 ]
     runs-on: ${{ matrix.os }}
 
     permissions:
@@ -299,14 +301,14 @@ jobs:
           path: static/engine/darwin/arm64/mpv-texture
 
       - name: Download verified macOS x64 embedded MPV runtime
-        if: matrix.os == 'macos-15-intel'
+        if: matrix.os == 'macos-14'
         uses: actions/download-artifact@v4
         with:
           name: embedded-mpv-darwin-x64-candidate
           path: static/engine/darwin/x64/mpv-texture
 
       - name: Verify release uses the tested embedded MPV runtime
-        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest' || matrix.os == 'macos-14' || matrix.os == 'macos-15-intel'
+        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest' || matrix.os == 'macos-14'
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -314,9 +316,8 @@ jobs:
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
             node scripts/check-embedded-mpv-bundles.mjs linux/x64
             node scripts/check-embedded-mpv-bundles.mjs linux/arm64
-          elif [[ "${{ matrix.os }}" == "macos-14" ]]; then
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
             node scripts/check-embedded-mpv-bundles.mjs darwin/arm64
-          else
             node scripts/check-embedded-mpv-bundles.mjs darwin/x64
           fi
 
@@ -416,6 +417,9 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         with:
           package_manager: pnpm
+          args: ${{ matrix.os == 'macos-14' && '--x64 --arm64' || '' }}
+          # Retry transient Apple stapling and GitHub upload failures.
+          max_attempts: 3
           release: true           # Upload artifacts to a draft; the user publishes manually.
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
