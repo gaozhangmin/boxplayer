@@ -1,5 +1,6 @@
 const ALL_REAL_CLOUD_PROVIDERS = ['aliyun', 'cloud123', '115', 'baidu', 'pikpak', 'quark', '139', '189', 'guangya', 'dropbox', 'onedrive', 'box', 'google']
-const EXCLUDED_REAL_CLOUD_PROVIDERS = ['115', '189', 'box']
+// Permanently excluded from the CI playback matrix, including manual inputs.
+const EXCLUDED_REAL_CLOUD_PROVIDERS = ['115', '189', 'box', 'guangya', 'pikpak']
 const REAL_CLOUD_PROVIDERS = ALL_REAL_CLOUD_PROVIDERS.filter(provider => !EXCLUDED_REAL_CLOUD_PROVIDERS.includes(provider))
 
 const emptyToken = () => ({

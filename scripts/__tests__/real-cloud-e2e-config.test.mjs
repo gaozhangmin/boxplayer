@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import config from '../real-cloud-e2e-config.cjs'
 
 const { ALL_REAL_CLOUD_PROVIDERS, EXCLUDED_REAL_CLOUD_PROVIDERS, loadRealCloudE2EConfig, parseRealCloudAccounts, REAL_CLOUD_PROVIDERS } = config
@@ -54,22 +55,31 @@ describe('real cloud E2E configuration', () => {
     })).toThrow('缺少 CI 测试账号: quark')
   })
 
-  it('excludes 115, Tianyi 189 and Box from every real-cloud test target', () => {
+  it('excludes 115, Tianyi 189, Box, Guangya and PikPak from every real-cloud test target', () => {
     const accounts = ALL_REAL_CLOUD_PROVIDERS.map(cliAccount)
     const config = loadRealCloudE2EConfig({
       BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts })
     })
-    expect(EXCLUDED_REAL_CLOUD_PROVIDERS).toEqual(['115', '189', 'box'])
+    expect(EXCLUDED_REAL_CLOUD_PROVIDERS).toEqual(['115', '189', 'box', 'guangya', 'pikpak'])
     expect(config.requiredProviders).toEqual(REAL_CLOUD_PROVIDERS)
     expect(config.targets.map(target => target.provider)).toEqual(REAL_CLOUD_PROVIDERS)
   })
 
   it('rejects attempts to add an excluded provider back through workflow inputs', () => {
     const accounts = ALL_REAL_CLOUD_PROVIDERS.map(cliAccount)
-    expect(() => loadRealCloudE2EConfig({
-      BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts }),
-      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun,115'
-    })).toThrow('包含已排除 provider: 115')
+    for (const provider of EXCLUDED_REAL_CLOUD_PROVIDERS) {
+      expect(() => loadRealCloudE2EConfig({
+        BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts }),
+        BOXPLAYER_E2E_REQUIRED_PROVIDERS: `aliyun,${provider}`
+      })).toThrow(`包含已排除 provider: ${provider}`)
+    }
+  })
+
+  it('keeps every release platform aligned with the default provider matrix', () => {
+    const workflow = readFileSync('.github/workflows/release.yml', 'utf8')
+    const matrices = [...workflow.matchAll(/^\s+required_providers: (.+)$/gm)]
+    expect(matrices).toHaveLength(4)
+    for (const [, providers] of matrices) expect(providers.split(',')).toEqual(REAL_CLOUD_PROVIDERS)
   })
 
   it('does not accept duplicate provider accounts', () => {
