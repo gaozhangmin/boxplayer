@@ -266,7 +266,7 @@
           </div>
         </div>
         <div class="pan-right-container">
-          <MediaPanRight :unified-files="props.unifiedFiles" :favorite-browse="favoriteBrowse" :browse-mode="props.browseMode" :browse-selection="effectiveBrowseSelection" :descending="props.folderDescending" @enter-folder="handleEnterFolder" @file-action="handleBrowserFileAction" />
+          <MediaPanRight :unified-files="props.unifiedFiles" :favorite-browse="favoriteBrowse" :browse-mode="props.browseMode" :browse-selection="effectiveBrowseSelection" :descending="props.folderDescending" @open-media="openMedia" @enter-folder="handleEnterFolder" @file-action="handleBrowserFileAction" />
         </div>
       </div>
 
@@ -758,8 +758,6 @@ function removePlaylist(name: string) {
 const selectedBrowseIds = ref<string[]>([])
 const handleBrowseClick = (item: MediaLibraryItem) => {
   if (!effectiveBrowseSelection.value) {
-    const file = localFileForMedia(item)
-    if (props.unifiedBrowse && file) { void menuOpenFile(buildAliFileModel(file)); return }
     openMedia(item); return
   }
   const index = selectedBrowseIds.value.indexOf(item.id)

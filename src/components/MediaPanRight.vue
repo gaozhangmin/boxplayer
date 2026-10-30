@@ -3,8 +3,8 @@
   <div class='media-pan-right'>
     <div v-if="props.unifiedFiles" class="folder-browser" :class="{ 'folder-browser-list': browseMode === 'list' }">
       <template v-for="item in browserItems" :key="item.file_id">
-        <LocalMediaFileCard :portrait-list="browserMetadata.has(item.file_id)" v-if="item.drive_id === 'local'" :name="item.name" :metadata="browserMetadata.get(item.file_id)" :path="item.file_id" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
-      <FileBrowserCard v-else :downloadable="!item.isDir && item.category === 'video'" :download-label="t('fileContext.download')" @download="emit('fileAction', 'download', item)" :key="item.file_id" :name="item.name" :directory="item.isDir" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :size-text="item.isDir ? '' : browserSubtitle(item)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" @context="openFileMenu($event, item)" @open="props.browseSelection ? handleSelect(item.file_id, $event, true) : handleOpenFile($event, item)" />
+        <LocalMediaFileCard portrait-list v-if="item.drive_id === 'local'" :season-label="browserSeasonLabels.get(item.file_id)" :name="browserMedia.get(item.file_id)?.name || item.name" :metadata="browserMetadata.get(item.file_id)" :path="item.file_id" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir && !browserMedia.has(item.file_id)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
+      <FileBrowserCard v-else :downloadable="!item.isDir && item.category === 'video'" :download-label="t('fileContext.download')" @download="emit('fileAction', 'download', item)" :key="item.file_id" :season-label="browserSeasonLabels.get(item.file_id)" :name="browserMedia.get(item.file_id)?.name || item.name" :directory="item.isDir && !browserMedia.has(item.file_id)" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :size-text="item.isDir ? '' : browserSubtitle(item)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" @context="openFileMenu($event, item)" @open="props.browseSelection ? handleSelect(item.file_id, $event, true) : handleOpenFile($event, item)" />
       </template>
     </div>
     <!-- 加载状态 -->
@@ -166,6 +166,7 @@ const formatBrowserFileSize = (bytes: number): string => {
 const emit = defineEmits<{
   enterFolder: [file: IAliGetFileModel]
   fileAction: [action: string, file: IAliGetFileModel]
+  openMedia: [item: import('../types/media').MediaLibraryItem]
 }>()
 
 const menuFile = ref<IAliGetFileModel>()
@@ -206,6 +207,8 @@ const toggleLocalFileWatched = async (file: IAliGetFileModel) => {
   for (const item of matches) library.markWatched(item.id, watched)
 }
 const browserMetadata = ref(new Map<string, { title?: string; rating?: number; year?: string; certification?: string; overview?: string }>())
+const browserSeasonLabels = ref(new Map<string, string>())
+const browserMedia = ref(new Map<string, import('../types/media').MediaLibraryItem>())
 const browserPosters = ref(new Map<string, string>())
 /** Scraped overviews shown under list rows instead of "date - size". */
 const browserOverviews = ref(new Map<string, string>())
@@ -221,6 +224,8 @@ watch(
   [() => props.unifiedFiles, () => mediaPanFileStore.ListDataShow, () => library.mediaItems, () => library.isScanning, () => browserTree.user_id],
   async () => {
     const request = ++artworkRequest
+    browserSeasonLabels.value = new Map()
+    browserMedia.value = new Map()
     browserPosters.value = new Map()
     browserOverviews.value = new Map()
     browserMetadata.value = new Map()
@@ -251,6 +256,8 @@ watch(
         }
       })
       if (request !== artworkRequest) return
+      const media = new Map<string, import('../types/media').MediaLibraryItem>()
+      const seasonLabels = new Map<string, string>()
       const posters = new Map<string, string>()
       const overviews = new Map<string, string>()
       const metadata = new Map<string, { title?: string; rating?: number; year?: string; certification?: string; overview?: string }>()
@@ -260,14 +267,27 @@ watch(
           ...('seasons' in item ? item.seasons || [] : []).flatMap(season => (season.episodes || []).flatMap(episode => episode.driveFiles || []))
         ].some(candidate => fileMatches(candidate, file)))
         if (matches.length && (!file.isDir || new Set(matches.map(item => item.id)).size === 1)) {
-          if (matches[0].posterUrl) posters.set(file.file_id, matches[0].posterUrl)
-          if (!file.isDir && matches[0].type !== 'unmatched') {
+          media.set(file.file_id, matches[0])
+          if (matches[0].type === 'tv') {
+            const seasons = [...new Set((matches[0].seasons || []).filter(season =>
+              (season.episodes || []).some(episode => (episode.driveFiles || []).some(candidate => fileMatches(candidate, file)))
+            ).map(season => season.seasonNumber))]
+            if (seasons.length) seasonLabels.set(file.file_id, seasons.length === 1
+              ? t('ai.media.tracking.season', { number: seasons[0] })
+              : t('mediaLibrary.seasonsCount', { count: seasons.length }))
+          }
+          const poster = matches[0].posterUrl || (matches[0].type === 'unmatched'
+            ? matches[0].driveFiles?.find(candidate => fileMatches(candidate, file))?.thumbnailLink : undefined)
+          if (poster) posters.set(file.file_id, poster)
+          if (matches[0].type !== 'unmatched') {
             const item = matches[0]
             metadata.set(file.file_id, { title: item.name, rating: item.rating, year: item.year, certification: item.certification, overview: item.overview })
           }
-          if (!file.isDir && matches[0].overview) overviews.set(file.file_id, matches[0].overview)
+          if (matches[0].overview) overviews.set(file.file_id, matches[0].overview)
         }
       }
+      browserSeasonLabels.value = seasonLabels
+      browserMedia.value = media
       browserPosters.value = posters
       browserOverviews.value = overviews
       browserMetadata.value = metadata
@@ -293,6 +313,12 @@ const handleSelect = (file_id: string, event: MouseEvent, isCtrl: boolean = fals
 const handleOpenFile = (event: Event, file: IAliGetFileModel | undefined) => {
   if (!file) file = mediaPanFileStore.GetSelectedFirst()
   if (!file) return
+
+  const media = browserMedia.value.get(file.file_id)
+  if (props.unifiedFiles && !props.browseSelection && media && (props.favoriteBrowse || file.drive_id === 'local')) {
+    emit('openMedia', media)
+    return
+  }
 
   // 如果是文件夹，应该进入子目录而不是打开文件
   if (file.isDir) {

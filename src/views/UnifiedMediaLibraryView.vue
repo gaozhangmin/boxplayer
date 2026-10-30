@@ -1670,7 +1670,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
             </div>
           </template>
         </a-dropdown>
-        <button v-if="section === 'files' || isFolderPage || isServerRootPage" class="round-button server-sort-button" :aria-label="t('unified.sortLabel')" @click="section === 'files' ? (fileSourceDescending = !fileSourceDescending) : isFolderPage ? (folderDescending = !folderDescending) : (serverSort = 'title', serverSortDirection = serverSortDirection === 'ascending' ? 'descending' : 'ascending')"><span>{{ isServerRootPage ? t(`unified.serverSort.${serverSort}`) : t('unified.sort.title') }}</span><ArrowDown v-if="section === 'files' ? fileSourceDescending : isFolderPage ? folderDescending : serverSortDirection === 'descending'" :size="16" /><ArrowUp v-else :size="16" /></button>
+        <button v-if="section === 'files' || isFolderPage || isServerRootPage" class="round-button" :aria-label="t('unified.sortLabel')" @click="section === 'files' ? (fileSourceDescending = !fileSourceDescending) : isFolderPage ? (folderDescending = !folderDescending) : (serverSort = 'title', serverSortDirection = serverSortDirection === 'ascending' ? 'descending' : 'ascending')"><ArrowDown v-if="section === 'files' ? fileSourceDescending : isFolderPage ? folderDescending : serverSortDirection === 'descending'" :size="16" /><ArrowUp v-else :size="16" /></button>
         <a-dropdown v-if="isServerCategoryPage" v-model:popup-visible="serverSortMenuVisible" trigger="click" position="br">
           <button class="round-button more-button server-sort-button" :aria-label="t('unified.sortLabel')" data-testid="server-category-sort"><span>{{ t(`unified.serverSort.${serverSort}`) }}</span><ArrowUp v-if="serverSortDirection === 'ascending'" :size="16" /><ArrowDown v-else :size="16" /></button>
           <template #content>
@@ -1695,9 +1695,11 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
             <template v-else-if="isFolderPage">
               <a-doption data-folder-option class="unified-action-option server-root-option" @click="folderSelection = !folderSelection"><template #icon><SquareCheck :size="14" /></template>{{ t('unified.selectItems') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="folderDescending = !folderDescending"><template #icon><ListFilter :size="14" /></template>{{ t('unified.folderSort') }}: {{ t('unified.sort.title') }}</a-doption>
+              <a-doption class="unified-action-option server-root-option" @click="videoView?.playBrowse('play')"><template #icon><Play :size="14" /></template>{{ t('unified.play') }}</a-doption>
+              <a-doption class="unified-action-option server-root-option" @click="videoView?.playBrowse('loop')"><template #icon><RefreshCw :size="14" /></template>{{ t('unified.loopPlay') }}</a-doption>
+              <a-doption class="unified-action-option server-root-option" @click="videoView?.playBrowse('shuffle')"><template #icon><Shuffle :size="14" /></template>{{ t('unified.shufflePlay') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="removeFolderFavorite"><template #icon><Star :size="14" /></template>{{ t('unified.removeFavoriteFolder') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="renameFolder"><template #icon><Pencil :size="14" /></template>{{ t('unified.renameCollection') }}</a-doption>
-              <a-doption class="unified-action-option server-root-option" disabled><template #icon><LockKeyhole :size="14" /></template>{{ t('unified.enablePasswordLock') }}</a-doption>
             </template>
             <template v-else-if="isServerRootPage">
               <a-doption class="unified-action-option server-root-option" @click="serverRootSelection = !serverRootSelection"><template #icon><SquareCheck :size="14" /></template>{{ t('unified.selectItems') }}</a-doption>
