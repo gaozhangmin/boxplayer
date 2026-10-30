@@ -28,6 +28,7 @@ jobs:
       - name: Verify scraping, source membership and library UI
         run: |
           pnpm exec vitest run \
+            src/utils/__tests__/ossExpiry.test.ts \
             src/utils/__tests__/startupTask.test.ts \
             src/utils/__tests__/startupDiagnostics.test.ts \
             electron/main/core/__tests__/embeddedMpvHostLifecycle.test.ts \

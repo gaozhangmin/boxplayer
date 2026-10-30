@@ -85,6 +85,7 @@ jobs:
       - name: Verify MPV playback header and proxy contracts
         run: |
           pnpm exec vitest run \
+            src/utils/__tests__/ossExpiry.test.ts \
             src/utils/__tests__/playbackHeaders.test.ts \
             src/utils/__tests__/proxyMediaRewrite.test.ts \
             src/utils/__tests__/proxyhelper.test.ts \

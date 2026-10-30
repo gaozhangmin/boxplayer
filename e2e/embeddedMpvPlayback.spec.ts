@@ -2,6 +2,7 @@ import path from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer, type IncomingHttpHeaders, type Server, type ServerResponse } from 'node:http'
 import { expect, test } from './fixtures/boxPlayer'
+import { ALIYUN_MPV_PLAYBACK_HEADERS } from '../src/utils/playbackHeaders'
 
 const bundleManifest = path.resolve('static/engine', process.platform, process.arch, 'mpv-texture/mpv-bundle-manifest.json')
 // Source-built libmpv takes longer to initialize on the macOS x64 runner.
@@ -19,12 +20,12 @@ const expectedCloudHeaders: Record<string, string> = {
   'x-urlp': '/signed/video.mp4'
 }
 
-async function startAuthenticatedMediaServer(): Promise<{ server: Server; url: string; received: () => IncomingHttpHeaders | undefined }> {
+async function startAuthenticatedMediaServer(expectedHeaders = expectedCloudHeaders): Promise<{ server: Server; url: string; received: () => IncomingHttpHeaders | undefined }> {
   const sample = readFileSync(path.resolve('e2e/assets/mpv-sample.mp4'))
   let receivedHeaders: IncomingHttpHeaders | undefined
   const server = createServer((request, response) => {
     receivedHeaders = request.headers
-    const authorized = Object.entries(expectedCloudHeaders).every(([key, value]) => request.headers[key] === value)
+    const authorized = Object.entries(expectedHeaders).every(([key, value]) => request.headers[key] === value)
     if (!authorized) {
       response.writeHead(403, { 'content-type': 'text/plain' })
       response.end('missing cloud playback headers')
@@ -370,3 +371,24 @@ for (const closeWhileLoading of [false, true]) {
     }
   })
 }
+
+// Exercise the actual Aliyun header path against libmpv itself, rather than
+// only asserting the serialized loadfile string in a unit test.
+test('embedded MPV sends actual Aliyun headers unchanged', async ({ boxPlayer }) => {
+  const headers = Object.fromEntries(Object.entries(ALIYUN_MPV_PLAYBACK_HEADERS).map(([key, value]) => [key.toLowerCase(), value]))
+  const media = await startAuthenticatedMediaServer(headers)
+  try {
+    const load = await boxPlayer.page.evaluate(({ url, headers }) =>
+      window.WebMpvEmbeddedLoad({ url, headers, title: 'Aliyun header regression' }), { url: media.url, headers })
+    expect(load.ok, load.error).toBe(true)
+    await expect.poll(async () => {
+      const result = await boxPlayer.page.evaluate(() => window.WebMpvEmbeddedStatus())
+      return Boolean(result.ok && result.status?.duration > 0 && result.status?.position > 0)
+    }, { timeout: 30_000 }).toBe(true)
+    for (const [key, value] of Object.entries(headers)) expect(media.received()?.[key]).toBe(value)
+  } finally {
+    await boxPlayer.page.evaluate(() => window.WebMpvEmbeddedControl({ action: 'stop' })).catch(() => undefined)
+    media.server.closeAllConnections()
+    await new Promise<void>(resolve => media.server.close(() => resolve()))
+  }
+})
