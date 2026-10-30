@@ -1,3 +1,4 @@
+import { getOssExpiryTime } from './ossExpiry'
 import { deflateRawSync, inflateRawSync } from 'zlib'
 import crypto from 'crypto'
 import pkg from '../../package.json'
@@ -114,27 +115,12 @@ export function HanToPin(input: string): string {
 }
 
 export function GetExpiresTime(downUrl: string) {
-  let url = decodeURIComponent(downUrl)
-  if (!url || !url.includes('x-oss-expires=')) return 0
-  try {
-    let expires = url.substring(url.indexOf('x-oss-expires=') + 'x-oss-expires='.length)
-    expires = expires.substring(0, expires.indexOf('&'))
-    return parseInt(expires) * 1000
-  } catch {
-    return 0
-  }
+  return getOssExpiryTime(downUrl)
 }
 
 export function GetOssExpires(downUrl: string) {
-  let url = decodeURIComponent(downUrl)
-  if (!url || !url.includes('x-oss-expires=')) return 0
-  try {
-    let expires = url.substring(url.indexOf('x-oss-expires=') + 'x-oss-expires='.length)
-    expires = expires.substring(0, expires.indexOf('&'))
-    return parseInt(expires) - Math.floor(Date.now() / 1000)
-  } catch {
-    return 0
-  }
+  const expires = getOssExpiryTime(downUrl)
+  return expires ? Math.floor(expires / 1000) - Math.floor(Date.now() / 1000) : 0
 }
 
 export function hashCode(key: string) {

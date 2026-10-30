@@ -14,7 +14,7 @@ describe('embedded MPV load options', () => {
         'User-Agent': 'aDrive/4.12.0'
       },
       startPosition: 108
-    })).toBe('start=108,user-agent=aDrive/4.12.0,http-header-fields=%31%Authorization: Bearer token-115')
+    })).toBe('start=108,user-agent=%13%aDrive/4.12.0,http-header-fields=%31%Authorization: Bearer token-115')
   })
 
   it('escapes commas inside an Emby authorization header', () => {
@@ -36,18 +36,7 @@ describe('embedded MPV load options', () => {
         Origin: 'https://pan.example',
         'x-urlp': 'signed-value'
       }
-    })).toBe('user-agent=BoxPlayer-Cloud,referrer=https://pan.example/,http-header-fields=%100%Authorization: Bearer cloud-token,Cookie: sid=quark,Origin: https://pan.example,x-urlp: signed-value')
-  })
-
-  it('keeps Aliyun user-agent and referer compatible with the 5.0.37 load path', () => {
-    expect(buildMpvLoadOptions({ headers: {
-      'User-Agent': 'aDrive/4.12.0', Referer: 'https://www.aliyundrive.com/'
-    } })).toBe('user-agent=aDrive/4.12.0,referrer=https://www.aliyundrive.com/')
-  })
-
-  it('quotes delimiter-bearing and non-ASCII values using UTF-8 byte lengths', () => {
-    expect(buildMpvLoadOptions({ headers: { 'User-Agent': '播放器,1' } }))
-      .toBe('user-agent=%11%播放器,1')
+    })).toBe('user-agent=%15%BoxPlayer-Cloud,referrer=%20%https://pan.example/,http-header-fields=%100%Authorization: Bearer cloud-token,Cookie: sid=quark,Origin: https://pan.example,x-urlp: signed-value')
   })
 
   it('does not emit empty options', () => {

@@ -2,6 +2,7 @@ import path from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer, type IncomingHttpHeaders, type Server, type ServerResponse } from 'node:http'
 import { expect, test } from './fixtures/boxPlayer'
+import { ALIYUN_MPV_PLAYBACK_HEADERS } from '../src/utils/playbackHeaders'
 
 const bundleManifest = path.resolve('static/engine', process.platform, process.arch, 'mpv-texture/mpv-bundle-manifest.json')
 // Source-built libmpv takes longer to initialize on the macOS x64 runner.
@@ -371,10 +372,10 @@ for (const closeWhileLoading of [false, true]) {
   })
 }
 
-// Exercise the simple Aliyun header path against libmpv itself, rather than
+// Exercise the actual Aliyun header path against libmpv itself, rather than
 // only asserting the serialized loadfile string in a unit test.
-test('embedded MPV sends ordinary Aliyun-style headers unchanged', async ({ boxPlayer }) => {
-  const headers = { 'user-agent': 'aDrive/4.12.0', referer: 'https://www.aliyundrive.com/' }
+test('embedded MPV sends actual Aliyun headers unchanged', async ({ boxPlayer }) => {
+  const headers = Object.fromEntries(Object.entries(ALIYUN_MPV_PLAYBACK_HEADERS).map(([key, value]) => [key.toLowerCase(), value]))
   const media = await startAuthenticatedMediaServer(headers)
   try {
     const load = await boxPlayer.page.evaluate(({ url, headers }) =>

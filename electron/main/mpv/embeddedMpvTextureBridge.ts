@@ -161,6 +161,18 @@ export class EmbeddedMpvTextureBridge {
     this.sessionId = request.sessionId || String(Date.now())
     const sessionId = this.sessionId
     console.error('[mpv] load: entered')
+    if (process.env.BOXPLAYER_E2E === '1') {
+      try {
+        const mediaUrl = new URL(request.url || '')
+        // Signing dates and lifetimes are safe to report; URLs, signatures,
+        // account identifiers and request headers must never enter CI logs.
+        console.error('[mpv] load expiry metadata', {
+          ossDate: mediaUrl.searchParams.get('x-oss-date'),
+          ossExpires: mediaUrl.searchParams.get('x-oss-expires'),
+          ossV4: mediaUrl.searchParams.get('x-oss-signature-version') === 'OSS4-HMAC-SHA256'
+        })
+      } catch { /* Local file paths do not have signed URL metadata. */ }
+    }
     const capability = this.getCapability()
     if (!capability.enabled) {
       return {
