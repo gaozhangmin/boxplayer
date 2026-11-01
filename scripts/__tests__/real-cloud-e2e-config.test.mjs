@@ -24,6 +24,42 @@ describe('real cloud E2E configuration', () => {
     expect(config.targets.map(target => target.provider)).toEqual(['aliyun', 'cloud123'])
   })
 
+  it('combines independent 123 and Quark overrides while preserving other accounts and targets', () => {
+    const accounts = ['aliyun', 'quark', 'cloud123'].map(cliAccount)
+    const targets = accounts.map(account => ({ provider: account.provider, path: ['Existing fixtures'], fileName: 'sample.mkv' }))
+    const base = {
+      BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts }),
+      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun,quark,cloud123',
+      BOXPLAYER_E2E_TARGETS_JSON: JSON.stringify(targets)
+    }
+    const original = loadRealCloudE2EConfig(base)
+    const updated = loadRealCloudE2EConfig({
+      ...base,
+      BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON: JSON.stringify({ accounts: [{ ...cliAccount('cloud123'), token: { user_id: 'fresh-123', access_token: 'test-123-access' } }] }),
+      BOXPLAYER_E2E_QUARK_ACCOUNT_JSON: JSON.stringify({ accounts: [{ ...cliAccount('quark'), token: { user_id: 'fresh-quark', access_token: 'fresh-quark-cookie' } }] })
+    })
+    expect(updated.accounts.map(account => account.tokenfrom)).toEqual(original.accounts.map(account => account.tokenfrom))
+    expect(updated.accounts[0]).toEqual(original.accounts[0])
+    expect(updated.accounts[1]).toMatchObject({ user_id: 'fresh-quark', access_token: 'fresh-quark-cookie' })
+    expect(updated.accounts[2]).toMatchObject({ user_id: 'fresh-123', access_token: 'test-123-access' })
+    expect(updated.targets).toEqual(original.targets)
+  })
+
+  it('rejects a Quark override containing another provider or multiple accounts', () => {
+    const base = JSON.stringify({ accounts: [cliAccount('aliyun')] })
+    for (const accounts of [[cliAccount('cloud123')], [cliAccount('quark'), cliAccount('aliyun')]]) {
+      expect(() => parseRealCloudAccounts(base, '', JSON.stringify({ accounts }))).toThrow('BOXPLAYER_E2E_QUARK_ACCOUNT_JSON 必须只包含一个 quark 账号')
+    }
+  })
+
+  it('wires the Quark override into every Electron platform and account seeding', () => {
+    for (const platform of ['linux', 'windows-x64', 'macos-arm64', 'macos-x64']) {
+      const workflow = readFileSync(`.github/workflows/embedded-mpv-${platform}.yml`, 'utf8')
+      expect(workflow).toContain('BOXPLAYER_E2E_QUARK_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON }}')
+    }
+    expect(readFileSync('e2e/fixtures/boxPlayer.ts', 'utf8')).toContain('process.env.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON)')
+  })
+
   it('rejects overrides for other providers or multiple accounts', () => {
     const base = JSON.stringify({ accounts: [cliAccount('aliyun')] })
     for (const accounts of [[cliAccount('quark')], [cliAccount('cloud123'), cliAccount('aliyun')]]) {

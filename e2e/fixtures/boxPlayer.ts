@@ -93,7 +93,7 @@ function configureRealCloudMpv(userData: string): void {
 async function seedRealCloudAccounts(page: Page, provider?: string): Promise<void> {
   const value = process.env.BOXPLAYER_E2E_ACCOUNTS_JSON
   if (!value?.trim()) return
-  const parsedAccounts = parseRealCloudAccounts(value, process.env.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON)
+  const parsedAccounts = parseRealCloudAccounts(value, process.env.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON, process.env.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON)
   // Each provider test must initialize only its own account. Loading an
   // unrelated Aliyun anchor refreshes its rotating credentials repeatedly and
   // can prevent the target account from reaching the signed-in UI at all.

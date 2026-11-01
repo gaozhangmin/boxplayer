@@ -42,7 +42,7 @@ const normalizeCliAccount = (account) => {
   }
 }
 
-function parseRealCloudAccounts(value, cloud123Override = '') {
+function parseRealCloudAccounts(value, cloud123Override = '', quarkOverride = '') {
   if (!String(value || '').trim()) throw new Error('缺少 BOXPLAYER_E2E_ACCOUNTS_JSON')
   const parsed = parseJson(value, 'BOXPLAYER_E2E_ACCOUNTS_JSON')
   const source = Array.isArray(parsed) ? parsed : parsed?.accounts
@@ -56,10 +56,16 @@ function parseRealCloudAccounts(value, cloud123Override = '') {
     if (seenProviders.has(account.tokenfrom)) throw new Error(`每个 provider 只能配置一个 CI 测试账号: ${account.tokenfrom}`)
     seenProviders.add(account.tokenfrom)
   }
-  if (String(cloud123Override || '').trim()) {
-    const overrides = parseRealCloudAccounts(cloud123Override)
-    if (overrides.length !== 1 || overrides[0].tokenfrom !== 'cloud123') throw new Error('BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON 必须只包含一个 cloud123 账号')
-    return [...accounts.filter(account => account.tokenfrom !== 'cloud123'), overrides[0]]
+  for (const [provider, value, name] of [
+    ['cloud123', cloud123Override, 'BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON'],
+    ['quark', quarkOverride, 'BOXPLAYER_E2E_QUARK_ACCOUNT_JSON']
+  ]) {
+    if (!String(value || '').trim()) continue
+    const overrides = parseRealCloudAccounts(value)
+    if (overrides.length !== 1 || overrides[0].tokenfrom !== provider) throw new Error(`${name} 必须只包含一个 ${provider} 账号`)
+    const index = accounts.findIndex(account => account.tokenfrom === provider)
+    if (index >= 0) accounts[index] = overrides[0]
+    else accounts.push(overrides[0])
   }
   return accounts
 }
@@ -111,7 +117,7 @@ function parseRealCloudTargets(value, accounts, options = {}) {
 }
 
 function loadRealCloudE2EConfig(env = process.env) {
-  const accounts = parseRealCloudAccounts(env.BOXPLAYER_E2E_ACCOUNTS_JSON, env.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON)
+  const accounts = parseRealCloudAccounts(env.BOXPLAYER_E2E_ACCOUNTS_JSON, env.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON, env.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON)
   const requiredProviders = parseRequiredProviders(env.BOXPLAYER_E2E_REQUIRED_PROVIDERS)
   const targets = parseRealCloudTargets(env.BOXPLAYER_E2E_TARGETS_JSON, accounts, {
     folder: env.BOXPLAYER_E2E_MEDIA_FOLDER,

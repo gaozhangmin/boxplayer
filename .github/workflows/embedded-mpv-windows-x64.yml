@@ -33,6 +33,7 @@ jobs:
   windows-x64:
     env:
       BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON }}
+      BOXPLAYER_E2E_QUARK_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON }}
       NODE_OPTIONS: --max-old-space-size=4096
     runs-on: windows-2025
     timeout-minutes: 180
