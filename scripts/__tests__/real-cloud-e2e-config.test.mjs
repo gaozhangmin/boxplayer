@@ -55,12 +55,12 @@ describe('real cloud E2E configuration', () => {
     })).toThrow('缺少 CI 测试账号: quark')
   })
 
-  it('excludes 115, Tianyi 189, Box, Guangya and PikPak from every real-cloud test target', () => {
+  it('excludes 115, Tianyi 189, Box, Guangya, PikPak and China Mobile from every real-cloud test target', () => {
     const accounts = ALL_REAL_CLOUD_PROVIDERS.map(cliAccount)
     const config = loadRealCloudE2EConfig({
       BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts })
     })
-    expect(EXCLUDED_REAL_CLOUD_PROVIDERS).toEqual(['115', '189', 'box', 'guangya', 'pikpak'])
+    expect(EXCLUDED_REAL_CLOUD_PROVIDERS).toEqual(['115', '189', 'box', 'guangya', 'pikpak', '139'])
     expect(config.requiredProviders).toEqual(REAL_CLOUD_PROVIDERS)
     expect(config.targets.map(target => target.provider)).toEqual(REAL_CLOUD_PROVIDERS)
   })
