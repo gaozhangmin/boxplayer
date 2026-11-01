@@ -157,6 +157,8 @@ const mode = ref<PlayMode>('loop-list')
 const showLyrics = ref(false)
 const showPanel = ref(false)
 const showQueue = ref(false)
+const playerRoot = ref<HTMLElement | null>(null)
+let queueBoundsObserver: ResizeObserver | undefined
 const panelTab = ref<PanelTab>('queue')
 const errMsg = ref('')
 const seekPreview = ref<number | null>(null)
@@ -1247,6 +1249,18 @@ function loadPageMusic(d: any) {
 }
 
 onMounted(() => {
+  const root = playerRoot.value
+  const console = root?.querySelector<HTMLElement>('.bottom-bar')
+  if (root && console) {
+    const updateQueueBounds = () => {
+      const bottom = root.getBoundingClientRect().bottom - console.getBoundingClientRect().top + 12
+      root.style.setProperty('--music-queue-bottom', `${Math.max(12, bottom)}px`)
+    }
+    queueBoundsObserver = new ResizeObserver(updateQueueBounds)
+    queueBoundsObserver.observe(root)
+    queueBoundsObserver.observe(console)
+    updateQueueBounds()
+  }
   window.addEventListener('keydown', onKeyDown, true)
   vol.value = loadJson('pm.vol', 0.8)
   mode.value = (loadJson('pm.mode', 'loop-list') as PlayMode) || 'loop-list'
@@ -1362,6 +1376,7 @@ watch(() => visualFx.value.liveBackgroundKeep, () => {
 })
 
 onBeforeUnmount(() => {
+  queueBoundsObserver?.disconnect()
   void mpvMusicControl('stop')
   musicDisposed = true
   musicLoadGeneration++
@@ -1382,6 +1397,7 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
 
 <template>
   <div
+    ref="playerRoot"
     :class="['mineradio-player', props.embedded ? 'embedded' : '', props.sidePanel && !props.fullPage ? 'side-panel' : '', immersiveMode ? 'immersive' : '', diySimpleMode ? 'simple-mode' : '', controlsVisible ? 'controls-visible' : 'controls-hidden']"
     :style="{ '--mineradio-glass-chromatic': String(visualFx.glassChromaticOffset) }"
     @dblclick="handleRootDblClick"

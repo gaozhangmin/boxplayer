@@ -55,7 +55,7 @@ function stripExt(name: string) {
 </script>
 
 <template>
-  <aside v-show="visible" :class="['music-queue-panel', 'playlist-panel', visible ? 'show' : '']">
+  <aside :class="['music-queue-panel', 'playlist-panel', visible ? 'show' : '']" :aria-hidden="!visible" :inert="!visible">
     <div class="music-queue-head">
       <div class="music-queue-tabs">
         <button :class="['panel-tab', { on: panelTab === 'queue' }]" @click="emit('update:panelTab', 'queue')"><ListMusic :size="14" /> {{ tt('music.upNext') }} {{ playlist.length }}</button>
@@ -104,11 +104,12 @@ function stripExt(name: string) {
   position: absolute;
   z-index: 17;
   top: 78px;
-  left: -410px;
-  bottom: auto;
+  right: 24px;
+  left: auto;
+  bottom: var(--music-queue-bottom, 144px);
   width: 340px;
-  max-width: calc(100vw - 64px);
-  max-height: calc(100vh - 120px);
+  max-width: calc(100% - 48px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border-radius: 24px;
@@ -120,11 +121,11 @@ function stripExt(name: string) {
   overflow: hidden;
   opacity: 0;
   pointer-events: none;
-  transform: translateX(-16px);
-  transition: left .55s cubic-bezier(.2,.8,.2,1), opacity .28s ease, transform .55s cubic-bezier(.2,.8,.2,1);
+  transform: translateX(calc(100% + 24px));
+  transition: opacity .22s ease, transform .28s cubic-bezier(.2,.8,.2,1);
 }
 .music-queue-panel.show {
-  left: 32px;
+  right: 24px;
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);

@@ -235,6 +235,10 @@ function toEmbeddedMpvNativeAddon(value: any): EmbeddedMpvNativeAddon | null {
   return {
     mpvTexture: {
       ...mpvTexture,
+      // macOS texture addons shipped before the cross-platform renderer marker.
+      // Keep that legacy ABI usable; software targets still require a marker.
+      renderMode: mpvTexture.renderMode ?? (process.platform === 'darwin'
+        && typeof mpvTexture.releaseFrame === 'function' ? 'texture' : undefined),
       load(url: string, options?: string) {
         return mpvTexture.load(url, options)
       },
