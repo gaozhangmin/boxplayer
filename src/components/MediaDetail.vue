@@ -14,6 +14,7 @@ import type { MediaServerMediaInfoCard } from '../types/mediaServerContent'
 import type { IAliGetFileModel } from '../aliapi/alimodels'
 import type { IPageVideoPlaylistEntry } from '../store/appstore'
 import DownDAL from '../down/DownDAL'
+import DB from '../utils/db'
 import { menuOpenFile } from '../utils/openfile'
 import { tmdbImageUrl } from '../utils/tmdb'
 import message from '../utils/message'
@@ -28,7 +29,7 @@ import MediaSourceRatings from './MediaSourceRatings.vue'
 import { getLocalVideoProgress } from '../utils/videoProgress'
 import { detailResumeState, detailSeriesId, videoDurationSeconds } from '../utils/detailResume'
 import { openCustomSeries } from '../utils/customMediaSeries'
-import { detailCollectionTarget, playlistSelection, applyPlaylistSelection } from '../utils/detailCollections'
+import { detailCollectionTarget, detailCollectionMovies, playlistSelection, applyPlaylistSelection } from '../utils/detailCollections'
 import { ListPlus, GalleryVerticalEnd, Play, Bookmark, Star, Ellipsis, ChevronDown, Repeat, Shuffle, Eye, EyeOff, Share, Plus, RefreshCw } from 'lucide-vue-next'
 import { isContinueWatchingMember, toggleContinueWatching } from '../utils/continueWatchingAction'
 import { openPersonalRating } from '../utils/mediaPersonalRating'
@@ -55,9 +56,21 @@ const settingStore = useSettingStore()
 const mediaStore = useMediaLibraryStore()
 const userStore = useUserStore()
 
+const persistedCollectionItems = ref<MediaLibraryItem[]>([])
+const collectionMovies = computed(() => detailCollectionMovies(props.mediaItem, [...persistedCollectionItems.value, ...mediaStore.mediaItems]))
+watch(() => props.mediaItem, async (item, _previous, onCleanup) => {
+  let cancelled = false
+  onCleanup(() => { cancelled = true })
+  persistedCollectionItems.value = []
+  if (item.type !== 'movie') return
+  try {
+    const items = await DB.getMediaLibraryCollectionItems(item)
+    if (!cancelled) persistedCollectionItems.value = items
+  } catch { /* Keep the entry and cached members available when storage is unavailable. */ }
+}, { immediate: true })
+
 // 响应式状态
-const selectedCollectionMovieId = ref<number>()
-const activeMediaItem = computed<MediaLibraryItem>(() => (props.mediaItem.collectionMovies?.find(movie => movie.tmdbId === selectedCollectionMovieId.value) || props.mediaItem.collectionMovies?.[0] || props.mediaItem) as MediaLibraryItem)
+const activeMediaItem = computed<MediaLibraryItem>(() => (props.mediaItem.collectionMovies?.[0] || props.mediaItem) as MediaLibraryItem)
 const selectedSeason = ref(activeMediaItem.value.type === 'tv' && activeMediaItem.value.seasons?.length ? activeMediaItem.value.seasons[0].seasonNumber : 1)
 const detailLogoLoadFailed = ref(false)
 const detailLogoUrl = computed(() => {
@@ -72,19 +85,13 @@ const hasUserSelectedEpisode = ref(false)
 const selectedDriveFileId = ref('')
 const manuallySelectedVersion = ref(false)
 watch(() => props.mediaItem, () => {
-  selectedCollectionMovieId.value = undefined
   selectedSeason.value = activeMediaItem.value.type === 'tv' && activeMediaItem.value.seasons?.length ? activeMediaItem.value.seasons[0].seasonNumber : 1
   selectedEpisode.value = undefined
   hasUserSelectedEpisode.value = false
   selectedDriveFileId.value = ''; manuallySelectedVersion.value = false
 })
-const handleCollectionMovieSelect = (movie: MediaCollectionMovie) => {
-  selectedCollectionMovieId.value = movie.tmdbId
-  selectedDriveFileId.value = ''
-  manuallySelectedVersion.value = false
-  selectedEpisode.value = undefined
-  hasUserSelectedEpisode.value = false
-  void syncPlayButtonWidth()
+const handleCollectionMovieSelect = (movie: MediaLibraryItem) => {
+  emit('openPlaylistItem', movie)
 }
 const isFavorited = computed(() => {
   if (typeof mediaStore.isFavorite !== 'function') return false
@@ -1102,17 +1109,20 @@ const getCastInitial = (name?: string): string => {
         </div>
       </div>
 
-      <div v-if="props.mediaItem.collectionMovies && props.mediaItem.collectionMovies.length > 1" class="episodes-section">
+      <div v-if="collectionMovies.length" class="episodes-section collection-section">
         <div class="section-header">
-          <h3>{{ props.mediaItem.collectionName || props.mediaItem.name }}</h3>
-          <span class="episode-count">{{ props.mediaItem.collectionMovies.length }} 部电影</span>
+          <h3>{{ props.mediaItem.collectionName || collectionMovies[0]?.collectionName || props.mediaItem.name }}</h3>
+          <span class="episode-count">{{ collectionMovies.length }} 部电影</span>
         </div>
-        <div class="episodes-grid">
-          <div
-            v-for="movie in props.mediaItem.collectionMovies"
+        <div class="episodes-grid collection-poster-rail">
+          <button
+            v-for="movie in collectionMovies"
             :key="movie.tmdbId || movie.id"
-            class="episode-card"
-            :class="{ active: movie.tmdbId === activeMediaItem.tmdbId }"
+            type="button"
+            class="episode-card collection-poster-card"
+            :aria-label="movie.name"
+            :aria-pressed="movie.id === activeMediaItem.id"
+            :class="{ active: movie.id === activeMediaItem.id }"
             @click="handleCollectionMovieSelect(movie)"
           >
             <div class="episode-thumbnail">
@@ -1123,9 +1133,9 @@ const getCastInitial = (name?: string): string => {
             </div>
             <div class="episode-info">
               <div class="episode-title">{{ movie.name }}</div>
-              <p class="episode-name">{{ movie.year || '未知年份' }} · {{ movie.driveFiles.length }} 个文件</p>
+              <p class="episode-name">{{ movie.year || '未知年份' }}</p>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -3270,5 +3280,26 @@ body:not([arco-theme='dark']) #xbybody .media-detail {
 <style scoped>
 #xbybody .media-detail .play-row:not(.has-version) {
   grid-template-columns: minmax(0, 1fr);
+}
+
+#xbybody .media-detail .collection-poster-card {
+  flex: 0 0 clamp(120px, 12vw, 180px);
+  width: clamp(120px, 12vw, 180px);
+  min-width: 120px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+#xbybody .media-detail .collection-poster-card .episode-thumbnail {
+  aspect-ratio: 2 / 3;
+}
+#xbybody .media-detail .collection-poster-card:focus-visible {
+  outline: 2px solid var(--scraped-detail-accent);
+  outline-offset: 3px;
+}
+#xbybody .media-detail .collection-poster-card .episode-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

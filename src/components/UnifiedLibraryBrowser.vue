@@ -78,8 +78,7 @@ const inlineSeries = computed(() => {
 })
 function openCollection(id: string, members: MediaLibraryItem[]) {
   if (id.startsWith('custom:')) { emit('customSeries', id.slice(7)); return }
-  if (seriesPreferences.openDetail && members[0]) { props.card(members[0]).action(); return }
-  emit('navigate', 'series/' + id)
+  if (members[0]) props.card(members[0]).action()
 }
 const selectedMembers = computed(() => {
   const name = decodeURIComponent(category.value)

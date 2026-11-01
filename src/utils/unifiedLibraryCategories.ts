@@ -141,7 +141,15 @@ export function libraryMovieSeries(items: MediaLibraryItem[]) {
     const group = groups.get(id) || { id, title: item.collectionName || item.name, members: [] }
     // A collection may already be stored as one aggregate item with its movies nested.
     const members = item.collectionMovies?.length ? item.collectionMovies : [item]
-    for (const member of members) if (!group.members.some(existing => existing.id === member.id)) group.members.push(member)
+    for (const member of members) {
+      const normalized: MediaLibraryItem = {
+        ...member,
+        collectionId: item.collectionId,
+        collectionName: item.collectionName,
+        collectionMovies: undefined,
+      }
+      if (!group.members.some(existing => existing.id === normalized.id)) group.members.push(normalized)
+    }
     groups.set(id, group)
   }
   return [...groups.values()]

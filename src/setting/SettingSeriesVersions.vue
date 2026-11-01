@@ -19,9 +19,6 @@ const modeLabels = { auto: 'seriesVersionAuto', largest: 'seriesVersionLargest',
       <a-checkbox :model-value="seriesPreferences.useCustom" @change="(value: unknown) => setSeriesPreference('useCustom', Boolean(value))">{{ t('seriesVersions.seriesUseCustom') }}</a-checkbox>
     </div>
     <div class="settingrow">
-      <a-checkbox :model-value="seriesPreferences.openDetail" @change="(value: unknown) => setSeriesPreference('openDetail', Boolean(value))">{{ t('seriesVersions.seriesOpenDetail') }}</a-checkbox>
-    </div>
-    <div class="settingrow">
       <a-checkbox :model-value="seriesPreferences.mergeVersions" @change="(value: unknown) => setSeriesPreference('mergeVersions', Boolean(value))">{{ t('seriesVersions.seriesMergeVersions') }}</a-checkbox>
     </div>
 

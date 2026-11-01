@@ -1,4 +1,5 @@
 import { readHomeCatalogPages } from './homeCatalogPages'
+import { isDetailCollectionSource } from './detailCollections'
 import Dexie from 'dexie'
 import { ITokenInfo } from '../user/userstore'
 import { IOtherShareLinkModel } from '../share/share/OtherShareStore'
@@ -407,6 +408,11 @@ class XBYDB3 extends Dexie {
     const matched = predicate ? filtered.filter(predicate) : filtered
     if (options.sort) return (await matched.toArray()).sort(options.sort).slice(offset, offset + limit)
     return matched.reverse().offset(offset).limit(limit).toArray()
+  }
+
+  async getMediaLibraryCollectionItems(item: MediaLibraryItem): Promise<MediaLibraryItem[]> {
+    if (!this.isOpen()) await this.open()
+    return this.imedia_item.where('type').equals('movie').filter(candidate => isDetailCollectionSource(item, candidate)).toArray()
   }
 
   async getMediaLibraryItemsByIds(ids: string[]): Promise<MediaLibraryItem[]> {

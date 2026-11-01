@@ -1,6 +1,30 @@
 import type { MediaLibraryItem, MediaEpisode } from '../types/media'
 import { detailSeriesId } from './detailResume'
 
+// Expanded movie entries may omit their siblings; recover them from the library.
+export function isDetailCollectionSource(item: MediaLibraryItem, candidate: MediaLibraryItem): boolean {
+  if (item.type !== 'movie' || candidate.type !== 'movie') return false
+  return Boolean((item.collectionId && candidate.collectionId === item.collectionId)
+    || candidate.id === item.id
+    || candidate.collectionMovies?.some(movie => movie.id === item.id || (item.tmdbId && movie.tmdbId === item.tmdbId)))
+}
+
+export function detailCollectionMovies(item: MediaLibraryItem, library: MediaLibraryItem[]): MediaLibraryItem[] {
+  if (item.type !== 'movie') return []
+  const sources = library.filter(candidate => isDetailCollectionSource(item, candidate))
+  const collectionId = item.collectionId || sources.find(candidate => candidate.collectionId)?.collectionId
+  const collectionName = item.collectionName || sources.find(candidate => candidate.collectionName)?.collectionName
+  const movies = new Map<string, MediaLibraryItem>()
+  for (const source of [...sources, item]) {
+    if (!collectionId && !source.collectionMovies?.length) continue
+    for (const movie of source.collectionMovies?.length ? source.collectionMovies : [source]) {
+      const member = { ...movie, type: 'movie' as const, collectionId, collectionName, collectionMovies: undefined }
+      movies.set(movie.tmdbId ? `tmdb:${movie.tmdbId}` : movie.id, member)
+    }
+  }
+  return [...movies.values()].sort((a, b) => (a.releaseDate || a.year || '9999').localeCompare(b.releaseDate || b.year || '9999') || a.name.localeCompare(b.name))
+}
+
 export function detailCollectionTarget(item: MediaLibraryItem, episode?: Pick<MediaEpisode, 'seasonNumber' | 'episodeNumber' | 'name'> | null) {
   if (item.type === 'tv') {
     if (!episode) return null
