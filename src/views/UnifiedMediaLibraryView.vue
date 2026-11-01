@@ -491,12 +491,6 @@ async function showCustomSeries(id = '') {
  try {
   const local = await DB.getMediaLibraryItemsByIds([...new Set(group.members.filter(member => !member.serverId).flatMap(member => [member.id, member.parentId || detailSeriesId(member.id)]))])
   if (version !== seriesLoadVersion) return
-  if (seriesPreferences.openDetail) {
-   const first = group.members[0]
-   if (first?.serverId) { showServer(first.serverId, { kind: 'item-detail', itemId: first.id, title: first.title }); return }
-   const item = first && libraryPlaylistMembers(local, [first.id])[0]
-   if (item) { await openVideo(item); return }
-  }
   customSeriesCards.value = group.members.flatMap(member => {
    if (member.serverId) return [{ key: member.serverId + ':' + member.id, title: member.title, action: () => showServer(member.serverId!, { kind: 'item-detail', itemId: member.id, title: member.title }) }]
    const item = libraryPlaylistMembers(local, [member.id])[0]
@@ -1032,8 +1026,8 @@ function localRow(items: MediaLibraryItem[], row: Omit<Row, 'cards'>, card: (ite
   const members = movieVersionItems(items.filter(item => !groupedIDs.has(item.id)))
   const groupCards: Card[] = groups.map(group => ({ key: 'series:' + group.id, title: group.title, image: group.members[0]?.posterUrl,
     subtitle: t('customSeries.memberCount', { count: group.members.length }), action: () => {
-      if (seriesPreferences.openDetail) void openVideo(group.members[0])
-      else if (group.id.startsWith('custom:')) void showCustomSeries(group.id.slice(7))
+      if (group.id.startsWith('custom:')) void showCustomSeries(group.id.slice(7))
+      else if (seriesPreferences.openDetail) void openVideo(group.members[0])
       else showCatalog('series/' + group.id)
     } }))
   return { ...row, count: groupCards.length + members.length, get cards() { return [...groupCards, ...members.map(card)] }, preview: () => [...groupCards, ...members.slice(0, 24).map(card)].slice(0, 24) }

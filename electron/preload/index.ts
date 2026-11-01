@@ -280,6 +280,12 @@ function normalizeMpvEmbeddedLoadData(data: any) {
   }
 }
 
+
+window.WebMusicAudioCapability = () => ipcRenderer.invoke('MusicAudio:capability')
+window.WebMusicAudioLoad = (data: any) => ipcRenderer.invoke('MusicAudio:load', { ...normalizeMpvEmbeddedLoadData(data), prepare: data?.prepare === true, ownerSessionId: String(data?.ownerSessionId || '') }).then(result => result)
+window.WebMusicAudioControl = (data: any) => ipcRenderer.invoke('MusicAudio:control', data)
+window.WebMusicAudioStatus = () => ipcRenderer.invoke('MusicAudio:status')
+
 let currentMpvSessionId = ''
 window.WebMpvEmbeddedLoad = async function(data: any) {
   currentMpvSessionId = String(data?.sessionId || crypto.randomUUID())

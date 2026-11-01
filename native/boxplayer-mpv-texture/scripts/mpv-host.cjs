@@ -1,7 +1,7 @@
 // The Linux MPV addon must run outside Electron's Chromium/FFmpeg process.
 const path = require('node:path')
 const mpvModule = require(path.join(__dirname, 'mpv_texture.node'))
-const mpv = mpvModule.mpvTexture || mpvModule
+let mpv = mpvModule.mpvTexture || mpvModule
 let waitingForFrameAck = false
 let pendingFrame = null
 let statusTimer = null
@@ -14,6 +14,13 @@ function send(message) {
 
 process.on('message', async (message) => {
   try {
+    if (message.type === 'create-audio') {
+      if (typeof mpvModule.createAudioDeck !== 'function') throw new Error('Music audio decks require an updated MPV core')
+      mpv = mpvModule.createAudioDeck()
+      statusTimer = setInterval(() => send({type:'status',status:mpv.getStatus()}),50)
+      send({type:'ready'})
+      return
+    }
     if (message.type === 'texture-release') { textures.get(message.id)?.release?.(); textures.delete(message.id); return }
     if (message.type === 'frame-ack') {
       waitingForFrameAck = false

@@ -14,6 +14,7 @@ import { getMotrixApplicationRpcPort } from '../aria/runtime'
 import { request as httpsRequest } from 'https'
 import { requestPanHub, requestPanHubStream } from './panHubRequest'
 import { embeddedMpvBridge } from '../mpv/embeddedMpvBridge'
+import { registerMusicAudioIpc } from '../mpv/musicAudioBridge'
 import {
   getBookMeta,
   isBookIndexed,
@@ -236,6 +237,7 @@ export default class ipcEvent {
 
   private static handleMpvEmbedded() {
     ipcMain.handle('MpvEmbedded:getCapability', async () => embeddedMpvBridge.getCapability())
+    registerMusicAudioIpc()
     ipcMain.handle('MpvEmbedded:load', async (event, data) => embeddedMpvBridge.load(data || {}, event.sender))
     ipcMain.handle('MpvEmbedded:control', async (_event, data) => embeddedMpvBridge.control(data || {}))
     ipcMain.handle('MpvEmbedded:getStatus', async () => embeddedMpvBridge.getStatus())

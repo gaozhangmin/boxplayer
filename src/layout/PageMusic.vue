@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { KeyboardState, useAppStore, useKeyboardStore } from '../store'
+import useMusicLibraryStore from '../store/musiclibrary'
 import useMusicPlayerStore, { type MusicPlayerState } from '../store/musicplayerstore'
 import message from '../utils/message'
 import { TestAlt, TestKey, TestShift } from '../utils/keyboardhelper'
@@ -37,8 +38,96 @@ const emit = defineEmits<{ (e: 'state-change', state: MusicPlayerState): void }>
 const appStore = useAppStore()
 const keyboardStore = useKeyboardStore()
 const musicPlayerStore = useMusicPlayerStore()
+const continuationLibrary = useMusicLibraryStore()
 const mediaServerRegistry = useMediaServerRegistryStore()
 let musicSessionId = ''
+let usingAudioDecks = false
+const musicAudioCapable = ref(false)
+const automaticContinuation = ref(loadJson('pm.automaticContinuation', false))
+const crossfadeEnabled = ref(loadJson('pm.crossfadeEnabled', false))
+let preparedMusic: { key: string; id: string; owner: string } | null = null
+let preparingMusic = false
+let transitionEpoch = 0
+let attemptedMusicKey = ''
+
+function cancelMusicTransition() {
+  transitionEpoch++
+  preparedMusic = null; preparingMusic = false; attemptedMusicKey = ''
+  if (usingAudioDecks && musicSessionId) void window.WebMusicAudioControl?.({ sessionId: musicSessionId, action: 'cancelTransition' })
+}
+function toggleAutomaticContinuation() {
+  automaticContinuation.value = !automaticContinuation.value
+  saveJson('pm.automaticContinuation', automaticContinuation.value)
+  cancelMusicTransition()
+}
+function toggleMusicCrossfade() {
+  if (!musicAudioCapable.value) return
+  crossfadeEnabled.value = !crossfadeEnabled.value
+  saveJson('pm.crossfadeEnabled', crossfadeEnabled.value)
+  cancelMusicTransition()
+}
+async function appendContinuation(): Promise<boolean> {
+  const owner = musicSessionId, key = currentKey.value, epoch = transitionEpoch
+  if (!continuationLibrary.loaded) await continuationLibrary.loadFromDB()
+  await continuationLibrary.loadAllTracks()
+  if (musicDisposed || owner !== musicSessionId || key !== currentKey.value || epoch !== transitionEpoch || !automaticContinuation.value) return false
+  const keys = new Set(playlist.value.map(musicTrackKey))
+  const current = continuationLibrary.tracks.find(track => musicTrackKey(track) === currentKey.value)
+  const candidates = continuationLibrary.tracks.filter(track => !keys.has(musicTrackKey(track)))
+  const score = (track: typeof candidates[number]) =>
+    (current?.artist && track.artist === current.artist ? 2 : 0) + (current?.album && track.album === current.album ? 1 : 0)
+  candidates.sort((left, right) => score(right) - score(left))
+  if (!candidates.length) return false
+  const next = candidates[0]
+  playlist.value.push({ ...next, password: '', icon: '', thumbnail: next.cover_url || next.thumbnail || '' })
+  return true
+}
+async function prepareMusicTransition() {
+  const key = currentKey.value
+  if (!usingAudioDecks || !crossfadeEnabled.value || !playing.value || dur.value <= 6 || mode.value === 'loop-one'
+    || dur.value - curTime.value > 12 || dur.value - curTime.value <= 0 || preparingMusic || preparedMusic || attemptedMusicKey === key) return
+  attemptedMusicKey = key; preparingMusic = true
+  const epoch = transitionEpoch, owner = musicSessionId
+  try {
+    let index = curIdx.value + 1
+    if (index >= playlist.value.length && automaticContinuation.value) await appendContinuation()
+    if (index >= playlist.value.length) index = mode.value === 'loop-list' ? 0 : -1
+    if (index < 0 || musicTrackKey(playlist.value[index]) === key) return
+    const nextKey = musicTrackKey(playlist.value[index])
+    const source = await resolveUrl(index)
+    if (musicDisposed || epoch !== transitionEpoch || owner !== musicSessionId || !source.url) return
+    const id = crypto.randomUUID()
+    const result = await window.WebMusicAudioLoad({ ...source, sessionId: id, ownerSessionId: owner, prepare: true, audioOnly: true })
+    if (result?.ok && epoch === transitionEpoch && owner === musicSessionId) {
+      preparedMusic = { key: nextKey, id, owner }
+      const filters = freqs.map(frequency => `equalizer=f=${frequency}:t=o:w=1:g=${effectSettings.eq[`hz${frequency}`]}`)
+      if (effectSettings.panner.enabled) filters.push(`apulsator=hz=${Math.max(0.01, Math.min(2, effectSettings.panner.speed / 100))}:amount=1`)
+      await window.WebMusicAudioControl({ sessionId: id, action: 'setVideoProperty', property: 'af', propertyValue: `lavfi=[${filters.join(',')}]` })
+      await window.WebMusicAudioControl({ sessionId: id, action: 'setSpeed', value: effectSettings.pitchShifter.playbackRate })
+    }
+  } catch { /* Leave the current track playing; normal completion can retry its next source. */ }
+  finally { if (epoch === transitionEpoch) preparingMusic = false }
+}
+async function activatePreparedMusic(status: any): Promise<boolean> {
+  const pending = preparedMusic
+  if (!pending || !usingAudioDecks || !crossfadeEnabled.value || !playing.value || !status.preparedReady
+    || status.preparedSessionId !== pending.id || pending.owner !== musicSessionId
+    || dur.value - curTime.value > 3 || mode.value === 'loop-one') return false
+  const nextIndex = playlist.value.findIndex(track => musicTrackKey(track) === pending.key)
+  if (nextIndex < 0) { cancelMusicTransition(); return false }
+  preparedMusic = null
+  const epoch = transitionEpoch
+  const result = await window.WebMusicAudioControl({ sessionId: pending.owner, action: 'activatePrepared', nextSessionId: pending.id })
+  if (!result?.ok || musicDisposed || epoch !== transitionEpoch || musicSessionId !== pending.owner) return false
+  musicSessionId = pending.id; curIdx.value = nextIndex; musicEnded = false
+  curTime.value = 0; dur.value = 0; attemptedMusicKey = ''; lastMetaQueryKey = ''
+  loadLyricTimeOffsetForTrack(curTrack.value)
+  void loadCustomCoverForTrack(curTrack.value)
+  void loadCustomLyricForTrack().then(applied => { if (!applied) void loadMeta() })
+  pushRec(curTrack.value)
+  return true
+}
+
 let musicLoadGeneration = 0
 let musicDisposed = false
 let musicStatusTimer: ReturnType<typeof setTimeout> | undefined
@@ -48,8 +137,10 @@ let musicSourceReady = false
 
 async function mpvMusicControl(action: string, value?: number, extra?: Record<string, unknown>) {
   if (!musicSessionId || musicDisposed) return
+  if (action === 'seek') cancelMusicTransition()
   const owner = musicSessionId
-  const result = await window.WebMpvEmbeddedControl?.({ action, value, sessionId: owner, ...extra })
+  const control = usingAudioDecks ? window.WebMusicAudioControl : window.WebMpvEmbeddedControl
+  const result = await control?.({ action, value, sessionId: owner, ...extra })
   if (musicDisposed || owner !== musicSessionId) return
   if (result && !result.ok) { errMsg.value = result.error || t('music.playbackError'); playing.value = false }
   return result
@@ -58,7 +149,7 @@ async function mpvMusicControl(action: string, value?: number, extra?: Record<st
 async function pollMusicStatus() {
   const owner = musicSessionId
   try {
-    const result = await window.WebMpvEmbeddedStatus?.()
+    const result = await (usingAudioDecks ? window.WebMusicAudioStatus?.() : window.WebMpvEmbeddedStatus?.())
     if (musicDisposed || owner !== musicSessionId) return
     if (!musicSourceReady) return
     if (result?.sessionId && result.sessionId !== owner) { playing.value = false; musicSourceReady = false; return }
@@ -68,6 +159,10 @@ async function pollMusicStatus() {
       playing.value = !!status.playing && !status.paused
       if (Number.isFinite(status.position)) curTime.value = Math.max(0, status.position)
       if (Number.isFinite(status.duration)) dur.value = Math.max(0, status.duration)
+      if (usingAudioDecks && !result.transitioning) {
+        void prepareMusicTransition()
+        if (await activatePreparedMusic(result)) return
+      }
       if (status.ended && !musicEnded) { musicEnded = true; playNext(true) }
     } else if (result?.error) { errMsg.value = result.error; loading.value = false; playing.value = false }
   } catch (error: any) {
@@ -154,6 +249,39 @@ const dur = ref(0)
 const vol = ref(0.8)
 const muted = ref(false)
 const mode = ref<PlayMode>('loop-list')
+const queueShuffled = ref(false)
+let originalQueue: IPageMusicTrack[] | null = null
+function toggleQueueShuffle() {
+  cancelMusicTransition()
+  const selected = currentKey.value
+  if (originalQueue) {
+    const remaining = [...playlist.value]
+    const restored = originalQueue.flatMap(track => {
+      const index = remaining.findIndex(candidate => musicTrackKey(candidate) === musicTrackKey(track))
+      return index < 0 ? [] : remaining.splice(index, 1)
+    })
+    playlist.value = [...restored, ...remaining]
+    originalQueue = null
+    queueShuffled.value = false
+  } else {
+    originalQueue = [...playlist.value]
+    const reordered = [...playlist.value]
+    for (let i = reordered.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[reordered[i], reordered[j]] = [reordered[j], reordered[i]]
+    }
+    playlist.value = reordered
+    queueShuffled.value = true
+  }
+  curIdx.value = playlist.value.findIndex(track => musicTrackKey(track) === selected)
+  if (mode.value === 'shuffle') mode.value = 'loop-list'
+}
+function toggleQueueRepeat() {
+  cancelMusicTransition()
+  mode.value = mode.value === 'loop-one' ? 'loop-list' : 'loop-one'
+  saveJson('pm.mode', mode.value)
+}
+
 const showLyrics = ref(false)
 const showPanel = ref(false)
 const showQueue = ref(false)
@@ -896,6 +1024,7 @@ async function resolveUrl(idx: number) {
 }
 
 async function loadIdx(idx: number, auto = true) {
+  cancelMusicTransition()
   if (!playlist.value.length) return
   void mpvMusicControl('pause')
   playing.value = false
@@ -924,7 +1053,11 @@ async function loadIdx(idx: number, auto = true) {
     if (!url) throw new Error(t('music.noPlaybackUrl'))
     a.pause()
     musicSessionId = crypto.randomUUID()
-    const loaded = await window.WebMpvEmbeddedLoad?.({ sessionId: musicSessionId, url, headers, audioOnly: true, title: title.value })
+    const capability = await window.WebMusicAudioCapability?.()
+    musicAudioCapable.value = capability?.available === true
+    usingAudioDecks = musicAudioCapable.value
+    const load = usingAudioDecks ? window.WebMusicAudioLoad : window.WebMpvEmbeddedLoad
+    const loaded = await load?.({ sessionId: musicSessionId, url, headers, audioOnly: true, title: title.value })
     if (musicDisposed || generation !== musicLoadGeneration) return
     if (!loaded?.ok) throw new Error(loaded?.error || t('music.playbackError'))
     musicSourceReady = true
@@ -985,9 +1118,14 @@ function playPrev() {
   }
   loadIdx(curIdx.value <= 0 ? playlist.value.length - 1 : curIdx.value - 1, true)
 }
-function playNext(auto = false) {
+async function playNext(auto = false) {
   if (!playlist.value.length) return
+  const owner = musicSessionId, key = currentKey.value
   if (mode.value === 'loop-one' && auto) return loadIdx(curIdx.value, true)
+  if (auto && automaticContinuation.value && curIdx.value === playlist.value.length - 1) {
+    try { await appendContinuation() } catch { /* Retain the selected repeat policy when the library is unavailable. */ }
+    if (musicDisposed || owner !== musicSessionId || key !== currentKey.value) return
+  }
   if (mode.value === 'shuffle') return loadIdx(pickShuffle(), true)
   let n = curIdx.value + 1
   if (n >= playlist.value.length) {
@@ -1018,6 +1156,7 @@ function playFrom(t: IPageMusicTrack) {
   loadIdx(i, true)
 }
 function removeQueueAt(index: number) {
+  cancelMusicTransition()
   if (index < 0 || index >= playlist.value.length) return
   const wasCurrent = index === curIdx.value
   playlist.value.splice(index, 1)
@@ -1095,6 +1234,7 @@ function seekRel(d: number) {
   }
 }
 function seekTo(time: number) {
+  cancelMusicTransition()
   const next = Math.max(0, Math.min(effectiveDur.value || time, time - lyricTimeOffsetSec.value))
   void mpvMusicControl('seek', next)
   curTime.value = next
@@ -1119,12 +1259,8 @@ function toggleMute() {
   void mpvMusicControl('setVolume', muted.value ? 0 : vol.value * 100)
   audioRef.value.muted = muted.value
 }
-function cycleMode() {
-  const o: PlayMode[] = ['loop-list', 'loop-one', 'shuffle', 'list']
-  mode.value = o[(o.indexOf(mode.value) + 1) % o.length]
-  shuffleHist.value = []
-  saveJson('pm.mode', mode.value)
-}
+function cycleMode() { toggleQueueRepeat() }
+
 function toggleLyrics() {
   showLyrics.value = !showLyrics.value
   nextTick(() => {
@@ -1249,6 +1385,7 @@ function loadPageMusic(d: any) {
 }
 
 onMounted(() => {
+  void window.WebMusicAudioCapability?.().then(result => { musicAudioCapable.value = result?.available === true }).catch(() => {})
   const root = playerRoot.value
   const console = root?.querySelector<HTMLElement>('.bottom-bar')
   if (root && console) {
@@ -1376,6 +1513,7 @@ watch(() => visualFx.value.liveBackgroundKeep, () => {
 })
 
 onBeforeUnmount(() => {
+  cancelMusicTransition()
   queueBoundsObserver?.disconnect()
   void mpvMusicControl('stop')
   musicDisposed = true
@@ -1829,6 +1967,15 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
     </div>
 
     <MusicQueuePanel
+      :automatic-continuation="automaticContinuation"
+      :crossfade="crossfadeEnabled && musicAudioCapable"
+      :crossfade-available="musicAudioCapable"
+      @automatic-continuation="toggleAutomaticContinuation"
+      @crossfade="toggleMusicCrossfade"
+      :shuffled="queueShuffled"
+      :repeat-one="mode === 'loop-one'"
+      @shuffle="toggleQueueShuffle"
+      @repeat="toggleQueueRepeat"
       v-model:filter="listFilter"
       v-model:panel-tab="panelTab"
       :current-key="currentKey"
@@ -1848,6 +1995,15 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
 
     <Teleport to="body" :disabled="!props.sidePanel || musicPlayerStore.panelVisible">
     <MusicMiniQueue
+      :shuffled="queueShuffled"
+      :repeat-one="mode === 'loop-one'"
+      :automatic-continuation="automaticContinuation"
+      :crossfade="crossfadeEnabled"
+      :crossfade-available="musicAudioCapable"
+      @shuffle="toggleQueueShuffle"
+      @repeat="toggleQueueRepeat"
+      @automatic-continuation="toggleAutomaticContinuation"
+      @crossfade="toggleMusicCrossfade"
       :class="{ 'library-queue-drawer': props.sidePanel && !musicPlayerStore.panelVisible }"
       :current-index="curIdx"
       :tracks="playlist"

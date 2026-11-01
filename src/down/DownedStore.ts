@@ -1,3 +1,5 @@
+import { Modal } from '@arco-design/web-vue'
+import { h } from 'vue'
 import fuzzysort from 'fuzzysort'
 import { defineStore } from 'pinia'
 import DownDAL, { IStateDownFile } from './DownDAL'
@@ -217,34 +219,48 @@ const useDownStore = defineStore('down', {
      * @param downedIDList
      */
     async mDeleteDowned(downedIDList: string[]) {
-      const newListSelected = new Set(this.ListSelected)
-      const newList: Item[] = []
-      const downedList: Item[] = this.ListDataRaw
-      const deleteList: Item[] = []
-      for (let j = 0; j < downedList.length; j++) {
-        const downID = downedList[j].DownID
-        if (downedIDList.includes(downID)) {
-          downedList[j].Down.DownState = '待删除'
-          deleteList.push(downedList[j])
-          if (newListSelected.has(downID)) newListSelected.delete(downID)
-        } else {
-          newList.push(downedList[j])
+      const selected = this.ListDataRaw.filter(item => downedIDList.includes(item.DownID))
+      if (!selected.length) return
+      let removeFiles = false
+      const confirmed = await new Promise<boolean>(resolve => {
+        Modal.confirm({
+          title: '删除已完成下载',
+          content: () => h('div', [
+            h('p', '默认仅移除下载记录。勾选后将永久删除本地文件，无法撤销。'),
+            h('label', [h('input', { type: 'checkbox', onChange: (e: Event) => { removeFiles = (e.target as HTMLInputElement).checked } }), ' 同时从本地彻底移除文件'])
+          ]),
+          onOk: () => resolve(true), onCancel: () => resolve(false)
+        })
+      })
+      if (!confirmed) return
+      const removed: Item[] = []
+      for (const item of selected) {
+        try {
+          if (removeFiles) {
+            if (item.Info.offlineProvider || item.Info.ariaRemote || item.Info.isDir) throw new Error('远程任务或文件夹请在文件管理器中删除，记录已保留')
+            let target = resolveDownloadOpenPath(item.Info)
+            if (!fs.existsSync(target)) {
+              const legacy = resolveLegacyMagnetPath(item.Info.DownSavePath, item.Down.DownUrl || '')
+              if (legacy && fs.existsSync(legacy)) target = legacy
+            }
+            if (fs.existsSync(target)) await fs.promises.unlink(target)
+          }
+          removed.push(item)
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : '删除失败，记录已保留')
         }
       }
-      this.ListDataRaw = newList
-      this.ListSelected = newListSelected
-      await DownDAL.deleteDowned(false, deleteList)
+      if (!removed.length) return
+      const ids = new Set(removed.map(item => item.DownID))
+      removed.forEach(item => { item.Down.DownState = '待删除' })
+      await DownDAL.deleteDowned(false, removed)
+      this.ListDataRaw = this.ListDataRaw.filter(item => !ids.has(item.DownID))
+      this.ListSelected = new Set([...this.ListSelected].filter(id => !ids.has(id)))
       this.mRefreshListDataShow(true)
     },
 
-    /**
-     * 删除全部
-     */
     async mDeleteAllDowned() {
-      await DownDAL.deleteDowned(true, this.ListDataRaw)
-      this.ListSelected = new Set<string>()
-      this.ListDataRaw.splice(0, this.ListDataRaw.length)
-      this.mRefreshListDataShow(true)
+      await this.mDeleteDowned(this.ListDataRaw.map(item => item.DownID))
     },
 
     /**

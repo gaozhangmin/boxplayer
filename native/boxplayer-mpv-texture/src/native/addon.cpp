@@ -5,6 +5,7 @@
 #include <napi.h>
 #include <cmath>
 #include "mpv_context.h"
+#include "audio_deck.h"
 
 using namespace mpv_texture;
 
@@ -601,6 +602,7 @@ Napi::Value IsInitialized(const Napi::CallbackInfo& info) {
 
 // Module initialization
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
+    exports.Set("createAudioDeck", Napi::Function::New(env, CreateAudioDeck));
     exports.Set("useSoftwareReadback", Napi::Function::New(env, [](const Napi::CallbackInfo&) {
         if (g_context) g_context->useSoftwareReadback();
     }));

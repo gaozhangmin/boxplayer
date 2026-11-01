@@ -60,6 +60,10 @@ declare global {
     IsMainPage: boolean
     WebSetProxy: any
     WebMpvEmbeddedCapability: () => Promise<any>
+    WebMusicAudioCapability: () => Promise<{ available: boolean }>
+    WebMusicAudioLoad: (data: any) => Promise<any>
+    WebMusicAudioControl: (data: any) => Promise<any>
+    WebMusicAudioStatus: () => Promise<any>
     WebMpvEmbeddedLoad: (data: any) => Promise<any>
     WebMpvEmbeddedControl: (data: any) => Promise<any>
     WebMpvEmbeddedStatus: () => Promise<any>

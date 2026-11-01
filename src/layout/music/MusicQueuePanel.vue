@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Clock, Heart, ListMusic, Music, SkipForward, Trash2, X } from 'lucide-vue-next'
+import { Shuffle, Repeat, Repeat1, Infinity, Blend, Clock, Heart, ListMusic, Music, SkipForward, Trash2, X } from 'lucide-vue-next'
 import type { IPageMusicTrack } from '../../store/appstore'
 import { musicTrackKey } from '../../utils/musicPlayerStorage'
 import { t as tt } from '../../i18n'
@@ -8,6 +8,11 @@ import { t as tt } from '../../i18n'
 type PanelTab = 'queue' | 'fav' | 'recent'
 
 const props = defineProps<{
+  automaticContinuation?: boolean
+  crossfade?: boolean
+  crossfadeAvailable?: boolean
+  shuffled?: boolean
+  repeatOne?: boolean
   visible: boolean
   panelTab: PanelTab
   playlist: IPageMusicTrack[]
@@ -19,6 +24,10 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  (e: 'automatic-continuation'): void
+  (e: 'crossfade'): void
+  (e: 'shuffle'): void
+  (e: 'repeat'): void
   (e: 'close'): void
   (e: 'update:panelTab', tab: PanelTab): void
   (e: 'update:filter', value: string): void
@@ -63,6 +72,12 @@ function stripExt(name: string) {
         <button :class="['panel-tab', { on: panelTab === 'recent' }]" @click="emit('update:panelTab', 'recent')"><Clock :size="14" /> {{ tt('music.recent') }} {{ recents.length }}</button>
       </div>
       <button class="music-queue-close" @click="emit('close')"><X :size="16" /></button>
+    </div>
+    <div class="music-queue-controls">
+      <button :aria-label="tt('music.modeShuffle')" :aria-pressed="!!shuffled" :class="{ active: shuffled }" @click="emit('shuffle')"><Shuffle :size="20" /></button>
+      <button :aria-label="tt(repeatOne ? 'music.modeLoopOne' : 'music.modeLoopList')" :aria-pressed="!!repeatOne" @click="emit('repeat')"><Repeat1 v-if="repeatOne" :size="20" /><Repeat v-else :size="20" /></button>
+      <button :aria-label="tt('music.automaticContinuation')" :aria-pressed="!!automaticContinuation" :class="{ active: automaticContinuation }" @click="emit('automatic-continuation')"><Infinity :size="20" /></button>
+      <button :title="tt(crossfadeAvailable ? 'music.crossfadeThreeSeconds' : 'music.crossfadeRequiresUpdatedCore')" :aria-label="tt('music.crossfadeThreeSeconds')" :aria-pressed="!!crossfade" :class="{ active: crossfade }" :disabled="!crossfadeAvailable" @click="emit('crossfade')"><Blend :size="20" /></button>
     </div>
     <div class="music-queue-search">
       <input :value="filter" :placeholder="tt('music.searchQueue')" @input="emit('update:filter', ($event.target as HTMLInputElement).value)" />
@@ -314,4 +329,11 @@ function stripExt(name: string) {
   background: rgba(255,255,255,.05);
   color: rgba(255,255,255,.62);
 }
+</style>
+
+<style scoped>
+.music-queue-controls { display:flex;gap:10px;padding:12px 16px; }
+.music-queue-controls button { flex:1;display:flex;justify-content:center;border:0;border-radius:22px;padding:10px;color:inherit;background:#ffffff18;cursor:pointer; }
+.music-queue-controls button:disabled { opacity:.4;cursor:not-allowed; }
+.music-queue-controls button.active { background:#ffffff60;color:#202020; }
 </style>

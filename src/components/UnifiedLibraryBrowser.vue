@@ -77,9 +77,9 @@ const inlineSeries = computed(() => {
   return [...custom, ...automatic.map(group => ({ ...group, members: group.members.filter(item => !customIDs.has(item.id)) })).filter(group => group.members.length)]
 })
 function openCollection(id: string, members: MediaLibraryItem[]) {
+  if (id.startsWith('custom:')) { emit('customSeries', id.slice(7)); return }
   if (seriesPreferences.openDetail && members[0]) { props.card(members[0]).action(); return }
-  if (id.startsWith('custom:')) emit('customSeries', id.slice(7))
-  else emit('navigate', 'series/' + id)
+  emit('navigate', 'series/' + id)
 }
 const selectedMembers = computed(() => {
   const name = decodeURIComponent(category.value)
