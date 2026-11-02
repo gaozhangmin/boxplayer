@@ -151,7 +151,7 @@ import DB from '../utils/db'
 import type { IAliGetFileModel } from '../aliapi/alimodels'
 import { getLibraryRankings } from '../utils/tmdb'
 import { matchDailyLibraryRanking, matchLibraryRanking, type TmdbRankedEntry } from '../utils/tmdbLibraryRecommendations'
-import { saveCustomSeries, loadCustomSeries, type CustomMediaSeries } from '../utils/customMediaSeries'
+import { saveCustomSeries, loadCustomSeries, type CustomMediaSeries, type CustomSeriesDetail, type SeriesMedia } from '../utils/customMediaSeries'
 import { openCustomSeries } from '../utils/customMediaSeries'
 import { updateMediaServerPlayedState, updateMediaServerFavoriteState } from '../media-server/contentGateway'
 import message from '../utils/message'
@@ -476,6 +476,42 @@ function reorderSelectedPlaylist(sourceKey: string, targetKey: string) {
   media.playlists = { ...media.playlists, [name]: ids }
 }
 const customSeriesGroups = ref<CustomMediaSeries[]>(loadCustomSeries())
+const customSeriesDetail = ref<CustomSeriesDetail>()
+let customDetailOpenVersion = 0
+async function customSeriesLocalMembers(members: SeriesMedia[]): Promise<MediaLibraryItem[]> {
+  const localMembers = members.filter(member => !member.serverId)
+  if (!localMembers.length) return []
+  const ids = localMembers.map(member => member.id)
+  let source = await DB.getMediaLibraryItemsByIds([...new Set(localMembers.flatMap(member => [member.id, member.parentId || detailSeriesId(member.id)]))])
+  // A saved movie can live inside a persisted TMDB collection container.
+  if (libraryPlaylistMembers(source, ids).length !== ids.length) source = await DB.getHomeMediaLibrary()
+  return libraryPlaylistMembers(source, ids)
+}
+async function loadCustomSeriesDetail(id?: string): Promise<CustomSeriesDetail | undefined> {
+  const group = id ? loadCustomSeries().find(group => group.id === id) : undefined
+  if (!group) return undefined
+  const local = await customSeriesLocalMembers(group.members)
+  return { ...group, members: group.members.map(member => {
+    const item = member.serverId ? undefined : libraryPlaylistMembers(local, [member.id])[0]
+    return { ...member, posterUrl: item?.posterUrl || item?.backdropUrl }
+  }) }
+}
+async function openCustomSeriesMember(member: SeriesMedia, seriesID = customSeriesDetail.value?.id) {
+  const version = ++customDetailOpenVersion
+  try {
+    const context = await loadCustomSeriesDetail(seriesID)
+    if (version !== customDetailOpenVersion) return
+    if (member.serverId) {
+      showServer(member.serverId, { kind: 'item-detail', itemId: member.id, title: member.title }, context)
+      return
+    }
+    const local = await customSeriesLocalMembers([member])
+    if (version !== customDetailOpenVersion) return
+    const item = libraryPlaylistMembers(local, [member.id])[0]
+    if (item) await openVideo(item, seriesID)
+    else message.warning(t('customSeries.missingMember'))
+  } catch (error) { message.error(error instanceof Error ? error.message : String(error)) }
+}
 const customSeriesCards = ref<Card[]>([])
 let seriesLoadVersion = 0
 async function showCustomSeries(id = '') {
@@ -490,10 +526,10 @@ async function showCustomSeries(id = '') {
  const group = customSeriesGroups.value.find(group => group.id === id)
  if (!group) return
  try {
-  const local = await DB.getMediaLibraryItemsByIds([...new Set(group.members.filter(member => !member.serverId).flatMap(member => [member.id, member.parentId || detailSeriesId(member.id)]))])
+  const local = await customSeriesLocalMembers(group.members)
   if (version !== seriesLoadVersion) return
   customSeriesCards.value = group.members.flatMap(member => {
-   if (member.serverId) return [{ key: member.serverId + ':' + member.id, title: member.title, action: () => showServer(member.serverId!, { kind: 'item-detail', itemId: member.id, title: member.title }) }]
+   if (member.serverId) return [{ key: member.serverId + ':' + member.id, title: member.title, action: () => { void openCustomSeriesMember(member, id) } }]
    const item = libraryPlaylistMembers(local, [member.id])[0]
    return item ? [localCard(item, false, undefined, id)] : [{ key: member.id, title: member.title, action: () => message.warning(t('customSeries.missingMember')) }]
   })
@@ -916,14 +952,21 @@ async function showFolder(folder: MediaLibraryFolder) {
   await nextTick()
   await videoView.value?.selectFolder(folder)
 }
-function showServer(id: string, route: MediaServerRoute = { kind: 'library-root' }) {
+function showServer(id: string, route: MediaServerRoute = { kind: 'library-root' }, context?: CustomSeriesDetail) {
+  ++customDetailOpenVersion
+  customSeriesDetail.value = context
   registry.setCurrentServer(id)
   navigation.goLibraryRoot()
   if (route.kind !== 'library-root') navigation.push(route)
   app.mediaLibrarySection = 'server'
 }
-async function openVideo(item: MediaLibraryItem) {
+async function openVideo(item: MediaLibraryItem, seriesID?: string) {
+  const version = ++customDetailOpenVersion
+  const context = await loadCustomSeriesDetail(seriesID)
+  if (version !== customDetailOpenVersion) return
   await showCategory(item.type === 'tv' ? 'tv' : item.type === 'movie' ? 'movies' : 'unmatched')
+  if (version !== customDetailOpenVersion) return
+  customSeriesDetail.value = context
   videoView.value?.openItem(item)
 }
 async function openAutomaticSeries(id: string) {
@@ -991,7 +1034,7 @@ const localCard = (item: MediaLibraryItem, landscape = false, playlistName?: str
   if (playlistName && action === 'removePlaylistItem') { media.togglePlaylistItem(playlistName, item.id); return }
   if (playlistName && action === 'reorderPlaylistItem') { showHomeRow('local:playlist:group:' + encodeURIComponent(playlistName)); playlistReordering.value = true; return }
   void localPosterAction(item, action)
-} }, key: `local:${item.id}${!seriesPreferences.mergeVersions ? ':file:' + item.driveFiles[0]?.id : ''}`, title: generalPreferences.showFileNames ? item.driveFiles[0]?.name || item.name : item.name, sortValues: { title: item.name, fileName: item.driveFiles[0]?.name, addedAt: item.addedAt, premiereDate: item.releaseDate }, image: landscape ? item.backdropUrl || item.posterUrl : item.posterUrl || item.backdropUrl, subtitle: posterYearAndSeasons(item.year, item.type === 'tv' ? item.seasons?.filter(season => season.seasonNumber > 0).length : undefined), progress: mediaWatchProgressPercent(item), action: () => { if (browseSelection.value && section.value === 'collection') toggleObjectSelection(item); else void openVideo(item) } })
+} }, key: `local:${item.id}${!seriesPreferences.mergeVersions ? ':file:' + item.driveFiles[0]?.id : ''}`, title: generalPreferences.showFileNames ? item.driveFiles[0]?.name || item.name : item.name, sortValues: { title: item.name, fileName: item.driveFiles[0]?.name, addedAt: item.addedAt, premiereDate: item.releaseDate }, image: landscape ? item.backdropUrl || item.posterUrl : item.posterUrl || item.backdropUrl, subtitle: posterYearAndSeasons(item.year, item.type === 'tv' ? item.seasons?.filter(season => season.seasonNumber > 0).length : undefined), progress: mediaWatchProgressPercent(item), action: () => { if (browseSelection.value && section.value === 'collection') toggleObjectSelection(item); else void openVideo(item, seriesID) } })
 const serverCard = (item: MediaServerCardItem, landscape = false): Card => ({ overview: item.overview, certification: item.officialRating, rating: item.rating, posterMenu: { server: true, tv: item.kind === 'series' || item.kind === 'season', watched: item.isPlayed === true, favorite: item.isFavorite, disabled: item.kind === 'season' ? ['rating', 'playlist'] : ['playlist'], action: action => { void serverPosterAction(item, action) } }, key: `${item.serverId}:${item.id}`, title: item.title, sortValues: item, image: toMsCacheUrl(item.serverId, resolveMediaServerImage(item, landscape ? 'landscape' : 'portrait')), subtitle: item.kind === 'series' ? posterYearAndSeasons(item.year, item.seasonCount) : item.parentTitle || String(item.year || ''), progress: item.progress, action: () => showServer(item.serverId, { kind: 'item-detail', itemId: item.id, title: item.title }) })
 const searchRows = computed<Row[]>(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
@@ -1114,7 +1157,7 @@ const localRows = computed<Row[]>(() => {
   for (const group of (seriesPreferences.useCustom ? customSeriesGroups.value : [])) {
     const members = libraryPlaylistMembers(homeLibrary.value, group.members.filter(member => !member.serverId).map(member => member.id))
     const key = 'custom-series:' + group.id
-    result.push({ key, title: group.title, count: members.length, get cards() { return members.map(item => localCard(item)) }, preview: () => members.slice(0, 24).map(item => localCard(item)), more: () => { void showCustomSeries(group.id) } })
+    result.push({ key, title: group.title, count: members.length, get cards() { return members.map(item => localCard(item, false, undefined, group.id)) }, preview: () => members.slice(0, 24).map(item => localCard(item, false, undefined, group.id)), more: () => { void showCustomSeries(group.id) } })
     seriesCards.push({ key, title: group.title, image: members[0]?.posterUrl, subtitle: t('customSeries.memberCount', { count: group.members.length }), action: () => { void showCustomSeries(group.id) }, contextMenu: (event: MouseEvent) => openCategoryMenu(event, 'custom-series/' + group.id) })
   }
   result.push({ key: 'custom-series', title: t('unified.series'), cards: seriesCards, more: () => showCatalog('series') })
@@ -1816,10 +1859,10 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
       </div>
       <div v-show="!['home', 'files', 'collection'].includes(section)" class="embedded-workspace">
         <KeepAlive>
-          <VideoLibrary v-if="section === 'video' || section === 'home' || section === 'collection'" v-show="section === 'video'" ref="videoView" @tag-title-change="detailTagTitle = $event" @detail-visibility-change="localDetailVisible = $event" @browse-context-change="selectedFolder = $event.folderId; selectedCategory = $event.category || selectedCategory" :nav-visible="false" :unified-browse="true" :unified-files="isFolderPage" :folder-descending="folderDescending" :browse-mode="collectionMode" :local-only="localOnly" :browse-sort="isCategoryPage ? browseSort : undefined" :browse-sort-descending="isCategoryPage ? browseSortDescending : undefined" :browse-selection="isFolderPage ? folderSelection : browseSelection" />
+          <VideoLibrary :custom-series-detail="customSeriesDetail" @open-custom-series-member="openCustomSeriesMember" v-if="section === 'video' || section === 'home' || section === 'collection'" v-show="section === 'video'" ref="videoView" @tag-title-change="detailTagTitle = $event" @detail-visibility-change="localDetailVisible = $event" @browse-context-change="selectedFolder = $event.folderId; selectedCategory = $event.category || selectedCategory" :nav-visible="false" :unified-browse="true" :unified-files="isFolderPage" :folder-descending="folderDescending" :browse-mode="collectionMode" :local-only="localOnly" :browse-sort="isCategoryPage ? browseSort : undefined" :browse-sort-descending="isCategoryPage ? browseSortDescending : undefined" :browse-selection="isFolderPage ? folderSelection : browseSelection" />
         </KeepAlive>
         <KeepAlive>
-          <ServerWorkspace @category-favorites="favoriteServerCategories" @category-context="openCategoryMenu" ref="serverWorkspace" v-if="section === 'server' || section === 'home'" v-show="section === 'server'" :unified-root="isServerRootPage" :root-selection="serverRootSelection" :unified-browse="isCategoryPage" :browse-mode="collectionMode" :server-sort="serverSort" :server-sort-direction="serverSortDirection" :server-sort-seed="serverSortSeed" />
+          <ServerWorkspace :custom-series-detail="customSeriesDetail" @open-custom-series-member="openCustomSeriesMember" @category-favorites="favoriteServerCategories" @category-context="openCategoryMenu" ref="serverWorkspace" v-if="section === 'server' || section === 'home'" v-show="section === 'server'" :unified-root="isServerRootPage" :root-selection="serverRootSelection" :unified-browse="isCategoryPage" :browse-mode="collectionMode" :server-sort="serverSort" :server-sort-direction="serverSortDirection" :server-sort-seed="serverSortSeed" />
           <MusicLibrary v-else-if="section === 'music'" ref="musicView" data-testid="unified-section-music" :sidebar-visible="toolsVisible" />
           <BookLibrary v-else-if="section === 'book'" ref="bookView" data-testid="unified-section-book" :sidebar-visible="toolsVisible" />
         </KeepAlive>

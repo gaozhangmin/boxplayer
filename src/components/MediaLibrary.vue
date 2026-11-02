@@ -25,6 +25,8 @@
         v-if="currentMediaItem"
         v-show="showingDetail"
         :media-item="currentMediaItem"
+        :custom-series-detail="props.customSeriesDetail"
+        @open-custom-series-member="emit('openCustomSeriesMember', $event)"
         :active-playlist-name="selectedPlaylist"
         :playlist-items="activePlaylistItems"
         @open-playlist-item="openMedia"
@@ -680,6 +682,7 @@ import { getMediaCoverage } from '../utils/mediaCoverage'
 import { t } from '../i18n'
 import { appIconUrl } from '../utils/appAssets'
 import { hasLocalMedia } from '../utils/unifiedMediaScope'
+import type { CustomSeriesDetail, SeriesMedia } from '../utils/customMediaSeries'
 
 type MediaListItem = MediaLibraryItem & {
   continueEpisodeLabel?: string
@@ -701,6 +704,7 @@ const props = withDefaults(defineProps<{
   browseSort?: MediaBrowseSort
   browseSortDescending?: boolean
   browseSelection?: boolean
+  customSeriesDetail?: CustomSeriesDetail
 }>(), { browseSortDescending: undefined })
 const localSelection = ref(false)
 const effectiveBrowseSelection = computed(() => props.browseSelection || localSelection.value)
@@ -2389,6 +2393,7 @@ onMounted(() => {
 
 // 定义事件
 const emit = defineEmits<{
+  openCustomSeriesMember: [member: SeriesMedia]
   tagTitleChange: [title: string]
   detailVisibilityChange: [visible: boolean]
   categoryDrillDown: [data: {

@@ -29,6 +29,8 @@ import MediaSourceRatings from './MediaSourceRatings.vue'
 import { getLocalVideoProgress } from '../utils/videoProgress'
 import { detailResumeState, detailSeriesId, videoDurationSeconds } from '../utils/detailResume'
 import { openCustomSeries } from '../utils/customMediaSeries'
+import type { CustomSeriesDetail, SeriesMedia } from '../utils/customMediaSeries'
+import CustomSeriesDetailRail from './CustomSeriesDetailRail.vue'
 import { detailCollectionTarget, detailCollectionMovies, playlistSelection, applyPlaylistSelection } from '../utils/detailCollections'
 import { ListPlus, GalleryVerticalEnd, Play, Bookmark, Star, Ellipsis, ChevronDown, Repeat, Shuffle, Eye, EyeOff, Share, Plus, RefreshCw } from 'lucide-vue-next'
 import { isContinueWatchingMember, toggleContinueWatching } from '../utils/continueWatchingAction'
@@ -41,6 +43,7 @@ const props = defineProps<{
   mediaItem: MediaLibraryItem
   activePlaylistName?: string
   playlistItems?: MediaLibraryItem[]
+  customSeriesDetail?: CustomSeriesDetail
 }>()
 
 // Emits
@@ -50,6 +53,7 @@ const emit = defineEmits<{
   aiRescrape: [item: MediaLibraryItem]
   metadataUpdated: [item: MediaLibraryItem]
   openPlaylistItem: [item: MediaLibraryItem]
+  openCustomSeriesMember: [member: SeriesMedia]
 }>()
 
 const settingStore = useSettingStore()
@@ -57,7 +61,7 @@ const mediaStore = useMediaLibraryStore()
 const userStore = useUserStore()
 
 const persistedCollectionItems = ref<MediaLibraryItem[]>([])
-const collectionMovies = computed(() => detailCollectionMovies(props.mediaItem, [...persistedCollectionItems.value, ...mediaStore.mediaItems]))
+const collectionMovies = computed(() => activeCustomSeries.value ? [] : detailCollectionMovies(props.mediaItem, [...persistedCollectionItems.value, ...mediaStore.mediaItems]))
 watch(() => props.mediaItem, async (item, _previous, onCleanup) => {
   let cancelled = false
   onCleanup(() => { cancelled = true })
@@ -71,6 +75,7 @@ watch(() => props.mediaItem, async (item, _previous, onCleanup) => {
 
 // 响应式状态
 const activeMediaItem = computed<MediaLibraryItem>(() => (props.mediaItem.collectionMovies?.[0] || props.mediaItem) as MediaLibraryItem)
+const activeCustomSeries = computed(() => props.customSeriesDetail?.members.some(member => !member.serverId && detailSeriesId(member.id) === detailSeriesId(activeMediaItem.value.id)) ? props.customSeriesDetail : undefined)
 const selectedSeason = ref(activeMediaItem.value.type === 'tv' && activeMediaItem.value.seasons?.length ? activeMediaItem.value.seasons[0].seasonNumber : 1)
 const detailLogoLoadFailed = ref(false)
 const detailLogoUrl = computed(() => {
@@ -1139,6 +1144,9 @@ const getCastInitial = (name?: string): string => {
         </div>
       </div>
 
+      <CustomSeriesDetailRail v-if="activeCustomSeries" class="custom-series-section" :series="activeCustomSeries" :selected-id="activeMediaItem.id"
+        @open="emit('openCustomSeriesMember', $event)" />
+
       <section v-if="activePlaylistName && playlistItems?.length" class="detail-playlist-section">
         <h3>{{ activePlaylistName }}</h3>
         <div class="detail-playlist-rail">
@@ -1761,6 +1769,7 @@ const getCastInitial = (name?: string): string => {
 .season-selector,
 .episodes-section,
 .cast-section,
+.custom-series-section,
 .tags-section {
   width: min(1880px, calc(100% - 80px));
   margin: 0 auto;
@@ -1772,7 +1781,8 @@ const getCastInitial = (name?: string): string => {
 
 .season-selector,
 .episodes-section,
-.cast-section {
+.cast-section,
+.custom-series-section {
   margin-top: 12px;
 }
 
@@ -2360,6 +2370,7 @@ const getCastInitial = (name?: string): string => {
   .season-selector,
   .episodes-section,
   .cast-section,
+  .custom-series-section,
   .tags-section {
     width: calc(100% - 32px);
   }
@@ -2770,6 +2781,7 @@ const getCastInitial = (name?: string): string => {
 #xbybody .media-detail .season-selector,
 #xbybody .media-detail .episodes-section,
 #xbybody .media-detail .cast-section,
+#xbybody .media-detail .custom-series-section,
 #xbybody .media-detail .tags-section {
   width: calc(100% - 68px);
   margin: 0 auto;
@@ -3177,6 +3189,7 @@ const getCastInitial = (name?: string): string => {
   #xbybody .media-detail .season-selector,
   #xbybody .media-detail .episodes-section,
   #xbybody .media-detail .cast-section,
+  #xbybody .media-detail .custom-series-section,
   #xbybody .media-detail .tags-section,
   #xbybody .media-detail .scraped-media-info-section {
     width: calc(100% - 40px);

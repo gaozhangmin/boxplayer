@@ -1,6 +1,9 @@
 import { seriesPreferences } from './seriesVersionPreferences'
 export interface SeriesMedia { id: string; title: string; serverId?: string; parentId?: string }
 export interface CustomMediaSeries { id: string; title: string; members: SeriesMedia[] }
+export interface CustomSeriesDetail extends Omit<CustomMediaSeries, 'members'> {
+  members: (SeriesMedia & { posterUrl?: string })[]
+}
 export const CUSTOM_SERIES_KEY = 'MediaLibrary_CustomSeries_v1'
 function isSeriesContainer(id: string): boolean { return id.startsWith('custom-series:') || id.startsWith('custom-series/') || id.startsWith('catalog:series/') || id.startsWith('series/') }
 function normalizedMember(item: SeriesMedia): SeriesMedia { return item.parentId ? { id: item.parentId, title: item.title, serverId: item.serverId } : item }

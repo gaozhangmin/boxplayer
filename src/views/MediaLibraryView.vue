@@ -19,6 +19,8 @@
       <div class="media-library-pane">
         <MediaLibrary
           ref="mediaLibrary"
+          :custom-series-detail="props.customSeriesDetail"
+          @open-custom-series-member="emit('openCustomSeriesMember', $event)"
           :unified-files="props.unifiedFiles"
           :folder-descending="props.folderDescending"
           @detailVisibilityChange="emit('detailVisibilityChange', $event)"
@@ -92,6 +94,7 @@ import { MediaScanner } from '../utils/mediaScanner'
 import UserDAL from '../user/userdal'
 import message from '../utils/message'
 import type { MediaLibraryFolder } from '../types/media'
+import type { CustomSeriesDetail, SeriesMedia } from '../utils/customMediaSeries'
 import type { IAliGetFileModel } from '../aliapi/alimodels'
 import { isAliyunUser, isBaiduUser, isBoxUser, isCloud123User, isDrive115User, isDropboxUser, isGoogleUser, isOneDriveUser, isPikPakUser, isQuarkUser } from '../aliapi/utils'
 import AliDirFileList from '../aliapi/dirfilelist'
@@ -117,8 +120,9 @@ const props = withDefaults(defineProps<{
   browseSort?: MediaBrowseSort
   browseSortDescending?: boolean
   browseSelection?: boolean
+  customSeriesDetail?: CustomSeriesDetail
 }>(), { browseSortDescending: undefined })
-const emit = defineEmits<{ tagTitleChange: [title: string]; detailVisibilityChange: [visible: boolean]; browseContextChange: [context: { folderId: string; category: string }] }>()
+const emit = defineEmits<{ openCustomSeriesMember: [member: SeriesMedia]; tagTitleChange: [title: string]; detailVisibilityChange: [visible: boolean]; browseContextChange: [context: { folderId: string; category: string }] }>()
 
 // 状态
 const showScanProgress = ref(false)

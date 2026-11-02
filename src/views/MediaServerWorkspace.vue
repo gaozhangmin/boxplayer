@@ -965,6 +965,10 @@
                 </div>
 
                 <div class="detail-lower-content">
+                  <CustomSeriesDetailRail v-if="activeCustomSeries" :series="activeCustomSeries"
+                    :selected-id="currentRoute.kind === 'item-detail' ? currentRoute.itemId : undefined"
+                    :selected-server-id="registry.currentServer?.id"
+                    @open="emit('openCustomSeriesMember', $event)" />
                   <section
                     v-if="detailSeasonMenu.length > 0 || detailEpisodeItems.length > 0"
                     class="detail-section detail-section-episodes"
@@ -1402,6 +1406,8 @@ import MediaLoadingIndicator from '../components/MediaLoadingIndicator.vue'
 import MediaPosterMenu from '../components/MediaPosterMenu.vue'
 import type { PosterAction } from '../utils/mediaPosterMenu'
 import { openCustomSeries } from '../utils/customMediaSeries'
+import type { CustomSeriesDetail, SeriesMedia } from '../utils/customMediaSeries'
+import CustomSeriesDetailRail from '../components/CustomSeriesDetailRail.vue'
 import { detailResumeState } from '../utils/detailResume'
 import MediaEmptyFolder from '../components/MediaEmptyFolder.vue'
 import { Download, Folder, Play, UserRound, Heart, Star, ListPlus, Ellipsis, ChevronDown, Eye, EyeOff } from 'lucide-vue-next'
@@ -1412,13 +1418,17 @@ import { openServerPlaylist } from '../media-server/playlists'
 import WatchedIndicator from '../components/WatchedIndicator.vue'
 import PosterRatingBadge from '../components/PosterRatingBadge.vue'
 import { compareMediaServerItems, type MediaServerBrowseSort, type MediaServerSortDirection } from '../utils/mediaServerBrowseSort'
-const emit = defineEmits<{ categoryContext: [event: MouseEvent, route: string]; categoryFavorites: [routes: string[]] }>()
+const emit = defineEmits<{ openCustomSeriesMember: [member: SeriesMedia]; categoryContext: [event: MouseEvent, route: string]; categoryFavorites: [routes: string[]] }>()
 function openLibraryCategoryMenu(event: MouseEvent, item: MediaServerLibraryNode) {
   if (currentRoute.value.kind !== 'library-root') return
   const server = registry.currentServer
   if (server) emit('categoryContext', event, 'home-entry/' + encodeURIComponent(`${server.id}:${item.id}`))
 }
-const props = defineProps<{ unifiedRoot?: boolean; rootSelection?: boolean; unifiedBrowse?: boolean; browseMode?: 'grid' | 'list'; serverSort?: MediaServerBrowseSort; serverSortDirection?: MediaServerSortDirection; serverSortSeed?: number }>()
+const props = defineProps<{ customSeriesDetail?: CustomSeriesDetail; unifiedRoot?: boolean; rootSelection?: boolean; unifiedBrowse?: boolean; browseMode?: 'grid' | 'list'; serverSort?: MediaServerBrowseSort; serverSortDirection?: MediaServerSortDirection; serverSortSeed?: number }>()
+const activeCustomSeries = computed(() => {
+  const route = currentRoute.value
+  return route.kind === 'item-detail' && props.customSeriesDetail?.members.some(member => member.serverId === registry.currentServer?.id && member.id === route.itemId) ? props.customSeriesDetail : undefined
+})
 function sortListing<T extends MediaServerLibraryNode>(items: T[]): T[] {
   if (!props.unifiedBrowse && !props.unifiedRoot) return items
   // Paged catalogs keep the provider's global order. Shuffle is a stable local presentation.
