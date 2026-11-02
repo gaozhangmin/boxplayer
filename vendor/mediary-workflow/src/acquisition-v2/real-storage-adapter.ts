@@ -16,6 +16,8 @@ import type { SimTreeFile, StorageV2, TransferAttemptResult } from "./storage-11
 const VIDEO_EXTENSIONS = /\.(mkv|mp4|avi|ts|m2ts|mov|flv|wmv)$/i;
 const SUBTITLE_EXTENSIONS = /\.(srt|ass|ssa|sub|idx|vtt|sup|smi)$/i;
 const PAN115_SHARE_URL = /^https?:\/\/(115\.com|115cdn\.com|anxia\.com)\/s\//i;
+// BoxPlayer patch: aliyun / pikpak shares also fail loud, so transferUntilLanded may roll over them.
+const BOXPLAYER_SHARE_URL = /^https?:\/\/(?:www\.)?(?:aliyundrive\.com|alipan\.com|mypikpak\.com)\/s\//i;
 
 export interface RealStorageV2Options {
   executor: StorageExecutor;
@@ -56,6 +58,7 @@ export class RealStorageV2 implements StorageV2 {
     const url = String(this.registry.get(candidateId)?.providerPayload?.["url"] ?? "");
     if (
       PAN115_SHARE_URL.test(url) ||
+      BOXPLAYER_SHARE_URL.test(url) ||
       parseQuarkShareUrl(url) !== null ||
       parseTianyiShareUrl(url) !== null ||
       parsePan123ShareUrl(url) !== null

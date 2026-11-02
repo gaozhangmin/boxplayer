@@ -231,6 +231,13 @@ function normalizeResourceType(rawType: string, url: string): ResourceType | nul
   ) {
     return "tianyi";
   }
+  // BoxPlayer patch: share links for the BoxPlayer-hosted aliyun / pikpak brands.
+  if (rawType === "aliyun" || /(?:aliyundrive|alipan)\.com\/s\//.test(url)) {
+    return "aliyun";
+  }
+  if (rawType === "pikpak" || url.includes("mypikpak.com/s/")) {
+    return "pikpak";
+  }
   if (url.startsWith("magnet:")) {
     return "magnet";
   }

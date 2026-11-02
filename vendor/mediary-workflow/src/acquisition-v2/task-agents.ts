@@ -99,6 +99,16 @@ export function transferModelLine(options: TaskAgentPromptOptions): string {
   if (options.storageProvider === "pan123") {
     return `\nTRANSFER MODEL — 123网盘 (this drive): every candidate is a 123 分享链 (123pan.com/s/<key>, a 转存分享链 — the 115-秒传 equivalent): the system copies the share's files into staging via 秒传复制 (server-side async copy; the bounded settle-polling is built in). 123 has NO magnet / offline-download API (v1), so there are NO magnet candidates and a magnet would fail loud (PAN123_NO_MAGNET); ignore any 115/magnet wording — it does not apply here. A dead/expired share fails LOUD (分享不存在 / 已取消 / 提取码错误 / 链接失效) — switch to the next covering 123 分享. Read the "dead-links-black-box" skill section: on this drive it is the 123 version.`;
   }
+  // BoxPlayer patch: the BoxPlayer-hosted brands.
+  if (options.storageProvider === "aliyun") {
+    return `\nTRANSFER MODEL — 阿里云盘 (this drive): every candidate is a 阿里云盘分享链 (alipan.com/s/ or aliyundrive.com/s/, a 转存分享链). There are NO magnet candidates on this drive. A dead/expired share fails LOUD (分享不存在 / 已取消 / 已过期 / 提取码错误) — switch to the next covering share. Read the "dead-links-black-box" skill section: on this drive it is the 阿里云盘 version.`;
+  }
+  if (options.storageProvider === "pikpak") {
+    return `\nTRANSFER MODEL — PikPak (this drive): a candidate is either a PikPak分享链 (mypikpak.com/s/, saved instantly, a dead one fails LOUD) or a 磁力链接 (becomes an offline task; nothing landing within the wait window reports no_target_change). Prefer a covering share; on a magnet miss re-read staging once, then switch. Read the "dead-links-black-box" skill section: on this drive it is the PikPak version.`;
+  }
+  if (options.storageProvider === "cloud123") {
+    return `\nTRANSFER MODEL — 123云盘 离线下载 (this drive): every candidate is a 磁力/离线链接; transferCandidate creates an open-platform offline task and polls it for a bounded time. There is NO 分享链 转存 on this drive. A dead or slow magnet reports no_target_change with nothing landed — re-read staging once, then switch to the next covering magnet. Read the "dead-links-black-box" skill section: on this drive it is the 123 离线下载 version.`;
+  }
   return "";
 }
 

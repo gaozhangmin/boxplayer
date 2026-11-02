@@ -18,13 +18,17 @@ import { isPan123AuthError, parsePan123Uid } from "./pan123-client.js";
 import { isQuarkAuthError, parseQuarkUid } from "./quark-cookie-client.js";
 import { isTianyiAuthError, parseTianyiUid } from "./tianyi-client.js";
 
-export type StorageProvider = "pan115" | "quark" | "guangya" | "tianyi" | "pan123";
+// BoxPlayer patch: "aliyun" / "pikpak" / "cloud123" are drives BoxPlayer logs into itself
+// (cloud123 = 123 open-platform, offline-download only). Their executors live in BoxPlayer.
+export type StorageProvider = "pan115" | "quark" | "guangya" | "tianyi" | "pan123" | "aliyun" | "pikpak" | "cloud123";
 export type ResourceProviderKind =
   | "pansou-115"
   | "pansou-quark"
   | "pansou-magnet"
   | "pansou-tianyi"
   | "pansou-123"
+  | "pansou-aliyun"
+  | "pansou-pikpak"
   | "prowlarr";
 
 export interface StorageBrand {
@@ -122,7 +126,46 @@ export const STORAGE_BRANDS: StorageBrand[] = [
     provisionRootId: "0", // 123 个人云根
     requiredCredentialKeys: ["token"],
   },
+  // BoxPlayer patch: brands whose credentials and executors belong to the BoxPlayer host.
+  {
+    provider: "aliyun",
+    label: "阿里云盘",
+    parseUid: () => null,
+    isAuthError: isBoxPlayerDriveAuthError,
+    resourceProviderKinds: ["pansou-aliyun"],
+    assumeChineseSubsFromChineseTitle: true,
+    authKind: "token",
+    provisionRootId: "root",
+  },
+  {
+    provider: "pikpak",
+    label: "PikPak",
+    parseUid: () => null,
+    isAuthError: isBoxPlayerDriveAuthError,
+    resourceProviderKinds: ["pansou-pikpak", "pansou-magnet", "prowlarr"],
+    assumeChineseSubsFromChineseTitle: false,
+    authKind: "token",
+    provisionRootId: "",
+  },
+  {
+    provider: "cloud123",
+    label: "123云盘（离线下载）",
+    parseUid: () => null,
+    isAuthError: isBoxPlayerDriveAuthError,
+    resourceProviderKinds: ["pansou-magnet", "prowlarr"],
+    assumeChineseSubsFromChineseTitle: true,
+    authKind: "token",
+    provisionRootId: "0",
+  },
 ];
+
+/** BoxPlayer patch: BoxPlayer's executors mark a dead drive login with this prefix. */
+export const BOXPLAYER_DRIVE_AUTH_ERROR = "BOXPLAYER_DRIVE_AUTH";
+
+export function isBoxPlayerDriveAuthError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? "");
+  return message.includes(BOXPLAYER_DRIVE_AUTH_ERROR);
+}
 
 /**
  * Map a brand's resource-provider kinds to the PanSou link types its acquisitions
@@ -139,6 +182,13 @@ export function allowedResourceTypesForKinds(kinds: readonly string[]): Resource
   }
   if (kinds.includes("pansou-123")) {
     return ["123"];
+  }
+  // BoxPlayer patch: checked before the bare magnet kind — PikPak takes both.
+  if (kinds.includes("pansou-aliyun")) {
+    return ["aliyun"];
+  }
+  if (kinds.includes("pansou-pikpak")) {
+    return kinds.includes("pansou-magnet") ? ["pikpak", "magnet"] : ["pikpak"];
   }
   if (kinds.includes("pansou-magnet")) {
     return ["magnet"];

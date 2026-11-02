@@ -162,6 +162,76 @@ When a 光鸭 transfer fails with a SYSTEMIC message — "配额不足" / "额�
   - Does not cover → treat it as a dead candidate, clean its staging residue with deleteFiles, try the next.
 - For an ongoing show's just-aired episode, a black-box resource whose publish time predates that episode's air time almost certainly does NOT contain it — do not bet on it.`;
 
+// BoxPlayer patch: sections for the BoxPlayer-hosted aliyun / pikpak / cloud123 brands.
+const DEAD_LINKS_BLACK_BOX_ALIYUN = `# Dead links, 转存, and black-box resources (阿里云盘)
+
+> 提醒:raw 候选已预搜好,先 viewResourceSnapshot() 通读活期文档再动手;searchResources 只用于繁体/英文升级,别拿画质/字幕词搜。
+
+## How transfer works on THIS drive (阿里云盘)
+The drive is 阿里云盘. Every candidate is a 阿里云盘分享链 (alipan.com/s/<id> or aliyundrive.com/s/<id>) — a 转存分享: the system opens the share and saves its top-level files into staging. transferCandidate returns the TRUE materialized files (the system rereads for you). Trust THAT, not your prediction.
+
+## 无磁力
+阿里云盘 has NO magnet / offline-download API here, so there are NO magnet candidates (the resource provider only surfaces 阿里云盘分享链). Every candidate either lands or fails loud.
+
+## Fail-loud (a dead / expired / wrong share)
+A dead 阿里云盘分享 fails LOUD — "分享不存在 / 已取消 / 已过期", "提取码错误". A dead link is the NORM, never a reason to give up — try the next covering share. For a movie, transferUntilLanded over your ranked shares burns through the dead ones automatically.
+
+## SYSTEMIC BLOCK (别甩锅)
+When a transfer fails with a SYSTEMIC message — "配额不足" / "额度已用完" / "容量不足" / "VIP会员" / "登录" / "鉴权" / 离线下载被限 — the resource EXISTS but the ACCOUNT is blocked (quota / auth / VIP). The tool result carries \`systemicBlock: { reason: "..." }\`. **立即停 — DO NOT keep transferring.** Every candidate will fail the same way. Report honestly: the resource was found, the account cannot transfer it (not "no resource"). This is actionable (top up / re-login), never blame the resource.
+
+## Black-box gate (same discipline as 115)
+"Transparent" = the title states size / resolution / episodes / release group. "Black-box / opaque" = a bare name or a vague bundle.
+- If a TRANSPARENT candidate clearly covers the need, select ONLY it and STOP. Do NOT also transfer opaque ones "just in case".
+- ONLY when ZERO transparent candidate covers may you fall back to a black-box one. When you do, your VERY NEXT step after it lands MUST be inspectStaging to VERIFY it actually holds the target — black-box coverage is UNPROVEN until you read the real files.
+  - Verified to cover → process it (move / dedup / mark) and finish. Do NOT keep searching for a "better" one.
+  - Does not cover → treat it as a dead candidate, clean its staging residue with deleteFiles, try the next.
+- For an ongoing show's just-aired episode, a black-box resource whose publish time predates that episode's air time almost certainly does NOT contain it — do not bet on it.`;
+
+const DEAD_LINKS_BLACK_BOX_PIKPAK = `# Dead links, magnets, and black-box resources (PikPak)
+
+> 提醒:raw 候选已预搜好,先 viewResourceSnapshot() 通读活期文档再动手;searchResources 只用于繁体/英文升级,别拿画质/字幕词搜。
+
+## How transfer works on THIS drive (PikPak)
+The drive is PikPak. A candidate is either a PikPak分享链 (mypikpak.com/s/<id>) — saved into staging immediately — or a 磁力/离线链接, which becomes a PikPak offline task the system polls for a bounded time. transferCandidate returns the TRUE materialized files (the system rereads for you). Trust THAT, not your prediction.
+
+## Shares fail loud, magnets may not
+A dead share fails LOUD ("分享不存在 / 已过期 / 提取码错误") — switch to the next covering candidate. A magnet can instead report no_target_change: the offline task was accepted but nothing landed within the wait window (no seeds, or a slow download). Re-read staging once (inspectStaging) before writing it off; if still nothing, treat it as dead and move to the next covering candidate. Prefer a covering share over a magnet when both exist.
+
+## SYSTEMIC BLOCK (别甩锅)
+When a transfer fails with a SYSTEMIC message — "配额不足" / "额度已用完" / "容量不足" / "VIP会员" / "登录" / "鉴权" / 离线下载被限 — the resource EXISTS but the ACCOUNT is blocked (quota / auth / VIP). The tool result carries \`systemicBlock: { reason: "..." }\`. **立即停 — DO NOT keep transferring.** Every candidate will fail the same way. Report honestly: the resource was found, the account cannot transfer it (not "no resource"). This is actionable (top up / re-login), never blame the resource.
+
+## Black-box gate (same discipline as 115)
+"Transparent" = the title states size / resolution / episodes / release group. "Black-box / opaque" = a bare name or a vague bundle.
+- If a TRANSPARENT candidate clearly covers the need, select ONLY it and STOP. Do NOT also transfer opaque ones "just in case".
+- ONLY when ZERO transparent candidate covers may you fall back to a black-box one. When you do, your VERY NEXT step after it lands MUST be inspectStaging to VERIFY it actually holds the target — black-box coverage is UNPROVEN until you read the real files.
+  - Verified to cover → process it (move / dedup / mark) and finish. Do NOT keep searching for a "better" one.
+  - Does not cover → treat it as a dead candidate, clean its staging residue with deleteFiles, try the next.
+- For an ongoing show's just-aired episode, a black-box resource whose publish time predates that episode's air time almost certainly does NOT contain it — do not bet on it.`;
+
+const DEAD_LINKS_BLACK_BOX_OFFLINE_ONLY = `# Dead magnets, offline tasks, and black-box resources (123云盘 离线下载)
+
+> 提醒:raw 候选已预搜好,先 viewResourceSnapshot() 通读活期文档再动手;searchResources 只用于繁体/英文升级,别拿画质/字幕词搜。
+
+## How transfer works on THIS drive (123 离线下载)
+The drive is 123云盘 through its open-platform offline download. Every candidate is a 磁力/离线链接. transferCandidate creates an offline task and polls it for a bounded time, then returns the TRUE materialized files (the system rereads for you). Trust THAT, not your prediction.
+
+## 仅磁力
+This drive takes ONLY magnet/offline links — 分享链 转存 is not available here, so the resource provider only surfaces 磁力 candidates. If a candidate is a share rather than a magnet, skip it.
+
+## Dead or slow magnets
+A magnet can be dead (no seeds) or slower than the wait window; both report no_target_change with nothing landed. Re-read staging once (inspectStaging) before writing it off; if still nothing, switch to the NEXT covering magnet. A dead magnet is the NORM, never a reason to give up.
+
+## SYSTEMIC BLOCK (别甩锅)
+When a transfer fails with a SYSTEMIC message — "配额不足" / "额度已用完" / "容量不足" / "VIP会员" / "登录" / "鉴权" / 离线下载被限 — the resource EXISTS but the ACCOUNT is blocked (quota / auth / VIP). The tool result carries \`systemicBlock: { reason: "..." }\`. **立即停 — DO NOT keep transferring.** Every candidate will fail the same way. Report honestly: the resource was found, the account cannot transfer it (not "no resource"). This is actionable (top up / re-login), never blame the resource.
+
+## Black-box gate (same discipline as 115)
+"Transparent" = the title states size / resolution / episodes / release group. "Black-box / opaque" = a bare name or a vague bundle.
+- If a TRANSPARENT candidate clearly covers the need, select ONLY it and STOP. Do NOT also transfer opaque ones "just in case".
+- ONLY when ZERO transparent candidate covers may you fall back to a black-box one. When you do, your VERY NEXT step after it lands MUST be inspectStaging to VERIFY it actually holds the target — black-box coverage is UNPROVEN until you read the real files.
+  - Verified to cover → process it (move / dedup / mark) and finish. Do NOT keep searching for a "better" one.
+  - Does not cover → treat it as a dead candidate, clean its staging residue with deleteFiles, try the next.
+- For an ongoing show's just-aired episode, a black-box resource whose publish time predates that episode's air time almost certainly does NOT contain it — do not bet on it.`;
+
 const DEDUP = `# Deduplication (keep the larger, by real size)
 
 Overlapping ranges (1-10, 8-13) or a fuller pack on top of what a season already has WILL create duplicate episodes once you extract. When the same episode has more than one file:
@@ -349,6 +419,16 @@ export function getStorageSkill(provider: string): string {
   }
   if (provider === "pan115") {
     return DEAD_LINKS_BLACK_BOX;
+  }
+  // BoxPlayer patch.
+  if (provider === "aliyun") {
+    return DEAD_LINKS_BLACK_BOX_ALIYUN;
+  }
+  if (provider === "pikpak") {
+    return DEAD_LINKS_BLACK_BOX_PIKPAK;
+  }
+  if (provider === "cloud123") {
+    return DEAD_LINKS_BLACK_BOX_OFFLINE_ONLY;
   }
   throw new Error(`unknown storage brand: ${provider}`);
 }

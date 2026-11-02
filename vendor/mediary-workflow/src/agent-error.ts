@@ -44,6 +44,8 @@ const BRAND_AUTH_MARKERS = [
   "pan115",
   "tianyi",
   "pan123",
+  // BoxPlayer patch: BoxPlayer-hosted drive login failures.
+  "boxplayer_drive_auth",
   "pan115autherror",
   "quarkautherror",
   "guangyaautherror",

@@ -17,11 +17,15 @@ function makeGuangYaJwt(payload: Record<string, unknown>): string {
 }
 
 describe("storage brand registry", () => {
-  it("registers exactly pan115 + quark + guangya + tianyi + pan123", () => {
+  // BoxPlayer patch: + the BoxPlayer-hosted aliyun / pikpak / cloud123 brands.
+  it("registers exactly pan115 + quark + guangya + tianyi + pan123 + the BoxPlayer brands", () => {
     expect(STORAGE_BRANDS.map((b) => b.provider).sort()).toEqual([
+      "aliyun",
+      "cloud123",
       "guangya",
       "pan115",
       "pan123",
+      "pikpak",
       "quark",
       "tianyi",
     ]);
