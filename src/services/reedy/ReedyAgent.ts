@@ -46,6 +46,7 @@ export async function runReedyStream(config: ReedyChatConfig, callbacks: ReedySt
         query: z.string().min(1).max(MAX_QUERY_CHARS).describe('Search query for finding relevant passages in the book'),
         topK: z.number().int().min(1).max(MAX_TOP_K).default(5).describe('Maximum number of passages to return')
       }),
+      permission: 'read',
       execute: async (args: { query: string; topK: number }) => {
         const { query, topK } = args
         callbacks.onToolCall?.('lookupPassage', { query, topK })
@@ -117,6 +118,7 @@ export async function runReedyStream(config: ReedyChatConfig, callbacks: ReedySt
         text: z.string().optional().describe('The cited text (brief excerpt)'),
         chapter: z.string().optional().describe('Chapter title for the citation')
       }),
+      permission: 'read',
       execute: async (args: { cfi: string; text?: string; chapter?: string }) => {
         callbacks.onCitation?.(args.cfi, args.chapter || '未知章节', args.text || '')
         return `Citation recorded for ${args.cfi}`
@@ -129,6 +131,7 @@ export async function runReedyStream(config: ReedyChatConfig, callbacks: ReedySt
     tools.getReadingContext = {
       description: 'ONLY use for questions about reading progress, position, or page location. Do NOT use for questions about book content, plot, characters, or themes — for those, call lookupPassage instead.',
       inputSchema: z.object({}),
+      permission: 'read',
       execute: async () => {
         const ctx = {
           bookHash: config.bookHash,

@@ -2,7 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import type { CreateMediaAcquisitionCandidateInput, CreateMediaAcquisitionRunInput, CreateMediaAcquisitionTrackingInput, MediaAcquisitionEvent, MediaAcquisitionFileSnapshot, MediaAcquisitionNotification, MediaAcquisitionPhase, MediaAcquisitionRunView, MediaAcquisitionSeasonTarget, MediaAcquisitionState, MediaAcquisitionTarget, MediaAcquisitionTrackingItem } from '@shared/types/mediaAcquisition'
 import { MediaAcquisitionDb } from './MediaAcquisitionDb'
-import { mirrorMediaAcquisitionRun } from './MediaAcquisitionV1Bridge'
+import { mirrorMediaAcquisitionRun, settleMediaAcquisitionV1Transfer } from './MediaAcquisitionV1Bridge'
 
 let db: MediaAcquisitionDb | null = null
 
@@ -130,7 +130,9 @@ export function beginMediaAcquisitionOrganizing(runId: string, activity?: string
 }
 
 export function completeMediaAcquisitionCandidate(runId: string, candidateId: string, message: string): MediaAcquisitionRunView | null {
-  return getDb().completeCandidate(runId, candidateId, message)
+  const run = getDb().completeCandidate(runId, candidateId, message)
+  if (run?.status === 'completed') settleTransfer(runId, candidateId, 'succeeded', message)
+  return run
 }
 
 export function completeMediaAcquisitionRun(runId: string, message: string, data?: Record<string, unknown>): MediaAcquisitionRunView | null {
@@ -138,15 +140,30 @@ export function completeMediaAcquisitionRun(runId: string, message: string, data
 }
 
 export function partialMediaAcquisitionCandidate(runId: string, candidateId: string, message: string): MediaAcquisitionRunView | null {
-  return getDb().partialCandidate(runId, candidateId, message)
+  const run = getDb().partialCandidate(runId, candidateId, message)
+  if (run?.status === 'partial') settleTransfer(runId, candidateId, 'succeeded', message)
+  return run
 }
 
 export function continueMediaAcquisitionAfterPartial(runId: string, candidateId: string, seasonTargets: MediaAcquisitionSeasonTarget[], message: string): MediaAcquisitionRunView | null {
-  return getDb().continueAfterPartialCandidate(runId, candidateId, seasonTargets, message)
+  const run = getDb().continueAfterPartialCandidate(runId, candidateId, seasonTargets, message)
+  if (run?.status === 'selecting') settleTransfer(runId, candidateId, 'succeeded', message)
+  return run
 }
 
 export function failMediaAcquisitionCandidate(runId: string, candidateId: string, message: string, continueWithAlternatives = false): MediaAcquisitionRunView | null {
-  return getDb().failCandidate(runId, candidateId, message, continueWithAlternatives)
+  const run = getDb().failCandidate(runId, candidateId, message, continueWithAlternatives)
+  if (run?.candidates.find(item => item.id === candidateId)?.status === 'failed') settleTransfer(runId, candidateId, 'failed', message)
+  return run
+}
+
+/** These calls follow a readback of the target drive, so they settle a transfer receipt left pending or unknown. */
+function settleTransfer(runId: string, candidateId: string, status: 'succeeded' | 'failed', message: string): void {
+  try {
+    settleMediaAcquisitionV1Transfer(runId, candidateId, status, message)
+  } catch (error: any) {
+    console.warn(`[Agent V1 media] 核对转存回执失败：${error?.message || error}`)
+  }
 }
 
 export function addMediaAcquisitionEvent(runId: string, level: MediaAcquisitionEvent['level'], phase: MediaAcquisitionPhase, message: string, data?: Record<string, unknown>): MediaAcquisitionRunView | null {

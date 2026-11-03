@@ -165,4 +165,65 @@ describe('AgentLedgerDb', () => {
     expect(db.createWorkflow({ ...workflowInput, externalRef: 'workspace:legacy-task' }, 1000)).toMatchObject({ externalRef: 'workspace:legacy-task' })
     db.close()
   })
+
+  it('holds a pending outcome until a readback settles it, without retrying or expiring it', () => {
+    const db = createDb()
+    const workflow = db.createWorkflow(workflowInput, 1000)
+    const evidence = db.addEvidence(workflow.id, { source: 'scan', summary: '完成', data: {} }, 1100)
+    const action = actionFor(db, workflow.id, evidence.id)
+    const plan = db.createPlan(workflow.id, { summary: '清理', risk: '可恢复', evidenceIds: [evidence.id], actions: [action] }, 1200)
+    const grant = db.approvePlan(workflow.id, plan.hash, 1300, 60_000).executionGrant!
+    db.claimExecutionGrant('worker-a', 10_000, 1400)
+
+    const pending = db.recordActionReceipt(grant.id, 'worker-a', { actionId: action.id, idempotencyKey: action.idempotencyKey, status: 'pending', result: { taskId: 'task-1' } }, 1500)
+    expect(db.recordActionReceipt(grant.id, 'worker-a', { actionId: action.id, idempotencyKey: action.idempotencyKey, status: 'succeeded' }, 1600).id).toBe(pending.id)
+    expect(db.getWorkflow(workflow.id, 1700)).toMatchObject({ status: 'executing', executionGrant: { status: 'reconciling' }, receipts: [{ status: 'pending' }] })
+    expect(db.claimExecutionGrant('worker-b', 10_000, 20_000)).toBeNull()
+    expect(db.getWorkflow(workflow.id, 120_000)).toMatchObject({ status: 'executing', executionGrant: { status: 'reconciling' } })
+
+    expect(() => db.settleActionReceipt(grant.id, { actionId: action.id, idempotencyKey: action.idempotencyKey, status: 'succeeded', verification: { source: ' ', summary: '' } }, 121_000)).toThrow('必须附带网盘回读结果')
+    const settled = db.settleActionReceipt(grant.id, { actionId: action.id, idempotencyKey: action.idempotencyKey, status: 'succeeded', verification: { source: 'files info', summary: '文件已在回收站' } }, 122_000)
+    expect(settled).toMatchObject({ id: pending.id, status: 'succeeded', result: { taskId: 'task-1' }, verification: { source: 'files info', summary: '文件已在回收站' }, settledAt: 122_000 })
+    expect(db.getWorkflow(workflow.id, 123_000)).toMatchObject({ status: 'completed', executionGrant: { status: 'completed' }, plan: { status: 'completed' } })
+    expect(() => db.settleActionReceipt(grant.id, { actionId: action.id, idempotencyKey: action.idempotencyKey, status: 'failed', verification: { source: 'files info', summary: '不应改写' } }, 124_000)).toThrow('只有已提交或结果未知的回执可以核对')
+    db.close()
+  })
+
+  it('pauses a plan at an unknown outcome and resumes only the remaining actions after a successful readback', () => {
+    const db = createDb()
+    const workflow = db.createWorkflow(workflowInput, 1000)
+    const evidence = db.addEvidence(workflow.id, { source: 'scan', summary: '完成', data: {} }, 1100)
+    const first = actionFor(db, workflow.id, evidence.id)
+    const secondHandle = db.createResourceHandle(workflow.id, { evidenceId: evidence.id, kind: 'file', snapshot: { accountId: 'user-1', driveId: 'drive-1', resourceId: 'file-2', name: 'file-2' } }, 1150)
+    const second = { ...first, id: 'trash-file-2', label: '移入回收站：file-2', idempotencyKey: 'trash:user-1:drive-1:file-2', resourceHandleIds: [secondHandle.id] }
+    const plan = db.createPlan(workflow.id, { summary: '清理', risk: '可恢复', evidenceIds: [evidence.id], actions: [first, second] }, 1200)
+    const grant = db.approvePlan(workflow.id, plan.hash, 1300, 60_000).executionGrant!
+    db.claimExecutionGrant('worker-a', 10_000, 1400)
+
+    db.recordActionReceipt(grant.id, 'worker-a', { actionId: first.id, idempotencyKey: first.idempotencyKey, status: 'unknown', result: { message: 'timeout' } }, 1500)
+    expect(db.getWorkflow(workflow.id, 1600)).toMatchObject({ status: 'executing', executionGrant: { status: 'reconciling' } })
+    expect(() => db.recordActionReceipt(grant.id, 'worker-a', { actionId: second.id, idempotencyKey: second.idempotencyKey, status: 'succeeded' }, 1700)).toThrow('执行授权不可用或已过期')
+
+    db.settleActionReceipt(grant.id, { actionId: first.id, idempotencyKey: first.idempotencyKey, status: 'succeeded', verification: { source: 'files info', summary: '文件已移走' } }, 1800)
+    expect(db.getWorkflow(workflow.id, 1900)).toMatchObject({ status: 'executing', executionGrant: { status: 'pending' }, receipts: [{ status: 'succeeded' }] })
+    expect(db.claimExecutionGrant('worker-b', 10_000, 2000)?.id).toBe(grant.id)
+    db.recordActionReceipt(grant.id, 'worker-b', { actionId: second.id, idempotencyKey: second.idempotencyKey, status: 'succeeded' }, 2100)
+    expect(db.getWorkflow(workflow.id, 2200)).toMatchObject({ status: 'completed', executionGrant: { status: 'completed' } })
+    db.close()
+  })
+
+  it('fails the workflow when a readback shows that an unknown action did not take effect', () => {
+    const db = createDb()
+    const workflow = db.createWorkflow(workflowInput, 1000)
+    const evidence = db.addEvidence(workflow.id, { source: 'scan', summary: '完成', data: {} }, 1100)
+    const action = actionFor(db, workflow.id, evidence.id)
+    const plan = db.createPlan(workflow.id, { summary: '清理', risk: '可恢复', evidenceIds: [evidence.id], actions: [action] }, 1200)
+    const grant = db.approvePlan(workflow.id, plan.hash, 1300, 60_000).executionGrant!
+    db.claimExecutionGrant('worker-a', 10_000, 1400)
+    db.recordActionReceipt(grant.id, 'worker-a', { actionId: action.id, idempotencyKey: action.idempotencyKey, status: 'unknown' }, 1500)
+
+    db.settleActionReceipt(grant.id, { actionId: action.id, idempotencyKey: action.idempotencyKey, status: 'failed', verification: { source: 'files info', summary: '文件仍在原目录' } }, 1600)
+    expect(db.getWorkflow(workflow.id, 1700)).toMatchObject({ status: 'failed', executionGrant: { status: 'failed' }, receipts: [{ status: 'failed', verification: { summary: '文件仍在原目录' } }] })
+    db.close()
+  })
 })

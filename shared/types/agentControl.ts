@@ -1,8 +1,15 @@
 export type AgentSurface = 'ai_search' | 'workspace' | 'media_acquisition' | 'document_reading'
 export type AgentWorkflowStatus = 'gathering_evidence' | 'awaiting_approval' | 'approved' | 'executing' | 'completed' | 'failed' | 'cancelled' | 'expired'
 export type AgentPlanStatus = 'awaiting_approval' | 'approved' | 'completed' | 'failed' | 'cancelled' | 'stale'
-export type AgentExecutionGrantStatus = 'pending' | 'claimed' | 'completed' | 'failed' | 'expired'
-export type AgentReceiptStatus = 'succeeded' | 'failed'
+/** `reconciling`: every recorded action has run, but at least one outcome still needs a readback before the grant can finish. */
+export type AgentExecutionGrantStatus = 'pending' | 'claimed' | 'reconciling' | 'completed' | 'failed' | 'expired'
+/**
+ * `pending`: submitted to the provider and still running there (an offline download, an async share import).
+ * `unknown`: the call may or may not have changed the drive (a timeout, an unreadable response).
+ * Neither may be retried: settle them from a readback of the drive's actual state.
+ */
+export type AgentReceiptStatus = 'succeeded' | 'failed' | 'pending' | 'unknown'
+export type AgentSettledReceiptStatus = Extract<AgentReceiptStatus, 'succeeded' | 'failed'>
 export type AgentActionKind = 'move' | 'trash' | 'import_share' | 'download' | 'offline_download'
 export type AgentResourceKind = 'file' | 'folder' | 'share' | 'external_source'
 
@@ -107,7 +114,15 @@ export interface AgentActionReceipt {
   idempotencyKey: string
   status: AgentReceiptStatus
   result?: Record<string, unknown>
+  /** The readback that turned a pending or unknown outcome into a final one. */
+  verification?: AgentReceiptVerification
   createdAt: number
+  settledAt?: number
+}
+
+export interface AgentReceiptVerification {
+  source: string
+  summary: string
 }
 
 export interface AgentLedgerEvent {
@@ -161,5 +176,13 @@ export interface RecordAgentActionReceiptInput {
   actionId: string
   idempotencyKey: string
   status: AgentReceiptStatus
+  result?: Record<string, unknown>
+}
+
+export interface SettleAgentActionReceiptInput {
+  actionId: string
+  idempotencyKey: string
+  status: AgentSettledReceiptStatus
+  verification: AgentReceiptVerification
   result?: Record<string, unknown>
 }

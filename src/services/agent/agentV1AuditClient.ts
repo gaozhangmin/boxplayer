@@ -1,4 +1,4 @@
-import type { AgentWorkflowView } from '@shared/types/agentControl'
+import type { AgentReceiptStatus, AgentWorkflowView } from '@shared/types/agentControl'
 
 export interface AiSearchV1AuditTarget {
   userId: string
@@ -75,8 +75,8 @@ export function beginMediaAcquisitionV1Transfer(runId: string, candidateId: stri
   return invoke('agentV1:media:beginTransfer', runId, candidateId, reason)
 }
 
-export function completeMediaAcquisitionV1Transfer(ticket: MediaAcquisitionV1TransferTicket, success: boolean, message: string): Promise<void> {
-  return invoke('agentV1:media:completeTransfer', ticket, success, message)
+export function completeMediaAcquisitionV1Transfer(ticket: MediaAcquisitionV1TransferTicket, status: AgentReceiptStatus, message: string): Promise<void> {
+  return invoke('agentV1:media:completeTransfer', ticket, status, message)
 }
 
 export function beginDocumentV1Audit(input: { sessionId: string; runId: string; goal: string; sources: DocumentAgentV1Source[] }): Promise<string | null> {

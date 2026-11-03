@@ -6,6 +6,7 @@ import useSettingStore from '../../setting/settingstore'
 import { getAIConfig } from '../../utils/bookAI'
 import { runBoxPlayerAgent } from '../agent'
 import { beginMediaAcquisitionV1Transfer, completeMediaAcquisitionV1Transfer, type MediaAcquisitionV1TransferTicket } from '../agent/agentV1AuditClient'
+import { mediaTransferReceiptOutcome } from './transferReceipt'
 import { z } from 'zod'
 import type { MediaAcquisitionCandidate, MediaAcquisitionFileSnapshot, MediaAcquisitionRunView, MediaAcquisitionSeasonTarget, MediaAcquisitionTarget, MediaAcquisitionTrackingItem } from '@shared/types/mediaAcquisition'
 import { searchAdditionalMediaAcquisitionCandidates, searchMediaAcquisitionCandidates } from './agent'
@@ -447,6 +448,7 @@ async function runMediaAcquisitionSandboxSelection(run: MediaAcquisitionRunView,
           description: '列出当前任务可选择的候选资源。',
           inputSchema: z.object({}),
           allowErrorResult: true,
+          permission: 'read',
           execute: () => {
             const snapshot = sandboxCandidates(run, candidates)
             const snapshotId = crypto.randomUUID()
@@ -458,6 +460,7 @@ async function runMediaAcquisitionSandboxSelection(run: MediaAcquisitionRunView,
           description: '查看本次资源搜索快照，包括搜索关键词、兼容候选摘要和候选排序依据。用于在选择候选前回看搜索过程。',
           inputSchema: z.object({}),
           allowErrorResult: true,
+          permission: 'read',
           execute: async () => asMediaAcquisitionAgentEvidence(async () => {
             const latestRun = (await listMediaAcquisitionRuns(200)).find(item => item.id === run.id) || run
             candidates = agentVisibleCandidates(latestRun)
@@ -526,6 +529,7 @@ async function runMediaAcquisitionSandboxSelection(run: MediaAcquisitionRunView,
           description: '读取目标入库目录快照。可传 season 查看指定季；多季任务不传时会逐季返回覆盖事实。',
           inputSchema: z.object({ season: z.number().int().positive().optional() }),
           allowErrorResult: true,
+          permission: 'read',
           execute: async (args: { season?: number }) => asMediaAcquisitionAgentEvidence(async () => {
             const isMovie = run.target.mediaType === 'movie'
             const seasons = args.season ? [args.season] : mediaAcquisitionSeasonTargets(run.target).map(target => target.seasonNumber)
@@ -608,9 +612,8 @@ async function runMediaAcquisitionSandboxSelection(run: MediaAcquisitionRunView,
           })
             if (ticket && context) {
               mediaTransferTickets.delete(context.toolCallId)
-              const submitted = !!(result && typeof result === 'object' && (result as { submitted?: unknown }).submitted === true)
-              const message = submitted ? '网盘转存已提交，等待落盘核验' : String((result && typeof result === 'object' && (result as { error?: unknown }).error) || '网盘未提交候选转存')
-              await completeMediaAcquisitionV1Transfer(ticket, submitted, message)
+              const outcome = mediaTransferReceiptOutcome(result)
+              await completeMediaAcquisitionV1Transfer(ticket, outcome.status, outcome.message)
             }
             return result
           }
@@ -685,6 +688,7 @@ async function runMediaAcquisitionSandboxSelection(run: MediaAcquisitionRunView,
           description: '读取当前候选暂存目录的真实新增文件。转存后必须先调用此工具，返回的文件 ID 才能用于整理。',
           inputSchema: z.object({}),
           allowErrorResult: true,
+          permission: 'read',
           execute: () => asMediaAcquisitionAgentEvidence(async () => {
             if (!active) return { error: '当前尚未有已转存候选。请先选择并转存资源。' }
             const evidence = await inspectLandedMediaFiles(run, active)
@@ -822,6 +826,7 @@ async function runMediaAcquisitionSandboxSelection(run: MediaAcquisitionRunView,
           description: '读取当前暂存视频可用的外挂中文字幕候选。字幕应先落到此暂存目录，再与视频一起分发到季目录。',
           inputSchema: z.object({}),
           allowErrorResult: true,
+          permission: 'read',
           execute: () => asMediaAcquisitionAgentEvidence(async () => {
             if (!active || !observedStagingFileIds.size) return { error: '请先调用 inspectStaging，确认暂存视频后再查看字幕。' }
             const evidence = await inspectLandedMediaFiles(run, active)

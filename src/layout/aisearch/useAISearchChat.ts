@@ -719,6 +719,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           listDrives: {
             description: '列出已登录网盘；传 platforms 时只返回这些平台。多个账号时让用户在界面中选择。',
             inputSchema: z.object({ platforms: z.array(z.string()).optional().describe('可选的平台筛选，如 ["aliyun"]') }),
+            permission: 'read',
             execute: async (args: any) => {
               const users = await UserDAL.GetUserListFromDB()
 	              const platforms = args.platforms?.length ? args.platforms : explicitPlatforms
@@ -748,6 +749,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           getConnectedDriveCapabilities: {
             description: '读取当前已登录网盘及其运行时能力清单，用于判断某个平台是否支持搜索、下载、移动、分享、回收站等操作',
             inputSchema: z.object({}),
+            permission: 'read',
             execute: async () => {
               const users = await UserDAL.GetUserListFromDB()
               return users.filter(user => user?.user_id && user?.access_token).map(user => {
@@ -761,6 +763,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           getBoxPlayerCapabilities: {
             description: '查询 BoxPlayer 已注册功能、可执行工具和安全限制；用于回答“你能做什么”或确认模块能力边界',
             inputSchema: z.object({ capabilityId: z.string().optional().describe('功能 ID，如 cloud-files、upload、playback、media-server、settings；不传返回全部') }),
+            permission: 'read',
             execute: async (args: any) => {
               const capability = args.capabilityId ? getBoxPlayerCapability(args.capabilityId) : undefined
               if (args.capabilityId && !capability) return { error: `未知功能：${args.capabilityId}` }
@@ -771,6 +774,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           listMediaAcquisitionTasks: {
             description: '查看媒体获取 Agent 的实时任务队列、进度和最近事件。只读，不会创建或修改任务。',
             inputSchema: z.object({ limit: z.number().int().min(1).max(100).optional().describe('最多返回多少条任务，默认 20') }),
+            permission: 'read',
             execute: async (args: any) => {
               const runs = await listMediaAcquisitionRuns(args.limit || 20)
               return {
@@ -798,6 +802,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           listMediaAcquisitionTracking: {
             description: '查看正在追更的剧集、已播缺集、已获取集数和下次巡检时间。只读。',
             inputSchema: z.object({ limit: z.number().int().min(1).max(100).optional().describe('最多返回多少条追更记录，默认 50') }),
+            permission: 'read',
             execute: async (args: any) => {
               const items = await listMediaAcquisitionTracking(args.limit || 50)
               return {
@@ -822,6 +827,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           listMediaAcquisitionNotifications: {
             description: '查看媒体获取完成、部分完成、失败、取消或暂无资源的通知。只读。',
             inputSchema: z.object({ limit: z.number().int().min(1).max(100).optional().describe('最多返回多少条通知，默认 50') }),
+            permission: 'read',
             execute: async (args: any) => {
               const notifications = await listMediaAcquisitionNotifications(args.limit || 50)
               return {
@@ -845,6 +851,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           openBoxPlayerModule: {
             description: '打开一个已注册的 BoxPlayer 模块页面；仅进行界面导航，不会修改任何数据或设置',
             inputSchema: z.object({ capabilityId: z.string().describe('功能 ID，如 upload、playback、media-server、books、settings') }),
+            permission: 'navigate',
             execute: async (args: any) => {
               const capability = getBoxPlayerCapability(args.capabilityId)
               if (!capability?.tab) return { error: `该功能当前不能打开：${args.capabilityId}` }
@@ -857,6 +864,8 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           rememberPreference: {
             description: '保存用户明确要求长期记住的偏好，例如默认网盘、常用整理方式或内容偏好；仅本机保存，不能记录密钥、密码、令牌或敏感内容',
             inputSchema: z.object({ key: z.string().describe('简短、稳定的偏好键名'), summary: z.string().describe('用户明确要求记住的偏好描述') }),
+            // 只写入用户明确要求保存的本机偏好记忆，不修改网盘数据；用户可在记忆列表中删除。
+            permission: 'read',
             execute: async (args: any) => {
               if (/密码|token|密钥|secret|access[_-]?token/i.test(`${args.key} ${args.summary}`)) return { error: '不能保存密码、令牌或密钥到长期记忆' }
               const memory = await rememberWorkspaceFact(args.key, args.summary, userMsgId)
@@ -869,6 +878,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           analyzeActiveDocument: {
             description: '本机解析并索引当前工作台上下文中的 PDF、DOCX、EPUB、TXT 或 Markdown 文档；回答时最多将 5 个检索片段发送给已配置的 AI 模型，只能基于检索到的文档内容回答',
             inputSchema: z.object({ query: z.string().describe('对当前文档的分析问题，例如“概括核心内容和风险”') }),
+            permission: 'read',
             execute: async (args: any) => {
               const document = getActiveDocumentDetails()
               if (!document) return { error: '当前没有可分析的文档。请从网盘文件右键选择“用 AI 分析”。' }
@@ -907,6 +917,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
               keyword: z.string().describe('搜索关键词'),
               platforms: z.array(z.string()).optional().describe('限定搜索的网盘平台名列表，如 ["aliyun","baidu"]'),
             }),
+            permission: 'read',
             execute: async (args: any) => {
               const keyword = args.keyword
               const requestedPlatforms = args.platforms?.length ? args.platforms : explicitPlatforms
@@ -948,6 +959,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           searchPanHub: {
             description: '搜索全网公开网盘分享链接',
             inputSchema: z.object({ keyword: z.string().describe('搜索关键词') }),
+            permission: 'read',
             execute: async (args: any) => {
               const keyword = args.keyword
               const panHubUsage = checkAndIncrement('panHubSearch')
@@ -1025,6 +1037,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
             inputSchema: z.object({
               jsonText: z.string().describe('秒传 JSON 文本'),
             }),
+            permission: 'read',
             execute: async (args: any) => {
               appendPart(aiMsgId, { type: 'tool-miaochuan', state: 'parsing' } as MessagePart)
               scrollBottom()
@@ -1057,6 +1070,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
               jsonText: z.string().describe('秒传 JSON 文本'),
               parentId: z.string().optional().describe('光鸭目标目录 ID，默认根目录 guangya_root'),
             }),
+            permission: 'write',
             execute: async (args: any) => {
               const parsed = normalizeMiaochuanPayload(args.jsonText || '')
               if (!parsed.files.length) {
@@ -1089,6 +1103,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
               files: z.array(z.object({ name: z.string(), fileId: z.string(), driveId: z.string(), userId: z.string(), isDir: z.boolean().optional(), size: z.number().optional() })),
               format: z.enum(['url', 'aria2']).optional().describe('导出格式，默认 aria2'),
             }),
+            permission: 'read',
             execute: async (args: any) => {
               const files = args.files || []
               const format: DirectLinkFormat = args.format || 'aria2'
@@ -1145,6 +1160,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
               text: z.string().describe('包含 magnet 链接的文本或 JSON'),
               parentId: z.string().optional().describe('光鸭目标目录 ID，默认根目录 guangya_root'),
             }),
+            permission: 'write',
             execute: async (args: any) => {
               const magnets = extractMagnetLinks(args.text || '')
               if (!magnets.length) {
@@ -1175,6 +1191,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
               platform: z.string().optional().describe('网盘平台名，如 aliyun、quark、guangya、baidu'),
               rootId: z.string().optional().describe('扫描根目录 ID；不传则使用该网盘根目录'),
             }),
+            permission: 'read',
             execute: async (args: any) => {
               const targets = selectedDriveTargets.length
                 ? await buildSelectedDriveTargetsForTool(selectedDriveTargets)
@@ -1223,6 +1240,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
             inputSchema: z.object({
               dirs: z.array(z.object({ name: z.string(), fileId: z.string(), parentFileId: z.string(), driveId: z.string(), userId: z.string(), path: z.string() })),
             }),
+            permission: 'write',
             execute: async (args: any) => {
               const dirs = args.dirs || []
               if (!dirs.length) return { pending: false, total: 0 }
@@ -1239,6 +1257,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
               url: z.string().describe('分享链接 URL'),
               password: z.string().optional().describe('提取码'),
             }),
+            permission: 'write',
             execute: async (args: any) => {
               const { url, password } = args
               const isQuark = /pan\.quark\.cn\/s\//.test(url)
@@ -1326,6 +1345,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           downloadFiles: {
             description: '添加文件下载任务',
             inputSchema: z.object({ files: z.array(z.object({ name: z.string(), fileId: z.string(), driveId: z.string(), userId: z.string() })) }),
+            permission: 'write',
             execute: async (args: any) => {
               const files = args.files || []
               if (!files.length) return { total: 0, success: 0 }
@@ -1351,6 +1371,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
 	          findDuplicates: {
 	            description: '扫描云盘查找重复文件；mode=helperName 匹配光鸭助手的 (1)/(2)/(3) 命名规则，mode=contentHash 按文件内容哈希判重',
 	            inputSchema: z.object({ platforms: z.array(z.string()).optional().describe('网盘平台名列表，如 ["aliyun","baidu"]'), mode: z.enum(['helperName', 'contentHash']).optional().describe('判重模式，默认 helperName') }),
+	            permission: 'read',
 	            execute: async (args: any) => {
 	              const unsupported = unsupportedPlatformToolMessage(args.platforms, 'findDuplicates')
 	              if (unsupported) return { error: unsupported }
@@ -1387,6 +1408,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
 	              mode: z.enum(['size', 'video', 'doc', 'zip', 'others', 'size5000', 'size1000', 'size100']).optional().describe('扫描模式，默认 size1000'),
 	              customSizeMB: z.number().optional().describe('mode=size 时使用的阈值，单位 MB')
 	            }),
+	            permission: 'read',
 	            execute: async (args: any) => {
 	              const unsupported = unsupportedPlatformToolMessage(args.platforms, 'scanDriveLargeFiles')
 	              if (unsupported) return { error: unsupported }
@@ -1432,6 +1454,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           analyzeStorage: {
             description: '分析存储空间使用情况，platforms 参数指定要分析的网盘',
             inputSchema: z.object({ platforms: z.array(z.string()).optional().describe('网盘平台名列表') }),
+            permission: 'read',
             execute: async (args: any) => {
 	              const requestedPlatforms = args.platforms?.length ? args.platforms : explicitPlatforms
 	              const unsupported = unsupportedPlatformToolMessage(requestedPlatforms, 'analyzeStorage')
@@ -1477,6 +1500,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           categorizeFiles: {
             description: '分析文件类型分布，platforms 参数指定要分类的网盘',
             inputSchema: z.object({ platforms: z.array(z.string()).optional().describe('网盘平台名列表') }),
+            permission: 'read',
             execute: async (args: any) => {
 	              const requestedPlatforms = args.platforms?.length ? args.platforms : explicitPlatforms
 	              const unsupported = unsupportedPlatformToolMessage(requestedPlatforms, 'categorizeFiles')
@@ -1520,6 +1544,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
 	          moveFiles: {
 	            description: '移动文件到指定目录（需要用户确认）',
 	            inputSchema: z.object({ files: z.array(z.object({ name: z.string(), fileId: z.string(), driveId: z.string(), userId: z.string() })), targetDir: z.string() }),
+	            permission: 'write',
 	            execute: async (args: any) => {
               const { files, targetDir } = args
               if (!files?.length) return { total: 0, success: 0 }
@@ -1538,6 +1563,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
 	              files: z.array(z.object({ name: z.string(), fileId: z.string(), driveId: z.string(), userId: z.string(), parentFileId: z.string().optional() })),
 	              targetDir: z.string().optional().describe('目标目录 ID；moveToParent 可不传，默认使用第一个文件的 parentFileId')
 	            }),
+	            permission: 'write',
 	            execute: async (args: any) => {
 	              const files = args.files || []
 	              if (!files.length) return { total: 0, success: 0 }
@@ -1557,6 +1583,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
 	              files: z.array(z.object({ name: z.string(), fileId: z.string(), driveId: z.string(), userId: z.string(), isDir: z.boolean().optional() })),
 	              rootParentId: z.string().describe('整理根目录 ID，通常是当前目录 ID')
 	            }),
+	            permission: 'write',
 	            execute: async (args: any) => {
 	              const files = args.files || []
 	              if (!files.length || !args.rootParentId) return { total: 0, success: 0, error: 'missing files or rootParentId' }
@@ -1576,6 +1603,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
               category: z.enum(['trending','popular','top_rated']).optional().describe('类别：trending=热映, popular=流行, top_rated=高分'),
               page: z.number().optional().describe('页码，默认1'),
             }),
+            permission: 'read',
             execute: async (args: any) => {
               const category: string = args.category || 'trending'
               const page = args.page || 1
@@ -1644,6 +1672,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           getDoubanMovies: {
             description: '获取豆瓣电影排行榜（Top250、新片榜、口碑榜、北美票房），用户想看热门电影或了解最近什么电影好看时调用',
             inputSchema: z.object({ category: z.enum(['douban-top250','douban-movie','douban-weekly','douban-us-box']).optional().describe('排行榜类别，默认douban-top250') }),
+            permission: 'read',
             execute: async (args: any) => {
               const category = args.category || 'douban-top250'
               appendPart(aiMsgId, { type: 'tool-getMovies', state: 'loading', category } as MessagePart)
@@ -1670,6 +1699,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           searchTMDB: {
             description: '在 TMDB 中搜索电影和电视剧，查询详细的影视信息',
             inputSchema: z.object({ query: z.string().describe('搜索关键词') }),
+            permission: 'read',
             execute: async (args: any) => {
               const query = args.query
               appendPart(aiMsgId, { type: 'tool-getMovies', state: 'loading', category: `搜索: ${query}` } as MessagePart)
@@ -1713,6 +1743,7 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
 	          deleteFiles: {
 	            description: '将文件移入回收站（需要用户确认）；仅支持明确有回收站能力的网盘，不支持的网盘会拒绝执行',
             inputSchema: z.object({ files: z.array(z.object({ name: z.string(), fileId: z.string(), driveId: z.string(), userId: z.string() })) }),
+            permission: 'destructive',
             execute: async (args: any) => {
               const { files } = args
               if (!files?.length) return { total: 0, success: 0 }
@@ -1947,12 +1978,23 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
   async function watchAiSearchV1Write(msgId: string, partIndex: number, workflowId: string): Promise<void> {
     // Match the default execution-grant lifetime. Large confirmed batches may
     // need several minutes because every item is re-read before the write.
+    let reconcilingPolls = 0
     for (let attempt = 0; attempt < 600; attempt++) {
       await new Promise(resolve => window.setTimeout(resolve, 1_000))
       const workflow = await getAgentV1Workflow(workflowId)
       const message = messages.value.find(item => item.id === msgId)
       const part = message?.parts[partIndex] as any
       if (!workflow || !part || part.state !== 'running') return
+      // The executor reads the drive back right after an unknown outcome, so only a lasting pause is reported.
+      reconcilingPolls = workflow.executionGrant?.status === 'reconciling' ? reconcilingPolls + 1 : 0
+      if (reconcilingPolls >= 10) {
+        const unsettled = workflow.receipts.filter(item => item.status === 'pending' || item.status === 'unknown').length
+        part.state = 'error'
+        part.error = `Agent V1 无法确认 ${unsettled} 项操作是否已生效，已暂停执行。请在网盘中核对这些文件的位置。`
+        scrollBottom()
+        saveCurrentHistory(messages.value)
+        return
+      }
       if (workflow.status !== 'completed' && workflow.status !== 'failed' && workflow.status !== 'cancelled' && workflow.status !== 'expired') continue
       const success = workflow.receipts.filter(item => item.status === 'succeeded').length
       const failed = workflow.receipts.filter(item => item.status === 'failed').length

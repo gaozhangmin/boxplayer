@@ -42,6 +42,7 @@ import type { CreateMediaAcquisitionCandidateInput, CreateMediaAcquisitionRunInp
 import { getAssrtSubtitleFiles, searchAssrtSubtitles } from '../mediaAcquisition/assrt'
 import { addWorkspaceEvidence, addWorkspaceEvent, approveWorkspacePlan, archiveWorkspaceTask, cancelWorkspaceTask, completeWorkspaceTask, createWorkspaceTask, getWorkspaceTask, getWorkspaceTaskV1Audit, listWorkspaceTasks, rejectWorkspacePlan, restoreWorkspaceTask, resumeWorkspaceTask, saveWorkspacePlan, updateWorkspacePlanSelection } from '../workspaceAgent/WorkspaceAgentService'
 import type { CreateWorkspacePlanInput, CreateWorkspaceTaskInput, UpdateWorkspacePlanSelectionInput, WorkspaceExecutionEvent } from '@shared/types/workspaceAgent'
+import type { AgentReceiptStatus } from '@shared/types/agentControl'
 import { agentV1Status, getAgentWorkflow } from '../agent/AgentControlService'
 import { beginAiSearchV1Audit, collectAiSearchStorageStats, confirmAiSearchV1Write, finishAiSearchV1Audit, recordAiSearchV1Evidence, type BeginAiSearchV1AuditInput, type RecordAiSearchV1EvidenceInput } from '../aiSearch/AiSearchV1Bridge'
 import { beginMediaAcquisitionV1Transfer, completeMediaAcquisitionV1Transfer, type MediaAcquisitionTransferTicket } from '../mediaAcquisition/MediaAcquisitionV1Bridge'
@@ -318,7 +319,7 @@ export default class ipcEvent {
     ipcMain.handle('agentV1:aiSearch:collectStorageStats', (_event, workflowId: string) => collectAiSearchStorageStats(workflowId))
     ipcMain.handle('agentV1:aiSearch:confirmWrite', (_event, input: import('../aiSearch/AiSearchV1Bridge').ConfirmAiSearchV1WriteInput) => confirmAiSearchV1Write(input))
     ipcMain.handle('agentV1:media:beginTransfer', (_event, runId: string, candidateId: string, reason: string) => beginMediaAcquisitionV1Transfer(runId, candidateId, reason))
-    ipcMain.handle('agentV1:media:completeTransfer', (_event, ticket: MediaAcquisitionTransferTicket, success: boolean, message: string) => completeMediaAcquisitionV1Transfer(ticket, success, message))
+    ipcMain.handle('agentV1:media:completeTransfer', (_event, ticket: MediaAcquisitionTransferTicket, status: AgentReceiptStatus, message: string) => completeMediaAcquisitionV1Transfer(ticket, status, message))
     ipcMain.handle('agentV1:document:beginAudit', (_event, input: { sessionId: string; runId: string; goal: string; sources: DocumentAgentV1Source[] }) => beginDocumentV1Audit(input))
     ipcMain.handle('agentV1:document:recordCitation', (_event, workflowId: string, input: { sourceId: string; location: string }) => recordDocumentV1Citation(workflowId, input))
     ipcMain.handle('agentV1:document:finishAudit', (_event, workflowId: string, status: 'completed' | 'failed' | 'cancelled', message: string) => finishDocumentV1Audit(workflowId, status, message))

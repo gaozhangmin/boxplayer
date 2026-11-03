@@ -1,10 +1,17 @@
 import Database from 'better-sqlite3'
 import { createHash, randomUUID } from 'crypto'
 import { validateAgentPlanPolicy } from '@shared/agentControlPolicy'
-import type { AgentActionReceipt, AgentApproval, AgentEvidence, AgentExecutionGrant, AgentLedgerEvent, AgentPlan, AgentPlanAction, AgentResourceHandle, AgentSurface, AgentWorkflow, AgentWorkflowStatus, AgentWorkflowView, CreateAgentEvidenceInput, CreateAgentPlanInput, CreateAgentResourceHandleInput, CreateAgentWorkflowInput, RecordAgentActionReceiptInput } from '@shared/types/agentControl'
+import type { AgentActionReceipt, AgentApproval, AgentReceiptStatus, AgentEvidence, AgentExecutionGrant, AgentLedgerEvent, AgentPlan, AgentPlanAction, AgentResourceHandle, AgentSurface, AgentWorkflow, AgentWorkflowStatus, AgentWorkflowView, CreateAgentEvidenceInput, CreateAgentPlanInput, CreateAgentResourceHandleInput, CreateAgentWorkflowInput, RecordAgentActionReceiptInput, SettleAgentActionReceiptInput } from '@shared/types/agentControl'
 
 type Row = Record<string, any>
 const TERMINAL_WORKFLOW_STATUSES = new Set<AgentWorkflowStatus>(['completed', 'failed', 'cancelled', 'expired'])
+const UNSETTLED_RECEIPT_STATUSES = new Set<AgentReceiptStatus>(['pending', 'unknown'])
+const RECEIPT_EVENTS: Record<AgentReceiptStatus, [AgentLedgerEvent['level'], string]> = {
+  succeeded: ['info', '已记录执行回执。'],
+  failed: ['error', '已记录失败回执。'],
+  pending: ['info', '操作已提交，等待网盘完成后回读核对。'],
+  unknown: ['warning', '无法确认操作结果，已暂停执行，需要回读网盘核对。']
+}
 
 export class AgentLedgerDb {
   private db: Database.Database
@@ -192,10 +199,38 @@ export class AgentLedgerDb {
     const id = randomUUID()
     this.db.transaction(() => {
       this.db.prepare('INSERT INTO agent_action_receipts (id, execution_grant_id, action_id, idempotency_key, status, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(id, grantId, input.actionId, input.idempotencyKey, input.status, input.result ? stableJson(input.result) : null, now)
-      this.addEvent(String(grant.workflow_id), input.status === 'succeeded' ? 'info' : 'error', input.status === 'succeeded' ? '已记录执行回执。' : '已记录失败回执。', { actionId: input.actionId, receiptId: id }, now)
+      const [level, message] = RECEIPT_EVENTS[input.status]
+      this.addEvent(String(grant.workflow_id), level, message, { actionId: input.actionId, receiptId: id }, now)
+      // The drive may already have changed: stop handing out this grant until a readback settles the outcome.
+      if (input.status === 'unknown') this.db.prepare("UPDATE agent_execution_grants SET status = 'reconciling', lease_expires_at = NULL WHERE id = ?").run(grantId)
       this.finalizeIfComplete(grantId, plan, now)
     })()
     return toReceipt(this.db.prepare('SELECT * FROM agent_action_receipts WHERE id = ?').get(id) as Row)
+  }
+
+  /**
+   * Turn a pending or unknown receipt into a final one from a readback of the drive.
+   * It needs no executor lease: an offline download can finish long after the lease ends.
+   */
+  settleActionReceipt(grantId: string, input: SettleAgentActionReceiptInput, now = Date.now()): AgentActionReceipt {
+    const grant = this.db.prepare('SELECT * FROM agent_execution_grants WHERE id = ?').get(grantId) as Row | undefined
+    if (!grant) throw new Error('执行授权不存在')
+    const plan = toPlan(this.db.prepare('SELECT * FROM agent_plans WHERE id = ?').get(grant.plan_id) as Row)
+    if (!plan.actions.some(item => item.id === input.actionId && item.idempotencyKey === input.idempotencyKey)) throw new Error('执行回执与已批准计划不匹配')
+    const row = this.db.prepare('SELECT * FROM agent_action_receipts WHERE execution_grant_id = ? AND idempotency_key = ?').get(grantId, input.idempotencyKey) as Row | undefined
+    if (!row) throw new Error('没有可核对的执行回执')
+    const receipt = toReceipt(row)
+    if (receipt.settledAt && receipt.status === input.status) return receipt
+    if (!UNSETTLED_RECEIPT_STATUSES.has(receipt.status)) throw new Error('只有已提交或结果未知的回执可以核对')
+    if (input.status !== 'succeeded' && input.status !== 'failed') throw new Error('回执核对只能确认成功或失败')
+    const verification = { source: input.verification?.source?.trim() || '', summary: input.verification?.summary?.trim() || '' }
+    if (!verification.source || !verification.summary) throw new Error('回执核对必须附带网盘回读结果')
+    this.db.transaction(() => {
+      this.db.prepare('UPDATE agent_action_receipts SET status = ?, result_json = COALESCE(?, result_json), verification_json = ?, settled_at = ? WHERE id = ?').run(input.status, input.result ? stableJson(input.result) : null, stableJson(verification), now, receipt.id)
+      this.addEvent(String(grant.workflow_id), input.status === 'succeeded' ? 'info' : 'error', input.status === 'succeeded' ? '回读核对确认操作已生效。' : '回读核对确认操作未生效。', { actionId: input.actionId, receiptId: receipt.id, source: verification.source }, now)
+      if (['claimed', 'reconciling'].includes(String(grant.status))) this.finalizeIfComplete(grantId, plan, now)
+    })()
+    return toReceipt(this.db.prepare('SELECT * FROM agent_action_receipts WHERE id = ?').get(receipt.id) as Row)
   }
 
   private finalizeIfComplete(grantId: string, plan: AgentPlan, now: number): void {
@@ -207,7 +242,23 @@ export class AgentLedgerDb {
       this.transition(String(grant.workflow_id), 'failed', now)
       return
     }
-    if (receipts.length !== plan.actions.length) return
+    const unsettled = receipts.some(receipt => UNSETTLED_RECEIPT_STATUSES.has(receipt.status))
+    if (receipts.length !== plan.actions.length) {
+      // An unknown outcome paused the run. Once it settles as succeeded, the rest of the plan can be
+      // claimed again; the executor skips every action that already has a receipt.
+      if (grant.status === 'reconciling' && !unsettled) {
+        this.db.prepare("UPDATE agent_execution_grants SET status = 'pending', worker_id = NULL, lease_expires_at = NULL WHERE id = ?").run(grantId)
+        this.addEvent(String(grant.workflow_id), 'info', '回读核对已完成，剩余操作可以继续执行。', { grantId }, now)
+      }
+      return
+    }
+    if (unsettled) {
+      if (grant.status !== 'reconciling') {
+        this.db.prepare("UPDATE agent_execution_grants SET status = 'reconciling', lease_expires_at = NULL WHERE id = ?").run(grantId)
+        this.addEvent(String(grant.workflow_id), 'warning', '所有操作已执行，部分结果需要回读网盘核对后才能结束。', { grantId }, now)
+      }
+      return
+    }
     this.db.prepare("UPDATE agent_execution_grants SET status = 'completed', completed_at = ? WHERE id = ?").run(now, grantId)
     this.db.prepare("UPDATE agent_plans SET status = 'completed', completed_at = ? WHERE id = ?").run(now, plan.id)
     this.transition(String(grant.workflow_id), 'completed', now)
@@ -269,6 +320,8 @@ export class AgentLedgerDb {
     this.ensureColumn('agent_workflows', 'external_ref', 'TEXT')
     this.ensureColumn('agent_evidence', 'external_ref', 'TEXT')
     this.ensureColumn('agent_resource_handles', 'external_ref', 'TEXT')
+    this.ensureColumn('agent_action_receipts', 'verification_json', 'TEXT')
+    this.ensureColumn('agent_action_receipts', 'settled_at', 'INTEGER')
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS agent_workflows_updated ON agent_workflows(updated_at DESC);
       CREATE UNIQUE INDEX IF NOT EXISTS agent_workflows_external_ref ON agent_workflows(external_ref) WHERE external_ref IS NOT NULL;
@@ -311,5 +364,5 @@ function toResourceHandle(row: Row): AgentResourceHandle { return { id: row.id, 
 function toPlan(row: Row): AgentPlan { return { id: row.id, workflowId: row.workflow_id, status: row.status, summary: row.summary, risk: row.risk, evidenceIds: parse(row.evidence_ids_json, []), actions: parse(row.actions_json, []), hash: row.hash, createdAt: row.created_at, approvedAt: row.approved_at || undefined, completedAt: row.completed_at || undefined } }
 function toApproval(row: Row): AgentApproval { return { id: row.id, planId: row.plan_id, planHash: row.plan_hash, status: 'approved', createdAt: row.created_at } }
 function toGrant(row: Row): AgentExecutionGrant { return { id: row.id, workflowId: row.workflow_id, planId: row.plan_id, planHash: row.plan_hash, status: row.status, expiresAt: row.expires_at, workerId: row.worker_id || undefined, leaseExpiresAt: row.lease_expires_at || undefined, createdAt: row.created_at, completedAt: row.completed_at || undefined } as AgentExecutionGrant }
-function toReceipt(row: Row): AgentActionReceipt { return { id: row.id, executionGrantId: row.execution_grant_id, actionId: row.action_id, idempotencyKey: row.idempotency_key, status: row.status, result: parse(row.result_json, undefined), createdAt: row.created_at } }
+function toReceipt(row: Row): AgentActionReceipt { return { id: row.id, executionGrantId: row.execution_grant_id, actionId: row.action_id, idempotencyKey: row.idempotency_key, status: row.status, result: parse(row.result_json, undefined), verification: parse(row.verification_json, undefined), createdAt: row.created_at, settledAt: row.settled_at || undefined } }
 function toEvent(row: Row): AgentLedgerEvent { return { id: row.id, workflowId: row.workflow_id, level: row.level, message: row.message, data: parse(row.data_json, undefined), createdAt: row.created_at } }

@@ -1,7 +1,9 @@
 import type { ZodType } from 'zod'
 
 export type AgentSurface = 'ai_search' | 'workspace' | 'reader' | 'document'
-export type AgentPermission = 'read' | 'navigate' | 'write' | 'destructive'
+/** `unknown` is never declared by a tool: it marks an undeclared, unrecognized tool, which is approved like a write. */
+export type AgentPermission = 'read' | 'navigate' | 'write' | 'destructive' | 'unknown'
+export type AgentApprovalPermission = Extract<AgentPermission, 'write' | 'destructive' | 'unknown'>
 export type AgentExecutionMode = 'parallel' | 'sequential'
 export type AgentMessageInput = { role: 'user' | 'assistant'; content: string }
 
@@ -51,7 +53,8 @@ export interface AgentTool {
   name?: string
   description: string
   inputSchema: ZodType
-  permission?: AgentPermission
+  /** Every registered tool must declare this; an undeclared tool needs approval before it runs. */
+  permission?: Exclude<AgentPermission, 'unknown'>
   executionMode?: AgentExecutionMode
   /** Keep a structured `{ error }` result in the model context instead of throwing the tool call. */
   allowErrorResult?: boolean
@@ -64,7 +67,7 @@ export type BoxPlayerAgentTool = AgentTool
 export interface ApprovalRequest {
   toolCallId: string
   toolName: string
-  permission: Extract<AgentPermission, 'write' | 'destructive'>
+  permission: AgentApprovalPermission
   args: unknown
   argsSummary: string
   risk: string

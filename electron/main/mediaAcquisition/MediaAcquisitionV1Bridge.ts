@@ -1,6 +1,6 @@
-import type { AgentPlanAction, AgentScopeGrant, CreateAgentEvidenceInput } from '@shared/types/agentControl'
+import type { AgentPlanAction, AgentReceiptStatus, AgentScopeGrant, AgentSettledReceiptStatus, CreateAgentEvidenceInput } from '@shared/types/agentControl'
 import type { MediaAcquisitionCandidate, MediaAcquisitionRunView } from '@shared/types/mediaAcquisition'
-import { addAgentEvidence, approveAgentPlan, claimAgentExecutionGrant, completeAgentObservation, createAgentPlan, createAgentResourceHandle, createAgentWorkflow, findAgentWorkflowByExternalRef, getAgentWorkflow, recordAgentActionReceipt } from '../agent/AgentControlService'
+import { addAgentEvidence, approveAgentPlan, claimAgentExecutionGrant, completeAgentObservation, createAgentPlan, createAgentResourceHandle, createAgentWorkflow, findAgentWorkflowByExternalRef, getAgentWorkflow, recordAgentActionReceipt, settleAgentActionReceipt } from '../agent/AgentControlService'
 import { getMediaAcquisitionRun } from './MediaAcquisitionService'
 import { agentV1FeatureFlags } from '../agent/AgentV1FeatureFlags'
 
@@ -95,14 +95,36 @@ export function beginMediaAcquisitionV1Transfer(runId: string, candidateId: stri
   return { workflowId: workflow.id, grantId: grant.id }
 }
 
-export function completeMediaAcquisitionV1Transfer(ticket: MediaAcquisitionTransferTicket, success: boolean, message: string): void {
+const RECEIPT_STATUSES = new Set<AgentReceiptStatus>(['succeeded', 'failed', 'pending', 'unknown'])
+
+/**
+ * `pending`: the provider accepted the transfer and the files have not landed yet.
+ * `unknown`: the provider may have accepted it, but BoxPlayer could not confirm that.
+ */
+export function completeMediaAcquisitionV1Transfer(ticket: MediaAcquisitionTransferTicket, status: AgentReceiptStatus, message: string): void {
+  if (!RECEIPT_STATUSES.has(status)) throw new Error('媒体候选转存回执状态无效')
   const workflow = getApprovedMediaAcquisitionTransfer(ticket)
-  const action = workflow.plan.actions[0]
+  const action = workflow.plan!.actions[0]
   recordAgentActionReceipt(ticket.grantId, mediaTransferWorkerId(ticket.workflowId), {
     actionId: action.id,
     idempotencyKey: action.idempotencyKey,
-    status: success ? 'succeeded' : 'failed',
-    result: { submitted: success, message: redactMediaTransferMessage(message) }
+    status,
+    result: { submitted: status === 'succeeded' || status === 'pending', message: redactMediaTransferMessage(message) }
+  })
+}
+
+/** Settles a pending or unknown transfer after the media workflow has read back what landed in the target drive. */
+export function settleMediaAcquisitionV1Transfer(runId: string, candidateId: string, status: AgentSettledReceiptStatus, message: string): void {
+  if (!agentV1FeatureFlags().mediaAcquisitionBridge) return
+  const workflow = findAgentWorkflowByExternalRef(transferRef(runId, candidateId))
+  const action = workflow?.plan?.actions[0]
+  const receipt = action ? workflow?.receipts.find(item => item.idempotencyKey === action.idempotencyKey) : undefined
+  if (!workflow?.executionGrant || !action || !receipt || (receipt.status !== 'pending' && receipt.status !== 'unknown')) return
+  settleAgentActionReceipt(workflow.executionGrant.id, {
+    actionId: action.id,
+    idempotencyKey: action.idempotencyKey,
+    status,
+    verification: { source: 'media_acquisition.landing', summary: redactMediaTransferMessage(message) }
   })
 }
 

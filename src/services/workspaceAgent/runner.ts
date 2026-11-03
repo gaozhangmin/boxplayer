@@ -122,8 +122,8 @@ async function askPiForPlanSummary(task: WorkspaceTaskView, built: Awaited<Retur
     surface: 'workspace', model: config, prompt: `为此已取证的网盘计划生成一条简短审批摘要。不要请求或执行任何写操作。目标：${task.goal}`,
     systemPrompt: '你是 BoxPlayer 网盘计划解释助手。只能基于 inspectEvidence 返回的事实总结计划。必须调用 proposePlanSummary；不要编造文件或操作。',
     tools: {
-      inspectEvidence: { description: '读取已验证的计划证据。', inputSchema: z.object({}), execute: () => built.evidence },
-      proposePlanSummary: { description: '提交审批页使用的摘要与风险说明，不会执行任何网盘操作。', inputSchema: z.object({ summary: z.string().min(1).max(300), risk: z.string().min(1).max(240) }), execute: args => { answer = args; return { accepted: true } } }
+      inspectEvidence: { description: '读取已验证的计划证据。', inputSchema: z.object({}), permission: 'read', execute: () => built.evidence },
+      proposePlanSummary: { description: '提交审批页使用的摘要与风险说明，不会执行任何网盘操作。', inputSchema: z.object({ summary: z.string().min(1).max(300), risk: z.string().min(1).max(240) }), permission: 'read', execute: args => { answer = args; return { accepted: true } } }
     },
     toolAllowlist: ['inspectEvidence', 'proposePlanSummary'], toolExecution: 'sequential', maxTurns: 3, maxToolCalls: 3, maxToolCallsPerTurn: 1,
     terminalToolsAfterObservation: { observationTools: ['inspectEvidence'], terminalTools: ['proposePlanSummary'] }

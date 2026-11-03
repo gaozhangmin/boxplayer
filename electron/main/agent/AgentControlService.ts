@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { join } from 'path'
-import type { AgentActionReceipt, AgentExecutionGrant, AgentResourceHandle, AgentSurface, AgentWorkflowView, CreateAgentEvidenceInput, CreateAgentPlanInput, CreateAgentResourceHandleInput, CreateAgentWorkflowInput, RecordAgentActionReceiptInput } from '@shared/types/agentControl'
+import type { AgentActionReceipt, AgentExecutionGrant, AgentResourceHandle, AgentSurface, AgentWorkflowView, CreateAgentEvidenceInput, CreateAgentPlanInput, CreateAgentResourceHandleInput, CreateAgentWorkflowInput, RecordAgentActionReceiptInput, SettleAgentActionReceiptInput } from '@shared/types/agentControl'
 import { AgentLedgerDb } from './AgentLedgerDb'
 import { agentV1FeatureFlags } from './AgentV1FeatureFlags'
 
@@ -83,6 +83,12 @@ export function claimAgentExecutionGrant(workerId: string, leaseMs?: number, sur
 export function recordAgentActionReceipt(grantId: string, workerId: string, input: RecordAgentActionReceiptInput): AgentActionReceipt {
   requireEnabled()
   return getDb().recordActionReceipt(grantId, workerId, input)
+}
+
+/** Main-process-only: settles a pending or unknown receipt from a readback of the drive. */
+export function settleAgentActionReceipt(grantId: string, input: SettleAgentActionReceiptInput): AgentActionReceipt {
+  requireEnabled()
+  return getDb().settleActionReceipt(grantId, input)
 }
 
 export function destroyAgentControlDb(): void {

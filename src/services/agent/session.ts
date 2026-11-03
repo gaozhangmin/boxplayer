@@ -8,7 +8,7 @@ import { stream as streamOpenAICompletions } from '@earendil-works/pi-ai/api/ope
 import { z } from 'zod'
 import { addAgentFeatureToPayload, createPiModel, resolvePiApiKey } from './model'
 import { mapBoxPlayerCloudAIError } from '../../utils/boxplayerCloudAI'
-import type { AgentApprovalRequest, AgentEvent as BoxPlayerAgentEvent, AgentMessageInput, AgentPermission, AgentSessionConfig, AgentTool as BoxPlayerAgentTool, BoxPlayerAgentModelConfig, Citation } from './types'
+import type { AgentApprovalPermission, AgentApprovalRequest, AgentEvent as BoxPlayerAgentEvent, AgentMessageInput, AgentPermission, AgentSessionConfig, AgentTool as BoxPlayerAgentTool, BoxPlayerAgentModelConfig, Citation } from './types'
 
 export interface RunBoxPlayerAgentOptions extends AgentSessionConfig {
   messages?: AgentMessageInput[]
@@ -51,10 +51,15 @@ export function isLeakedAgentContext(text: string): boolean {
   return AGENT_PROMPT_LEAK_PATTERNS.some(pattern => pattern.test(text))
 }
 
+/** Fallback for tools without a declared permission. An unrecognized name is never treated as a safe read. */
 export function inferToolPermission(name: string): AgentPermission {
   if (DESTRUCTIVE_TOOL_NAMES.has(name)) return 'destructive'
   if (WRITE_TOOL_NAMES.has(name)) return 'write'
-  return 'read'
+  return 'unknown'
+}
+
+function requiresApproval(permission: AgentPermission): permission is AgentApprovalPermission {
+  return permission === 'write' || permission === 'destructive' || permission === 'unknown'
 }
 
 export function formatAgentModelError(model: BoxPlayerAgentModelConfig, error: unknown): string {
@@ -196,8 +201,8 @@ export async function runBoxPlayerAgent(options: RunBoxPlayerAgentOptions): Prom
       if (toolCallCount > (options.maxToolCalls || 5)) return { block: true, reason: 'Tool call limit reached.' }
       toolCallsThisTurn++
       if (options.maxToolCallsPerTurn && toolCallsThisTurn > options.maxToolCallsPerTurn) return { block: true, reason: 'Only one tool call is allowed per Agent turn. Observe its result before choosing the next action.' }
-      const permission = permissions.get(toolCall.name) || 'read'
-      if (permission === 'write' || permission === 'destructive') {
+      const permission = permissions.get(toolCall.name) || inferToolPermission(toolCall.name)
+      if (requiresApproval(permission)) {
         const request = await createApprovalRequest(toolCall.id, toolCall.name, permission, args)
         await options.onEvent?.({ type: 'approval_required', request })
         const approved = await options.requestApproval?.(request)
@@ -317,7 +322,13 @@ function pruneContext(messages: AgentMessage[], maxChars: number): AgentMessage[
   return kept
 }
 
-async function createApprovalRequest(toolCallId: string, toolName: string, permission: Extract<AgentPermission, 'write' | 'destructive'>, args: unknown): Promise<AgentApprovalRequest> {
+const APPROVAL_RISKS: Record<AgentApprovalPermission, string> = {
+  write: '此操作会修改用户网盘中的数据。',
+  destructive: '此操作会删除或不可逆地修改用户数据。',
+  unknown: '此工具未声明权限，无法确认它是否会修改数据。'
+}
+
+async function createApprovalRequest(toolCallId: string, toolName: string, permission: AgentApprovalPermission, args: unknown): Promise<AgentApprovalRequest> {
   const canonicalArgs = stableJson(args)
   const approvalHash = await sha256(`${toolName}:${canonicalArgs}`)
   return {
@@ -326,7 +337,7 @@ async function createApprovalRequest(toolCallId: string, toolName: string, permi
     permission,
     args,
     argsSummary: canonicalArgs.slice(0, 500),
-    risk: permission === 'destructive' ? '此操作会删除或不可逆地修改用户数据。' : '此操作会修改用户网盘中的数据。',
+    risk: APPROVAL_RISKS[permission],
     approvalHash
   }
 }
