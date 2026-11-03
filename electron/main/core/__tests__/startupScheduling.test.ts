@@ -5,11 +5,11 @@ import { describe, expect, it } from 'vitest'
 const root = resolve(__dirname, '../../../..')
 
 describe('startup scheduling', () => {
-  it('does not wake media acquisition immediately from the main process', () => {
-    const source = readFileSync(resolve(root, 'electron/main/mediaAcquisition/MediaAcquisitionWakeScheduler.ts'), 'utf8')
+  it('does not start media acquisition work immediately from the main process', () => {
+    const source = readFileSync(resolve(root, 'electron/main/mediary/MediaryHost.ts'), 'utf8')
 
-    expect(source).toContain('const WAKE_INTERVAL_MS = 60_000')
-    expect(source).not.toMatch(/\n\s*wake\(\)\n\s*timer = setInterval/)
+    expect(source).toContain('const STARTUP_DELAY_MS = 15_000')
+    expect(source).toMatch(/startupTimer = setTimeout\(\(\) => \{[\s\S]*?timer = setInterval/)
   })
 
   it('creates transfer workers only when work is queued', () => {

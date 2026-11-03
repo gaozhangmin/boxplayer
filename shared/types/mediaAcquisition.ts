@@ -166,6 +166,8 @@ export interface CreateMediaAcquisitionCandidateInput {
 
 export interface MediaAcquisitionRunView extends MediaAcquisitionRun {
   target: MediaAcquisitionTarget
+  /** The folder the files were organized into (a season or movie folder), when known. */
+  landingFolderId?: string
   events: MediaAcquisitionEvent[]
   candidates: MediaAcquisitionCandidate[]
   decisions?: MediaAcquisitionDecision[]

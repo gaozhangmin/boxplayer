@@ -6,9 +6,8 @@ import UserDAL from '../user/userdal'
 import { GetDriveID, GetDriveType, isDrive115User, isQuarkUser } from '../aliapi/utils'
 import { modalSelectPanDir } from '../utils/modal'
 import message from '../utils/message'
-import { createMediaAcquisitionRun, createMediaAcquisitionTracking } from '../services/mediaAcquisition/client'
-import { runMediaAcquisitionTrackingPatrol, runMediaAcquisitionWorkflow } from '../services/mediaAcquisition/workflowRunner'
-import { formatMediaAcquisitionCapability, getMediaAcquisitionCapability, normalizeMediaAcquisitionRootFolder } from '../services/mediaAcquisition/capabilities'
+import { createMediaAcquisitionRun } from '../services/mediaAcquisition/client'
+import { formatMediaAcquisitionCapability, getMediaAcquisitionCapability, isMediaryAcquisitionPlatform, normalizeMediaAcquisitionRootFolder } from '../services/mediaAcquisition/capabilities'
 import { getDriveProviderIcon, getDriveProviderLabel } from '../utils/driveProvider'
 import useSettingStore from '../setting/settingstore'
 import { isPro, requireMediaAcquisitionPro } from '../utils/usageLimit'
@@ -72,7 +71,7 @@ function resetFolder() {
 async function loadAccounts() {
   const tokens = await UserDAL.GetUserListFromDB()
   accounts.value = tokens.flatMap(token => {
-    const capability = getMediaAcquisitionCapability(token.tokenfrom)
+    const capability = isMediaryAcquisitionPlatform(token.tokenfrom) ? getMediaAcquisitionCapability(token.tokenfrom) : null
     // 阿里云盘的 default_drive_id 通常是备份盘；Agent 入库固定使用资源盘。
     const driveId = GetDriveID(token.user_id, '') || token.resource_drive_id || token.default_drive_id
     return capability && driveId ? [{
@@ -136,9 +135,6 @@ async function create() {
   creating.value = true
   try {
     requireMediaAcquisitionPro()
-    const previousState = accountState(account)
-    const force = previousState?.status === 'completed' || previousState?.status === 'partial'
-    if (force && !window.confirm(`《${props.request.title}》${previousState?.status === 'partial' ? '上次仅部分完成' : '已获取完成'}，确定再次创建获取任务吗？`)) return
     await settingStore.updateStore(rememberTarget.value
       ? {
           mediaAcquisitionRememberTarget: true,
@@ -154,59 +150,37 @@ async function create() {
           mediaAcquisitionTargetFolderId: '',
           mediaAcquisitionTargetFolderName: ''
         })
-    if (props.request.trackingOnly) {
-      const allSeasons = [...new Set(props.request.trackingSeasonNumbers || [props.request.seasonNumber])].filter((season): season is number => Number.isInteger(season) && Number(season) > 0)
-      const seasonNumbers = trackingScope.value === 'all' ? allSeasons : [props.request.seasonNumber || allSeasons[0]].filter((season): season is number => Number.isInteger(season) && Number(season) > 0)
-      if (!props.request.tmdbId || !seasonNumbers.length) throw new Error('缺少追更季信息')
-      const subscriptions = []
-      for (const seasonNumber of seasonNumbers) {
-        subscriptions.push(await createMediaAcquisitionTracking({
-          mediaLibraryItemId: props.request.mediaLibraryItemId, tmdbId: props.request.tmdbId, mediaType: props.request.mediaType as 'tv' | 'anime', title: props.request.title, alternativeTitles: props.request.alternativeTitles, year: props.request.year, seasonNumber,
-          targetUserId: account.token.user_id, targetDriveId: account.driveId, targetPlatform: account.token.tokenfrom, targetParentFileId: targetFolderId.value,
-          preferredQuality: settingStore.mediaAcquisitionPreferredQuality, fetchSubtitles: settingStore.mediaAcquisitionFetchSubtitles,
-          preferredLanguage: settingStore.mediaAcquisitionFetchSubtitles ? settingStore.mediaAcquisitionSubtitleLanguage : undefined
-        }))
-      }
-      await runMediaAcquisitionTrackingPatrol({ force: true, trackingIds: subscriptions.map(subscription => subscription.id) })
-      message.success(seasonNumbers.length > 1 ? `已追更 ${seasonNumbers.length} 季，Agent 将按已播缺集自动补全` : `已追更第 ${seasonNumbers[0]} 季`)
-      emit('created')
-      close()
-      return
-    }
-    const missingSeasons = [...new Set(props.request.missingSeasonNumbers || [])].filter((season): season is number => Number.isInteger(season) && season > 0)
-    const requestedSeasons = missingSeasons.length ? missingSeasons : [props.request.seasonNumber].filter((season): season is number => typeof season === 'number' && Number.isInteger(season) && season > 0)
-    const seasonTargets = isSeries.value ? requestedSeasons.map(seasonNumber => ({ seasonNumber, missingEpisodes: props.request.missingEpisodes?.find(gap => gap.seasonNumber === seasonNumber)?.missingEpisodes || [] })) : []
-    const primarySeason = seasonTargets[0]
-    const runInput: CreateMediaAcquisitionRunInput = {
-      kind: missingSeasons.length ? 'missing' : isSeries.value ? 'season' : 'movie', mediaLibraryItemId: props.request.mediaLibraryItemId, tmdbId: props.request.tmdbId,
-      force,
+    const target = {
+      mediaLibraryItemId: props.request.mediaLibraryItemId, tmdbId: props.request.tmdbId,
       mediaType: props.request.mediaType, title: props.request.title, alternativeTitles: props.request.alternativeTitles, year: props.request.year, releaseDate: props.request.releaseDate,
-      seasonNumber: primarySeason?.seasonNumber, missingEpisodes: primarySeason?.missingEpisodes, seasonTargets,
-      targetUserId: account.token.user_id, targetDriveId: account.driveId, targetPlatform: account.token.tokenfrom,
-      targetParentFileId: targetFolderId.value,
+      targetUserId: account.token.user_id, targetDriveId: account.driveId, targetPlatform: account.token.tokenfrom, targetParentFileId: targetFolderId.value,
       preferredQuality: settingStore.mediaAcquisitionPreferredQuality,
       fetchSubtitles: settingStore.mediaAcquisitionFetchSubtitles,
       preferredLanguage: settingStore.mediaAcquisitionFetchSubtitles ? settingStore.mediaAcquisitionSubtitleLanguage : undefined,
       trackingEnabled: isSeries.value
     }
+    // mediary acquires the aired episodes of each requested season, then keeps tracking it.
+    const validSeason = (season: unknown): season is number => Number.isInteger(season) && Number(season) > 0
+    let seasonNumbers: number[]
+    if (props.request.trackingOnly) {
+      const allSeasons = [...new Set(props.request.trackingSeasonNumbers || [props.request.seasonNumber])].filter(validSeason)
+      seasonNumbers = trackingScope.value === 'all' ? allSeasons : [props.request.seasonNumber || allSeasons[0]].filter(validSeason)
+      if (!props.request.tmdbId || !seasonNumbers.length) throw new Error('缺少追更季信息')
+    } else {
+      const missingSeasons = [...new Set(props.request.missingSeasonNumbers || [])].filter(validSeason)
+      seasonNumbers = isSeries.value ? (missingSeasons.length ? missingSeasons : [props.request.seasonNumber].filter(validSeason)) : []
+    }
+    const seasonTargets = seasonNumbers.map(seasonNumber => ({ seasonNumber, missingEpisodes: props.request.missingEpisodes?.find(gap => gap.seasonNumber === seasonNumber)?.missingEpisodes || [] }))
+    const runInput: CreateMediaAcquisitionRunInput = { ...target, kind: isSeries.value ? 'season' : 'movie', seasonNumber: seasonTargets[0]?.seasonNumber, missingEpisodes: seasonTargets[0]?.missingEpisodes, seasonTargets }
     let run
     try {
       run = await createMediaAcquisitionRun(runInput)
     } catch (error) {
-      if (!force && isCompletedDuplicateError(error)) {
-        if (!window.confirm(`《${props.request.title}》已获取完成，确定再次创建获取任务吗？`)) return
-        run = await createMediaAcquisitionRun({ ...runInput, force: true })
-      } else {
-        throw error
-      }
+      if (!isCompletedDuplicateError(error)) throw error
+      if (!window.confirm(`《${props.request.title}》已获取完成，确定再次创建获取任务吗？`)) return
+      run = await createMediaAcquisitionRun({ ...runInput, force: true })
     }
-    const runs = [run]
-    for (const run of runs.filter(run => run.status !== 'reserved')) {
-      void runMediaAcquisitionWorkflow(run.id).catch(() => {
-        message.warning(t('media.queued'))
-      })
-    }
-    message.success(runs.every(run => run.status === 'reserved') ? t('media.reserved') : seasonTargets.length > 1 ? t('media.created') : t('media.created'))
+    message.success(run.status === 'reserved' ? t('media.reserved') : props.request.trackingOnly ? (seasonNumbers.length > 1 ? `已追更 ${seasonNumbers.length} 季，Agent 将按已播缺集自动补全` : `已追更第 ${seasonNumbers[0]} 季`) : t('media.created'))
     emit('created')
     close()
   } catch (error: any) {

@@ -36,8 +36,7 @@ import { askIndexedDocument, indexDocumentLocally } from '../../services/documen
 import { formatProviderCapabilities, getProviderCapabilities, normalizeProviderPlatform, type ProviderCapabilityManifest } from '../../services/agent/providerCapabilities'
 import { getMediaAcquisitionCapability, formatMediaAcquisitionCapability } from '../../services/mediaAcquisition/capabilities'
 import { unsupportedAgentToolMessage } from '../../services/agent/agentToolCapabilities'
-import { listMediaAcquisitionNotifications, listMediaAcquisitionRuns, listMediaAcquisitionTracking } from '../../services/mediaAcquisition/client'
-import { runMediaAcquisitionTrackingPatrol } from '../../services/mediaAcquisition/workflowRunner'
+import { listMediaAcquisitionNotifications, listMediaAcquisitionRuns, listMediaAcquisitionTracking, runMediaAcquisitionTrackingPatrol } from '../../services/mediaAcquisition/client'
 
 function getBoxPlayerAPIBaseURL(): string {
   return Config.BOXPLAYER_API_URL.replace(/\/+$/, '')
@@ -832,13 +831,13 @@ ${formatProviderCapabilities(connectedProviderCapabilities)}
           },
 
           runMediaAcquisitionPatrol: {
-            description: '触发媒体获取 Agent 追更巡检；发现已播缺集时会创建补全任务。用户明确要求巡检时使用。',
-            inputSchema: z.object({ trackingId: z.string().optional().describe('只巡检某个追更记录；不传则巡检全部') }),
+            description: '触发媒体获取 Agent 追更巡检：检查全部追更中的剧集，发现已播缺集时自动补全。用户明确要求巡检时使用。',
+            inputSchema: z.object({}),
             permission: 'write',
             executionMode: 'sequential',
-            execute: async (args: any) => {
-              await runMediaAcquisitionTrackingPatrol({ force: true, trackingId: args.trackingId })
-              return { ok: true, message: args.trackingId ? '本季追更巡检已完成' : '全部追更巡检已完成' }
+            execute: async () => {
+              await runMediaAcquisitionTrackingPatrol()
+              return { ok: true, message: '全部追更巡检已完成' }
             },
           },
 

@@ -3,8 +3,7 @@ import { BellRing, CheckCircle2, CircleDotDashed, RefreshCw, SearchCheck, X } fr
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import message from '../../utils/message'
 import { t } from '../../i18n'
-import { endMediaAcquisitionTracking, listMediaAcquisitionTracking } from '../../services/mediaAcquisition/client'
-import { runMediaAcquisitionTrackingPatrol } from '../../services/mediaAcquisition/workflowRunner'
+import { endMediaAcquisitionTracking, listMediaAcquisitionTracking, runMediaAcquisitionTrackingPatrol } from '../../services/mediaAcquisition/client'
 import type { MediaAcquisitionTrackingItem } from '@shared/types/mediaAcquisition'
 
 const items = ref<MediaAcquisitionTrackingItem[]>([])
@@ -16,7 +15,7 @@ let timer: ReturnType<typeof setInterval> | undefined
 async function refresh() {
   loading.value = true
   try {
-    items.value = (await listMediaAcquisitionTracking(100)).filter(item => item.status !== 'ended')
+    items.value = (await listMediaAcquisitionTracking()).filter(item => item.status !== 'ended')
   } catch (error: any) {
     message.error(error?.message || t('ai.media.tracking.readFailed'))
   } finally {
@@ -24,12 +23,13 @@ async function refresh() {
   }
 }
 
-async function patrol(trackingId?: string) {
+// mediary patrols every tracked season in one sweep.
+async function patrol() {
   patrolling.value = true
   try {
-    await runMediaAcquisitionTrackingPatrol({ force: true, trackingId })
+    await runMediaAcquisitionTrackingPatrol()
     await refresh()
-    message.success(trackingId ? t('ai.media.tracking.seasonDone') : t('ai.media.tracking.allDone'))
+    message.success(t('ai.media.tracking.allDone'))
   } catch (error: any) {
     message.error(error?.message || t('ai.media.tracking.patrolFailed'))
   } finally {
@@ -77,7 +77,7 @@ onBeforeUnmount(() => timer && clearInterval(timer))
         <CheckCircle2 v-if="item.status === 'complete'" :size="22" class="complete" />
         <CircleDotDashed v-else :size="22" class="active" />
         <div class="tracking-main"><strong>{{ item.title }} · {{ t('ai.media.tracking.season', { number: item.seasonNumber }) }}</strong><p>{{ t('ai.media.tracking.stats', { obtained: item.obtainedEpisodes, aired: item.latestAiredEpisode || '?', total: item.totalEpisodes || '?' }) }} <template v-if="item.missingEpisodes.length">· {{ t('ai.media.tracking.missing', { episodes: item.missingEpisodes.join('、E') }) }}</template><template v-else-if="item.status === 'tracking'">· {{ t('ai.media.tracking.upToDate') }}</template></p><small>{{ t('ai.media.tracking.nextCheck') }}{{ checkTime(item.nextCheckAt) }}</small></div>
-        <div class="tracking-actions"><span :class="['tracking-status', item.status]">{{ trackingStatusLabel(item) }}</span><button type="button" :title="t('ai.media.tracking.patrolSeasonTitle')" :disabled="patrolling" @click="patrol(item.id)"><SearchCheck :size="14" /></button><a-popconfirm :content="t('ai.media.tracking.cancelConfirm')" @ok="endTracking(item.id)"><button type="button" :title="t('ai.media.tracking.cancelTitle')" :disabled="endingId === item.id"><X :size="14" /></button></a-popconfirm></div>
+        <div class="tracking-actions"><span :class="['tracking-status', item.status]">{{ trackingStatusLabel(item) }}</span><a-popconfirm :content="t('ai.media.tracking.cancelConfirm')" @ok="endTracking(item.id)"><button type="button" :title="t('ai.media.tracking.cancelTitle')" :disabled="endingId === item.id"><X :size="14" /></button></a-popconfirm></div>
       </article>
     </div>
   </section>

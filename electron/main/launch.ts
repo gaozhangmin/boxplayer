@@ -1,5 +1,5 @@
 import { AppWindow, createMainWindow, createTray } from './core/window'
-import { startMediaAcquisitionWakeScheduler } from './mediaAcquisition/MediaAcquisitionWakeScheduler'
+import { startMediaryHost, stopMediaryHost } from './mediary/MediaryHost'
 import { startAgentCliExecutionScheduler, stopAgentCliExecutionScheduler } from './agent/AgentCliExecutionScheduler'
 import { app, ipcMain, protocol, session } from 'electron'
 import { registerAutoUpdate } from './core/autoUpdate'
@@ -298,7 +298,7 @@ export default class launch extends EventEmitter {
         createMainWindow()
         registerExternalFileProtocol(() => AppWindow.mainWindow)
         if (process.env.BOXPLAYER_E2E !== '1') {
-          startMediaAcquisitionWakeScheduler()
+          startMediaryHost()
           startAgentCliExecutionScheduler()
           createTray()
           registerAutoUpdate()
@@ -363,6 +363,7 @@ export default class launch extends EventEmitter {
     app.on('will-quit', async () => {
       embeddedMpvBridge.destroy?.()
       stopAgentCliExecutionScheduler()
+      try { stopMediaryHost() } catch {}
       this.stopGoogleOAuthLoopback()
       try { await this.motrixApp?.quit() } catch {}
       try { destroyDb() } catch {}

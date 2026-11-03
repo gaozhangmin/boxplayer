@@ -11,7 +11,8 @@
     "baseUrl": "./",
     "paths": {
       "@shared/*": ["shared/*"],
-      "@main/*":   ["electron/main/*"]
+      "@main/*":   ["electron/main/*"],
+      "@mediary/*": ["vendor/mediary-workflow/src/*"]
     },
     "types": [
       "vite-plugin-electron/electron-env"

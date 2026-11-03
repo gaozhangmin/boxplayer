@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@shared': path.resolve(__dirname, 'shared'),
       '@main':   path.resolve(__dirname, 'electron/main'),
+      '@mediary': path.resolve(__dirname, 'vendor/mediary-workflow/src'),
       '@earendil-works/pi-ai/compat': path.resolve(__dirname, 'src/services/agent/piCompatBrowser.ts'),
       '@earendil-works/pi-agent-core/dist/agent.js': path.resolve(__dirname, 'node_modules/@earendil-works/pi-agent-core/dist/agent.js')
     }

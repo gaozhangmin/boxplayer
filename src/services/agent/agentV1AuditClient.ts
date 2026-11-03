@@ -15,11 +15,6 @@ export interface AiSearchV1WriteInput {
   targetParentFileId?: string
 }
 
-export interface MediaAcquisitionV1TransferTicket {
-  workflowId: string
-  grantId: string
-}
-
 export interface DocumentAgentV1Source {
   sourceId: string
   fileName: string
@@ -69,14 +64,6 @@ export function confirmAiSearchV1Write(input: AiSearchV1WriteInput): Promise<{ w
 
 export function getAgentV1Workflow(workflowId: string): Promise<AgentWorkflowView | null> {
   return invoke('agentV1:getWorkflow', workflowId)
-}
-
-export function beginMediaAcquisitionV1Transfer(runId: string, candidateId: string, reason: string): Promise<MediaAcquisitionV1TransferTicket | null> {
-  return invoke('agentV1:media:beginTransfer', runId, candidateId, reason)
-}
-
-export function completeMediaAcquisitionV1Transfer(ticket: MediaAcquisitionV1TransferTicket, success: boolean, message: string): Promise<void> {
-  return invoke('agentV1:media:completeTransfer', ticket, success, message)
 }
 
 export function beginDocumentV1Audit(input: { sessionId: string; runId: string; goal: string; sources: DocumentAgentV1Source[] }): Promise<string | null> {
