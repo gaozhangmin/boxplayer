@@ -46,3 +46,10 @@ export function normalizeMediaAcquisitionRootFolder(platform: string, folderId: 
   return value
 }
 import { getProviderCapabilities, normalizeProviderPlatform } from '../agent/providerCapabilities'
+
+/** Drives the mediary engine can land files on with BoxPlayer's own login (see electron/main/mediary). */
+const MEDIARY_PLATFORMS = new Set(['115', 'cloud123', 'aliyun', 'pikpak', 'quark', 'guangya'])
+
+export function isMediaryAcquisitionPlatform(platform: string): boolean {
+  return MEDIARY_PLATFORMS.has(normalizeMediaAcquisitionPlatform(platform))
+}

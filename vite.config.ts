@@ -9,6 +9,8 @@ import pkg from './package.json'
 const sharedAlias = {
   '@shared': path.resolve(__dirname, 'shared'),
   '@main':   path.resolve(__dirname, 'electron/main'),
+  // mediary-scout workflow engine (git subtree). Import files by path; its index pulls in pg.
+  '@mediary': path.resolve(__dirname, 'vendor/mediary-workflow/src'),
   '@earendil-works/pi-ai/compat': path.resolve(__dirname, 'src/services/agent/piCompatBrowser.ts'),
   '@earendil-works/pi-agent-core/dist/agent.js': path.resolve(__dirname, 'node_modules/@earendil-works/pi-agent-core/dist/agent.js')
 }

@@ -1,29 +1,23 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { CircleAlert, Clock3, Download, LoaderCircle, RefreshCw, Trash2, X } from 'lucide-vue-next'
+import { CircleAlert, Clock3, LoaderCircle, RefreshCw, RotateCcw, Trash2, X } from 'lucide-vue-next'
 import message from '../../utils/message'
 import { t } from '../../i18n'
-import { addMediaAcquisitionCandidate, addMediaAcquisitionEvent, clearCompletedMediaAcquisitionRuns, forceCancelMediaAcquisitionRun, listMediaAcquisitionRuns, selectMediaAcquisitionCandidate } from '../../services/mediaAcquisition/client'
+import { cancelMediaAcquisitionRun, clearCompletedMediaAcquisitionRuns, listMediaAcquisitionRuns, retryMediaAcquisitionRun } from '../../services/mediaAcquisition/client'
+import { MEDIARY_CHANGED_EVENT } from '../../services/mediaAcquisition/mediaryBridge'
 import type { MediaAcquisitionRunView } from '@shared/types/mediaAcquisition'
-import { createMediaAcquisitionCandidateInput } from '../../services/mediaAcquisition/shareExecutor'
-import { runMediaAcquisitionWorkflow } from '../../services/mediaAcquisition/workflowRunner'
-import { trashVerifiedMediaAcquisitionDuplicates } from '../../services/mediaAcquisition/duplicateCleanup'
-import type { MediaAcquisitionDuplicateGroup } from '../../services/mediaAcquisition/duplicatePolicy'
 
 const runs = ref<MediaAcquisitionRunView[]>([])
 const loading = ref(false)
-const pendingLinks = ref<Record<string, string>>({})
-const pendingPasswords = ref<Record<string, string>>({})
-const executingCandidateId = ref('')
-const cleaningRunId = ref('')
+const retryingRunId = ref('')
 const clearingCompleted = ref(false)
 let timer: ReturnType<typeof setInterval> | undefined
 
 const processingRuns = computed(() => runs.value.filter(run => ['searching', 'selecting', 'transferring', 'verifying', 'organizing'].includes(run.status)))
 const queuedRuns = computed(() => runs.value.filter(run => ['reserved', 'queued', 'retry_wait'].includes(run.status)))
 const completedRuns = computed(() => runs.value.filter(run => ['completed', 'partial', 'no_coverage', 'failed', 'cancelled'].includes(run.status)))
-const sourceRecoverableStatuses = new Set<MediaAcquisitionRunView['status']>(['partial', 'no_coverage', 'failed'])
-const endableStatuses = new Set<MediaAcquisitionRunView['status']>(['reserved', 'queued', 'searching', 'selecting', 'transferring', 'verifying', 'organizing', 'retry_wait'])
+// The mediary agent cannot be interrupted mid-run, so only waiting tasks can be cancelled.
+const endableStatuses = new Set<MediaAcquisitionRunView['status']>(['queued', 'retry_wait'])
 
 async function refresh() {
   loading.value = true
@@ -37,22 +31,26 @@ async function refresh() {
 }
 
 async function cancel(run: MediaAcquisitionRunView) {
-  const result = await forceCancelMediaAcquisitionRun(run.id)
-  await refresh()
-  const current = runs.value.find(item => item.id === run.id) || result
-  if (current?.status === 'cancelled') {
+  try {
+    await cancelMediaAcquisitionRun(run.id)
     message.success(t('ai.media.tasks.forceEnded'))
-    return
+  } catch (error: any) {
+    message.warning(error?.message || t('ai.media.tasks.stillProcessing'))
+  } finally {
+    await refresh()
   }
-  if (current && completedRuns.value.some(item => item.id === current.id)) {
-    message.info(current.status === 'completed' ? t('ai.media.tasks.alreadyCompleted') : t('ai.media.tasks.enteredEndState'))
-    return
-  }
-  message.warning(t('ai.media.tasks.stillProcessing'))
 }
 
-function endActionLabel(status: MediaAcquisitionRunView['status']) {
-  return ['transferring', 'verifying', 'organizing'].includes(status) ? t('ai.media.tasks.forceEnd') : t('common.cancel')
+async function retry(run: MediaAcquisitionRunView) {
+  retryingRunId.value = run.id
+  try {
+    await retryMediaAcquisitionRun(run.id)
+    await refresh()
+  } catch (error: any) {
+    message.error(error?.message || t('ai.media.tasks.readFailed'))
+  } finally {
+    retryingRunId.value = ''
+  }
 }
 
 async function clearCompleted() {
@@ -66,41 +64,6 @@ async function clearCompleted() {
     message.error(error?.message || t('ai.media.tasks.clearCompletedFailed'))
   } finally {
     clearingCompleted.value = false
-  }
-}
-
-async function addShare(run: MediaAcquisitionRunView) {
-  const input = createMediaAcquisitionCandidateInput(pendingLinks.value[run.id] || '', pendingPasswords.value[run.id] || '', run.target.title)
-  if (!input) {
-    message.warning(t('ai.media.tasks.enterLink'))
-    return
-  }
-  try {
-    await addMediaAcquisitionCandidate(run.id, input)
-    void runMediaAcquisitionWorkflow(run.id)
-    pendingLinks.value[run.id] = ''
-    pendingPasswords.value[run.id] = ''
-    await refresh()
-  } catch (error: any) {
-    message.error(error?.message || t('ai.media.tasks.addCandidateFailed'))
-  }
-}
-
-async function executeCandidate(run: MediaAcquisitionRunView, candidateId: string) {
-  executingCandidateId.value = candidateId
-  try {
-    const selected = await selectMediaAcquisitionCandidate(run.id, candidateId, '用户手动确认执行该候选')
-    if (!selected?.candidates.some(candidate => candidate.id === candidateId && candidate.status === 'selected')) {
-      message.warning(t('ai.media.tasks.candidateTaken'))
-      return
-    }
-    void runMediaAcquisitionWorkflow(run.id)
-    message.success(t('ai.media.tasks.agentTransferQueued'))
-  } catch (error: any) {
-    message.error(error?.message || t('ai.media.tasks.importFailed'))
-  } finally {
-    executingCandidateId.value = ''
-    await refresh()
   }
 }
 
@@ -162,42 +125,18 @@ function eventMessage(run: MediaAcquisitionRunView, event: MediaAcquisitionRunVi
   return event.message
 }
 
-function duplicateGroups(run: MediaAcquisitionRunView): MediaAcquisitionDuplicateGroup[] {
-  const event = [...run.events].reverse().find(item => item.data?.tool === 'duplicateEpisodeAudit')
-  const groups = event?.data?.groups
-  return Array.isArray(groups) ? groups as MediaAcquisitionDuplicateGroup[] : []
-}
-
-async function cleanDuplicates(run: MediaAcquisitionRunView) {
-  const groups = duplicateGroups(run)
-  const count = groups.reduce((total, group) => total + group.deleteCandidates.length, 0)
-  if (!count) return
-  if (!window.confirm(t('ai.media.tasks.confirmCleanDuplicates', { count }))) return
-  cleaningRunId.value = run.id
-  try {
-    const result = await trashVerifiedMediaAcquisitionDuplicates(run, groups)
-    await addMediaAcquisitionEvent(run.id, result.errors.length ? 'warning' : 'info', 'organize', result.errors.length ? t('ai.media.tasks.duplicateCleanupEventWithErrors', { removed: result.removed, errors: result.errors.length }) : t('ai.media.tasks.duplicateCleanupEvent', { removed: result.removed }), {
-      tool: 'duplicateEpisodeCleanup',
-      removed: result.removed,
-      errors: result.errors,
-      groups: groups.map(group => ({ episode: group.episode, keep: group.keep.name, removed: group.deleteCandidates.map(file => file.name) }))
-    })
-    if (result.errors.length) message.warning(t('ai.media.tasks.duplicateCleanupWarning', { removed: result.removed, errors: result.errors.join('; ') }))
-    else message.success(t('ai.media.tasks.duplicateCleanupSuccess', { removed: result.removed }))
-    await refresh()
-  } catch (error: any) {
-    message.error(error?.message || t('ai.media.tasks.duplicateCleanupFailed'))
-  } finally {
-    cleaningRunId.value = ''
-  }
-}
+const onChanged = () => void refresh()
 
 onMounted(() => {
   void refresh()
   timer = setInterval(() => void refresh(), 2500)
+  window.addEventListener(MEDIARY_CHANGED_EVENT, onChanged)
 })
 
-onBeforeUnmount(() => timer && clearInterval(timer))
+onBeforeUnmount(() => {
+  if (timer) clearInterval(timer)
+  window.removeEventListener(MEDIARY_CHANGED_EVENT, onChanged)
+})
 </script>
 
 <template>
@@ -247,13 +186,12 @@ onBeforeUnmount(() => timer && clearInterval(timer))
                 <span>{{ candidate.sourcePlatform }} · {{ candidate.title }}</span>
                 <small v-if="candidateHint(run, candidate)">{{ candidateHint(run, candidate) }}</small>
               </div>
-              <a-button v-if="candidate.status === 'pending'" size="mini" type="primary" :loading="executingCandidateId === candidate.id" @click="executeCandidate(run, candidate.id)"><Download :size="12" />{{ t('ai.media.tasks.runNow') }}</a-button>
-              <em v-else>{{ candidateStatusLabel(candidate) }}</em>
+              <em>{{ candidateStatusLabel(candidate) }}</em>
             </div>
           </div>
           <div class="media-task-actions">
             <span>{{ formatTime(run.startedAt) }}</span>
-            <button v-if="endableStatuses.has(run.status)" type="button" @click="cancel(run)"><X :size="13" />{{ endActionLabel(run.status) }}</button>
+            <button v-if="endableStatuses.has(run.status)" type="button" @click="cancel(run)"><X :size="13" />{{ t('common.cancel') }}</button>
           </div>
         </article>
       </section>
@@ -269,14 +207,9 @@ onBeforeUnmount(() => timer && clearInterval(timer))
             <span>{{ retryHint(run) }}</span>
             <time v-if="run.nextAttemptAt">{{ t('ai.media.tasks.next') }}{{ formatTime(run.nextAttemptAt) }}</time>
           </div>
-          <div v-if="run.status === 'queued'" class="media-task-add-source">
-            <a-input v-model.trim="pendingLinks[run.id]" size="small" :placeholder="t('ai.media.tasks.linkPlaceholder')" />
-            <a-input v-model.trim="pendingPasswords[run.id]" size="small" :placeholder="t('ai.media.tasks.passwordPlaceholder')" class="media-task-password" />
-            <a-button size="small" @click="addShare(run)">{{ t('ai.media.tasks.addCandidate') }}</a-button>
-          </div>
           <div class="media-task-actions">
             <span>{{ formatTime(run.startedAt) }}</span>
-            <button v-if="endableStatuses.has(run.status)" type="button" @click="cancel(run)"><X :size="13" />{{ endActionLabel(run.status) }}</button>
+            <button v-if="endableStatuses.has(run.status)" type="button" @click="cancel(run)"><X :size="13" />{{ t('common.cancel') }}</button>
           </div>
         </article>
       </section>
@@ -291,10 +224,6 @@ onBeforeUnmount(() => timer && clearInterval(timer))
           <div class="media-task-meta">{{ run.target.targetPlatform }} · {{ formatTime(run.startedAt) }}</div>
           <div v-if="run.errorMessage" class="media-task-error"><CircleAlert :size="14" />{{ run.errorMessage }}</div>
           <div class="media-task-activity">{{ run.status === 'completed' ? t('ai.media.status.completedLibrary') : (run.events.at(-1)?.message || run.activity) }}</div>
-          <div v-if="duplicateGroups(run).length" class="media-task-duplicate-audit">
-            <span>{{ t('ai.media.tasks.duplicateGroups', { count: duplicateGroups(run).length }) }}</span>
-            <a-button size="small" status="warning" :loading="cleaningRunId === run.id" @click="cleanDuplicates(run)"><Trash2 :size="12" />{{ t('ai.media.tasks.cleanSmallerCopies') }}</a-button>
-          </div>
           <div v-if="run.events.length" class="media-task-ticker compact">
             <div v-for="event in run.events.slice(-4).reverse()" :key="event.id" class="media-task-ticker-row" :class="event.level">
               <span class="media-task-ticker-phase">{{ phaseLabel(event.phase) }}</span>
@@ -302,10 +231,9 @@ onBeforeUnmount(() => timer && clearInterval(timer))
               <time>{{ formatTime(event.createdAt) }}</time>
             </div>
           </div>
-          <div v-if="sourceRecoverableStatuses.has(run.status)" class="media-task-add-source">
-            <a-input v-model.trim="pendingLinks[run.id]" size="small" :placeholder="t('ai.media.tasks.linkAgentPlaceholder')" />
-            <a-input v-model.trim="pendingPasswords[run.id]" size="small" :placeholder="t('ai.media.tasks.passwordPlaceholder')" class="media-task-password" />
-            <a-button size="small" @click="addShare(run)">{{ t('ai.media.tasks.handToAgent') }}</a-button>
+          <div v-if="run.status === 'failed'" class="media-task-actions">
+            <span />
+            <button type="button" :disabled="retryingRunId === run.id" @click="retry(run)"><RotateCcw :size="13" />{{ t('common.retry') }}</button>
           </div>
         </article>
       </section>

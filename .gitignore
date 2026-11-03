@@ -34,6 +34,7 @@ scripts/*
 !scripts/koodo-reader-smoke.mjs
 !scripts/generate-secrets.mjs
 !scripts/version-utils.mjs
+!scripts/sync-mediary.sh
 !scripts/__tests__/
 scripts/__tests__/*
 !scripts/__tests__/releaseDraftPolicy.test.mjs

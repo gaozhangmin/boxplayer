@@ -41,7 +41,6 @@ describe('Agent tool permissions', () => {
     expect(agentSurfaces.map(file => relative(root, file)).sort()).toEqual([
       'src/layout/aisearch/useAISearchChat.ts',
       'src/services/documents/index.ts',
-      'src/services/mediaAcquisition/workflowRunner.ts',
       'src/services/reedy/ReedyAgent.ts',
       'src/services/workspaceAgent/runner.ts'
     ])
@@ -52,6 +51,6 @@ describe('Agent tool permissions', () => {
       .filter(tool => !tool.permission || !PERMISSIONS.has(tool.permission))
       .map(tool => `${relative(root, file)}:${tool.line} ${tool.name} (${tool.permission || 'missing'})`))
     expect(undeclared).toEqual([])
-    expect(agentSurfaces.flatMap(toolRegistrations).length).toBeGreaterThan(40)
+    expect(agentSurfaces.flatMap(toolRegistrations).length).toBeGreaterThan(30)
   })
 })

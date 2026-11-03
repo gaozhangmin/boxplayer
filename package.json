@@ -40,7 +40,8 @@
     "test:e2e:isolated": "playwright test e2e/coreNavigation.spec.ts e2e/mainWindow.spec.ts e2e/settingsPersistence.spec.ts --workers=1",
     "test:mpv-integration": "BOXPLAYER_MPV_INTEGRATION=1 vitest run src/utils/__tests__/mpvRuntime.integration.test.ts",
     "check:mpv-bundles": "node scripts/check-embedded-mpv-bundles.mjs --all",
-    "test:clouddrive-cli": "vitest run clouddrive-cli/__tests__"
+    "test:clouddrive-cli": "vitest run clouddrive-cli/__tests__",
+    "test:mediary": "ELECTRON_RUN_AS_NODE=1 electron node_modules/vitest/vitest.mjs run --config vitest.mediary.config.ts"
   },
   "engines": {
     "node": ">=22.12.0"

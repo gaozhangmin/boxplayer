@@ -1,0 +1,31 @@
+{
+  "name": "@media-track/workflow",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./scope": {
+      "types": "./dist/workflow-scope.d.ts",
+      "default": "./dist/workflow-scope.js"
+    },
+    "./search-view": {
+      "types": "./dist/search-view.d.ts",
+      "default": "./dist/search-view.js"
+    }
+  },
+  "dependencies": {
+    "pg": "^8.21.0"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^12.11.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/pg": "^8.20.0"
+  }
+}
