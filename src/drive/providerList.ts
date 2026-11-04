@@ -2,7 +2,7 @@ import { listBoxItems } from '../box/adapter'
 import { listBaiduItems } from '../cloudbaidu/adapter'
 import { listCloud123Items } from '../cloud123/adapter'
 import { listCloud139Items } from '../cloud139/adapter'
-import { listCloud189Items } from '../cloud189/adapter'
+import { listAllCloud189Items, listCloud189Items } from '../cloud189/adapter'
 import { listDrive115Items } from '../cloud115/adapter'
 import { listDropboxItems } from '../dropbox/adapter'
 import { listGoogleItems } from '../google/adapter'
@@ -28,7 +28,9 @@ export const listProviderItems = (provider: DriveProvider, userId: string, drive
     case 'baidu': return listBaiduItems(userId, driveId, dirId, includeFiles, Number(cursor) || 0, options?.strict)
     case 'cloud123': return listCloud123Items(userId, driveId, dirId, includeFiles, cursor, options?.strict)
     case '139': return listCloud139Items(userId, driveId, dirId, includeFiles, cursor, options?.strict)
-    case '189': return listCloud189Items(userId, driveId, dirId, includeFiles, Number(cursor) || 1, options?.strict)
+    case '189': return includeFiles
+      ? listCloud189Items(userId, driveId, dirId, true, Number(cursor) || 1, options?.strict)
+      : listAllCloud189Items(userId, driveId, dirId, false).then(items => ({ items, total: items.length, nextCursor: '' }))
     case 'guangya': return listGuangyaItems(userId, driveId, dirId, includeFiles, Number(cursor) || 0)
     case '115': return listDrive115Items(userId, driveId, dirId, includeFiles, Number(cursor) || 0, options?.strict)
     case 'pikpak': return listPikPakItems(userId, driveId, dirId, includeFiles, cursor, options?.strict)

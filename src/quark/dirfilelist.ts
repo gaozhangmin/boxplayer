@@ -292,7 +292,8 @@ export const mapQuarkFileToAliModel = (item: QuarkFileItem, drive_id: string, pa
     __v_skip: true,
     drive_id,
     file_id: String(item.fid || ''),
-    parent_file_id: item.pdir_fid && item.pdir_fid !== '0' ? String(item.pdir_fid) : parentId,
+    parent_file_id: item.pdir_fid != null && String(item.pdir_fid) !== ''
+      ? (String(item.pdir_fid) === '0' ? 'quark_root' : String(item.pdir_fid)) : parentId,
     name,
     namesearch: HanToPin(name),
     ext,

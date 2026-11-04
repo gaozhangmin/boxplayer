@@ -12,6 +12,7 @@ import PanHubMediaResults, { type TmdbMediaResult } from './PanHubMediaResults.v
 import PanHubSearchBox from './PanHubSearchBox.vue'
 import { checkAndIncrement } from '../utils/usageLimit'
 import message from '../utils/message'
+import { resolveQuarkSearchDirectory } from '../utils/quarkSearchNavigation'
 import Config from '../config'
 import DownDAL from '../down/DownDAL'
 import TorrentFileSelector from '../down/TorrentFileSelector.vue'
@@ -395,7 +396,7 @@ async function handleClick(result: GlobalSearchResult) {
   }
 
   nextTick(async () => {
-    appStore.toggleTab('pan')
+    appStore.toggleTabMenu('pan', 'wangpan')
     await nextTick()
 
     const { default: usePanTreeStore } = await import('../pan/pantreestore')
@@ -410,6 +411,20 @@ async function handleClick(result: GlobalSearchResult) {
     await nextTick()
 
     let fileId = result.parent_file_id || result.file_id
+    if (result.provider === 'quark') {
+      try {
+        fileId = await resolveQuarkSearchDirectory({
+          fileId: result.file_id, parentFileId: result.parent_file_id, isDir: result.isDir
+        }, async () => {
+          const { apiQuarkFileDetail } = await import('../quark/dirfilelist')
+          const detail = await apiQuarkFileDetail(result.user_id, result.file_id)
+          return detail?.pdir_fid == null ? undefined : String(detail.pdir_fid)
+        })
+      } catch {
+        message.error(t('pan.unrecognizedCurrentDir'))
+        return
+      }
+    }
     if (fileId === '/' || !fileId) {
       if (result.provider === 'baidu') fileId = 'baidu_root'
       else if (result.provider === 'cloud123') fileId = 'cloud_root'

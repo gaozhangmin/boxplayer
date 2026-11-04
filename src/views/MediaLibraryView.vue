@@ -316,9 +316,9 @@ const loadFolderContent = async (folder: MediaLibraryFolder) => {
       const list = await apiCloud139FileList(userId, fileId, 200)
       items = list.map(item => ({ ...mapCloud139FileToAliModel(item, driveId, fileId), user_id: userId }))
     } else if (driveId === 'cloud189') {
-      const { apiCloud189FileList, mapCloud189FileToAliModel } = await import('../cloud189/dirfilelist')
-      const list = await apiCloud189FileList(userId, fileId, 200)
-      items = list.map(item => ({ ...mapCloud189FileToAliModel(item, driveId, fileId), user_id: userId }))
+      const { listAllCloud189Items } = await import('../cloud189/adapter')
+      const list = await listAllCloud189Items(userId, driveId, fileId)
+      items = list.map(item => ({ ...item, user_id: userId }))
     } else if (driveId === 'guangya') {
       const { apiGuangyaFileList, mapGuangyaFileToAliModel } = await import('../guangya/dirfilelist')
       const list = await apiGuangyaFileList(userId, fileId, 200)

@@ -117,25 +117,43 @@ export const apiDrive115FileList = async (
   params.set('cur', '1')
   params.set('show_dir', showDir ? '1' : '0')
   const url = `${API_URL}?${params.toString()}`
-  const resp = await enqueueListRequest(() => fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token.access_token}`
+  // Keep response parsing inside the queue: a rate-limit result must become
+  // visible before the next queued request is allowed to start.
+  return enqueueListRequest(async () => {
+    if (rateLimitedUntil > Date.now()) {
+      const msg = '已达到当前访问上限，请稍后再试'
+      reportDrive115ListError(msg, options)
+      if (options.strict) throw new Error(msg)
+      return []
     }
-  }))
-  if (!resp.ok) {
-    reportDrive115ListError('获取 115 网盘文件列表失败', options)
-    if (options.strict) throw new Error(`获取 115 网盘文件列表失败 HTTP ${resp.status}`)
-    return []
-  }
-  const data = (await resp.json()) as Drive115FileListResp
-  if (data?.code !== 0 || !Array.isArray(data.data)) {
-    const msg = data?.message || '获取 115 网盘文件列表失败'
-    if (isRateLimitMessage(msg)) rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS
-    reportDrive115ListError(msg, options)
-    if (options.strict) throw new Error(msg)
-    return []
-  }
-  return data.data
+    const resp = await fetch(url, {
+      headers: { Authorization: `Bearer ${token.access_token}` },
+      signal: AbortSignal.timeout(30_000)
+    })
+    if (!resp.ok) {
+      if (resp.status === 429) {
+        const retryAfter = resp.headers.get('Retry-After') || ''
+        const seconds = Number(retryAfter)
+        const retryMs = retryAfter && Number.isFinite(seconds)
+          ? seconds * 1000
+          : Date.parse(retryAfter) - Date.now()
+        rateLimitedUntil = Date.now() + Math.max(RATE_LIMIT_COOLDOWN_MS, Number.isFinite(retryMs) ? retryMs : 0)
+      }
+      const msg = resp.status === 429 ? '已达到当前访问上限，请稍后再试' : '获取 115 网盘文件列表失败'
+      reportDrive115ListError(msg, options)
+      if (options.strict) throw new Error(`${msg} HTTP ${resp.status}`)
+      return []
+    }
+    const data = (await resp.json()) as Drive115FileListResp
+    if (data?.code !== 0 || !Array.isArray(data.data)) {
+      const msg = data?.message || '获取 115 网盘文件列表失败'
+      if (isRateLimitMessage(msg)) rateLimitedUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS
+      reportDrive115ListError(msg, options)
+      if (options.strict) throw new Error(msg)
+      return []
+    }
+    return data.data
+  })
 }
 
 export const mapDrive115FileToAliModel = (item: Drive115FileItem, drive_id: string): IAliGetFileModel => {

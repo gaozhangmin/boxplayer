@@ -47,26 +47,35 @@ const events = {
   // Event: data
   dataHandler: function(data) {
     // various messages might be fetched at once
-    let messages = data.toString().split('\n')
+    this.responseBuffer = (this.responseBuffer || '') + data.toString()
+    const messages = this.responseBuffer.split('\n')
+    this.responseBuffer = messages.pop() || ''
 
     // each message is emitted seperately
     messages.forEach((message) => {
       // empty messages may occur
       if (message.length > 0) {
-        const JSONmessage = JSON.parse(message)
+        let JSONmessage
+        try { JSONmessage = JSON.parse(message) } catch (error) {
+          this.errHandler(error)
+          return
+        }
         // if there was a request_id it was a request message
         if (JSONmessage.request_id && JSONmessage.request_id !== 0) {
+          // A timed-out command may receive a late response after removal.
+          const request = this.ipcRequests[JSONmessage.request_id]
+          if (!request) return
           // resolve promise
           if (JSONmessage.error === 'success') {
             // resolve the request
-            this.ipcRequests[JSONmessage.request_id].resolve(JSONmessage.data)
+            request.resolve(JSONmessage.data)
             // delete the ipcRequest object
             delete this.ipcRequests[JSONmessage.request_id]
           }
           // reject promise
           else {
             // reject the message's promise
-            this.ipcRequests[JSONmessage.request_id].reject(JSONmessage.error)
+            request.reject(JSONmessage.error)
             // delete the ipcRequest object
             delete this.ipcRequests[JSONmessage.request_id]
           }
@@ -74,7 +83,7 @@ const events = {
 
         // events are handled the old-fashioned way
         else {
-          this.emit('message', JSON.parse(message))
+          this.emit('message', JSONmessage)
         }
       }
     })

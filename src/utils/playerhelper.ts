@@ -25,6 +25,7 @@ import { apiDrive115FileDetailResult } from '../cloud115/filecmd'
 import { apiDrive115VideoHistory } from '../cloud115/video'
 import { mapDrive115DetailToAliModel } from '../cloud115/dirfilelist'
 import { listProviderItems } from '../drive/providerList'
+import { listAllCloud189Items } from '../cloud189/adapter'
 import { resolveDriveProvider } from './driveProvider'
 import { getWebDavConnection, getWebDavConnectionId, isWebDavDrive, listWebDavDirectory } from './webdavClient'
 import { buildDirectPlayerInvocation, buildPlayerCommand, formatPlayerArg, isMpvCommand, parsePlayerParams, redactMpvArgs } from './mpvPlayerPolicy'
@@ -261,7 +262,9 @@ const PlayerUtils = {
     } else {
       const route = resolveDriveProvider(user_id, drive_id, tokenfrom || UserDAL.GetUserToken(user_id)?.tokenfrom)
       const providerResult = route.isValid && route.provider !== 'aliyun'
-        ? await listProviderItems(route.provider, user_id, drive_id, parent_file_id, true)
+        ? route.provider === '189'
+          ? { items: await listAllCloud189Items(user_id, drive_id, parent_file_id) }
+          : await listProviderItems(route.provider, user_id, drive_id, parent_file_id, true)
         : undefined
       if (providerResult) {
         items = providerResult.items

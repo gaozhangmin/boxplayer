@@ -62,7 +62,7 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
   updater.autoDownload = false
   updater.autoInstallOnAppQuit = true
   updater.allowPrerelease = currentVersion.includes('-')
-  const updateFeeds = [buildProxyUpdateFeed(updateProxy), GITHUB_UPDATE_FEED_URL]
+  const updateFeeds = [...new Set([buildProxyUpdateFeed(updateProxy), GITHUB_UPDATE_FEED_URL])]
   let updateFeedIndex = 0
   updater.setFeedURL(updateFeeds[updateFeedIndex])
   const checkForUpdates = async () => {
@@ -134,7 +134,10 @@ export function createAutoUpdateController(options: AutoUpdateControllerOptions)
   }
 
   updater.on('update-available', (info: UpdateInfo) => {
-    if (downloadInProgress || hasDownloaded || (pendingVersion && pendingVersion === info.version)) {
+    // A receipt survives failed installs, deleted cache files and restarts.
+    // Only the current updater instance can confirm an installer is ready;
+    // downloadUpdate itself verifies and reuses a valid cached installer.
+    if (downloadInProgress || hasDownloaded) {
       logger.info('[auto-update] update already downloaded, skipping duplicate download', info.version)
       return
     }

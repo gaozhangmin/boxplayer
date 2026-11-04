@@ -8,6 +8,17 @@
 !macroend
 
 !macro customInstall
+  ${If} $installMode == "all"
+    # Remove the legacy per-user shortcut when installing the shared copy.
+    # Keep the all-users shortcut managed by electron-builder's normal flow.
+    SetShellVarContext current
+    Delete "$SMPROGRAMS\${SHORTCUT_NAME}.lnk"
+    !ifdef MENU_FILENAME
+      Delete "$SMPROGRAMS\${MENU_FILENAME}\${SHORTCUT_NAME}.lnk"
+      RMDir "$SMPROGRAMS\${MENU_FILENAME}"
+    !endif
+    SetShellVarContext all
+  ${EndIf}
   !insertmacro RemoveLegacyBoxPlayerAssociation "mp4" "BoxPlayer Video"
   !insertmacro RemoveLegacyBoxPlayerAssociation "mkv" "BoxPlayer Video"
   !insertmacro RemoveLegacyBoxPlayerAssociation "avi" "BoxPlayer Video"

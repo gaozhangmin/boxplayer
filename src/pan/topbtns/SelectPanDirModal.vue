@@ -25,7 +25,7 @@ import { apiBoxFileList, mapBoxItemToAliModel } from '../../box/dirfilelist'
 import { apiGoogleFileList, apiGoogleSharedDriveFileList, apiGoogleSharedDrives, getGoogleSharedDriveIdForFile, mapGoogleFileToAliModel } from '../../google/dirfilelist'
 import { apiQuarkFileList, mapQuarkFileToAliModel } from '../../quark/dirfilelist'
 import { apiCloud139FileList, mapCloud139FileToAliModel } from '../../cloud139/dirfilelist'
-import { apiCloud189FileList, mapCloud189FileToAliModel } from '../../cloud189/dirfilelist'
+import { listAllCloud189Items } from '../../cloud189/adapter'
 import { apiGuangyaFileList, mapGuangyaFileToAliModel } from '../../guangya/dirfilelist'
 
 const iconfolder = h(IconFont, { name: 'iconfile-folder' })
@@ -619,12 +619,12 @@ const apiLoad = (key: any) => {
       })
   }
   if (isCloud189User(user_id.value)) {
-    const parentId = key.includes('root') ? '-11' : key
-    return apiCloud189FileList(user_id.value, parentId, 1000)
+    const parentId = key
+    return listAllCloud189Items(user_id.value, drive_id.value, parentId, !onlyDirs)
       .then((list) => {
         const addList: TreeNodeData[] = []
         for (let i = 0, maxi = list.length; i < maxi; i++) {
-          const mapped = mapCloud189FileToAliModel(list[i], drive_id.value, parentId)
+          const mapped = list[i]
           if (!mapped.isDir) {
             if (onlyDirs) continue
             if (props.category && mapped.category !== props.category) continue
@@ -646,7 +646,8 @@ const apiLoad = (key: any) => {
         autoExpand(addList)
         return addList
       })
-      .catch(() => {
+      .catch((error) => {
+        message.error(error instanceof Error ? error.message : String(error))
         return [] as TreeNodeData[]
       })
   }

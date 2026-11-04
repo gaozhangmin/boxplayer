@@ -7,6 +7,7 @@ import { computed, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'v
 import { Button, Input, Modal, Option as AOption, Select } from '@arco-design/web-vue'
 import Artplayer from 'artplayer'
 import HlsJs from 'hls.js'
+import mpegts from 'mpegts.js'
 import * as dashjs from 'dashjs'
 import AliFile from '../aliapi/file'
 import DriveFile from '../drive/file'
@@ -63,6 +64,7 @@ import UserDAL from '../user/userdal'
 import Config from '../config'
 import { isBoxUser, isDropboxUser, isOneDriveUser, isQuarkUser } from '../aliapi/utils'
 import { listProviderItems } from '../drive/providerList'
+import { listAllCloud189Items } from '../cloud189/adapter'
 import { resolveDriveProvider } from '../utils/driveProvider'
 import { getWebDavConnection, getWebDavConnectionId, isWebDavDrive, listWebDavDirectory } from '../utils/webdavClient'
 import useMediaServerRegistryStore from '../store/mediaServerRegistry'
@@ -205,7 +207,8 @@ const options: Option = {
   customType: {
     m3u8: (video: HTMLMediaElement, url: string, art: Artplayer) => playByHls(video, url, art),
     ts: (video: HTMLMediaElement, url: string, art: Artplayer) => playByHls(video, url, art),
-    mpd: (video: HTMLMediaElement, url: string, art: Artplayer) => playByDash(video, url, art)
+    mpd: (video: HTMLMediaElement, url: string, art: Artplayer) => playByDash(video, url, art),
+    flv: (video: HTMLMediaElement, url: string, art: Artplayer) => playByFlv(video, url, art)
   }
 }
 
@@ -339,7 +342,41 @@ const sendMediaServerStopReport = async (positionSeconds = 0) => {
   }
 }
 
+const flvPlayers = new WeakMap<Artplayer, ReturnType<typeof mpegts.createPlayer>>()
+const flvDestroyBound = new WeakSet<Artplayer>()
+
+const destroyArtFlv = (art: Artplayer) => {
+  const player = flvPlayers.get(art)
+  if (!player) return
+  flvPlayers.delete(art)
+  player.destroy()
+}
+
+const playByFlv = (video: HTMLMediaElement, url: string, art: Artplayer) => {
+  destroyArtHls(art)
+  destroyArtDash(art)
+  destroyArtFlv(art)
+  if (!mpegts.isSupported()) {
+    art.notice.show = t('video.unsupportedFormat')
+    return
+  }
+  const player = mpegts.createPlayer({ type: 'flv', url, isLive: false }, { enableWorker: false })
+  flvPlayers.set(art, player)
+  player.on(mpegts.Events.ERROR, () => {
+    if (flvPlayers.get(art) !== player) return
+    art.notice.show = t('video.unsupportedFormat')
+    art.emit('video:error')
+  })
+  if (!flvDestroyBound.has(art)) {
+    flvDestroyBound.add(art)
+    art.on('destroy', () => destroyArtFlv(art))
+  }
+  player.attachMediaElement(video)
+  player.load()
+}
+
 const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
+  destroyArtFlv(art)
   if (HlsJs.isSupported()) {
     // @ts-ignore
     if (art.hls) art.hls.destroy()
@@ -387,6 +424,7 @@ const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
 }
 
 const playByDash = (video: HTMLMediaElement, url: string, art: Artplayer) => {
+  destroyArtFlv(art)
   if (!dashjs.supportsMediaSource()) {
     art.notice.show = t('video.unsupportedFormatMpd')
     return
@@ -412,10 +450,15 @@ const getArtVideoType = (url: string, type?: string) => {
   if (normalizedType === 'hls' || normalizedType === 'm3u8') return 'm3u8'
   if (normalizedType === 'dash' || normalizedType === 'mpd') return 'mpd'
   if (normalizedType === 'ts') return 'ts'
+  if (normalizedType === 'flv') return 'flv'
   const pathname = url.split('?')[0].split('#')[0].toLowerCase()
   if (pathname.endsWith('.m3u8')) return 'm3u8'
   if (pathname.endsWith('.ts')) return 'ts'
   if (pathname.endsWith('.mpd')) return 'mpd'
+  if (pathname.endsWith('.flv')) return 'flv'
+  // Signed/proxied original URLs often have no extension. Do not apply the
+  // filename fallback to a provider's explicitly typed transcode stream.
+  if (!normalizedType && !/\.(mp4|m4v|mov|webm|mkv)$/i.test(pathname) && /\.flv$/i.test(pageVideo.file_name || '')) return 'flv'
   return ''
 }
 
@@ -466,6 +509,7 @@ const setArtVideoUrl = (art: Artplayer, url: string, type?: string) => {
   art.type = artType as any
   if (!isHlsVideoType(artType)) destroyArtHls(art)
   if (!isDashVideoType(artType)) destroyArtDash(art)
+  if (artType !== 'flv') destroyArtFlv(art)
   art.url = url
   scheduleCleanupInactiveStreamingControls(art)
 }
@@ -1371,7 +1415,9 @@ const getDirFileList = async (dir_id: string, hasDir: boolean, category: string 
     } else {
       const route = resolveDriveProvider(pageVideo.user_id, pageVideo.drive_id, pageVideo.tokenfrom || UserDAL.GetUserToken(pageVideo.user_id)?.tokenfrom)
       const providerResult = route.isValid && route.provider !== 'aliyun'
-        ? await listProviderItems(route.provider, pageVideo.user_id, pageVideo.drive_id, dir_id, true)
+        ? route.provider === '189'
+          ? { items: await listAllCloud189Items(pageVideo.user_id, pageVideo.drive_id, dir_id) }
+          : await listProviderItems(route.provider, pageVideo.user_id, pageVideo.drive_id, dir_id, true)
         : undefined
       if (providerResult) {
         items = providerResult.items
@@ -2662,6 +2708,7 @@ const getVideoInfo = async (art: Artplayer) => {
         art.type = artType as any
         if (!isHlsVideoType(artType)) destroyArtHls(art)
         if (!isDashVideoType(artType)) destroyArtDash(art)
+        if (artType !== 'flv') destroyArtFlv(art)
         const itemHeaders = mergePlaybackHeaders(data.headers, item.headers)
         const itemUrl = resolveHeaderAwareVideoUrl(item.url, itemHeaders, data.size, item.quality || '')
         console.info('[播放][网页] 切换清晰度链接', {

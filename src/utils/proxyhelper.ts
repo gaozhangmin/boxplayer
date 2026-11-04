@@ -32,6 +32,7 @@ const detectProxyVideoType = (url: string) => {
   if (lower.endsWith('.m3u8')) return 'm3u8'
   if (lower.endsWith('.mpd')) return 'mpd'
   if (lower.endsWith('.ts')) return 'ts'
+  if (lower.endsWith('.flv')) return 'flv'
   return ''
 }
 

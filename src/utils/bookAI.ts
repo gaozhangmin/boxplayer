@@ -4,7 +4,7 @@ import { getAIProvider } from '../services/ai/providers'
 import type { AISettings } from '../services/ai/types'
 import { DEFAULT_AI_SETTINGS } from '../services/ai/constants'
 import { aiStore } from '../services/ai/storage/aiStore'
-import { withRetryAndTimeout, AI_TIMEOUTS } from '../services/ai/utils/retry'
+import { withRetryAndTimeout, withTimeout, AI_TIMEOUTS } from '../services/ai/utils/retry'
 import { chunkSection, SIZE_PER_PAGE } from '../services/ai/utils/chunker'
 import useSettingStore from '../setting/settingstore'
 import { completeBoxPlayerCloudChat, isBoxPlayerCloudProvider, streamBoxPlayerCloudChat } from './boxplayerCloudAI'
@@ -91,22 +91,24 @@ function findSoleStoredBYOKConfig(): AIModelConfig | null {
   return configs.length === 1 ? configs[0] : null
 }
 
-function buildAISettings(): AISettings {
+function buildAISettings(config?: AIModelConfig): AISettings {
   const store = useSettingStore()
-  const provider = (store.apiAIModelProvider as string) || ''
+  const provider = config ? config.providerName : (store.apiAIModelProvider as string) || ''
+  const modelId = config ? config.modelId : store.apiAIModelId
+  const apiKey = config ? config.apiKey : store.apiAIModelKey
   // 优先用 store 里存的，否则用 provider 默认 endpoint
-  const baseUrl = store.apiAIBaseUrl || PROVIDER_ENDPOINTS[provider] || ''
+  const baseUrl = (config ? config.endpoint : store.apiAIBaseUrl) || PROVIDER_ENDPOINTS[provider] || ''
   return {
     provider: provider as any,
     ollamaUrl: baseUrl || DEFAULT_AI_SETTINGS.ollamaUrl,
-    ollamaModel: store.apiAIModelId || DEFAULT_AI_SETTINGS.ollamaModel,
+    ollamaModel: modelId || DEFAULT_AI_SETTINGS.ollamaModel,
     ollamaEmbeddingModel: store.apiAIEmbeddingModelId || DEFAULT_AI_SETTINGS.ollamaEmbeddingModel,
-    aiGatewayApiKey: store.apiAIModelKey || '',
-    aiGatewayModel: store.apiAIModelId || DEFAULT_AI_SETTINGS.aiGatewayModel,
+    aiGatewayApiKey: apiKey || '',
+    aiGatewayModel: modelId || DEFAULT_AI_SETTINGS.aiGatewayModel,
     aiGatewayEmbeddingModel: store.apiAIEmbeddingModelId || DEFAULT_AI_SETTINGS.aiGatewayEmbeddingModel,
-    openRouterApiKey: store.apiAIModelKey || '',
+    openRouterApiKey: apiKey || '',
     openRouterBaseUrl: baseUrl,
-    openRouterModel: store.apiAIModelId || DEFAULT_AI_SETTINGS.openRouterModel,
+    openRouterModel: modelId || DEFAULT_AI_SETTINGS.openRouterModel,
     openRouterEmbeddingModel: store.apiAIEmbeddingModelId || DEFAULT_AI_SETTINGS.openRouterEmbeddingModel,
     spoilerProtection: store.apiAISpoilerProtection,
     maxContextChunks: store.apiAIMaxContextChunks || 10,
@@ -216,11 +218,21 @@ export async function chatStreamCompletion(
   }
 
   const model = createAIModel(config)
+  const controller = new AbortController()
   try {
-    const result = streamText({ model, system: request.system, messages: request.messages })
+    const result = streamText({ model, system: request.system, messages: request.messages, abortSignal: controller.signal })
     let hasText = false
-    for await (const part of result.textStream) {
-      if (part) { hasText = true; callback.onToken(part) }
+    const iterator = result.textStream[Symbol.asyncIterator]()
+    try {
+      while (true) {
+        const next = await withTimeout(iterator.next(), Math.max(1, options.idleTimeoutMs ?? AI_TIMEOUTS.CHAT_STREAM), 'AI stream timed out')
+        if (next.done) break
+        if (next.value) { hasText = true; callback.onToken(next.value) }
+      }
+    } catch (error) {
+      controller.abort()
+      // Avoid appending a second answer after already displaying partial text.
+      if (hasText || !(error instanceof Error) || error.message !== 'AI stream timed out') throw error
     }
     if (!hasText) {
       const { generateText } = await import('ai')
@@ -231,6 +243,8 @@ export async function chatStreamCompletion(
     callback.onDone()
   } catch (e: any) {
     callback.onError(e?.message || '请求失败')
+  } finally {
+    controller.abort()
   }
 }
 
@@ -248,14 +262,13 @@ export async function generateAIText(config: AIModelConfig, prompt: string, maxO
 }
 
 // ── test connection (uses new provider healthCheck) ─────────────────
-export async function testAIConnection(): Promise<{ ok: boolean; message: string }> {
+export async function testAIConnection(draft?: AIModelConfig): Promise<{ ok: boolean; message: string }> {
   try {
-    const s = buildAISettings()
-    const store = useSettingStore()
+    const config = draft ?? getAIConfig()
+    const s = buildAISettings(config ?? undefined)
 
     // Validate config
-    const modelId = store.apiAIModelId
-    if (!modelId) return { ok: false, message: '请先选择或输入 AI 模型' }
+    if (!config?.providerName || !config.modelId.trim()) return { ok: false, message: '请先选择或输入 AI 模型' }
     if (isBoxPlayerCloudProvider(s.provider)) {
       const { isPro } = await import('../utils/usageLimit')
       if (!isPro()) return { ok: false, message: '内置 AI 需购买 Pro 后使用' }
@@ -265,7 +278,7 @@ export async function testAIConnection(): Promise<{ ok: boolean; message: string
       })
       return { ok: true, message: '连接成功' }
     }
-    if (s.provider !== 'ollama' && !store.apiAIModelKey) return { ok: false, message: '请先填写 API Key' }
+    if (s.provider !== 'ollama' && !config.apiKey.trim()) return { ok: false, message: '请先填写 API Key' }
 
     const provider = getAIProvider(s)
     const result = await provider.healthCheck()

@@ -387,6 +387,8 @@ Thanks to [liupan1890](https://github.com/liupan1890).
 
 Global search feature from [panhub.shenzjd.com](https://github.com/wu529778790/panhub.shenzjd.com)
 
+AI media acquisition from [fancydirty/mediary-scout](https://github.com/fancydirty/mediary-scout)
+
 <a href="#readme">
 <img src="https://img.shields.io/badge/-Back%20to%20top-orange.svg" alt="#" align="right">
 </a>

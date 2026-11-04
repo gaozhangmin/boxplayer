@@ -1,14 +1,9 @@
-import { BOXPLAYER_AI_API_URL, BOXPLAYER_API_URL } from './secrets.generated'
-
-const DEFAULT_BOXPLAYER_AI_API_URL = 'https://ai.xbyvideohub.com'
-const DEFAULT_BOXPLAYER_API_URL = 'https://boxplayer-api-673444103572.europe-west1.run.app'
+import { BOXPLAYER_API_ORIGIN } from '../shared/boxplayerApi'
 
 export default class Config {
-  // BoxPlayer Cloud AI API
-  static BOXPLAYER_AI_API_URL = BOXPLAYER_AI_API_URL || DEFAULT_BOXPLAYER_AI_API_URL
-  // BoxPlayer non-AI API (PanHub, TMDB, hot-search, subtitles).
-  // It must never fall back to the AI service: the two services have different route sets and authentication.
-  static BOXPLAYER_API_URL = BOXPLAYER_API_URL || DEFAULT_BOXPLAYER_API_URL
+  // The unified Worker serves both AI and resource API routes.
+  static BOXPLAYER_AI_API_URL = BOXPLAYER_API_ORIGIN
+  static BOXPLAYER_API_URL = BOXPLAYER_API_ORIGIN
 
   // 网络请求配置
   static referer = 'https://www.aliyundrive.com/drive'

@@ -130,6 +130,8 @@ const drive115Tips = ref(t('login.scanWith115'))
 const drive115Loading = ref(false)
 const drive115Polling = ref(false)
 let drive115Timer: any = null
+let drive115Session = 0
+let drive115PollFailures = 0
 let quarkTimer: any = null
 let quarkPolling = false
 let cloud189Timer: any = null
@@ -242,12 +244,21 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  drive115Session++
+  drive115Polling.value = false
+  if (drive115Timer) clearTimeout(drive115Timer)
   disposed = true
   if (props.embedded) { handleClose(); useUser.loginFromFileSources = false }
   window.removeEventListener('cloud123-oauth-callback', handleOauthCallback as EventListener)
 })
 
-watch(loginProvider, () => {
+watch(loginProvider, (_provider, previousProvider) => {
+  if (previousProvider === '115') {
+    drive115Session++
+    drive115Polling.value = false
+    if (drive115Timer) clearTimeout(drive115Timer)
+    drive115Timer = null
+  }
   if (props.embedded || !loginVisible.value) return
   clearOpenTimers()
   if (loginProvider.value === 'cloud123') {
@@ -429,6 +440,7 @@ const handleClose = () => {
   client_secret.value = ALIYUN_APP_SECRET
   clearInterval(intervalId.value)
   clearOpenTimers()
+  drive115Session++
   if (drive115Timer) {
     clearTimeout(drive115Timer)
     drive115Timer = null
@@ -989,6 +1001,11 @@ const pollQuarkStatus = async () => {
 }
 
 const handleOpen115 = async () => {
+  const session = ++drive115Session
+  drive115Polling.value = false
+  drive115PollFailures = 0
+  if (drive115Timer) clearTimeout(drive115Timer)
+  drive115Timer = null
   if (!drive115ClientId.value.trim() && !DRIVE115_APP_ID) {
     loginLoading.value = false
     drive115Tips.value = t('login.clientId')
@@ -998,8 +1015,10 @@ const handleOpen115 = async () => {
   drive115Loading.value = true
   try {
     const { codeVerifier, codeChallenge } = await generatePkce()
+    if (session !== drive115Session) return
     drive115Verifier.value = codeVerifier
     const resp = await requestDeviceCode(drive115ClientId.value.trim(), codeChallenge, 'sha256')
+    if (session !== drive115Session) return
     if (resp.error) {
       drive115Tips.value = resp.error
       loginLoading.value = false
@@ -1015,21 +1034,28 @@ const handleOpen115 = async () => {
     loginLoading.value = false
     drive115Loading.value = false
     drive115Polling.value = true
-    poll115Status()
+    poll115Status(session)
   } catch (err: any) {
+    if (session !== drive115Session) return
     drive115Tips.value = err?.message || t('login.loginFailed')
     loginLoading.value = false
     drive115Loading.value = false
   }
 }
 
-const poll115Status = async () => {
-  if (!drive115Polling.value) return
+const poll115Status = async (session: number) => {
+  if (session !== drive115Session || !drive115Polling.value) return
   if (!drive115Uid.value || !drive115Time.value || !drive115Sign.value) return
+  const uid = drive115Uid.value
+  const verifier = drive115Verifier.value
+  let nextDelay = 1500
   try {
     const status = await pollDeviceStatus(drive115Uid.value, drive115Time.value, drive115Sign.value)
+    if (session !== drive115Session || !drive115Polling.value) return
     if (status.error) {
       drive115Tips.value = status.error
+      drive115PollFailures++
+      nextDelay = Math.min(30_000, 1500 * 2 ** Math.min(drive115PollFailures, 5))
     } else if (status.state === 0) {
       drive115Tips.value = t('login.qrExpired')
       drive115Polling.value = false
@@ -1039,7 +1065,8 @@ const poll115Status = async () => {
     } else if (status.status === 2) {
       drive115Tips.value = status.msg || t('login.scanSuccessSigningIn')
       drive115Polling.value = false
-      const tokenResp = await exchangeDeviceCode(drive115Uid.value, drive115Verifier.value)
+      const tokenResp = await exchangeDeviceCode(uid, verifier)
+      if (session !== drive115Session) return
       if (tokenResp.error) {
         drive115Tips.value = tokenResp.error
         return
@@ -1050,14 +1077,21 @@ const poll115Status = async () => {
         return
       }
       await refreshDrive115UserInfo(token)
+      if (session !== drive115Session) return
       await saveLogin(token, true)
       loginVisible.value = false
       return
     }
+    if (!status.error) drive115PollFailures = 0
   } catch (err: any) {
+    if (session !== drive115Session) return
     drive115Tips.value = err?.message || t('login.loginFailed')
+    drive115PollFailures++
+    nextDelay = Math.min(30_000, 1500 * 2 ** Math.min(drive115PollFailures, 5))
   }
-  drive115Timer = setTimeout(poll115Status, 1500)
+  if (session === drive115Session && drive115Polling.value) {
+    drive115Timer = setTimeout(() => poll115Status(session), nextDelay)
+  }
 }
 
 const handleRefresh115Qr = () => {

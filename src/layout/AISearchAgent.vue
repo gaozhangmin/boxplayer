@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { Sparkles, User, Send, Square, RotateCcw, WandSparkles, Command, Plus, Search, Film, HardDrive, FolderCog, Activity, ShieldCheck, ArrowUpRight, Brain, Trash2 } from 'lucide-vue-next'
 import { useAppStore } from '../store'
 import message from '../utils/message'
+import { resolveQuarkSearchDirectory } from '../utils/quarkSearchNavigation'
 import { useAISearchChat } from './aisearch/useAISearchChat'
 import ReasonChain from './aisearch/ReasonChain.vue'
 import BorderBeam from './aisearch/BorderBeam.vue'
@@ -105,7 +106,7 @@ function handleFollowUp(query: string) {
 }
 
 function handleFileNavigate(file: FileResult) {
-  appStore.toggleTab('pan')
+  appStore.toggleTabMenu('pan', 'wangpan')
   nextTick(async () => {
     const { default: usePanTreeStore } = await import('../pan/pantreestore')
     const { default: PanDAL } = await import('../pan/pandal')
@@ -114,6 +115,20 @@ function handleFileNavigate(file: FileResult) {
     if (panTreeStore.user_id !== file.userId) await UserDAL.UserChange(file.userId)
     await nextTick()
     let fileId = file.parentFileId || file.fileId
+    if (file.provider === 'quark') {
+      try {
+        fileId = await resolveQuarkSearchDirectory({
+          fileId: file.fileId, parentFileId: file.parentFileId, isDir: file.isDir
+        }, async () => {
+          const { apiQuarkFileDetail } = await import('../quark/dirfilelist')
+          const detail = await apiQuarkFileDetail(file.userId, file.fileId)
+          return detail?.pdir_fid == null ? undefined : String(detail.pdir_fid)
+        })
+      } catch {
+        message.error(t('pan.unrecognizedCurrentDir'))
+        return
+      }
+    }
     if (fileId === '/' || !fileId) {
       const map: Record<string, string> = {
         baidu: 'baidu_root', cloud123: 'cloud_root', '115': 'drive115_root',

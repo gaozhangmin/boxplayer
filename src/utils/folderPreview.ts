@@ -173,15 +173,10 @@ async function fetchFolderItemsRaw(p: FolderPreviewParams): Promise<IAliGetFileM
       })
     }
     if (isCloud189User(user_id) || drive_id === 'cloud189') {
-      const mod = await tryDynamicImport(() => import('../cloud189/dirfilelist'))
+      const mod = await tryDynamicImport(() => import('../cloud189/adapter'))
       if (!mod) return []
-      const parentId = file_id === 'cloud189_root' ? 'cloud189_root' : file_id
-      const list = await mod.apiCloud189FileList(user_id, parentId, MAX_PREVIEW_FILES)
-      return (list || []).map((item: any) => {
-        const mapped = mod.mapCloud189FileToAliModel(item, drive_id, parentId)
-        ;(mapped as any).user_id = user_id
-        return mapped
-      })
+      const result = await mod.listCloud189Items(user_id, drive_id, file_id, true, 1, true)
+      return result.items.slice(0, MAX_PREVIEW_FILES).map((item: any) => ({ ...item, user_id }))
     }
     if (isGuangyaUser(user_id) || drive_id === 'guangya') {
       const mod = await tryDynamicImport(() => import('../guangya/dirfilelist'))

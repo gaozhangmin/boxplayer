@@ -131,5 +131,6 @@ screenshot/        README 使用的当前界面截图
 - 官网：[xbyvideohub.com](https://xbyvideohub.com/)
 - Telegram：[BoxPlayer 社区](https://t.me/+wjdFeQ7ZNNE1NmM1)
 - 本项目基于 [liupan1890/aliyunpan](https://github.com/liupan1890/aliyunpan) 继续开发，感谢原作者及贡献者。
+- AI 媒体获取来自 [fancydirty/mediary-scout](https://github.com/fancydirty/mediary-scout)。
 
 请遵守所在地区法律法规、各云盘及媒体服务的条款，并确认自己有权访问和使用相关内容。第三方服务产生的额度消耗、费用与账号风险由使用者自行承担。

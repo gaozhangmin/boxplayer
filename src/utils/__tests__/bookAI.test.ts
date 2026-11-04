@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildBookAIRequest,
   chatStreamCompletion,
@@ -7,6 +7,7 @@ import {
   createLegacyRetrievalBackend,
   generateAIText,
   getAIConfig,
+  testAIConnection,
   migrateSoleSavedBYOKAsDefault,
   migrateLegacyAIHistory,
   resolveAIProviderConfig,
@@ -39,6 +40,7 @@ const { streamText, generateText, embed, embedMany, createGateway, createOpenAI,
   createGateway: vi.fn(),
   createOpenAI: vi.fn(),
   dbStore: {
+    values: new Map<string, unknown>(),
     chunks: [] as any[],
     meta: [] as any[],
     bm25: [] as any[],
@@ -65,6 +67,9 @@ vi.mock('ai', () => ({
 
 vi.mock('../db', () => ({
   default: {
+    getValueObject: vi.fn(async (key: string) => dbStore.values.get(key)),
+    saveValueObject: vi.fn(async (key: string, value: unknown) => { dbStore.values.set(key, value) }),
+    deleteValueObject: vi.fn(async (key: string) => { dbStore.values.delete(key) }),
     ibook_ai_chunk: {
       where: vi.fn((field: string) => ({
         equals: vi.fn((value: string) => ({
@@ -120,6 +125,7 @@ vi.mock('../db', () => ({
 }))
 
 describe('bookAI', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers() })
   beforeEach(() => {
     vi.clearAllMocks()
     settingStore.apiAIModelProvider = 'deepseek'
@@ -132,6 +138,7 @@ describe('bookAI', () => {
     settingStore.apiAIMaxContextChunks = 4
     settingStore.apiAIIndexingMode = 'on-demand'
     settingStore.apiAIReedyEnabled = false
+    dbStore.values.clear()
     dbStore.chunks = []
     dbStore.meta = []
     dbStore.bm25 = []
@@ -161,6 +168,36 @@ describe('bookAI', () => {
       apiKey: 'test-key',
       providerName: 'qwen',
     })
+  })
+
+  it('tests unsaved provider/model/key/endpoint without replacing the active default', async () => {
+    const fetchDraft = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: 'OK' } }] }) })
+    vi.stubGlobal('fetch', fetchDraft)
+
+    expect(await testAIConnection({ providerName: 'custom', apiKey: 'draft-key', modelId: 'draft-model', endpoint: 'https://draft.example/v1' })).toMatchObject({ ok: true })
+    const [url, request] = fetchDraft.mock.calls[0]
+    expect(url).toBe('https://draft.example/v1/chat/completions')
+    expect(request.headers.Authorization).toBe('Bearer draft-key')
+    expect(JSON.parse(request.body).model).toBe('draft-model')
+    expect(settingStore.apiAIModelProvider).toBe('deepseek')
+    expect(settingStore.apiAIModelId).toBe('deepseek-chat')
+    expect(settingStore.apiAIModelKey).toBe('test-key')
+  })
+
+  it('does not substitute the saved default when a draft model or key is empty', async () => {
+    const fetchDraft = vi.fn()
+    vi.stubGlobal('fetch', fetchDraft)
+    expect(await testAIConnection({ providerName: 'custom', apiKey: 'draft-key', modelId: '', endpoint: 'https://draft.example/v1' })).toMatchObject({ ok: false })
+    expect(await testAIConnection({ providerName: 'custom', apiKey: '', modelId: 'draft-model', endpoint: 'https://draft.example/v1' })).toMatchObject({ ok: false })
+    expect(fetchDraft).not.toHaveBeenCalled()
+  })
+
+  it('retains saved-default connection testing for callers without a draft', async () => {
+    const fetchDefault = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ choices: [{ message: { content: 'OK' } }] }) })
+    vi.stubGlobal('fetch', fetchDefault)
+    expect(await testAIConnection()).toMatchObject({ ok: true })
+    expect(fetchDefault.mock.calls[0][0]).toBe('https://api.deepseek.com/v1/chat/completions')
+    expect(JSON.parse(fetchDefault.mock.calls[0][1].body).model).toBe('deepseek-chat')
   })
 
   it('does not treat default Ollama settings as configured until a provider and model are saved', () => {
@@ -264,11 +301,11 @@ describe('bookAI', () => {
       apiKey: 'test-key',
       baseURL: 'https://api.deepseek.com/v1',
     })
-    expect(streamText).toHaveBeenCalledWith({
+    expect(streamText).toHaveBeenCalledWith(expect.objectContaining({
       model: { chatModelId: 'deepseek-chat' },
       system: 'system prompt',
       messages: [{ role: 'user', content: 'hi' }],
-    })
+    }))
     expect(tokens).toEqual(['你', '好'])
   })
 
@@ -312,6 +349,32 @@ describe('bookAI', () => {
     vi.useRealTimers()
   })
 
+  it('reports a stalled partial stream without appending a second answer', async () => {
+    vi.useFakeTimers()
+    streamText.mockReturnValue({
+      textStream: (async function* () {
+        yield 'partial'
+        await new Promise(() => {})
+      })(),
+    })
+    const onToken = vi.fn()
+    const onDone = vi.fn()
+    const onError = vi.fn()
+    const completion = chatStreamCompletion(
+      { endpoint: 'https://api.deepseek.com/v1', apiKey: 'test-key', modelId: 'deepseek-chat', providerName: 'deepseek' },
+      { system: 'system prompt', messages: [{ role: 'user', content: 'hi' }] },
+      { onToken, onDone, onError },
+      { idleTimeoutMs: 25 }
+    )
+    await vi.advanceTimersByTimeAsync(30)
+    await completion
+    expect(onToken.mock.calls).toEqual([['partial']])
+    expect(generateText).not.toHaveBeenCalled()
+    expect(onDone).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledWith('AI stream timed out')
+    expect(streamText.mock.calls[0][0].abortSignal.aborted).toBe(true)
+  })
+
   it('generates one-shot AI text through Vercel AI SDK', async () => {
     generateText.mockResolvedValue({ text: '释义结果' })
 
@@ -346,9 +409,8 @@ describe('bookAI', () => {
 
     expect(settings).toMatchObject({
       provider: 'ollama',
-      modelId: 'llama3.2',
-      embeddingModelId: 'nomic-embed-text',
-      ragEnabled: true,
+      ollamaModel: 'llama3.2',
+      ollamaEmbeddingModel: 'nomic-embed-text',
       spoilerProtection: true,
     })
     expect(config?.endpoint).toBe('http://127.0.0.1:11434/v1')
@@ -374,7 +436,7 @@ describe('bookAI', () => {
       openRouterModel: 'deepseek-chat',
     })
 
-    expect(resolveBookAIProvider(settings).getModel()).toEqual({ chatModelId: 'deepseek-chat' })
+    expect(resolveBookAIProvider(settings).getModel()).toMatchObject({ modelId: 'deepseek-chat' })
   })
 
   it('chunks plain reader sections with Readest page and overlap defaults', () => {
@@ -425,7 +487,7 @@ describe('bookAI', () => {
     expect(results[0].searchMethod).toBe('bm25')
   })
 
-  it('persists chat history and migrates legacy localStorage messages once', async () => {
+  it('migrates legacy history once and preserves an existing conversation when seeding', async () => {
     const storage = new Map<string, string>()
     const localStorageLike = {
       getItem: (key: string) => storage.get(key) || null,
@@ -444,7 +506,7 @@ describe('bookAI', () => {
 
     const messages = await loadAIConversationMessages('book-1', 'ask')
     expect(storage.get('bookAI.history.book-1.ask')).toBeUndefined()
-    expect(messages.map((item) => item.content)).toEqual(['旧问题', '旧答案', '新问题'])
+    expect(messages.map((item) => item.content)).toEqual(['旧问题', '旧答案'])
   })
 
   it('rejects operations that exceed the retry timeout', async () => {

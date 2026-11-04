@@ -953,7 +953,6 @@ const loadMediaPage = async (reset = false) => {
   const requestId = ++pageRequestId
   const { category, type, predicate } = getMediaPageQuery()
   const localItems = ['continue', 'continue-watching'].includes(category) ? continueWatchingItems.value
-    : ['recent', 'recently-added'].includes(category) ? mediaStore.recentlyAdded
       : category === 'favorites' ? mediaStore.favorites.map(favoriteIdToMediaItem).filter((item): item is MediaLibraryItem => !!item)
         : category === 'playlist' ? (selectedPlaylist.value ? (mediaStore.playlists[selectedPlaylist.value] || []).map(favoriteIdToMediaItem).filter((item): item is MediaLibraryItem => !!item) : [])
           : undefined
@@ -990,6 +989,7 @@ const loadNextPage = () => void loadMediaPage(false)
 watch(() => [props.browseSort, props.browseSortDescending], () => void loadMediaPage(true))
 watch(() => props.browseSelection, () => { localSelection.value = false; selectedBrowseIds.value = [] })
 watch(() => props.localOnly, () => void loadMediaPage(true))
+watch(() => mediaStore.catalogRevision, () => void loadMediaPage(true))
 
 watch(
   () => [props.activeCategory, props.selectedFolder?.id, props.selectedGenre, props.selectedYear, props.selectedRating, selectedGenre.value, selectedYear.value, selectedRating.value, activeTab.value, selectedPlaylist.value, selectedCast.value, selectedCountry.value, localSearchQuery.value, mediaStore.watchedItems.join('\n'), mediaStore.favorites.join('\n'), mediaStore.recentlyAdded.length, mediaStore.isScanning],
@@ -2251,9 +2251,9 @@ const handleEnterFolder = async (file: any) => {
       const list = await apiCloud139FileList(userId, fileId, 200)
       items = list.map(item => ({ ...mapCloud139FileToAliModel(item, driveId, fileId), user_id: userId }))
     } else if (driveId === 'cloud189') {
-      const { apiCloud189FileList, mapCloud189FileToAliModel } = await import('../cloud189/dirfilelist')
-      const list = await apiCloud189FileList(userId, fileId, 200)
-      items = list.map(item => ({ ...mapCloud189FileToAliModel(item, driveId, fileId), user_id: userId }))
+      const { listAllCloud189Items } = await import('../cloud189/adapter')
+      const list = await listAllCloud189Items(userId, driveId, fileId)
+      items = list.map(item => ({ ...item, user_id: userId }))
     } else if (driveId === 'guangya') {
       const { apiGuangyaFileList, mapGuangyaFileToAliModel } = await import('../guangya/dirfilelist')
       const list = await apiGuangyaFileList(userId, fileId, 200)

@@ -65,8 +65,8 @@
         >
           <Clock3 class="nav-icon" />
           <span>{{ t('media.recentlyAdded') }}</span>
-          <span v-if="mediaStore.recentlyAdded.length > 0" class="count">
-            {{ mediaStore.recentlyAdded.length }}
+          <span v-if="mediaStore.mediaItemCount > 0" class="count">
+            {{ mediaStore.mediaItemCount }}
           </span>
         </div>
 

@@ -206,3 +206,13 @@ describe('mapQuarkFileToAliModel', () => {
     expect(file.description).toContain('quark_fid:f1')
   })
 })
+
+describe('Quark search parent identity', () => {
+  it('preserves the explicit root parent when search has no listing context', () => {
+    expect(mapQuarkFileToAliModel({ fid: 'video', pdir_fid: '0', file_name: 'video.mp4', file_type: 1 }, 'quark', '').parent_file_id).toBe('quark_root')
+  })
+
+  it('preserves a nested parent rather than substituting the search context', () => {
+    expect(mapQuarkFileToAliModel({ fid: 'video', pdir_fid: 'nested', file_name: 'video.mp4', file_type: 1 }, 'quark', '').parent_file_id).toBe('nested')
+  })
+})

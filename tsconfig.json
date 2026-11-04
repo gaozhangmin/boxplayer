@@ -15,7 +15,8 @@
     "skipLibCheck": true,
     "paths": {
       "@shared/*": ["shared/*"],
-      "@main/*":   ["electron/main/*"]
+      "@main/*":   ["electron/main/*"],
+      "@mediary/*": ["vendor/mediary-workflow/src/*"]
     }
   },
   "include": [

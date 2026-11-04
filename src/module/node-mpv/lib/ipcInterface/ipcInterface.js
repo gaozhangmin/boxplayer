@@ -41,6 +41,10 @@ class ipcInterface extends EventEmitter {
 
     // Node Net Socket
     this.socket = new net.Socket()
+    this.socket.setEncoding('utf8')
+    this.responseBuffer = ''
+    // Connection errors can occur before the connect callback runs.
+    this.socket.on('error', (error) => this.errHandler(error))
   }
 
   // Sends a command in the correct JSON format to mpv
@@ -151,7 +155,6 @@ class ipcInterface extends EventEmitter {
       this.socket.on('close', () => this.closeHandler())
 
       // Catch errors and output them if set to debug
-      this.socket.on('error', (error) => this.errHandler(error))
 
       // Parse the data received from the socket and handle it to the mpv module
       this.socket.on('data', (data) => this.dataHandler(data))

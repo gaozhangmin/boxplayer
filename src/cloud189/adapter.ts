@@ -1,14 +1,36 @@
+import message from '../utils/message'
+import type { IAliGetFileModel } from '../aliapi/alimodels'
 import type { IDownloadUrl } from '../aliapi/models'
 import { GetExpiresTime } from '../utils/utils'
-import { apiCloud189DownloadInfo, apiCloud189FileDetail, apiCloud189FileList, cloud189DownloadHeaders, mapCloud189FileToAliModel } from './dirfilelist'
+import { apiCloud189Families, cloud189IsRoot, apiCloud189DownloadInfo, apiCloud189FileDetail, apiCloud189FileList, cloud189DownloadHeaders, mapCloud189FileToAliModel } from './dirfilelist'
 import { apiCloud189CopyBatch, apiCloud189Mkdir, apiCloud189MoveBatch, apiCloud189Rename, apiCloud189TrashBatch } from './filecmd'
 
 export const listCloud189Items = async (userId: string, driveId: string, dirId: string, includeFiles: boolean, page = 1, strict = false) => {
-  const parentId = dirId === 'cloud189_root' ? '-11' : dirId
+  const parentId = dirId
   const pageSize = 200
-  const mappedItems = (await apiCloud189FileList(userId, parentId, pageSize, page, strict)).map(item => mapCloud189FileToAliModel(item, driveId, dirId))
+  const items = await apiCloud189FileList(userId, parentId, pageSize, page, strict)
+  const mappedItems = items.map(item => mapCloud189FileToAliModel(item, driveId, dirId))
+  if (page === 1 && cloud189IsRoot(dirId)) {
+    // Failure remains visible; a broken family session must not look like no families.
+    try {
+      mappedItems.unshift(...(await apiCloud189Families(userId)).map(item => mapCloud189FileToAliModel(item, driveId, 'cloud189_root')))
+    } catch (error) {
+      if (strict) throw error
+      message.error(error instanceof Error ? error.message : String(error))
+    }
+  }
   const visibleItems = includeFiles ? mappedItems : mappedItems.filter(item => item.isDir)
-  return { items: visibleItems, total: mappedItems.length, nextCursor: includeFiles && mappedItems.length >= pageSize ? String(page + 1) : '' }
+  return { items: visibleItems, total: mappedItems.length, nextCursor: items.length >= pageSize ? String(page + 1) : '' }
+}
+
+/** Folder pickers and library navigation need all pages, including family roots. */
+export const listAllCloud189Items = async (userId: string, driveId: string, dirId: string, includeFiles = true) => {
+  const items: IAliGetFileModel[] = []
+  for (let page = 1; ; page++) {
+    const result = await listCloud189Items(userId, driveId, dirId, includeFiles, page, true)
+    items.push(...result.items)
+    if (!result.nextCursor) return items
+  }
 }
 
 export const getCloud189DownloadUrl = async (userId: string, driveId: string, fileId: string): Promise<IDownloadUrl | string> => {
@@ -25,10 +47,10 @@ export const getCloud189FileInfo = async (userId: string, driveId: string, fileI
   return mapped
 }
 
-export const createCloud189Folder = (userId: string, parentFileId: string, name: string) => apiCloud189Mkdir(userId, parentFileId.includes('root') ? 'cloud189_root' : parentFileId, name)
+export const createCloud189Folder = (userId: string, parentFileId: string, name: string) => apiCloud189Mkdir(userId, parentFileId, name)
 export const trashCloud189Files = (userId: string, fileIds: string[]) => apiCloud189TrashBatch(userId, fileIds)
-export const moveCloud189Files = (userId: string, fileIds: string[], parentFileId: string) => apiCloud189MoveBatch(userId, fileIds, parentFileId.includes('root') ? 'cloud189_root' : parentFileId)
-export const copyCloud189Files = (userId: string, fileIds: string[], parentFileId: string) => apiCloud189CopyBatch(userId, fileIds, parentFileId.includes('root') ? 'cloud189_root' : parentFileId)
+export const moveCloud189Files = (userId: string, fileIds: string[], parentFileId: string) => apiCloud189MoveBatch(userId, fileIds, parentFileId)
+export const copyCloud189Files = (userId: string, fileIds: string[], parentFileId: string) => apiCloud189CopyBatch(userId, fileIds, parentFileId)
 export const renameCloud189Files = async (userId: string, fileIds: string[], names: string[]) => {
   const results: { file_id: string; parent_file_id: string; name: string; isDir: boolean }[] = []
   for (let index = 0; index < fileIds.length; index++) {

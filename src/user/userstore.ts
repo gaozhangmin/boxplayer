@@ -14,6 +14,9 @@ export interface ITokenInfo {
   open_api_refresh_token: string
   open_api_expires_in: number
 
+  cloud189_family_session_key?: string
+  cloud189_family_session_secret?: string
+
   signature: string
   device_id: string
   expires_in: number

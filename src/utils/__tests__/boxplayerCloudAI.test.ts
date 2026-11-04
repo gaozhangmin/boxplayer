@@ -8,7 +8,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('BoxPlayer Cloud AI error mapping', () => {
   it('routes media scraping through the BoxPlayer resource API', () => {
-    expect(getBoxPlayerMediaScrapeUrl()).toBe('https://boxplayer-api-673444103572.europe-west1.run.app/v2/media-scrape')
+    expect(getBoxPlayerMediaScrapeUrl()).toBe('https://api.xbyvideohub.com/v2/media-scrape')
   })
 
   it('passes the caller abort signal through to the media scrape request', async () => {

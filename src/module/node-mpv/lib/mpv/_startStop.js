@@ -35,6 +35,17 @@ const startStop = {
     // see if there's already an mpv instance running on the specified socket
     const instance_running = await new Promise((resolve, reject) => {
       const sock = new net.Socket()
+      let settled = false
+      let response = ''
+      const finish = (callback, value) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        sock.destroy()
+        callback(value)
+      }
+      const timeout = setTimeout(() => finish(resolve, false), 1000)
+      sock.setEncoding('utf8')
       sock.connect({ path: this.options.socket }, () => {
         // if this part of the code is reached there is a socket available, but it's not
         // necessarily one of mpv
@@ -43,26 +54,30 @@ const startStop = {
           'command': ['get_property', 'mpv-version']
         }) + '\n')
       }).on('data', (data) => {
+        response += data
+        const newline = response.indexOf('\n')
+        if (newline < 0) return
         try {
-          const res = JSON.parse(data)
+          const res = JSON.parse(response.slice(0, newline))
           // if this worked, it's save to say that it's an MPV instance
           if ('data' in res && 'error' in res && res.error === 'success') {
-            reject(this.errorHandler.errorMessage(6, 'start()'))
+            finish(reject, this.errorHandler.errorMessage(6, 'start()'))
           } else {
-            resolve(false)
+            finish(resolve, false)
           }
         }
         // if any error occurred parsing the JSON response, whatever that socket server is, it's not belonging
         // to any MPV instance
         catch (err) {
-          resolve(false)
+          finish(resolve, false)
         }
       })
       // if any error occurs, there's no mpv instance already running on that socket,
       // in fact there's no socket server available at all
       .on('error', (err) => {
-        resolve(false)
+        finish(resolve, false)
       })
+      .on('close', () => finish(resolve, false))
     })
 
     // these steps are only necessary if a new MPV instance is created, if the module is hooking into an existing
@@ -80,8 +95,12 @@ const startStop = {
         // spawns the mpv player
         this.mpvPlayer = spawn(this.options.binary, this.mpv_arguments.concat(mpv_args), this.options.spawnOptions)
         let settled = false
+        let probeSocket = null
+        let probeTimer = null
         const cleanup = () => {
           clearTimeout(timeout)
+          clearTimeout(probeTimer)
+          probeSocket?.destroy()
           this.mpvPlayer.stdout?.off('data', stdCallback)
           this.mpvPlayer.stderr?.off('data', stdCallback)
           this.mpvPlayer.off('error', errorCallback)
@@ -124,6 +143,19 @@ const startStop = {
         this.mpvPlayer.stderr?.on('data', stdCallback)
         this.mpvPlayer.once('error', errorCallback)
         this.mpvPlayer.once('close', closeCallback)
+        // Some Windows builds/configurations suppress the IPC startup log.
+        // Detect the actual pipe/socket instead of requiring that log line.
+        const probe = () => {
+          if (settled) return
+          probeSocket = new net.Socket()
+          probeSocket.once('connect', () => finish(resolve))
+          probeSocket.once('error', () => {
+            probeSocket.destroy()
+            if (!settled) probeTimer = setTimeout(probe, 100)
+          })
+          probeSocket.connect({ path: this.options.socket })
+        }
+        probe()
       })
 
       // these steps are only necessary if a new MPV instance is created, if the module is hooking into an existing
@@ -136,6 +168,8 @@ const startStop = {
           // socket to check for the idle event to check if mpv fully loaded and
           // actually running
           const observeSocket = new net.Socket()
+          let responseBuffer = ''
+          observeSocket.setEncoding('utf8')
           let settled = false
           const finish = (callback, value) => {
             if (settled) return
@@ -155,12 +189,17 @@ const startStop = {
             if (this.options.debug || this.options.verbose) console.log('[Node-MPV] sending stimulus')
           }).on('data', (data) => {
             // parse the messages from the socket
-            const messages = data.toString('utf-8').split('\n')
+            responseBuffer += data
+            const messages = responseBuffer.split('\n')
+            responseBuffer = messages.pop() || ''
             // check every message
             messages.forEach((message) => {
               // ignore empty messages
               if (message.length > 0) {
-                message = JSON.parse(message)
+                try { message = JSON.parse(message) } catch (error) {
+                  finish(reject, this.errorHandler.errorMessage(7, 'start()', [this.options.socket], 'Invalid MPV IPC response'))
+                  return
+                }
                 // check for the relevant events to see, if mpv has finished loading
                 // idle, idle-active (different between mpv versions)
                 //     usually if no special options were added and mpv will go into idle state

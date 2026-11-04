@@ -170,6 +170,8 @@ export const normalizeCloud189Token = (data: any): ITokenInfo => {
     open_api_token_type: '',
     open_api_access_token: data.sessionKey || '',
     open_api_refresh_token: data.sessionSecret || '',
+    cloud189_family_session_key: data.familySessionKey || '',
+    cloud189_family_session_secret: data.familySessionSecret || '',
     open_api_expires_in: 0,
     signature: data.sessionSecret || '',
     device_id: '',
@@ -219,6 +221,7 @@ export const refreshCloud189Token = async (token: ITokenInfo): Promise<ITokenInf
     })
     const resp = await fetch(`${CLOUD189_AUTH_URL}/api/oauth2/refreshToken.do`, {
       method: 'POST',
+      signal: AbortSignal.timeout(30000),
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': CLOUD189_USER_AGENT },
       body: form
     })
@@ -226,10 +229,13 @@ export const refreshCloud189Token = async (token: ITokenInfo): Promise<ITokenInf
     if (!resp.ok || !data?.accessToken) return null
     const params = new URLSearchParams({ ...cloud189ClientSuffix(), appId: CLOUD189_APP_ID, accessToken: data.accessToken })
     const sessionResp = await fetch(`${CLOUD189_API_URL}/getSessionForPC.action?${params.toString()}`, {
+      signal: AbortSignal.timeout(30000),
       headers: { Accept: 'application/json;charset=UTF-8', 'User-Agent': CLOUD189_USER_AGENT }
     })
     const session = await sessionResp.json().catch(() => undefined)
-    if (!sessionResp.ok || Number(session?.res_code || 0) !== 0) return null
-    return normalizeCloud189Token({ ...data, ...session, refreshToken: data.refreshToken || token.refresh_token })
+    if (!sessionResp.ok || Number(session?.res_code || 0) !== 0 || !session?.sessionKey || !session?.sessionSecret) return null
+    const refreshed = normalizeCloud189Token({ ...data, ...session, refreshToken: data.refreshToken || token.refresh_token })
+    // Refresh must keep the stored account identity and user customizations.
+    return { ...token, ...refreshed, user_id: token.user_id, user_name: token.user_name || refreshed.user_name, name: token.name || refreshed.name, avatar: token.avatar || refreshed.avatar }
   })
 }

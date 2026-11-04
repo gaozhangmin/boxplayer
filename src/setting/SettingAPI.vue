@@ -11,6 +11,7 @@ import { isPro } from '../utils/usageLimit'
 import { openExternal } from '../utils/electronhelper'
 import { buildProPurchaseUrlForCurrentSession } from '../utils/boxplayerAuth'
 import { t } from '../i18n'
+import { loadProviderConfig, saveProviderConfig } from '../utils/aiProviderConfig'
 
 const tn = (key: Parameters<typeof t>[0], name: string) => t(key).replace('{name}', name)
 
@@ -61,26 +62,10 @@ const aiTestStatus = ref<'idle' | 'testing' | 'success' | 'error'>('idle')
 const aiTestMsg = ref('')
 const accountIsPro = ref(isPro())
 const showAddForm = ref(false)
-
-interface ProviderConfig { apiKey: string; modelId: string; embeddingModelId: string; baseUrl: string }
-
-function loadProviderConfig(provider: string): ProviderConfig {
-  try {
-    const raw = localStorage.getItem(`ai_provider_config_${provider}`)
-    if (raw) return JSON.parse(raw) as ProviderConfig
-  } catch {}
-  return { apiKey: '', modelId: '', embeddingModelId: '', baseUrl: '' }
-}
-
-function saveProviderConfig(provider: string, fields: Partial<ProviderConfig>) {
-  try {
-    const current = loadProviderConfig(provider)
-    const updated = { ...current, ...fields }
-    localStorage.setItem(`ai_provider_config_${provider}`, JSON.stringify(updated))
-  } catch {}
-}
+const providerConfigRevision = ref(0)
 
 const savedProviderConfigs = computed(() => {
+  providerConfigRevision.value
   const result: { provider: string; label: string; modelId: string; apiKey: string; baseUrl: string; isDefault: boolean; isBuiltIn?: boolean; locked?: boolean }[] = []
   const currentDefault = settingStore.apiAIModelProvider
   // 内置 AI — 始终显示，非 Pro 用户锁定
@@ -125,8 +110,15 @@ function saveCurrentConfig() {
   if (!v) { message.warning(t('settings.ai.selectProviderFirst')); return }
   if (v !== 'ollama' && !aiKey.value) { message.warning(t('settings.ai.enterApiKey')); return }
   if (!aiModelId.value) { message.warning(t('settings.ai.enterModelId')); return }
-  saveProviderConfig(v, { apiKey: aiKey.value, modelId: aiModelId.value, embeddingModelId: aiEmbeddingModelId.value, baseUrl: aiBaseUrl.value })
-  const shouldSetAsDefault = !settingStore.apiAIModelProvider
+  let shouldSetAsDefault: boolean
+  try {
+    const saved = saveProviderConfig(v, { apiKey: aiKey.value, modelId: aiModelId.value, embeddingModelId: aiEmbeddingModelId.value, baseUrl: aiBaseUrl.value }, settingStore.apiAIModelProvider)
+    shouldSetAsDefault = saved.shouldSetAsDefault
+    providerConfigRevision.value += 1
+  } catch {
+    message.error(t('settings.ai.saveFailed'))
+    return
+  }
   if (shouldSetAsDefault) setAsDefault(v)
   showAddForm.value = false
   aiProvider.value = ''
@@ -136,6 +128,7 @@ function saveCurrentConfig() {
 function deleteProviderConfig(provider: string) {
   try {
     localStorage.removeItem(`ai_provider_config_${provider}`)
+    providerConfigRevision.value += 1
     if (settingStore.apiAIModelProvider === provider) {
       settingStore.updateStore({ apiAIModelProvider: '', apiAIModelKey: '', apiAIModelId: '', apiAIEmbeddingModelId: '', apiAIBaseUrl: '' })
     }
@@ -202,6 +195,12 @@ watch(aiProvider, (v) => {
   aiEmbeddingModelId.value = cached.embeddingModelId
   const info = PROVIDER_INFO[v]
   aiBaseUrl.value = cached.baseUrl || info?.endpoint || ''
+})
+let connectionTestGeneration = 0
+watch([aiProvider, aiKey, aiBaseUrl, aiModelId], () => {
+  connectionTestGeneration += 1
+  aiTestStatus.value = 'idle'
+  aiTestMsg.value = ''
 })
 watch(aiSpoilerProtection, (v) => settingStore.updateStore({ apiAISpoilerProtection: v }))
 watch(aiMaxContextChunks, (v) => settingStore.updateStore({ apiAIMaxContextChunks: v }))
@@ -321,11 +320,15 @@ async function fetchModels() {
 }
 
 async function runConnectionTest() {
+  const generation = ++connectionTestGeneration
+  const draft = { providerName: aiProvider.value, apiKey: aiKey.value, modelId: aiModelId.value, endpoint: aiBaseUrl.value }
   aiTestStatus.value = 'testing'; aiTestMsg.value = ''
   try {
-    const { ok, message } = await testAIConnection()
+    const { ok, message } = await testAIConnection(draft)
+    if (generation !== connectionTestGeneration) return
     aiTestStatus.value = ok ? 'success' : 'error'; aiTestMsg.value = message
   } catch (e: any) {
+    if (generation !== connectionTestGeneration) return
     aiTestStatus.value = 'error'; aiTestMsg.value = e?.message || t('settings.ai.testFailed')
   }
 }

@@ -69,7 +69,7 @@ export const requestDeviceCode = async (clientId: string, codeChallenge: string,
 
 export const pollDeviceStatus = async (uid: string, time: string, sign: string) => {
   const params = new URLSearchParams({ uid, time, sign })
-  const resp = await fetch(`${DRIVE115_QR_STATUS_URL}?${params.toString()}`)
+  const resp = await fetch(`${DRIVE115_QR_STATUS_URL}?${params.toString()}`, { signal: AbortSignal.timeout(30_000) })
   if (!resp.ok) return { error: '获取扫码状态失败' }
   const data = await resp.json()
   if (data?.error || data?.errno) {

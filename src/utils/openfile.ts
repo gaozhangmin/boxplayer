@@ -26,14 +26,19 @@ async function resolveTokenForFile(file: IAliGetFileModel): Promise<ITokenInfo |
 
 function buildSiblingVideoPlaylist(file: IAliGetFileModel, userId: string, tokenfrom: string, provided?: IPageVideoPlaylistEntry[]): IPageVideoPlaylistEntry[] {
   if (provided && provided.length > 0) return provided.map((item) => ({ ...item, tokenfrom: item.tokenfrom || tokenfrom }))
-  const rawItems = usePanFileStore().ListDataRaw || []
-  const visibleItems = rawItems.filter((item: any) => !item.isDir)
-  const sameDirectory = visibleItems.filter((item: any) => item.parent_file_id === file.parent_file_id)
-  const candidates = (sameDirectory.length > 1 ? sameDirectory : visibleItems).filter(isVideoFile)
+  const store = usePanFileStore()
+  const rawItems = store.ListDataRaw || []
+  // Preserve the order selected in the file browser. Only fall back to the
+  // complete directory when this item was opened outside the visible list.
+  const shownItems = store.ListDataShow || []
+  const isShown = shownItems.some((item: any) => item.file_id === file.file_id && item.drive_id === file.drive_id)
+  const sourceItems = isShown ? shownItems : rawItems
+  const visibleItems = sourceItems.filter((item: any) => !item.isDir)
+  const candidates = visibleItems.filter((item: any) => item.parent_file_id === file.parent_file_id && item.drive_id === file.drive_id).filter(isVideoFile)
   if (!candidates.some((item: any) => item.file_id === file.file_id)) candidates.push(file)
   if (candidates.length <= 1) return []
+  if (!isShown) candidates.sort((left: any, right: any) => String(left.name || left.file_name || '').localeCompare(String(right.name || right.file_name || ''), undefined, { numeric: true, sensitivity: 'base' }))
   return candidates
-    .sort((left: any, right: any) => String(left.name || left.file_name || '').localeCompare(String(right.name || right.file_name || ''), undefined, { numeric: true, sensitivity: 'base' }))
     .map((item: any): IPageVideoPlaylistEntry => ({
       user_id: userId,
       tokenfrom,
