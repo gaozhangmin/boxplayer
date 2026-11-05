@@ -99,13 +99,13 @@ const layout = computed(() => props.mode === 'workspace' || isMultiSource.value 
 const documentAiStyle = computed(() => layout.value === 'sidebar' ? { width: `${sidebarWidth.value}px` } : undefined)
 const sourceHeading = computed(() => {
   const count = allSourceInputs.value.length
-  if (count === 1) return `Ask questions about “${allSourceInputs.value[0]?.file?.name || allSourceInputs.value[0]?.file?.file_name || '文档'}”`
-  return `Ask questions about ${count} files${props.scopeName ? ` in ‘${props.scopeName}’` : ''}`
+  if (count === 1) return `${allSourceInputs.value[0]?.file?.name || allSourceInputs.value[0]?.file?.file_name || '文档'}`
+  return `${count} 份文档${props.scopeName ? ` · ${props.scopeName}` : ''}`
 })
 const privacyText = computed(() => canUseSemanticEmbeddings(createBookAISettings().provider)
-  ? '已选网盘文件在本机按页解析；仅相关片段会用于检索和回答。'
-  : '已选网盘文件在本机解析并建立关键词索引；回答只使用相关片段。')
-const quickPrompts = ['总结这些来源', '有哪些关键要点？', '这份文档可如何改进？', '这些文档定义了哪些下一步？']
+  ? '结合原文回答，支持页码引用。'
+  : '基于文档内容回答，可跳转原文。')
+const quickPrompts = ['总结文档', '提炼关键要点', '有哪些改进建议？', '整理待办事项']
 const candidates = computed(() => {
   const selected = new Set(allSourceInputs.value.map(documentInsightSourceId))
   return props.availableSources.filter(source => isDocumentInsightFile(source.file) && !selected.has(documentInsightSourceId(source))).slice(0, 30)
@@ -211,6 +211,9 @@ function requireDocumentAIPro(): boolean {
 function isPdfSource(source: { fileName: string }): boolean { return /\.pdf$/i.test(source.fileName) }
 
 async function indexCloudSource(source: SourceState, settings: ReturnType<typeof createBookAISettings>, provider: ReturnType<typeof getAIProvider>) {
+  // Preview windows start with an empty account cache. Load the file owner's
+  // persisted account before resolving its provider and download headers.
+  await UserDAL.GetUserTokenFromDB(source.userId)
   const download = await DriveFile.ApiFileDownloadUrl(source.userId, source.file.drive_id || '', source.file.file_id, 14_400)
   if (typeof download === 'string') throw new Error(download)
   const embeddingModel = canUseSemanticEmbeddings(settings.provider) ? provider.getEmbeddingModel() : undefined
@@ -686,8 +689,8 @@ onBeforeUnmount(() => {
 
       <div v-if='!messages.length' class='document-ai__empty'>
         <span class='document-ai__hero-icon'><Sparkles :size='26' /></span>
-        <h2>{{ layout === 'workspace' ? 'Ask BoxPlayer AI' : 'What can I help you with?' }}</h2>
-        <p>{{ status || (indexing ? '正在准备来源…' : '从下方建议开始，或提出一个具体问题。') }}</p>
+        <h2>{{ layout === 'workspace' ? '与文档对话' : '想了解文档的哪些内容？' }}</h2>
+        <p>{{ status || (indexing ? '正在准备来源…' : '选择下方问题，或输入你想了解的内容。') }}</p>
         <div class='document-ai__suggestions'>
           <button v-for='prompt in quickPrompts' :key='prompt' type='button' :disabled='asking' @click='askQuickPrompt(prompt)'>{{ prompt }}</button>
         </div>
@@ -739,7 +742,7 @@ onBeforeUnmount(() => {
         <button v-if='pickerSelection.length' type='button' class='document-ai__add-selected' @click='addSources(pickerSelection)'>添加 {{ pickerSelection.length }} 份文档</button>
       </div>
       <div v-if='mentionCandidates.length' class='document-ai__mention-picker'><span>输入 @ 选择或添加文档</span><button v-for='source in mentionCandidates' :key='documentInsightSourceId(source)' type='button' @click='selectMention(source)'><FileText :size='14' />@{{ source.file.name || source.file.file_name }}</button></div>
-      <textarea v-model='question' :disabled='asking' placeholder='Ask BoxPlayer AI · 输入 @ 提及文件' rows='1' @keydown.meta.enter.prevent='ask()' @keydown.ctrl.enter.prevent='ask()' @keydown.enter.exact.prevent='ask()'></textarea>
+      <textarea v-model='question' :disabled='asking' placeholder='询问这份文档…' rows='1' @keydown.meta.enter.prevent='ask()' @keydown.ctrl.enter.prevent='ask()' @keydown.enter.exact.prevent='ask()'></textarea>
       <button v-if='asking' type='button' class='document-ai__stop-answer' title='停止回答' @click='stopAnswer'><X :size='18' /></button>
       <button v-else type='button' :disabled='!question.trim()' title='发送' @click='ask()'><ArrowUp :size='18' /></button>
       <div class='document-ai__composer-hint'><span>仅基于已选文档回答</span><kbd>↵</kbd><span>发送</span><kbd>⇧↵</kbd><span>换行</span></div>
@@ -898,4 +901,16 @@ onBeforeUnmount(() => {
   .document-ai__composer-hint { right:16px; left:16px; }
   .document-ai__composer-hint > span:first-child { display:none; }
 }
+
+.document-ai--sidebar .document-ai__header { padding:0 18px; }
+.document-ai--sidebar .document-ai__empty { width:100%; box-sizing:border-box; padding:32px 22px 24px; }
+.document-ai--sidebar .document-ai__empty h2 { font-size:19px; line-height:1.45; }
+.document-ai--sidebar .document-ai__empty p { font-size:13px; }
+.document-ai--sidebar .document-ai__suggestions { width:100%; }
+.document-ai--sidebar .document-ai__suggestions button { padding:10px 12px; text-align:left; }
+.document-ai--sidebar .document-ai__context strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.document-ai--sidebar .document-ai__context>div { min-width:0; }
+.document-ai--sidebar .document-ai__conversation { padding:24px 20px 32px; }
+.document-ai--sidebar .document-ai__composer { padding:12px 16px 33px; }
+.document-ai--sidebar .document-ai__composer-hint { left:16px; right:16px; }
 </style>

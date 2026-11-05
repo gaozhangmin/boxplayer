@@ -7,6 +7,7 @@ import { aiStore } from '../services/ai/storage/aiStore'
 import { withRetryAndTimeout, AI_TIMEOUTS } from '../services/ai/utils/retry'
 import { chunkSection, SIZE_PER_PAGE } from '../services/ai/utils/chunker'
 import useSettingStore from '../setting/settingstore'
+import { isPro } from './usageLimit'
 import { completeBoxPlayerCloudChat, isBoxPlayerCloudProvider, streamBoxPlayerCloudChat } from './boxplayerCloudAI'
 
 // ── re‑exports for backward compat ──────────────────────────────────
@@ -93,20 +94,22 @@ function findSoleStoredBYOKConfig(): AIModelConfig | null {
 
 function buildAISettings(): AISettings {
   const store = useSettingStore()
-  const provider = (store.apiAIModelProvider as string) || ''
-  // 优先用 store 里存的，否则用 provider 默认 endpoint
-  const baseUrl = store.apiAIBaseUrl || PROVIDER_ENDPOINTS[provider] || ''
+  const savedProvider = (store.apiAIModelProvider as string) || ''
+  const effectiveConfig = getAIConfig()
+  const provider = effectiveConfig?.providerName || ''
+  // Pro uses the built-in provider when no provider was explicitly saved.
+  const baseUrl = savedProvider ? store.apiAIBaseUrl || PROVIDER_ENDPOINTS[provider] || '' : effectiveConfig?.endpoint || PROVIDER_ENDPOINTS[provider] || ''
   return {
     provider: provider as any,
     ollamaUrl: baseUrl || DEFAULT_AI_SETTINGS.ollamaUrl,
     ollamaModel: store.apiAIModelId || DEFAULT_AI_SETTINGS.ollamaModel,
     ollamaEmbeddingModel: store.apiAIEmbeddingModelId || DEFAULT_AI_SETTINGS.ollamaEmbeddingModel,
-    aiGatewayApiKey: store.apiAIModelKey || '',
-    aiGatewayModel: store.apiAIModelId || DEFAULT_AI_SETTINGS.aiGatewayModel,
+    aiGatewayApiKey: effectiveConfig?.apiKey || '',
+    aiGatewayModel: effectiveConfig?.modelId || DEFAULT_AI_SETTINGS.aiGatewayModel,
     aiGatewayEmbeddingModel: store.apiAIEmbeddingModelId || DEFAULT_AI_SETTINGS.aiGatewayEmbeddingModel,
-    openRouterApiKey: store.apiAIModelKey || '',
+    openRouterApiKey: effectiveConfig?.apiKey || '',
     openRouterBaseUrl: baseUrl,
-    openRouterModel: store.apiAIModelId || DEFAULT_AI_SETTINGS.openRouterModel,
+    openRouterModel: effectiveConfig?.modelId || DEFAULT_AI_SETTINGS.openRouterModel,
     openRouterEmbeddingModel: store.apiAIEmbeddingModelId || DEFAULT_AI_SETTINGS.openRouterEmbeddingModel,
     spoilerProtection: store.apiAISpoilerProtection,
     maxContextChunks: store.apiAIMaxContextChunks || 10,
@@ -118,16 +121,18 @@ function buildAISettings(): AISettings {
 export function getAIConfig(): AIModelConfig | null {
   const store = useSettingStore()
   const provider = store.apiAIModelProvider
-  if (!provider) return findSoleStoredBYOKConfig()
-  if (!store.apiAIModelId) return null
-  if (provider !== 'ollama' && !isBoxPlayerCloudProvider(provider) && !store.apiAIModelKey) return null
-  const s = buildAISettings()
-  return { endpoint: isBoxPlayerCloudProvider(provider) ? '' : s.openRouterBaseUrl || s.ollamaUrl, modelId: s.openRouterModel || s.ollamaModel, apiKey: s.openRouterApiKey || s.aiGatewayApiKey, providerName: provider }
+  if (!provider) {
+    if (isPro()) return { endpoint: '', modelId: 'deepseek/deepseek-v4-pro', apiKey: '', providerName: 'boxplayer-cloud' }
+    return findSoleStoredBYOKConfig()
+  }
+  if (isBoxPlayerCloudProvider(provider)) return { endpoint: '', modelId: store.apiAIModelId || 'deepseek/deepseek-v4-pro', apiKey: '', providerName: provider }
+  if (!store.apiAIModelId || (provider !== 'ollama' && !store.apiAIModelKey)) return null
+  return { endpoint: store.apiAIBaseUrl || PROVIDER_ENDPOINTS[provider] || '', modelId: store.apiAIModelId, apiKey: store.apiAIModelKey || '', providerName: provider }
 }
 
 export function migrateSoleSavedBYOKAsDefault(): boolean {
   const store = useSettingStore()
-  if (store.apiAIModelProvider) return false
+  if (store.apiAIModelProvider || isPro()) return false
   const config = findSoleStoredBYOKConfig()
   if (!config) return false
   let embeddingModelId = ''
@@ -161,7 +166,7 @@ function createAIModel(config: AIModelConfig) {
 export function resolveAIProviderConfig(providerOverride = ''): AIModelConfig | null {
   const store = useSettingStore()
   const provider = providerOverride || store.apiAIModelProvider
-  if (!provider) return null
+  if (!provider) return getAIConfig()
   if (isBoxPlayerCloudProvider(provider)) {
     return { endpoint: '', modelId: store.apiAIModelId || 'deepseek/deepseek-v4-pro', apiKey: '', providerName: provider }
   }

@@ -1,5 +1,5 @@
 <script setup lang='ts'>
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import useSettingStore from './settingstore'
 import MySwitch from '../layout/MySwitch.vue'
 import LimitReachedModal from './LimitReachedModal.vue'
@@ -14,6 +14,7 @@ import { BOXPLAYER_SITE_URL, buildProPurchaseUrlForCurrentSession, clearBoxPlaye
 import { appUpdate, initializeAppUpdate, checkAppUpdate, downloadAppUpdate } from '../utils/appUpdate'
 initializeAppUpdate()
 import SettingsMembershipHeader from '../components/SettingsMembershipHeader.vue'
+import BoxPlayerProBadge from '../components/BoxPlayerProBadge.vue'
 import { resolveBoxPlayerProTier } from '../utils/boxplayerProTier'
 import { t } from '../i18n'
 
@@ -53,12 +54,6 @@ try {
   })
 } catch {}
 const showUpgradeModal = ref(false)
-const showAccountControls = ref(false)
-async function openAccountDetails() {
-  showAccountControls.value = true
-  await nextTick()
-  document.getElementById('settings-account-controls')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-}
 
 
 onMounted(() => {
@@ -313,8 +308,7 @@ function openSupport() {
 
 <template>
   <div class='settingcard'>
-    <SettingsMembershipHeader :signed-in="isLoggedIn" :email="accountEmail" :tier="isPro ? proTier : 'standard'"
-      @membership="isPro ? openAccountDetails() : showUpgradeModal = true">
+    <SettingsMembershipHeader :tier="isPro ? proTier : 'standard'" @membership="showUpgradeModal = true">
       <template #actions>
         <div v-if="['available', 'downloading', 'downloaded', 'error'].includes(appUpdate.status)" class="banner-update-status">
           <a-button v-if="appUpdate.status === 'available'" class="banner-update-button" @click="downloadAppUpdate">↓ 更新到 v{{ appUpdate.version }}</a-button>
@@ -345,7 +339,14 @@ function openSupport() {
       <div class='setting-account-panel'>
         <template v-if="isLoggedIn">
           <div class='setting-account-main'>
-            <span>{{ t('settings.boxAccount') }}</span>
+            <div class='setting-account-avatar' aria-hidden='true'>{{ accountInitial }}</div>
+            <div class='setting-account-identity'>
+              <div class='setting-account-name'>
+                <div class='setting-account-email' :title='accountEmail'>{{ accountEmail || t('settings.boxAccount') }}</div>
+                <BoxPlayerProBadge class='setting-account-badge' :tier="isPro ? proTier : 'standard'" compact />
+              </div>
+              <div class='setting-account-meta'>{{ t('settings.boxAccount') }}</div>
+            </div>
             <button class='setting-icon-btn' :title="t('settings.syncStatus')" :disabled='loading' @click='syncProStatus'><RefreshCw :size='15' /></button>
             <button class='setting-icon-btn danger' :title="t('user.logout')" @click='handleLogout'><LogOut :size='15' /></button>
           </div>
@@ -637,7 +638,19 @@ function openSupport() {
   flex: 1;
 }
 
+.setting-account-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.setting-account-badge {
+  color: rgb(var(--green-6));
+}
+
 .setting-account-email {
+  min-width: 0;
   overflow: hidden;
   color: var(--color-text-1);
   font-size: 14px;
@@ -902,5 +915,5 @@ function openSupport() {
 </style>
 
 <style scoped>
-.banner-update-status{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 0;color:#fff}.banner-update-button{background:#fff!important;color:#e87300!important;border:0!important;border-radius:10px;font-weight:700;height:40px;padding:0 20px}
+.banner-update-status{display:flex;align-items:center;gap:12px 18px;flex-wrap:wrap;padding:6px 0 0;color:#fff}.banner-update-button{background:#fff!important;color:#15803d!important;border:0!important;border-radius:8px;font-weight:700;height:32px;padding:0 16px}
 </style>

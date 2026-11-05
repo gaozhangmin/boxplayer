@@ -70,10 +70,10 @@ describe('PanHub source search', () => {
     const invoke = vi.fn(async () => ({ ok: true, status: 200, data: { code: 0, data: { total: 1 } } }))
     const fetchImpl = createPanHubFetch(invoke)
 
-    const response = await fetchImpl('https://boxplayer-api-673444103572.europe-west1.run.app/api/search?kw=test')
+    const response = await fetchImpl('https://api.xbyvideohub.com/api/search?kw=test')
 
     expect(invoke).toHaveBeenCalledWith('PanHub:request', {
-      url: 'https://boxplayer-api-673444103572.europe-west1.run.app/api/search?kw=test',
+      url: 'https://api.xbyvideohub.com/api/search?kw=test',
       method: 'GET',
       headers: undefined,
       body: undefined

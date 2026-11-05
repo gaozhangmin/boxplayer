@@ -15,7 +15,7 @@ describe('PanHub main-process request proxy', () => {
     const events: any[] = []
 
     await requestPanHubStream(
-      { url: 'https://boxplayer-api-673444103572.europe-west1.run.app/api/search/stream', method: 'POST', body: '{}' },
+      { url: 'https://api.xbyvideohub.com/api/search/stream', method: 'POST', body: '{}' },
       (event) => events.push(event),
       undefined,
       fetchImpl
@@ -27,12 +27,13 @@ describe('PanHub main-process request proxy', () => {
   it('allows only the configured PanHub HTTPS origin', async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
 
-    await expect(requestPanHub({ url: 'https://boxplayer-api-673444103572.europe-west1.run.app/api/health' }, fetchImpl)).resolves.toEqual({
+    await expect(requestPanHub({ url: 'https://api.xbyvideohub.com/api/health' }, fetchImpl)).resolves.toEqual({
       ok: true,
       status: 200,
       data: { status: 'ok' }
     })
     await expect(requestPanHub({ url: 'https://example.com/api/health' }, fetchImpl)).rejects.toThrow('不允许的 PanHub 请求地址')
+    await expect(requestPanHub({ url: 'https://boxplayer-api-673444103572.europe-west1.run.app/api/health' }, fetchImpl)).rejects.toThrow('不允许的 PanHub 请求地址')
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 

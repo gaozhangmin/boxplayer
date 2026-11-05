@@ -24,7 +24,10 @@ const appStore = useAppStore()
 const canvasRef = ref<HTMLCanvasElement>()
 const pageNum = ref(1)
 const pageCount = ref(0)
-const scale = ref(1.15)
+const scale = ref(1)
+const fitToWidth = ref(true)
+const previewRef = ref<HTMLElement>()
+let previewObserver: ResizeObserver | null = null
 const loading = ref(true)
 const errorText = ref('')
 const aiVisible = ref(false)
@@ -95,7 +98,11 @@ const renderPage = () => {
     const page = await pdfDoc.getPage(requestedPage)
     if (disposed || generation !== renderGeneration) { page.cleanup(); return }
     renderedPage = page
-    const viewport = page.getViewport({ scale: requestedScale })
+    const naturalViewport = page.getViewport({ scale: 1 })
+    const availableWidth = Math.max(160, (previewRef.value?.clientWidth || 800) - 48)
+    const displayScale = fitToWidth.value ? Math.min(3, availableWidth / naturalViewport.width) : requestedScale
+    if (fitToWidth.value) scale.value = displayScale
+    const viewport = page.getViewport({ scale: displayScale })
     // Bound raster memory independently of the logical zoom/page dimensions.
     const rasterScale = Math.min(1, 4096 / Math.max(viewport.width, viewport.height), Math.sqrt(8_000_000 / (viewport.width * viewport.height)))
     const canvas = canvasRef.value
@@ -159,11 +166,15 @@ const nextPage = () => {
 }
 
 const zoomOut = () => {
+  fitToWidth.value = false
   scale.value = Math.max(0.5, Number((scale.value - 0.15).toFixed(2)))
+  renderPage()
 }
 
 const zoomIn = () => {
+  fitToWidth.value = false
   scale.value = Math.min(3, Number((scale.value + 0.15).toFixed(2)))
+  renderPage()
 }
 
 const openDocumentAI = (prompt = '') => {
@@ -180,7 +191,7 @@ const jumpToLocation = (location: string) => {
   if (page > 0 && page <= pageCount.value) pageNum.value = page
 }
 
-watch([pageNum, scale], () => {
+watch(pageNum, () => {
   renderPage()
 })
 
@@ -190,10 +201,13 @@ onMounted(() => {
   setTimeout(() => {
     document.title = name
   }, 1000)
+  previewObserver = new ResizeObserver(() => { if (fitToWidth.value && pdfDoc) renderPage() })
+  if (previewRef.value) previewObserver.observe(previewRef.value)
   loadPdf()
 })
 
 onBeforeUnmount(() => {
+  previewObserver?.disconnect()
   disposed = true
   renderGeneration++
   window.removeEventListener('keydown', onKeyDown, true)
@@ -209,7 +223,7 @@ onBeforeUnmount(() => {
         <a-button type="text" tabindex="-1">
           <IconFont name="iconfile-pdf" />
         </a-button>
-        <div class="title">{{ appStore.pagePdf?.file_name || 'PDF 预览' }}</div>
+        <div class="title" :title="appStore.pagePdf?.file_name">{{ appStore.pagePdf?.file_name || 'PDF 预览' }}</div>
         <div class="pdf-toolbar q-electron-drag--exception">
           <div class="pdf-toolbar-group" aria-label="翻页控制">
             <a-button class="pdf-toolbar-button" type="text" size="mini" :disabled="pageNum <= 1" title="上一页" @click="prevPage"><ChevronLeft :size="15" /><span>上一页</span></a-button>
@@ -218,7 +232,7 @@ onBeforeUnmount(() => {
           </div>
           <div class="pdf-toolbar-group" aria-label="缩放控制">
             <a-button class="pdf-toolbar-icon-button" type="text" size="mini" title="缩小" @click="zoomOut"><Minus :size="15" /></a-button>
-            <span class="pdf-toolbar-status pdf-zoom-status">{{ Math.round(scale * 100) }}%</span>
+            <button class="pdf-fit-button" :class="{ active: fitToWidth }" title="适合宽度" @click="fitToWidth = true; renderPage()">{{ fitToWidth ? '适合宽度' : `${Math.round(scale * 100)}%` }}</button>
             <a-button class="pdf-toolbar-icon-button" type="text" size="mini" title="放大" @click="zoomIn"><Plus :size="15" /></a-button>
           </div>
           <a-button class="pdf-ai-button" type="primary" size="mini" title="打开文档 AI 对话" @click="openDocumentAI()"><Sparkles :size="15" /> <span>AI 问答</span></a-button>
@@ -237,7 +251,7 @@ onBeforeUnmount(() => {
     </a-layout-header>
     <a-layout-content class="pdf-shell__content" style="height: calc(100vh - 42px)">
       <div class="pdf-content">
-      <div class="pdf-preview">
+      <div ref="previewRef" class="pdf-preview">
         <a-spin v-if="loading" class="pdf-loading" :size="32" tip="加载中..." />
         <a-empty v-if="!loading && errorText" class="pdf-error" :description="errorText" />
         <canvas ref="canvasRef" class="pdf-canvas" />
@@ -372,4 +386,25 @@ onBeforeUnmount(() => {
   background: #fff;
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.18);
 }
+
+/* PageMain 的全局标题栏样式（42px 高、3px 上内边距、37px 行高、按钮 32px/零内边距）都带 !important，这里需用 ID 选择器 + !important 才能覆盖 */
+.pdf-shell #xbyhead2 { display:flex; align-items:center; gap:6px; padding:0 12px; height:52px; line-height:normal; }
+.pdf-shell #xbyhead { height:52px !important; padding:0 !important; line-height:normal !important; border-bottom:1px solid var(--color-border-2); }
+.pdf-shell #xbyhead2 .pdf-toolbar button { height:28px !important; min-height:28px !important; margin:0; line-height:28px !important; }
+.pdf-shell #xbyhead2 .pdf-toolbar-button { min-width:30px !important; padding:0 8px !important; }
+.pdf-shell #xbyhead2 .pdf-toolbar-icon-button { min-width:30px !important; }
+.pdf-shell #xbyhead2 .pdf-fit-button { min-width:72px !important; padding:0 8px !important; border-radius:0; }
+.pdf-shell #xbyhead2 .pdf-ai-button { height:30px !important; min-height:30px !important; padding:0 11px !important; line-height:30px !important; }
+.pdf-shell__content { height:calc(100vh - 52px) !important; }
+.title { min-width:60px; max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; font-weight:600; }
+.pdf-toolbar { margin-left:18px; gap:8px; flex-shrink:0; }
+.pdf-toolbar-group { min-height:28px; border-radius:6px; }
+.pdf-toolbar-status { height:28px; font-size:12px; }
+.pdf-toolbar-button,.pdf-toolbar-icon-button { height:28px; }
+.pdf-fit-button { height:28px; min-width:72px; padding:0 8px; border:0; border-left:1px solid var(--color-border-2); border-right:1px solid var(--color-border-2); background:transparent; color:var(--color-text-2); font:inherit; font-size:12px; cursor:pointer; }
+.pdf-fit-button.active { color:rgb(var(--primary-6)); }
+.pdf-ai-button { height:30px; border-radius:6px; }
+.pdf-preview { background:var(--color-fill-2); }
+.pdf-canvas { margin:24px auto; box-shadow:0 2px 16px rgba(0,0,0,.18); }
+@media (max-width:900px) { .pdf-toolbar-button span { display:none; } .title { max-width:150px; } .pdf-toolbar { margin-left:6px; } }
 </style>

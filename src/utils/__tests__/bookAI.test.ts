@@ -17,6 +17,9 @@ import {
   type ChatMessage
 } from '../bookAI'
 
+const entitlement = vi.hoisted(() => ({ pro: false }))
+vi.mock('../usageLimit', () => ({ isPro: () => entitlement.pro }))
+
 const settingStore = {
   apiAIModelProvider: 'deepseek',
   apiAIModelKey: 'test-key',
@@ -122,6 +125,7 @@ vi.mock('../db', () => ({
 describe('bookAI', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    entitlement.pro = false
     settingStore.apiAIModelProvider = 'deepseek'
     settingStore.apiAIModelKey = 'test-key'
     settingStore.apiAIModelId = 'deepseek-chat'
@@ -145,6 +149,30 @@ describe('bookAI', () => {
       }
     ))
     createGateway.mockReturnValue((modelId: string) => ({ gatewayModelId: modelId }))
+  })
+
+  it('uses built-in AI for Pro without a saved default in every renderer', () => {
+    entitlement.pro = true
+    settingStore.apiAIModelProvider = ''
+    settingStore.apiAIModelId = ''
+    settingStore.apiAIModelKey = ''
+    expect(getAIConfig()).toMatchObject({ providerName: 'boxplayer-cloud', apiKey: '' })
+    expect(createBookAISettings()).toMatchObject({ provider: 'boxplayer-cloud', reedy: { enabled: true } })
+    expect(resolveAIProviderConfig()).toEqual(getAIConfig())
+    expect(migrateSoleSavedBYOKAsDefault()).toBe(false)
+    expect(settingStore.apiAIModelProvider).toBe('')
+  })
+
+  it('preserves an explicitly selected BYOK model for Pro', () => {
+    entitlement.pro = true
+    expect(getAIConfig()).toMatchObject({ providerName: 'deepseek', modelId: 'deepseek-chat' })
+    expect(createBookAISettings().provider).toBe('deepseek')
+  })
+
+  it('accepts built-in AI without requiring a manually saved model ID', () => {
+    settingStore.apiAIModelProvider = 'boxplayer-cloud'
+    settingStore.apiAIModelId = ''
+    expect(getAIConfig()).toMatchObject({ providerName: 'boxplayer-cloud' })
   })
 
   it('resolves global and overridden OpenAI-compatible providers', () => {

@@ -1,6 +1,7 @@
 import { request as httpsRequest } from 'https'
+import { BOXPLAYER_API_ORIGIN } from '@shared/boxplayerApi'
 
-const PANHUB_ALLOWED_ORIGINS = ['https://boxplayer-api-673444103572.europe-west1.run.app']
+const PANHUB_ALLOWED_ORIGINS = [BOXPLAYER_API_ORIGIN]
 const PANHUB_REQUEST_TIMEOUT_MS = 45000
 
 export interface PanHubRequestData {

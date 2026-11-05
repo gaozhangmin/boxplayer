@@ -3,14 +3,14 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { QrCode } from 'lucide-vue-next'
 import { QRCode as AntQRCode } from 'ant-design-vue'
 import { t } from '../i18n'
-import BoxPlayerProBadge, { type BoxPlayerProTier } from './BoxPlayerProBadge.vue'
+import type { BoxPlayerProTier } from './BoxPlayerProBadge.vue'
 import TraktAvatar from './TraktAvatar.vue'
 import TraktAccountModal from './TraktAccountModal.vue'
 import traktLogo from '../assets/media/trakt-logo.svg'
 import { traktStatus, traktAccount, loadTraktStatus, loadTraktAccount } from '../services/trakt/client'
 import { startBoxPlayerDeviceLogin, exchangeBoxPlayerDeviceLogin, type BoxPlayerDeviceLogin } from '../utils/boxplayerAuth'
 
-const props = defineProps<{ signedIn: boolean; email: string; tier: BoxPlayerProTier }>()
+const props = defineProps<{ tier: BoxPlayerProTier }>()
 const emit = defineEmits<{ membership: [] }>()
 const pro = computed(() => props.tier !== 'standard')
 const showTrakt = ref(false)
@@ -64,12 +64,6 @@ onUnmounted(stopQr)
       </button>
     </div>
   <button v-if="!pro" class="bp-upgrade-banner" @click="emit('membership')"><span>{{ t('membership.upgradeTo') }}<strong>BoxPlayer PRO</strong></span></button>
-  <section v-else class="bp-membership-banner">
-    <template v-if="signedIn"><div class="bp-banner-email">{{ email }}</div><div v-if="!pro" class="bp-banner-standard">{{ t('membership.badge.standard') }}</div></template>
-    <template v-if="pro"><BoxPlayerProBadge :tier="tier" /></template>
-    <h2 v-else>{{ t('membership.upgradeHeadline') }}</h2>
-    <button class="bp-banner-action" @click="emit('membership')">{{ t(pro ? 'membership.manage' : 'membership.learnMore') }}</button>
-  </section>
   <slot name="actions" />
   </div>
   <TraktAccountModal :visible="showTrakt" @close="showTrakt = false" />
@@ -99,11 +93,11 @@ onUnmounted(stopQr)
 </style>
 
 <style scoped>
-.bp-banner-shell{margin-top:18px;padding:24px;border-radius:20px;overflow:hidden;background:linear-gradient(110deg,#f07800 0%,#ff8a00 55%,#ffad32 100%);color:#fff;min-height:230px;box-sizing:border-box}
-.bp-settings-header{padding:0 120px 16px 0}.bp-settings-header h1{color:#fff;font-size:28px}
-.bp-upgrade-banner{background:transparent;min-height:90px;padding:12px 0 24px;border-radius:0}.bp-upgrade-banner:before{display:none}
-.bp-membership-banner{background:transparent;padding:16px 0}.bp-membership-banner:before,.bp-membership-banner:after{display:none}
-.bp-banner-shell :deep(.settings-app-actions){display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0 0!important;padding:16px 0 0!important;border-top:1px solid #ffffff40;border-bottom:0!important;background:transparent!important}
+.bp-banner-shell{margin-top:18px;padding:16px 20px;border-radius:16px;overflow:hidden;background:linear-gradient(110deg,#15803d 0%,#16a34a 55%,#22c55e 100%);color:#fff;box-sizing:border-box}
+.bp-settings-header{padding:0 110px 4px 0}.bp-settings-header h1{color:#fff;font-size:22px}
+.bp-settings-actions{right:20px;top:14px;gap:10px}.bp-settings-actions button{width:38px;height:38px}
+.bp-upgrade-banner{background:transparent;min-height:56px;padding:4px 0 8px;border-radius:0}.bp-upgrade-banner:before{display:none}
+.bp-banner-shell :deep(.settings-app-actions){display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:10px 0 0!important;padding:10px 0 0!important;border-top:1px solid #ffffff40;border-bottom:0!important;background:transparent!important}
 .bp-banner-shell :deep(.settings-app-version){color:#fff!important;margin-right:auto!important}
 .bp-banner-shell :deep(.settings-app-actions .arco-btn){color:#fff!important;background:#ffffff20!important;border-color:#ffffff60!important}
 </style>
