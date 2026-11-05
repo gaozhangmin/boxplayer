@@ -7,6 +7,7 @@ import { aiStore } from '../services/ai/storage/aiStore'
 import { withRetryAndTimeout, withTimeout, AI_TIMEOUTS } from '../services/ai/utils/retry'
 import { chunkSection, SIZE_PER_PAGE } from '../services/ai/utils/chunker'
 import useSettingStore from '../setting/settingstore'
+import { isPro } from './usageLimit'
 import { completeBoxPlayerCloudChat, isBoxPlayerCloudProvider, streamBoxPlayerCloudChat } from './boxplayerCloudAI'
 
 // ── re‑exports for backward compat ──────────────────────────────────
@@ -93,11 +94,11 @@ function findSoleStoredBYOKConfig(): AIModelConfig | null {
 
 function buildAISettings(config?: AIModelConfig): AISettings {
   const store = useSettingStore()
-  const provider = config ? config.providerName : (store.apiAIModelProvider as string) || ''
-  const modelId = config ? config.modelId : store.apiAIModelId
-  const apiKey = config ? config.apiKey : store.apiAIModelKey
-  // 优先用 store 里存的，否则用 provider 默认 endpoint
-  const baseUrl = (config ? config.endpoint : store.apiAIBaseUrl) || PROVIDER_ENDPOINTS[provider] || ''
+  const effectiveConfig = config ?? getAIConfig()
+  const provider = effectiveConfig?.providerName || ''
+  const modelId = effectiveConfig?.modelId
+  const apiKey = effectiveConfig?.apiKey
+  const baseUrl = effectiveConfig?.endpoint || PROVIDER_ENDPOINTS[provider] || ''
   return {
     provider: provider as any,
     ollamaUrl: baseUrl || DEFAULT_AI_SETTINGS.ollamaUrl,
@@ -120,16 +121,18 @@ function buildAISettings(config?: AIModelConfig): AISettings {
 export function getAIConfig(): AIModelConfig | null {
   const store = useSettingStore()
   const provider = store.apiAIModelProvider
-  if (!provider) return findSoleStoredBYOKConfig()
-  if (!store.apiAIModelId) return null
-  if (provider !== 'ollama' && !isBoxPlayerCloudProvider(provider) && !store.apiAIModelKey) return null
-  const s = buildAISettings()
-  return { endpoint: isBoxPlayerCloudProvider(provider) ? '' : s.openRouterBaseUrl || s.ollamaUrl, modelId: s.openRouterModel || s.ollamaModel, apiKey: s.openRouterApiKey || s.aiGatewayApiKey, providerName: provider }
+  if (!provider) {
+    if (isPro()) return { endpoint: '', modelId: 'deepseek/deepseek-v4-pro', apiKey: '', providerName: 'boxplayer-cloud' }
+    return findSoleStoredBYOKConfig()
+  }
+  if (isBoxPlayerCloudProvider(provider)) return { endpoint: '', modelId: store.apiAIModelId || 'deepseek/deepseek-v4-pro', apiKey: '', providerName: provider }
+  if (!store.apiAIModelId || (provider !== 'ollama' && !store.apiAIModelKey)) return null
+  return { endpoint: store.apiAIBaseUrl || PROVIDER_ENDPOINTS[provider] || '', modelId: store.apiAIModelId, apiKey: store.apiAIModelKey || '', providerName: provider }
 }
 
 export function migrateSoleSavedBYOKAsDefault(): boolean {
   const store = useSettingStore()
-  if (store.apiAIModelProvider) return false
+  if (store.apiAIModelProvider || isPro()) return false
   const config = findSoleStoredBYOKConfig()
   if (!config) return false
   let embeddingModelId = ''
@@ -163,7 +166,7 @@ function createAIModel(config: AIModelConfig) {
 export function resolveAIProviderConfig(providerOverride = ''): AIModelConfig | null {
   const store = useSettingStore()
   const provider = providerOverride || store.apiAIModelProvider
-  if (!provider) return null
+  if (!provider) return getAIConfig()
   if (isBoxPlayerCloudProvider(provider)) {
     return { endpoint: '', modelId: store.apiAIModelId || 'deepseek/deepseek-v4-pro', apiKey: '', providerName: provider }
   }

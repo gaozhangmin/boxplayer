@@ -75,7 +75,7 @@ const savedProviderConfigs = computed(() => {
     modelId: boxPlayerCloudModelOptions[0].id,
     apiKey: '',
     baseUrl: '',
-    isDefault: currentDefault === 'boxplayer-cloud' && accountIsPro.value,
+    isDefault: (!currentDefault || currentDefault === 'boxplayer-cloud') && accountIsPro.value,
     isBuiltIn: true,
     locked: !accountIsPro.value,
   })

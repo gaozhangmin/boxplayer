@@ -33,6 +33,7 @@ describe('PanHub main-process request proxy', () => {
       data: { status: 'ok' }
     })
     await expect(requestPanHub({ url: 'https://example.com/api/health' }, fetchImpl)).rejects.toThrow('不允许的 PanHub 请求地址')
+    await expect(requestPanHub({ url: 'https://boxplayer-api-673444103572.europe-west1.run.app/api/health' }, fetchImpl)).rejects.toThrow('不允许的 PanHub 请求地址')
     expect(fetchImpl).toHaveBeenCalledTimes(1)
   })
 
