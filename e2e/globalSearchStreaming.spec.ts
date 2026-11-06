@@ -8,6 +8,13 @@ test('server hits appear while another server is pending; failed and cancelled s
   }))
   await page.evaluate(servers => localStorage.setItem('MediaServer_Registry', JSON.stringify(servers)), servers)
   await page.reload()
+  // A reload of the empty profile reopens the automatic sign-in dialog.
+  const login = page.locator('.userloginmodal')
+  await login.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined)
+  if (await login.isVisible()) {
+    await login.locator('.arco-modal-close-btn').click()
+    await expect(login).toBeHidden()
+  }
   const pending: Array<() => Promise<void>> = []
   await page.route('https://*.search.invalid/**', async route => {
     const url = new URL(route.request().url())

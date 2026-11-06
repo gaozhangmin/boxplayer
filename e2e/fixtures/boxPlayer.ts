@@ -4,6 +4,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { connect } from 'net'
 import os from 'os'
 import path from 'path'
+import { summarizeCloud123AuthResponse } from '../../src/utils/startupDiagnostics'
 // The parser is shared with the release-workflow preflight and intentionally
 // remains plain CommonJS so it can run before Electron or TypeScript is built.
 // @ts-expect-error JavaScript helper uses runtime validation.
@@ -262,6 +263,15 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }, { realAccountRe
     try {
       const page = await app.firstWindow()
       await page.waitForLoadState('domcontentloaded')
+      const authResponses: ReturnType<typeof summarizeCloud123AuthResponse>[] = []
+      if (cloudProvider === 'cloud123') {
+        page.on('response', async response => {
+          const url = new URL(response.url())
+          if (url.hostname !== 'open-api.123pan.com' || url.pathname !== '/api/v1/oauth2/access_token') return
+          const payload = await response.json().catch(() => null)
+          if (authResponses.length < 10) authResponses.push(summarizeCloud123AuthResponse(response.status(), payload))
+        })
+      }
       if (realAccountTest && injectedRealAccounts) await seedRealCloudAccounts(page, cloudProvider)
       const mediaServer = injectedRealMediaServer ? await seedRealMediaServer(page) : undefined
       const pageErrors: string[] = []
@@ -277,7 +287,7 @@ export const test = base.extend<{ boxPlayer: BoxPlayerFixture }, { realAccountRe
         await page.locator('.user-avatar-trigger').waitFor({ state: 'visible', timeout: 45_000 }).catch(async error => {
           const diagnostics = await page.evaluate(() => window.WebE2EStartupDiagnostics?.() || []).catch(() => [])
           await testInfo.attach('cloud-startup-diagnostics', { body: JSON.stringify(diagnostics), contentType: 'application/json' })
-          throw new Error(`Cloud account initialization failed: ${JSON.stringify(diagnostics)}`, { cause: error })
+          throw new Error(`Cloud account initialization failed: ${JSON.stringify({ diagnostics, authResponses })}`, { cause: error })
         })
         // The copied profile may contain pending transfers targeting the user's real disk.
         // Clear only transfer databases in this isolated profile before enabling workers.

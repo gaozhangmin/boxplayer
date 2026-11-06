@@ -8,3 +8,15 @@ export function summarizeStartupFailures(logs: Array<{ logtype: string; logmessa
     return { provider, reason, ...(httpStatus ? { httpStatus: Number(httpStatus) } : {}) }
   })
 }
+
+/** Whitelist response metadata only: OAuth payloads can contain live credentials. */
+export function summarizeCloud123AuthResponse(status: number, payload: unknown) {
+  const data = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
+  const allowed = ['invalid_grant', 'invalid_token', 'invalid_client', 'invalid_refresh_token', 'unauthorized', 'access_denied']
+  const reason = typeof data.error === 'string' && allowed.includes(data.error) ? data.error : undefined
+  return {
+    provider: 'cloud123', httpStatus: status,
+    ...(typeof data.code === 'number' ? { providerCode: data.code } : {}),
+    ...(reason ? { reason } : {})
+  }
+}
