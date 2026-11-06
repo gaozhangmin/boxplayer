@@ -1054,6 +1054,7 @@ async function loadIdx(idx: number, auto = true) {
     a.pause()
     musicSessionId = crypto.randomUUID()
     const capability = await window.WebMusicAudioCapability?.()
+    if (musicDisposed || generation !== musicLoadGeneration) return
     musicAudioCapable.value = capability?.available === true
     usingAudioDecks = musicAudioCapable.value
     const load = usingAudioDecks ? window.WebMusicAudioLoad : window.WebMpvEmbeddedLoad
@@ -1062,19 +1063,27 @@ async function loadIdx(idx: number, auto = true) {
     if (!loaded?.ok) throw new Error(loaded?.error || t('music.playbackError'))
     musicSourceReady = true
     await mpvMusicControl('setVolume', muted.value ? 0 : vol.value * 100)
+    if (musicDisposed || generation !== musicLoadGeneration) return
     await applyMpvMusicEffects()
+    if (musicDisposed || generation !== musicLoadGeneration) return
     await mpvMusicControl(auto ? 'play' : 'pause')
+    if (musicDisposed || generation !== musicLoadGeneration) return
     playing.value = auto
     if (!musicPollingStarted) { musicPollingStarted = true; void pollMusicStatus() }
   } catch (e: any) {
+    if (musicDisposed || generation !== musicLoadGeneration) return
     errMsg.value = e?.message || String(e)
     message.error(t('music.loadFailed', { message: errMsg.value }))
     playing.value = false
   } finally {
     if (generation === musicLoadGeneration) loading.value = false
   }
+  if (musicDisposed || generation !== musicLoadGeneration) return
   await loadCustomCoverForTrack(curTrack.value)
-  if (!(await loadCustomLyricForTrack())) loadMeta()
+  if (musicDisposed || generation !== musicLoadGeneration) return
+  const hasCustomLyric = await loadCustomLyricForTrack()
+  if (musicDisposed || generation !== musicLoadGeneration) return
+  if (!hasCustomLyric) loadMeta()
   pushRec(curTrack.value)
 }
 

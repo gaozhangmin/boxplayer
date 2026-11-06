@@ -3,6 +3,7 @@ import { getAsarPath, getStaticPath, getUserDataPath } from '../utils/mainfile'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import is from 'electron-is'
 import { ShowErrorAndRelaunch } from './dialog'
+import { registerStartupLock } from './startupLock'
 
 const DEBUGGING = !app.isPackaged && process.env.BOXPLAYER_E2E !== '1'
 const E2E_RENDERER_URL = process.env.BOXPLAYER_E2E_RENDERER_URL || ''
@@ -29,6 +30,8 @@ export const AppWindow: {
   winHeight: 0,
   winTheme: ''
 }
+
+registerStartupLock(() => AppWindow.mainWindow)
 
 let timerUpload: NodeJS.Timeout | undefined
 const debounceUpload = (fn: any, wait: number) => {

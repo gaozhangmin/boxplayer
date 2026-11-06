@@ -9,6 +9,7 @@ declare namespace NodeJS {
 declare interface Window {
   Electron: any
   platform: any
+  WebStartupLock: (action: 'status' | 'unlock' | 'save' | 'disable', current?: string, next?: string) => Promise<{ ok?: boolean; enabled?: boolean; locked?: boolean }>
   WebIsE2E: boolean
   WebE2EAllowTransfers: boolean
   WebGetPathForFile: (file: File) => string

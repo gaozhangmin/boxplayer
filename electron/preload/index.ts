@@ -1,6 +1,8 @@
 import Electron, { ipcRenderer, webUtils } from 'electron'
 
 window.Electron = Electron
+window.WebStartupLock = (action, current, next) =>
+  ipcRenderer.invoke('StartupLock:request', action, current, next)
 process.noAsar = true
 window.platform = process.platform
 window.WebIsE2E = process.env.BOXPLAYER_E2E === '1'

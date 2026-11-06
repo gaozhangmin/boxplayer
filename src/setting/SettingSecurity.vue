@@ -2,7 +2,7 @@
 import MySwitch from '../layout/MySwitch.vue'
 import useSettingStore from './settingstore'
 import { modalPassword } from '../utils/modal'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import PanDAL from '../pan/pandal'
 import { t } from '../i18n'
 
@@ -28,10 +28,67 @@ const disabled = computed(() => {
   return !settingStore.securityPassword
 })
 
+const startupEnabled = ref(false)
+const startupReady = ref(false)
+const startupBusy = ref(false)
+const startupFeedback = ref<'' | 'startupLock.failed' | 'startupLock.saved' | 'startupLock.mismatch'>('')
+const startupCurrent = ref('')
+const startupNew = ref('')
+const startupConfirmation = ref('')
+
+onMounted(async () => {
+  if (!window.WebStartupLock) return
+  try {
+    startupEnabled.value = (await window.WebStartupLock('status')).enabled === true
+    startupReady.value = true
+  } catch {
+    startupFeedback.value = 'startupLock.failed'
+  }
+})
+
+async function updateStartupLock(action: 'save' | 'disable') {
+  if (startupBusy.value) return
+  if (action === 'save' && startupNew.value !== startupConfirmation.value) {
+    startupFeedback.value = 'startupLock.mismatch'
+    return
+  }
+  startupBusy.value = true
+  try {
+    const result = await window.WebStartupLock(action, startupCurrent.value, startupNew.value)
+    if (result.ok) {
+      startupEnabled.value = action === 'save'
+      startupFeedback.value = 'startupLock.saved'
+    } else startupFeedback.value = 'startupLock.failed'
+  } catch {
+    startupFeedback.value = 'startupLock.failed'
+  } finally {
+    startupCurrent.value = startupNew.value = startupConfirmation.value = ''
+    startupBusy.value = false
+  }
+}
 </script>
 
 <template>
   <div class='settingcard'>
+    <div v-if="startupReady || startupFeedback">
+      <div class="settinghead">{{ t('startupLock.title') }}</div>
+      <p>{{ t('startupLock.description') }}</p>
+      <form v-if="startupReady" class="startup-lock-form" @submit.prevent="updateStartupLock('save')">
+        <input v-if="startupEnabled" v-model="startupCurrent" type="password" autocomplete="current-password"
+               maxlength="4" inputmode="numeric" pattern="[0-9]{4}" :placeholder="t('startupLock.current')" :aria-label="t('startupLock.current')" />
+        <input v-model="startupNew" type="password" autocomplete="new-password" maxlength="4" inputmode="numeric" pattern="[0-9]{4}"
+               :placeholder="t('startupLock.new')" :aria-label="t('startupLock.new')" />
+        <input v-model="startupConfirmation" type="password" autocomplete="new-password" maxlength="4" inputmode="numeric" pattern="[0-9]{4}"
+               :placeholder="t('startupLock.confirm')" :aria-label="t('startupLock.confirm')" />
+        <button type="submit" :disabled="startupBusy || startupNew.length !== 4 || startupConfirmation.length !== 4 || (startupEnabled && startupCurrent.length !== 4)">
+          {{ t('startupLock.save') }}
+        </button>
+        <button v-if="startupEnabled" type="button" :disabled="startupBusy || startupCurrent.length !== 4"
+                @click="updateStartupLock('disable')">{{ t('startupLock.disable') }}</button>
+      </form>
+      <p v-if="startupFeedback" role="status">{{ t(startupFeedback) }}</p>
+      <div class="settingspace"></div>
+    </div>
     <div class="security-setting-header">
       <div class='settinghead'>{{ t('settings.security.defaultAlgorithm') }}</div>
       <a-popover position="bottom">
@@ -250,4 +307,6 @@ const disabled = computed(() => {
 .security-setting-header :deep(.settinghead) {
   margin-bottom: 0;
 }
+.startup-lock-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.startup-lock-form input { width: 160px; }
 </style>
