@@ -16,12 +16,16 @@ test('server hits appear while another server is pending; failed and cancelled s
     await expect(login).toBeHidden()
   }
   const pending: Array<() => Promise<void>> = []
+  const mockRequests: string[] = []
+  const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' }
   await page.route('https://*.search.invalid/**', async route => {
     const url = new URL(route.request().url())
     const query = url.searchParams.get('SearchTerm')
-    if (!query) { await route.fulfill({ json: { Items: [] } }); return }
-    if (url.hostname.startsWith('failed')) { await route.fulfill({ status: 503, body: 'Unavailable' }); return }
-    const respond = async () => { await route.fulfill({ json: { Items: [{ Id: `${url.hostname}-${query}`, Name: `${url.hostname}-${query}`, Type: 'Movie' }] } }).catch(() => {}) }
+    mockRequests.push(`${route.request().method()} ${url.hostname} ${query || ''}`)
+    if (route.request().method() === 'OPTIONS') { await route.fulfill({ status: 204, headers }); return }
+    if (!query) { await route.fulfill({ headers, json: { Items: [] } }); return }
+    if (url.hostname.startsWith('failed')) { await route.fulfill({ headers, status: 503, body: 'Unavailable' }); return }
+    const respond = async () => { await route.fulfill({ headers, json: { Items: [{ Id: `${url.hostname}-${query}`, Name: `${url.hostname}-${query}`, Type: 'Movie' }] } }).catch(() => {}) }
     if (url.hostname.startsWith('slow') && query === 'first') pending.push(respond)
     else await respond()
   })
@@ -29,7 +33,9 @@ test('server hits appear while another server is pending; failed and cancelled s
   const input = page.locator('.gs-page input').first()
   await input.fill('first')
   const results = page.locator('.gs-page-results')
-  await expect(results).toContainText('fast.search.invalid-first')
+  await expect(results).toContainText('fast.search.invalid-first').catch(error => {
+    throw new Error(`First streaming result missing; mock requests: ${JSON.stringify(mockRequests)}`, { cause: error })
+  })
   await expect(page.locator('.gs-page-status').filter({ has: page.locator('.gs-spinner') })).toBeVisible()
   await expect.poll(() => pending.length).toBe(1)
   await input.fill('second')
