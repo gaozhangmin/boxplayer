@@ -1,3 +1,4 @@
+import { incrementalSearch } from './incrementalSearch'
 import type { IAliGetFileModel } from '../aliapi/alimodels'
 import type { ITokenInfo } from '../user/userstore'
 import type { MediaServerConfig } from '../types/mediaServer'
@@ -252,24 +253,16 @@ async function searchGoogle(token: ITokenInfo, keyword: string): Promise<GlobalS
   }
 }
 
-async function searchMediaServers(keyword: string): Promise<GlobalSearchResult[]> {
+async function mediaServerSearchTasks(keyword: string, signal?: AbortSignal): Promise<Array<() => Promise<GlobalSearchResult[]>>> {
   try {
     const { default: useMediaServerRegistryStore } = await import('../store/mediaServerRegistry')
     const { getMediaServerSearch } = await import('../media-server/contentGateway')
     const registry = useMediaServerRegistryStore()
-    if (!registry.servers?.length) return []
-
-    const results: GlobalSearchResult[] = []
-    for (const server of registry.servers) {
-      if (!server.accessToken && !server.password) continue
-      try {
-        const data = await getMediaServerSearch(server, keyword)
-        for (const node of data.items) {
-          results.push(mediaServerResult(node, server))
-        }
-      } catch {}
-    }
-    return results
+    registry.ensureLoaded()
+    return (registry.servers || []).filter(server => server.accessToken || server.password).map(server => async () => {
+      const data = await getMediaServerSearch({ ...server, requestSignal: signal }, keyword)
+      return data.items.map(node => mediaServerResult(node, server))
+    })
   } catch {
     return []
   }
@@ -290,7 +283,7 @@ function dispatchSearch(token: ITokenInfo, keyword: string, allowedDriveIds: str
   return Promise.resolve([])
 }
 
-export async function searchAllDrives(keyword: string, opts?: { platforms?: string[]; targets?: GlobalSearchDriveTarget[]; includeMediaServers?: boolean }): Promise<GlobalSearchResult[]> {
+export async function searchAllDrives(keyword: string, opts?: { platforms?: string[]; targets?: GlobalSearchDriveTarget[]; includeMediaServers?: boolean; signal?: AbortSignal; onUpdate?: (items: GlobalSearchResult[]) => void }): Promise<GlobalSearchResult[]> {
   if (!keyword || keyword.trim().length < 2) return []
 
   const k = keyword.trim()
@@ -302,7 +295,7 @@ export async function searchAllDrives(keyword: string, opts?: { platforms?: stri
     tokens = dbTokens.filter((t) => !!t.user_id)
   }
 
-  const promises: Promise<GlobalSearchResult[]>[] = []
+  const tasks: Array<() => Promise<GlobalSearchResult[]>> = []
 
   for (const token of tokens) {
     if (!token.access_token || !token.user_id) continue
@@ -310,19 +303,14 @@ export async function searchAllDrives(keyword: string, opts?: { platforms?: stri
     if (opts?.platforms?.length && !opts.platforms.includes(token.tokenfrom || 'aliyun')) continue
     const selectedTargets = opts?.targets?.filter(target => target.userId === token.user_id) || []
     if (opts?.targets?.length && !selectedTargets.length) continue
-    promises.push(dispatchSearch(token, k, selectedTargets.map(target => target.driveId)))
+    tasks.push(() => dispatchSearch(token, k, selectedTargets.map(target => target.driveId)))
   }
 
   if (opts?.includeMediaServers !== false) {
-    promises.push(searchMediaServers(k))
+    tasks.push(...await mediaServerSearchTasks(k, opts?.signal))
   }
 
-  const settled = await Promise.allSettled(promises)
-  const all: GlobalSearchResult[] = []
-  for (const r of settled) {
-    if (r.status === 'fulfilled') all.push(...r.value)
-  }
-  return all
+  return incrementalSearch(tasks, { signal: opts?.signal, onUpdate: opts?.onUpdate, concurrency: 3 })
 }
 
 export function searchResultGroupTitle(result: GlobalSearchResult): string {

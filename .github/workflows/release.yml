@@ -28,6 +28,8 @@ jobs:
       - name: Verify scraping, source membership and library UI
         run: |
           pnpm exec vitest run \
+            src/utils/__tests__/incrementalSearch.test.ts \
+            src/utils/__tests__/globalSearchStreaming.test.ts \
             src/utils/__tests__/ossExpiry.test.ts \
             src/utils/__tests__/startupTask.test.ts \
             src/utils/__tests__/startupDiagnostics.test.ts \
@@ -149,7 +151,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify file renderer in Electron
-        run: xvfb-run -a pnpm run test:e2e:isolated
+        run: |
+          xvfb-run -a pnpm run test:e2e:isolated
+          xvfb-run -a pnpm exec playwright test e2e/globalSearchStreaming.spec.ts --workers=1
 
       - name: Upload Electron UI failure diagnostics
         if: failure()
