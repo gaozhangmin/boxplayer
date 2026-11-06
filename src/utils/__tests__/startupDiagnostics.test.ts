@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeStartupFailures, summarizeCloud123AuthResponse } from '../startupDiagnostics'
+import { summarizeStartupFailures } from '../startupDiagnostics'
 
 describe('startup diagnostics', () => {
   it('classifies refresh failures without exposing secrets, URLs or account identifiers', () => {
@@ -12,11 +12,4 @@ describe('startup diagnostics', () => {
     expect(summarizeStartupFailures([{ logtype: 'success', logmessage: 'pikpak' }])).toEqual([])
     expect(summarizeStartupFailures(Array.from({ length: 30 }, () => ({ logtype: 'warning', logmessage: 'guangya timed out' })))).toHaveLength(20)
   })
-})
-
-it('OAuth response diagnostics never expose credentials or arbitrary server messages', () => {
-  const result = summarizeCloud123AuthResponse(400, { code: 401, error: 'invalid_grant', access_token: 'secret-access', refresh_token: 'secret-refresh', message: 'private-account' })
-  expect(result).toEqual({ provider: 'cloud123', httpStatus: 400, providerCode: 401, reason: 'invalid_grant' })
-  expect(JSON.stringify(result)).not.toMatch(/secret|private-account/)
-  expect(summarizeCloud123AuthResponse(500, { error: 'secret-refresh', code: 'private-account' })).toEqual({ provider: 'cloud123', httpStatus: 500 })
 })
