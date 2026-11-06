@@ -28,12 +28,12 @@ describe('human-owned release publication', () => {
   it('publishes both macOS architectures once using both verified runtimes', () => {
     const packaging = workflow.slice(workflow.indexOf('\n  release:'), workflow.indexOf('\n  finalize-release:'))
     const runners = packaging.match(/os: \[([^\]]+)\]/)[1].split(',').map(value => value.trim())
-    expect(runners.filter(value => value.startsWith('macos-'))).toEqual(['macos-14'])
+    expect(runners.filter(value => value.startsWith('macos-'))).toEqual(['macos-15'])
     for (const arch of ['x64', 'arm64']) {
       expect(packaging).toContain(`name: embedded-mpv-darwin-${arch}-candidate`)
       expect(packaging).toContain(`node scripts/check-embedded-mpv-bundles.mjs darwin/${arch}`)
     }
-    expect(packaging).toContain("args: ${{ matrix.os == 'macos-14' && '--x64 --arm64' || '' }}")
+    expect(packaging).toContain("args: ${{ matrix.os == 'macos-15' && '--x64 --arm64' || '' }}")
     expect(packaging).toContain('max_attempts: 3')
     // Native x64 playback remains a prerequisite even with a single publisher.
     expect(packaging).toContain('embedded-mpv-macos-x64-test')

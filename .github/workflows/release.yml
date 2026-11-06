@@ -207,7 +207,7 @@ jobs:
       matrix:
         # One macOS publisher builds both architectures and their shared updater
         # metadata. Separate macOS jobs overwrite the same release assets.
-        os: [ windows-latest, ubuntu-latest, macos-14 ]
+        os: [ windows-latest, ubuntu-latest, macos-15 ]
     runs-on: ${{ matrix.os }}
 
     permissions:
@@ -298,21 +298,21 @@ jobs:
           path: static/engine/linux/arm64/mpv-texture
 
       - name: Download verified macOS arm64 embedded MPV runtime
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15'
         uses: actions/download-artifact@v4
         with:
           name: embedded-mpv-darwin-arm64-candidate
           path: static/engine/darwin/arm64/mpv-texture
 
       - name: Download verified macOS x64 embedded MPV runtime
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15'
         uses: actions/download-artifact@v4
         with:
           name: embedded-mpv-darwin-x64-candidate
           path: static/engine/darwin/x64/mpv-texture
 
       - name: Verify release uses the tested embedded MPV runtime
-        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest' || matrix.os == 'macos-14'
+        if: matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest' || matrix.os == 'macos-15'
         shell: bash
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -417,7 +417,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         with:
           package_manager: pnpm
-          args: ${{ matrix.os == 'macos-14' && '--x64 --arm64' || '' }}
+          args: ${{ matrix.os == 'macos-15' && '--x64 --arm64' || '' }}
           # Retry transient Apple stapling and GitHub upload failures.
           max_attempts: 3
           release: true           # Upload artifacts to a draft; the user publishes manually.
