@@ -32,10 +32,9 @@ on:
 jobs:
   macos-arm64:
     env:
-      BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON }}
       BOXPLAYER_E2E_QUARK_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON }}
       NODE_OPTIONS: --max-old-space-size=4096
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4

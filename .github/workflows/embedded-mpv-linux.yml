@@ -43,7 +43,6 @@ jobs:
   linux:
     env:
       NODE_OPTIONS: --max-old-space-size=4096
-      BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON }}
       BOXPLAYER_E2E_QUARK_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON }}
     strategy:
       fail-fast: false

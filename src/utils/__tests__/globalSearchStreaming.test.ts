@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   search: vi.fn()
 }))
 vi.mock('../../user/userdal', () => ({ default: { GetUserList: () => [], GetUserListFromDB: async () => [] } }))
-vi.mock('../../store/mediaServerRegistry', () => ({ default: () => ({ servers: mocks.servers }) }))
+vi.mock('../../store/mediaServerRegistry', () => ({ default: () => ({ servers: mocks.servers, ensureLoaded: vi.fn() }) }))
 vi.mock('../../media-server/contentGateway', () => ({ getMediaServerSearch: mocks.search }))
 vi.mock('../../services/agent/providerCapabilities', () => ({ supportsProviderSearch: () => true }))
 

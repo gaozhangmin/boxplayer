@@ -258,6 +258,7 @@ async function mediaServerSearchTasks(keyword: string, signal?: AbortSignal): Pr
     const { default: useMediaServerRegistryStore } = await import('../store/mediaServerRegistry')
     const { getMediaServerSearch } = await import('../media-server/contentGateway')
     const registry = useMediaServerRegistryStore()
+    registry.ensureLoaded()
     return (registry.servers || []).filter(server => server.accessToken || server.password).map(server => async () => {
       const data = await getMediaServerSearch({ ...server, requestSignal: signal }, keyword)
       return data.items.map(node => mediaServerResult(node, server))

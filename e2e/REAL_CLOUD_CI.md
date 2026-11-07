@@ -93,3 +93,7 @@ Running the write-operation matrix once avoids duplicate remote mutations and OA
 Quark and some session-based providers cannot refresh indefinitely. Rotate the dedicated test credential when the release gate reports an expired session.
 
 Never upload `tokens.json` as an Actions artifact or commit it to Git.
+
+## Release playback matrix
+
+The release gate tests Aliyun, Baidu, Quark, Dropbox, OneDrive and Google Drive. 123 Cloud is excluded at the owner's request, together with the previously excluded providers. Client support and provider unit tests remain available.
