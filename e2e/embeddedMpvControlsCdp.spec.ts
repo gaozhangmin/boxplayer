@@ -78,7 +78,9 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     const subtitlePath = path.resolve('e2e/assets/mpv-sample.srt')
     const subtitleUrl = pathToFileURL(subtitlePath).href
     markStage('opening the production player window')
-    const playerPromise = context.waitForEvent('page', { timeout: 20_000 })
+    const existingPages = new Set(context.pages())
+    const findPlayerPage = () => context.pages().find(page =>
+      !existingPages.has(page) && /\/main2\.html(?:[?#]|$)/.test(page.url()))
     await mainPage.evaluate(({ videoPath, parentPath, subtitleUrl }) => window.WebOpenWindow({
       page: 'PageVideo',
       theme: 'dark',
@@ -90,7 +92,10 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
         custom_playlist: [{ user_id: 'e2e', drive_id: 'local', file_id: videoPath, parent_file_id: parentPath, file_name: 'mpv-sample.mp4', html: 'MPV sample' }]
       }
     }), { videoPath, parentPath, subtitleUrl })
-    const player = await playerPromise
+    // Login webviews also emit CDP page events. Match the production preview
+    // document, including pages that navigate from about:blank after creation.
+    await expect.poll(() => Boolean(findPlayerPage()), { message: 'Production main2.html player window must open', timeout: 30_000 }).toBe(true)
+    const player = findPlayerPage()!
     markStage('waiting for the MPV surface')
     // Loading the freshly bundled libmpv dependency graph can be slow on a
     // cold GitHub runner. Wait for the real production surface rather than
@@ -177,11 +182,24 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     await subtitleSelect.selectOption(enabledSubtitle)
     await player.locator('select[title="副字幕"]').selectOption(enabledSubtitle)
     const subtitleContent = player.locator('.mpv-side-settings-content')
-    const subtitleRanges = subtitleContent.locator('.mpv-side-slider input[type="range"]')
-    for (const [index, value] of [0.2, 80, 1.1, 48, 4].entries()) await setRange(player, subtitleRanges.nth(index), value)
-    await subtitleContent.locator('label').filter({ hasText: '粗体' }).getByRole('checkbox').click()
-    await subtitleContent.locator('label').filter({ hasText: '斜体' }).getByRole('checkbox').click()
-    for (const [label, value] of [['字幕颜色', '#ffff00'], ['描边颜色', '#111111'], ['背景颜色', '#222222']] as const) {
+    const subtitleDelay = subtitleContent.getByRole('spinbutton', { name: '延迟显示[主]', exact: true })
+    await subtitleDelay.fill('0.2')
+    await subtitleDelay.dispatchEvent('change')
+    await expect(subtitleDelay).toHaveValue('0.2')
+    for (const label of ['垂直偏移', '大小缩放[主]']) {
+      const row = subtitleContent.locator('.subtitle-number-row').filter({ has: player.getByText(label, { exact: true }) })
+      const before = await row.locator('.subtitle-number-value').innerText()
+      await row.getByRole('button', { name: `增加${label}`, exact: true }).click()
+      await expect(row.locator('.subtitle-number-value')).not.toHaveText(before)
+    }
+    await subtitleContent.getByRole('button', { name: '减少不透明度', exact: true }).click()
+    await subtitleContent.getByLabel('使用自定义样式', { exact: true }).check()
+    await subtitleContent.getByLabel('字体', { exact: true }).selectOption('serif')
+    await subtitleContent.getByLabel('加粗', { exact: true }).check()
+    await subtitleContent.getByLabel('斜体', { exact: true }).check()
+    await subtitleContent.getByRole('button', { name: '增加描边大小', exact: true }).click()
+    await subtitleContent.getByRole('button', { name: '增加阴影大小', exact: true }).click()
+    for (const [label, value] of [['字体颜色', '#ffff00'], ['描边颜色', '#111111'], ['背景颜色', '#222222']] as const) {
       await subtitleContent.getByLabel(label).evaluate((element, nextValue) => {
         const input = element as HTMLInputElement
         input.value = nextValue
