@@ -3224,3 +3224,20 @@ watch(chapters, (nextChapters) => {
   }
 }
 </style>
+
+<style scoped>
+.mpv-embedded-progress::-webkit-slider-runnable-track {
+  height: 8px;
+  border: 1px solid rgba(255,255,255,.35);
+  background: linear-gradient(to right, rgba(245,245,245,.95) 0 var(--mpv-progress), rgba(184,184,184,.65) var(--mpv-progress) var(--mpv-buffered), rgba(48,57,64,.45) var(--mpv-buffered) 100%);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.3), 0 1px 4px rgba(0,0,0,.3);
+  backdrop-filter: blur(16px) saturate(150%);
+}
+.mpv-embedded-progress::-webkit-slider-thumb {
+  width: 6px;
+  height: 12px;
+  margin-top: -3px;
+  border-radius: 6px;
+  background: rgba(245,245,245,.95);
+}
+</style>

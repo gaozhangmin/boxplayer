@@ -157,3 +157,16 @@ body:not([arco-theme='dark']) :is(
   border-color: var(--app-overlay-border) !important;
   color: var(--color-text-1) !important;
 }
+
+/* Video timeline glass track shared by the HTML playback engines. */
+.art-video-player .art-progress-inner {
+  height: 8px !important;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.35);
+  background: rgba(48,57,64,.45) !important;
+  backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: inset 0 1px 2px rgba(255,255,255,.3), 0 1px 4px rgba(0,0,0,.3);
+}
+.art-video-player .art-progress-loaded { background: rgba(184,184,184,.65) !important; }
+.art-video-player .art-progress-played { background: rgba(245,245,245,.95) !important; }
