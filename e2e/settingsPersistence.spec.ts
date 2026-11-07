@@ -150,8 +150,8 @@ test('startup password uses themed fields and validates confirmation without cha
   expect(height).toBeGreaterThanOrEqual(34)
  }
  await fields.nth(0).fill('1234');await fields.nth(1).fill('4321')
- await expect(form.getByRole('button',{name:'保存',exact:true})).toBeDisabled()
+ await expect(form.locator('button[type="submit"]')).toBeDisabled()
  await fields.nth(1).fill('1234')
- await expect(form.getByRole('button',{name:'保存',exact:true})).toBeEnabled()
+ await expect(form.locator('button[type="submit"]')).toBeEnabled()
  await fields.nth(0).fill('');await fields.nth(1).fill('')
 })
