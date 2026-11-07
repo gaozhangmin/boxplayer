@@ -37,7 +37,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
   if (!existsSync(entry)) throw new Error(`Missing production Electron entry: ${entry}`)
   const electronBinary = require('electron') as string
   const userData = mkdtempSync(path.join(os.tmpdir(), 'boxplayer-mpv-controls-'))
-  writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close' }))
+  writeFileSync(path.join(userData, 'setting.config'), JSON.stringify({ uiVideoPlayer: 'mpv', uiVideoSubtitleMode: 'close', uiLanguage: 'zh-CN' }))
   // A timed-out Electron process may hold its DevTools socket briefly. Give
   // every Playwright retry a separate port so the retry never attaches to the
   // previous process.
@@ -54,18 +54,31 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
   electronProcess.stdout?.on('data', recordOutput)
   electronProcess.stderr?.on('data', recordOutput)
   let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined
+  let stage = 'connecting to Electron'
+  const markStage = (value: string) => {
+    stage = value
+    console.info(`[MPV controls] ${value}`)
+  }
   try {
     await waitForPort(port)
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
+    browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, { timeout: 20_000 })
     const context = browser.contexts()[0]
-    const mainPage = context.pages()[0] || await context.waitForEvent('page')
-    await mainPage.waitForFunction(() => typeof window.WebOpenWindow === 'function')
+    if (!context) throw new Error('Electron CDP browser has no context')
+    context.setDefaultTimeout(20_000)
+    markStage('waiting for the initialized main renderer')
+    // CDP may also expose background/guest pages. Never choose the first
+    // target blindly or send preview IPC while the main renderer is booting.
+    const isMainPage = (page: Page) => /\/main\.html(?:[?#]|$)/.test(page.url())
+    await expect.poll(() => context.pages().some(isMainPage), { message: 'Production main.html target must be present', timeout: 20_000 }).toBe(true)
+    const mainPage = context.pages().find(isMainPage)!
+    await mainPage.waitForFunction(() => window.IsMainPage === true && typeof window.WebOpenWindow === 'function', undefined, { timeout: 30_000 })
     const videoPath = path.resolve('e2e/assets/mpv-sample.mp4')
     const audioPath = path.resolve('e2e/assets/mpv-sample.m4a')
     const parentPath = path.dirname(videoPath)
     const subtitlePath = path.resolve('e2e/assets/mpv-sample.srt')
     const subtitleUrl = pathToFileURL(subtitlePath).href
-    const playerPromise = context.waitForEvent('page')
+    markStage('opening the production player window')
+    const playerPromise = context.waitForEvent('page', { timeout: 20_000 })
     await mainPage.evaluate(({ videoPath, parentPath, subtitleUrl }) => window.WebOpenWindow({
       page: 'PageVideo',
       theme: 'dark',
@@ -78,6 +91,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
       }
     }), { videoPath, parentPath, subtitleUrl })
     const player = await playerPromise
+    markStage('waiting for the MPV surface')
     // Loading the freshly bundled libmpv dependency graph can be slow on a
     // cold GitHub runner. Wait for the real production surface rather than
     // treating dependency loading latency as a playback failure.
@@ -95,6 +109,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     const surface = player.locator('#mpvEmbeddedPlayer')
     await surface.hover()
 
+    markStage('play, pause and seek controls')
     const playButton = player.locator('.mpv-play-btn')
     await playButton.click()
     await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.findLast((entry: any) => entry.request.action === 'pause')?.result?.ok), { message: '暂停按钮必须成功调用 MPV pause', timeout: 15_000 }).toBe(true)
@@ -108,6 +123,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     await setRange(player, player.getByRole('slider', { name: '播放进度' }), 1)
     await setRange(player, player.getByRole('slider', { name: '音量' }), 35)
 
+    markStage('playlist controls')
     const playlistToggle = player.locator('.mpv-transport-buttons button[aria-label="播放列表"]')
     if (!(await playlistToggle.getAttribute('class'))?.includes('active')) await playlistToggle.click()
     const playlistTabs = player.locator('.mpv-playlist-tabs')
@@ -116,6 +132,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     await playlistTabs.getByRole('button', { name: '播放列表' }).click()
     await playlistToggle.click()
 
+    markStage('video settings controls')
     await player.getByRole('button', { name: '设置', exact: true }).click()
     const originalFrame = await player.locator('.mpv-fallback-canvas').evaluate((canvas: HTMLCanvasElement) => ({ width: canvas.width, height: canvas.height }))
     await player.getByRole('button', { name: '16:9' }).first().click()
@@ -134,6 +151,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     const videoSection = player.locator('.mpv-side-settings-content').filter({ hasText: '均衡器' })
     await setRange(player, videoSection.locator('.mpv-video-filter-row input').first(), 10)
 
+    markStage('audio settings controls')
     await player.getByRole('button', { name: '音频', exact: true }).click()
     await player.getByRole('button', { name: '加载外置音频…' }).click()
     await expect.poll(() => player.evaluate(() => (window as any).__mpvControlLog.filter((entry: any) => entry.request.action === 'addAudio').length), { message: '加载外置音频按钮必须调用 MPV addAudio', timeout: 10_000 }).toBeGreaterThan(0)
@@ -149,6 +167,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     await setRange(player, audioContent.locator('.mpv-side-slider input').first(), 0.2)
     await setRange(player, audioContent.locator('.mpv-equalizer-band input').first(), 2)
 
+    markStage('subtitle settings controls')
     await player.getByRole('button', { name: '字幕', exact: true }).click()
     await player.getByRole('button', { name: '加载字幕…' }).click()
     const subtitleSelect = player.locator('select[title="字幕"]')
@@ -178,6 +197,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     // their local toggle state last, after all native track controls have run.
     if (await playButton.getAttribute('aria-label') === '暂停') await playButton.click()
     await expect(playButton).toHaveAttribute('aria-label', '播放')
+    markStage('intro and outro controls')
     const introMarker = player.getByRole('button', { name: '设置片头' })
     const outroMarker = player.getByRole('button', { name: '设置片尾' })
     await introMarker.click()
@@ -194,9 +214,13 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     expect(failures, JSON.stringify(failures, null, 2)).toEqual([])
     await expect(surface.locator('.mpv-embedded-error')).toHaveCount(0)
   } catch (error) {
-    console.error(`Embedded MPV Electron output (tail):\n${electronOutput}`)
+    console.error(`MPV controls failed during: ${stage}\nEmbedded MPV Electron output (tail):\n${electronOutput}`)
     throw error
   } finally {
+    await testInfo.attach('mpv-controls-stage', { body: stage, contentType: 'text/plain' })
+    await testInfo.attach('mpv-controls-electron-log', { body: electronOutput, contentType: 'text/plain' })
+    writeFileSync(testInfo.outputPath('mpv-controls-stage.txt'), stage)
+    writeFileSync(testInfo.outputPath('mpv-controls-electron.log'), electronOutput)
     if (electronProcess.pid) {
       if (process.platform === 'win32') {
         try { execFileSync('taskkill', ['/PID', String(electronProcess.pid), '/T', '/F'], { stdio: 'ignore' }) } catch {}
