@@ -28,6 +28,8 @@ const disabled = computed(() => {
   return !settingStore.securityPassword
 })
 
+const systemUnlockAvailable = ref(false)
+const systemUnlockEnabled = ref(false)
 const startupEnabled = ref(false)
 const startupReady = ref(false)
 const startupBusy = ref(false)
@@ -39,14 +41,50 @@ const startupConfirmation = ref('')
 onMounted(async () => {
   if (!window.WebStartupLock) return
   try {
-    startupEnabled.value = (await window.WebStartupLock('status')).enabled === true
+    const status = await window.WebStartupLock('status')
+    startupEnabled.value = status.enabled === true
+    systemUnlockAvailable.value = status.systemUnlockAvailable === true
+    systemUnlockEnabled.value = status.systemUnlockEnabled === true
     startupReady.value = true
   } catch {
     startupFeedback.value = 'startupLock.failed'
   }
 })
 
-async function updateStartupLock(action: 'save' | 'disable') {
+const verificationAction = ref<'disable' | 'system-setting' | ''>('')
+const verificationPassword = ref('')
+const verificationFailed = ref(false)
+const verificationVisible = computed(() => verificationAction.value !== '')
+function requestVerification(action: 'disable' | 'system-setting') {
+  if (startupBusy.value) return
+  verificationPassword.value = ''
+  verificationFailed.value = false
+  startupFeedback.value = ''
+  verificationAction.value = action
+}
+function closeVerification() {
+  if (startupBusy.value) return
+  verificationAction.value = ''
+  verificationPassword.value = ''
+  verificationFailed.value = false
+}
+async function verifyStartupAction() {
+  if (startupBusy.value || !verificationAction.value || !/^[0-9]{4}$/.test(verificationPassword.value)) return
+  const action = verificationAction.value
+  startupBusy.value = true
+  verificationFailed.value = false
+  try {
+    const result = await window.WebStartupLock(action, verificationPassword.value, action === 'system-setting' ? !systemUnlockEnabled.value : undefined)
+    if (!result.ok) { verificationFailed.value = true; return }
+    if (action === 'disable') { startupEnabled.value = false; systemUnlockEnabled.value = false }
+    else systemUnlockEnabled.value = !systemUnlockEnabled.value
+    verificationAction.value = ''
+    startupFeedback.value = 'startupLock.saved'
+  } catch { verificationFailed.value = true }
+  finally { startupBusy.value = false; verificationPassword.value = '' }
+}
+
+async function updateStartupLock(action: 'save') {
   if (startupBusy.value) return
   if (action === 'save' && startupNew.value !== startupConfirmation.value) {
     startupFeedback.value = 'startupLock.mismatch'
@@ -70,6 +108,14 @@ async function updateStartupLock(action: 'save' | 'disable') {
 
 <template>
   <div class='settingcard'>
+    <a-modal :visible="verificationVisible" :title="t('startupLock.verifyTitle')" :footer="false" :width="380" :mask-closable="!startupBusy" :esc-to-close="!startupBusy" :closable="!startupBusy" :unmount-on-close="true" @cancel="closeVerification">
+      <form class="startup-verification" role="dialog" aria-modal="true" :aria-label="t('startupLock.verifyTitle')" @submit.prevent="verifyStartupAction">
+        <p>{{ t('startupLock.verifyHint') }}</p>
+        <a-input-password v-model="verificationPassword" :disabled="startupBusy" :max-length="4" :input-attrs="{ autocomplete: 'current-password', inputmode: 'numeric', pattern: '[0-9]{4}' }" :aria-label="t('startupLock.current')" :placeholder="t('startupLock.current')" autofocus />
+        <p v-if="verificationFailed" role="alert">{{ t('startupLock.failed') }}</p>
+        <div class="startup-lock-actions"><a-button :disabled="startupBusy" @click="closeVerification">{{ t('common.cancel') }}</a-button><a-button html-type="submit" type="primary" :loading="startupBusy" :disabled="!/^[0-9]{4}$/.test(verificationPassword)">{{ t('common.confirm') }}</a-button></div>
+      </form>
+    </a-modal>
     <div v-if="startupReady || startupFeedback">
       <div class="settinghead">{{ t('startupLock.title') }}</div>
       <p>{{ t('startupLock.description') }}</p>
@@ -77,8 +123,12 @@ async function updateStartupLock(action: 'save' | 'disable') {
         <label v-if="startupEnabled" class="startup-lock-field"><span>{{ t('startupLock.current') }}</span><a-input-password v-model="startupCurrent" :disabled="startupBusy" :max-length="4" :input-attrs="{ autocomplete: 'current-password', inputmode: 'numeric', pattern: '[0-9]{4}' }" :placeholder="t('startupLock.current')" :aria-label="t('startupLock.current')" /></label>
         <label class="startup-lock-field"><span>{{ t('startupLock.new') }}</span><a-input-password v-model="startupNew" :disabled="startupBusy" :max-length="4" :input-attrs="{ autocomplete: 'new-password', inputmode: 'numeric', pattern: '[0-9]{4}' }" :placeholder="t('startupLock.new')" :aria-label="t('startupLock.new')" /></label>
         <label class="startup-lock-field"><span>{{ t('startupLock.confirm') }}</span><a-input-password v-model="startupConfirmation" :disabled="startupBusy" :max-length="4" :input-attrs="{ autocomplete: 'new-password', inputmode: 'numeric', pattern: '[0-9]{4}' }" :placeholder="t('startupLock.confirm')" :aria-label="t('startupLock.confirm')" /></label>
-        <div class="startup-lock-actions"><a-button html-type="submit" type="primary" :loading="startupBusy" :disabled="!/^[0-9]{4}$/.test(startupNew) || startupNew !== startupConfirmation || (startupEnabled && !/^[0-9]{4}$/.test(startupCurrent))">{{ t('startupLock.save') }}</a-button><a-button v-if="startupEnabled" status="danger" :disabled="startupBusy || !/^[0-9]{4}$/.test(startupCurrent)" @click="updateStartupLock('disable')">{{ t('startupLock.disable') }}</a-button></div>
+        <div class="startup-lock-actions"><a-button html-type="submit" type="primary" :loading="startupBusy" :disabled="!/^[0-9]{4}$/.test(startupNew) || startupNew !== startupConfirmation || (startupEnabled && !/^[0-9]{4}$/.test(startupCurrent))">{{ t('startupLock.save') }}</a-button><a-button v-if="startupEnabled" status="danger" :disabled="startupBusy" @click="requestVerification('disable')">{{ t('startupLock.disable') }}</a-button></div>
       </form>
+      <div v-if="startupEnabled && systemUnlockAvailable" class="startup-lock-system">
+        <div class="startup-lock-system-row"><span>{{ t('startupLock.systemUnlock') }}</span><MySwitch :value="systemUnlockEnabled" :disabled="startupBusy" @change="requestVerification('system-setting')" /></div>
+        <p>{{ t('startupLock.systemHint') }}</p>
+      </div>
       <p v-if="startupFeedback" role="status">{{ t(startupFeedback) }}</p>
       <div class="settingspace"></div>
     </div>
@@ -300,6 +350,8 @@ async function updateStartupLock(action: 'save' | 'disable') {
 .security-setting-header :deep(.settinghead) {
   margin-bottom: 0;
 }
+.startup-lock-system { max-width:740px;margin-top:20px; }
+.startup-lock-system-row { display:flex;align-items:center;justify-content:space-between;gap:16px; }
 .startup-lock-form { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,220px));gap:16px;max-width:740px;margin-top:18px; }
 .startup-lock-field { display:grid;gap:8px;min-width:0;color:var(--color-text-2);font-size:13px; }
 .startup-lock-field :deep(.arco-input-wrapper) { width:100%;border-radius:8px;min-height:36px; }

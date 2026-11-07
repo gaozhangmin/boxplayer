@@ -1,11 +1,28 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { t } from '../i18n'
 
 const emit = defineEmits<{ unlocked: [] }>()
 const password = ref('')
 const busy = ref(false)
 const failed = ref(false)
+const systemUnlock = ref(false)
+onMounted(async () => {
+  try {
+    const status = await window.WebStartupLock('status')
+    systemUnlock.value = status.systemUnlockAvailable === true && status.systemUnlockEnabled === true
+  } catch {}
+})
+async function unlockWithSystem() {
+  if (busy.value) return
+  busy.value = true; failed.value = false
+  try {
+    const result = await window.WebStartupLock('system-unlock')
+    if (result.ok) emit('unlocked')
+    else failed.value = true
+  } catch { failed.value = true }
+  finally { busy.value = false }
+}
 
 async function unlock() {
   if (busy.value || !/^[0-9]{4}$/.test(password.value)) return
@@ -31,6 +48,7 @@ async function unlock() {
       <label for="startup-unlock-password">{{ t('startupLock.title') }}</label>
       <input id="startup-unlock-password" v-model="password" type="password" autocomplete="current-password" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" autofocus />
       <button type="submit" :disabled="busy || password.length !== 4">{{ t('startupLock.unlock') }}</button>
+      <button v-if="systemUnlock" type="button" :disabled="busy" @click="unlockWithSystem">{{ t('startupLock.systemUnlock') }}</button>
       <p v-if="failed" role="alert">{{ t('startupLock.failed') }}</p>
     </form>
   </main>

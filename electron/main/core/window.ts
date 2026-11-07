@@ -3,7 +3,7 @@ import { getAsarPath, getStaticPath, getUserDataPath } from '../utils/mainfile'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import is from 'electron-is'
 import { ShowErrorAndRelaunch } from './dialog'
-import { registerStartupLock } from './startupLock'
+import { registerStartupLock, startupLockNeedsFullScreen } from './startupLock'
 
 const DEBUGGING = !app.isPackaged && process.env.BOXPLAYER_E2E !== '1'
 const E2E_RENDERER_URL = process.env.BOXPLAYER_E2E_RENDERER_URL || ''
@@ -109,7 +109,8 @@ export function createMainWindow() {
     }
   }
   AppWindow.mainWindow = createElectronWindow(AppWindow.winWidth, AppWindow.winHeight, true, 'main', AppWindow.winTheme)
-  if (launchMaximized) AppWindow.mainWindow.maximize()
+  if (startupLockNeedsFullScreen()) AppWindow.mainWindow.setFullScreen(true)
+  else if (launchMaximized) AppWindow.mainWindow.maximize()
 
   const showMainPage = () => {
     if (!AppWindow.mainWindow || AppWindow.mainWindow.isDestroyed()) return
