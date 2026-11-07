@@ -45,6 +45,8 @@ const allItems = computed(() => {
 
 const hasInput = computed(() => keyword.value.trim().length >= 2)
 
+let searchController: AbortController | undefined
+
 function doSearch() {
   const q = keyword.value.trim()
   if (q.length < 2) {
@@ -54,15 +56,25 @@ function doSearch() {
   }
   const id = ++searchId.value
   searching.value = true
-  searchAllDrives(q).then((items) => {
+  searchController?.abort()
+  searchController = new AbortController()
+  results.value = []
+  const publish = (items: GlobalSearchResult[]) => {
     if (id !== searchId.value) return
+    const selected = allItems.value[selectedIndex.value]?.result
     results.value = items
-    selectedIndex.value = items.length > 0 ? 0 : -1
-    searching.value = false
+    const retained = selected ? allItems.value.findIndex(entry => entry.result.id === selected.id && entry.result.user_id === selected.user_id && entry.result.mediaServerId === selected.mediaServerId) : -1
+    selectedIndex.value = retained >= 0 ? retained : items.length > 0 ? 0 : -1
+  }
+  searchAllDrives(q, { signal: searchController.signal, onUpdate: publish }).then(publish).catch(() => {}).finally(() => {
+    if (id === searchId.value) searching.value = false
   })
 }
 
 watch(keyword, () => {
+  searchId.value++
+  searchController?.abort()
+  results.value = []
   if (searchTimer.value) clearTimeout(searchTimer.value)
   selectedIndex.value = 0
   if (keyword.value.trim().length < 2) {
@@ -75,6 +87,8 @@ watch(keyword, () => {
 })
 
 function handleClose() {
+  searchId.value++
+  searchController?.abort()
   modalStore.showModal('', {})
 }
 
@@ -155,6 +169,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  searchId.value++
+  searchController?.abort()
   if (searchTimer.value) clearTimeout(searchTimer.value)
 })
 
@@ -202,7 +218,7 @@ function getExtBadge(ext: string) {
         未找到与 "{{ keyword }}" 相关的结果
       </div>
 
-      <div v-if="results.length > 0 && !searching" class="gs-results">
+      <div v-if="results.length > 0" class="gs-results">
         <div
           v-for="(group, gi) in groupedResults"
           :key="group.key"
