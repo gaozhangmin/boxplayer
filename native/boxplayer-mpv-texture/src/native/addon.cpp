@@ -81,6 +81,7 @@ Napi::Object StatusToJS(Napi::Env env, const MpvStatus& status) {
     obj.Set("volume", Napi::Number::New(env, status.volume));
     obj.Set("speed", Napi::Number::New(env, status.speed));
     obj.Set("muted", Napi::Boolean::New(env, status.muted));
+    obj.Set("bufferedPosition", Napi::Number::New(env, status.bufferedPosition));
     obj.Set("position", Napi::Number::New(env, status.position));
     obj.Set("duration", Napi::Number::New(env, status.duration));
     obj.Set("width", Napi::Number::New(env, status.width));

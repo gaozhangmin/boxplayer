@@ -110,6 +110,7 @@ inline Napi::Value CreateAudioDeck(const Napi::CallbackInfo& info) {
         status.Set("paused", paused); status.Set("buffering", buffering);
         status.Set("playing", state->ready && !paused && !buffering && !state->ended);
         status.Set("loading", !state->ready || buffering);
+        status.Set("bufferedPosition", state->number("demuxer-cache-time"));
         status.Set("position", state->number("time-pos")); status.Set("duration", state->number("duration"));
         status.Set("error", state->error);
         return status;

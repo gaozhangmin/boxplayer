@@ -31,6 +31,7 @@ struct MpvStatus {
     double volume;
     double speed = 1.0;
     bool muted;
+    double bufferedPosition = 0;
     double position;
     double duration;
     int width;

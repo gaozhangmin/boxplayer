@@ -273,6 +273,7 @@ bool MpvContext::create(const MpvConfig& config) {
     mpv_observe_property(m_mpv, 3, "mute", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 4, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 5, "duration", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_mpv, 105, "demuxer-cache-time", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 6, "width", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 7, "height", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 8, "speed", MPV_FORMAT_DOUBLE);
@@ -432,7 +433,7 @@ bool MpvContext::load(const std::string& url, const std::string& options) {
     cancelTrackCommands();
     { std::lock_guard<std::mutex> lock(m_tracksMutex); m_tracks = {}; }
     { std::lock_guard<std::mutex> lock(m_statusMutex);
-      m_status.loading = true; m_status.ended = false; m_status.position = 0; m_status.duration = 0; }
+      m_status.loading = true; m_status.ended = false; m_status.bufferedPosition = 0; m_status.position = 0; m_status.duration = 0; }
 
     if (!options.empty()) {
         const char* cmd[] = {"loadfile", url.c_str(), "replace", "-1", options.c_str(), nullptr};
@@ -760,7 +761,7 @@ void MpvContext::handleEvent(mpv_event* event) {
             std::lock_guard<std::mutex> lock(m_statusMutex);
             m_status.loading = true;
             m_status.ended = false;
-            m_status.position = 0;
+            m_status.bufferedPosition = 0; m_status.position = 0;
             m_status.duration = 0;
             break;
         }
@@ -821,6 +822,8 @@ void MpvContext::handlePropertyChange(mpv_event_property* prop) {
         } else if (strcmp(prop->name, "time-pos") == 0 && prop->format == MPV_FORMAT_DOUBLE) {
             m_status.position = *static_cast<double*>(prop->data);
             statusChanged = true;
+        } else if (strcmp(prop->name, "demuxer-cache-time") == 0 && prop->format == MPV_FORMAT_DOUBLE) {
+            m_status.bufferedPosition = *static_cast<double*>(prop->data);
         } else if (strcmp(prop->name, "duration") == 0 && prop->format == MPV_FORMAT_DOUBLE) {
             m_status.duration = *static_cast<double*>(prop->data);
             statusChanged = true;

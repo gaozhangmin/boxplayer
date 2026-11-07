@@ -50,6 +50,7 @@ const position = ref(0)
 const duration = ref(0)
 const volume = ref(100)
 const speed = ref(1)
+const bufferedPosition = ref(0)
 const seeking = ref(false)
 const controlsVisible = ref(true)
 const controlsHover = ref(false)
@@ -190,6 +191,7 @@ const currentChapterIndex = computed(() => {
 })
 const playButtonLabel = computed(() => paused.value ? '播放' : '暂停')
 const qualityLabel = computed(() => props.qualityLabel || '自动')
+const bufferedPercent = computed(() => duration.value > 0 ? `${Math.max(0, Math.min(100, Math.max(position.value, bufferedPosition.value) / duration.value * 100))}%` : '0%')
 const progressPercent = computed(() => duration.value > 0 ? `${Math.max(0, Math.min(100, (position.value / duration.value) * 100))}%` : '0%')
 const volumePercent = computed(() => `${Math.max(0, Math.min(100, volume.value))}%`)
 const subtitleSelectValue = computed(() => `track:${subtitleTrackId.value}`)
@@ -552,6 +554,7 @@ const addAutomaticSubtitles = async (sequence: number) => {
 }
 
 const applyStatusResult = (result: any) => {
+  bufferedPosition.value = Number.isFinite(result.status?.bufferedPosition) ? Number(result.status?.bufferedPosition) : 0
   nativeBuffering.value = Boolean(result.status?.buffering)
   paused.value = Boolean(result.status?.paused)
   if (!seeking.value) position.value = typeof result.status?.position === 'number' ? result.status.position : 0
@@ -1193,7 +1196,7 @@ watch(chapters, (nextChapters) => {
 
         <div class="mpv-progress-row">
           <span class="mpv-time mpv-time-current">{{ formatTime(position) }}</span>
-          <input class="mpv-embedded-progress" aria-label="播放进度" type="range" min="0" :max="Math.max(duration, 1)" step="0.1" :style="{ '--mpv-progress': progressPercent }" :value="position" @change="handleSeekChange" @input="handleSeekInput" />
+          <input class="mpv-embedded-progress" aria-label="播放进度" type="range" min="0" :max="Math.max(duration, 1)" step="0.1" :style="{ '--mpv-progress': progressPercent, '--mpv-buffered': bufferedPercent }" :value="position" @change="handleSeekChange" @input="handleSeekInput" />
           <span class="mpv-time">{{ formatTime(duration) }}</span>
         </div>
       </div>
@@ -1691,7 +1694,7 @@ watch(chapters, (nextChapters) => {
   height: 6px;
   border: 1px solid rgba(255, 255, 255, .08);
   border-radius: 999px;
-  background: linear-gradient(to right, rgba(113, 255, 161, .92) var(--mpv-progress, 0%), rgba(255, 255, 255, .16) var(--mpv-progress, 0%));
+  background: linear-gradient(to right, #fff 0 var(--mpv-progress, 0%), #8d8d8d var(--mpv-progress, 0%) var(--mpv-buffered, 0%), rgba(57,57,57,.8) var(--mpv-buffered, 0%) 100%);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, .8);
 }
 

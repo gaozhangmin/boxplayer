@@ -22,6 +22,7 @@ export interface EmbeddedMpvStatus {
   ended?: boolean
   playing?: boolean
   paused?: boolean
+  bufferedPosition?: number
   position?: number
   duration?: number
   volume?: number
