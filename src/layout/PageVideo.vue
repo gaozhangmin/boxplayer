@@ -70,6 +70,7 @@ import { getWebDavConnection, getWebDavConnectionId, isWebDavDrive, listWebDavDi
 import useMediaServerRegistryStore from '../store/mediaServerRegistry'
 import MpvEmbeddedSurface from '../components/MpvEmbeddedSurface.vue'
 import PlaybackDanmakuSettings from '../components/PlaybackDanmakuSettings.vue'
+import { prepareDanmakuComments, danmakuMatchTitle } from '../utils/danmakuPreferences'
 import { t, useLocale } from '../i18n'
 import {
   getMediaServerItemDetail,
@@ -760,10 +761,7 @@ const renderMediaSearchControl = (art: Artplayer) => {
         html: t('video.subtitleSearch'),
         type: 'subtitle'
       },
-      {
-        html: t('video.danmakuSearch'),
-        type: 'danmaku'
-      }
+      ...(useSettingStore().danmakuEnabled ? [{ html: t('video.danmakuSearch'), type: 'danmaku' }] : [])
     ],
     onSelect: (selector: any) => {
       const item = selector as { type: string }
@@ -982,7 +980,7 @@ const renderMediaServerControls = (art: Artplayer) => {
     removeMediaServerControl(art, 'mediaServerSubtitle')
   }
   renderMediaSearchControl(art)
-  art.controls.add({
+  if (useSettingStore().danmakuEnabled) art.controls.add({
     name: 'playbackDanmakuSettings', position: 'right', index: 22, html: '弹幕设置',
     click: () => {
       Modal.open({ title: '弹幕设置', width: 460, footer: false,
@@ -1621,6 +1619,7 @@ const getDanmakuVideoKey = () => {
 }
 
 const getDanmakuApis = (): DanmakuApiConfig[] => {
+  if (!useSettingStore().danmakuEnabled) return []
   return useSettingStore().danmakuApis
     .filter((api) => api.name.trim() && api.url.trim())
     .map((api) => ({
@@ -1642,12 +1641,13 @@ const applyDanmakuPluginConfig = (art: Artplayer) => {
 const rawPlaybackDanmaku = new WeakMap<Artplayer, Danmu[]>()
 
 const loadDanmakuToPlayer = async (art: Artplayer, danmus: Danmu[], tip: string | false = t('video.loadedDanmaku')) => {
+  if (!useSettingStore().danmakuEnabled) return
   const plugin = getDanmakuPlugin(art)
   if (!plugin) return
   applyDanmakuPluginConfig(art)
   rawPlaybackDanmaku.set(art, danmus)
   const preferences = useSettingStore()
-  await plugin.load?.(danmus.map(item => ({ ...item, time: Math.max(0, (item.time || 0) + preferences.danmakuDelay),
+  await plugin.load?.(prepareDanmakuComments(danmus, preferences).map(item => ({ ...item, time: Math.max(0, (item.time || 0) + preferences.danmakuDelay),
     style: { ...item.style, textShadow: `0 0 ${preferences.danmakuBorderSize}px #000, 0 0 ${preferences.danmakuBorderSize}px #000` } })))
   if (useSettingStore().danmakuVisible) plugin.show?.()
   else plugin.hide?.()
@@ -1732,13 +1732,15 @@ const switchSubtitleText = async (art: Artplayer, name: string, ext: string, dat
 }
 
 const autoLoadDanmaku = async (art: Artplayer) => {
+  const preferences = useSettingStore()
+  if (!preferences.danmakuEnabled || (preferences.danmakuSkipShort && art.duration > 0 && art.duration < 600)) return
   const videoKey = getDanmakuVideoKey()
   if (!videoKey || danmakuAutoLoadedKey === videoKey || danmakuAutoLoadingKey === videoKey) return
   const apis = getDanmakuApis()
   if (!apis.length) return
   danmakuAutoLoadingKey = videoKey
   try {
-    const match = await autoMatchDanmaku(getVideoDanmakuTitle(), apis)
+    const match = await autoMatchDanmaku(danmakuMatchTitle(getVideoDanmakuTitle(), preferences.danmakuMatchYear), apis)
     const firstMatch = match?.response.matches?.[0]
     if (!match || !firstMatch) throw new Error('no danmaku match')
     const danmus = await loadDanmakuComments(firstMatch.episodeId, match.api)
@@ -1794,7 +1796,7 @@ const openDanmakuSearchModal = (art: Artplayer) => {
     return
   }
 
-  const keyword = ref(getVideoDanmakuTitle())
+  const keyword = ref(useSettingStore().danmakuSearchHistory && useSettingStore().danmakuLastQuery || getVideoDanmakuTitle())
   const apiId = ref(apis[0].id)
   const loading = ref(false)
   const animes = ref<DanmakuSearchAnime[]>([])
@@ -1852,6 +1854,7 @@ const openDanmakuSearchModal = (art: Artplayer) => {
     selectedAnimeMeta.value = ''
     viewMode.value = 'search'
     try {
+      if (useSettingStore().danmakuSearchHistory) useSettingStore().updateStore({danmakuLastQuery: keyword.value})
       animes.value = await searchAnime(keyword.value, api)
       if (!animes.value.length) message.warning(t('video.noDanmakuFound'))
     } catch (error: any) {
@@ -2331,7 +2334,7 @@ const loadPlugins = async (art: Artplayer) => {
     chapters: []
   }))
   // 弹幕插件
-  art.plugins.add(artplayerPluginDanmuku({
+  if (useSettingStore().danmakuEnabled) art.plugins.add(artplayerPluginDanmuku({
     ...buildDanmakuPluginOption(useSettingStore()),
     danmuku: []
   } as any))

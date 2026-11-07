@@ -183,6 +183,7 @@ export type DanmakuSettingsLike = Partial<{
   danmakuAntiOverlap: boolean
   danmakuSynchronousPlayback: boolean
   danmakuHeatmap: boolean
+  danmakuEnabled: boolean
   danmakuVisible: boolean
   danmakuTheme: 'dark' | 'light'
   danmakuFilterText: string
@@ -208,7 +209,7 @@ export function buildDanmakuPluginOption(settings: DanmakuSettingsLike): Partial
     antiOverlap: settings.danmakuAntiOverlap ?? true,
     synchronousPlayback: settings.danmakuSynchronousPlayback ?? false,
     heatmap: settings.danmakuHeatmap ?? false,
-    visible: settings.danmakuVisible ?? false,
+    visible: settings.danmakuEnabled !== false && (settings.danmakuVisible ?? false),
     emitter: false,
     theme: settings.danmakuTheme || 'dark',
     filter: createDanmakuFilter(settings.danmakuFilterText)
