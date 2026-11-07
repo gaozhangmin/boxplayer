@@ -8,7 +8,7 @@ const required = ['aria2-lib', '@motrix/nat-api']
 function verifyDownloadRuntime(archive) {
   if (!existsSync(archive)) throw new Error(`Missing packaged application: ${archive}`)
   asar.uncache(archive)
-  const files = new Set(asar.listPackage(archive).map(file => file.replace(/^\//, '')))
+  const files = new Set(asar.listPackage(archive).map(file => file.replace(/\\/g, '/').replace(/^\/+/, '')))
   const visited = new Set()
   const locate = (name, from) => {
     let directory = from
