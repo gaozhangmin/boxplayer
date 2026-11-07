@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, shallowRef } from 'vue'
 import { FileText } from 'lucide-vue-next'
 import * as THREE from 'three'
 import { RealtimeBeatEngine, type RealtimeBeatState } from '../../utils/radio'
@@ -147,8 +147,8 @@ const emit = defineEmits<{
   (e: 'shelf-track-collect', track: any): void
 }>()
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const lyricRef = ref<HTMLElement | null>(null)
+const canvasRef = shallowRef<HTMLCanvasElement | null>(null)
+const lyricRef = shallowRef<HTMLElement | null>(null)
 const shelfCenterCard = ref<ShelfCard | null>(null)
 const shelfCenterIndex = ref(-1)
 const shelfDetailExpanded = ref(false)

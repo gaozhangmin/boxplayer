@@ -1,7 +1,7 @@
 {
   "name": "boxplayer",
   "description": "BoxPlayer",
-  "version": "5.0.39",
+  "version": "5.0.40",
   "main": "dist/electron/main/index.js",
   "packageManager": "pnpm@10.32.1",
   "author": {
@@ -55,7 +55,6 @@
     "@earendil-works/pi-ai": "0.80.7",
     "@electron/notarize": "^3.1.1",
     "@electron/rebuild": "^4.2.0",
-    "@motrix/nat-api": "0.3.4",
     "@opendataloader/pdf": "^2.4.7",
     "@playwright/test": "^1.62.1",
     "@supabase/supabase-js": "^2.108.2",
@@ -79,7 +78,6 @@
     "TagCloud": "2.5.0",
     "ai": "^6.0.197",
     "ant-design-vue": "4.1.2",
-    "aria2-lib": "1.0.1",
     "artplayer": "^5.4.0",
     "artplayer-plugin-ambilight": "^1.1.0",
     "artplayer-plugin-chapter": "^1.1.0",
@@ -186,7 +184,9 @@
     "better-sqlite3": "^12.11.1",
     "mpegts.js": "^1.8.2",
     "posthog-js": "^1.413.3",
-    "qrcode-terminal": "^0.12.0"
+    "qrcode-terminal": "^0.12.0",
+    "@motrix/nat-api": "0.3.4",
+    "aria2-lib": "1.0.1"
   },
   "pnpm": {
     "overrides": {

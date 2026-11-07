@@ -9,6 +9,7 @@
   ],
   "copyright": "copyright ©2026 GaoZhangMin",
   "asar": true,
+  "afterPack": "./scripts/check-packaged-download-runtime.cjs",
   "compression": "maximum",
   "npmRebuild": true,
   "buildDependenciesFromSource": true,

@@ -133,3 +133,25 @@ test('logging out resets the email verification flow', async ({ boxPlayer }) => 
   expect(pageErrors).toEqual([])
   expect(consoleErrors).toEqual([])
 })
+
+
+test('startup password uses themed fields and validates confirmation without changing the lock', async ({ boxPlayer }) => {
+ const {page}=boxPlayer
+ await openApplicationSettings(page)
+ await page.getByTestId('settings-security-menu').click()
+ const form=page.locator('#SettingSecurity .startup-lock-form')
+ await expect(form).toBeVisible()
+ const fields=form.locator('input')
+ await expect(fields).toHaveCount(2)
+ for(const input of await fields.all()) {
+  await expect(input).toHaveAttribute('type','password')
+  await expect(input).toHaveAttribute('inputmode','numeric')
+  const height=await input.evaluate(element=>element.closest('.arco-input-wrapper')!.getBoundingClientRect().height)
+  expect(height).toBeGreaterThanOrEqual(34)
+ }
+ await fields.nth(0).fill('1234');await fields.nth(1).fill('4321')
+ await expect(form.getByRole('button',{name:'保存',exact:true})).toBeDisabled()
+ await fields.nth(1).fill('1234')
+ await expect(form.getByRole('button',{name:'保存',exact:true})).toBeEnabled()
+ await fields.nth(0).fill('');await fields.nth(1).fill('')
+})

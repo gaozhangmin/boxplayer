@@ -74,17 +74,10 @@ async function updateStartupLock(action: 'save' | 'disable') {
       <div class="settinghead">{{ t('startupLock.title') }}</div>
       <p>{{ t('startupLock.description') }}</p>
       <form v-if="startupReady" class="startup-lock-form" @submit.prevent="updateStartupLock('save')">
-        <input v-if="startupEnabled" v-model="startupCurrent" type="password" autocomplete="current-password"
-               maxlength="4" inputmode="numeric" pattern="[0-9]{4}" :placeholder="t('startupLock.current')" :aria-label="t('startupLock.current')" />
-        <input v-model="startupNew" type="password" autocomplete="new-password" maxlength="4" inputmode="numeric" pattern="[0-9]{4}"
-               :placeholder="t('startupLock.new')" :aria-label="t('startupLock.new')" />
-        <input v-model="startupConfirmation" type="password" autocomplete="new-password" maxlength="4" inputmode="numeric" pattern="[0-9]{4}"
-               :placeholder="t('startupLock.confirm')" :aria-label="t('startupLock.confirm')" />
-        <button type="submit" :disabled="startupBusy || startupNew.length !== 4 || startupConfirmation.length !== 4 || (startupEnabled && startupCurrent.length !== 4)">
-          {{ t('startupLock.save') }}
-        </button>
-        <button v-if="startupEnabled" type="button" :disabled="startupBusy || startupCurrent.length !== 4"
-                @click="updateStartupLock('disable')">{{ t('startupLock.disable') }}</button>
+        <label v-if="startupEnabled" class="startup-lock-field"><span>{{ t('startupLock.current') }}</span><a-input-password v-model="startupCurrent" :disabled="startupBusy" :max-length="4" :input-attrs="{ autocomplete: 'current-password', inputmode: 'numeric', pattern: '[0-9]{4}' }" :placeholder="t('startupLock.current')" :aria-label="t('startupLock.current')" /></label>
+        <label class="startup-lock-field"><span>{{ t('startupLock.new') }}</span><a-input-password v-model="startupNew" :disabled="startupBusy" :max-length="4" :input-attrs="{ autocomplete: 'new-password', inputmode: 'numeric', pattern: '[0-9]{4}' }" :placeholder="t('startupLock.new')" :aria-label="t('startupLock.new')" /></label>
+        <label class="startup-lock-field"><span>{{ t('startupLock.confirm') }}</span><a-input-password v-model="startupConfirmation" :disabled="startupBusy" :max-length="4" :input-attrs="{ autocomplete: 'new-password', inputmode: 'numeric', pattern: '[0-9]{4}' }" :placeholder="t('startupLock.confirm')" :aria-label="t('startupLock.confirm')" /></label>
+        <div class="startup-lock-actions"><a-button html-type="submit" type="primary" :loading="startupBusy" :disabled="!/^[0-9]{4}$/.test(startupNew) || startupNew !== startupConfirmation || (startupEnabled && !/^[0-9]{4}$/.test(startupCurrent))">{{ t('startupLock.save') }}</a-button><a-button v-if="startupEnabled" status="danger" :disabled="startupBusy || !/^[0-9]{4}$/.test(startupCurrent)" @click="updateStartupLock('disable')">{{ t('startupLock.disable') }}</a-button></div>
       </form>
       <p v-if="startupFeedback" role="status">{{ t(startupFeedback) }}</p>
       <div class="settingspace"></div>
@@ -307,6 +300,10 @@ async function updateStartupLock(action: 'save' | 'disable') {
 .security-setting-header :deep(.settinghead) {
   margin-bottom: 0;
 }
-.startup-lock-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.startup-lock-form input { width: 160px; }
+.startup-lock-form { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,220px));gap:16px;max-width:740px;margin-top:18px; }
+.startup-lock-field { display:grid;gap:8px;min-width:0;color:var(--color-text-2);font-size:13px; }
+.startup-lock-field :deep(.arco-input-wrapper) { width:100%;border-radius:8px;min-height:36px; }
+.startup-lock-field :deep(input) { min-width:0;font-size:14px; }
+.startup-lock-actions { grid-column:1/-1;display:flex;flex-wrap:wrap;gap:12px;margin-top:2px; }
+.startup-lock-actions :deep(.arco-btn) { border-radius:8px;min-height:34px;padding:0 18px; }
 </style>

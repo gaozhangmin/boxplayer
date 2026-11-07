@@ -11,6 +11,12 @@ importers:
 
   .:
     dependencies:
+      '@motrix/nat-api':
+        specifier: 0.3.4
+        version: 0.3.4(encoding@0.1.13)
+      aria2-lib:
+        specifier: 1.0.1
+        version: 1.0.1
       better-sqlite3:
         specifier: ^12.11.1
         version: 12.11.1
@@ -48,9 +54,6 @@ importers:
       '@electron/rebuild':
         specifier: ^4.2.0
         version: 4.2.0
-      '@motrix/nat-api':
-        specifier: 0.3.4
-        version: 0.3.4(encoding@0.1.13)
       '@opendataloader/pdf':
         specifier: ^2.4.7
         version: 2.4.7
@@ -120,9 +123,6 @@ importers:
       ant-design-vue:
         specifier: 4.1.2
         version: 4.1.2(vue@3.4.21(typescript@5.9.3))
-      aria2-lib:
-        specifier: 1.0.1
-        version: 1.0.1
       artplayer:
         specifier: ^5.4.0
         version: 5.4.0

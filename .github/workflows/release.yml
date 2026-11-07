@@ -37,6 +37,7 @@ jobs:
             electron/main/core/__tests__/embeddedMpvLoadOptions.test.ts \
             scripts/__tests__/real-cloud-e2e-config.test.mjs \
             scripts/__tests__/checkPackagedMpv.test.mjs \
+            scripts/__tests__/packagedDownloadRuntime.test.mjs \
             scripts/__tests__/releaseDraftPolicy.test.mjs \
             electron/main/core/__tests__/embeddedMpvPreloadSession.test.ts \
             src/utils/__tests__/cloud123TokenRetry.test.ts \

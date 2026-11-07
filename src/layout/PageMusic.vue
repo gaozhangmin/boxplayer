@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, shallowRef } from 'vue'
 import { KeyboardState, useAppStore, useKeyboardStore } from '../store'
 import useMusicLibraryStore from '../store/musiclibrary'
 import useMusicPlayerStore, { type MusicPlayerState } from '../store/musicplayerstore'
@@ -239,7 +239,7 @@ const COLOR_LAB_PRESETS = [
   { label: () => t('music.colorDarkRed'), color: '#ff5c6c' }
 ]
 
-const audioRef = ref<HTMLAudioElement | null>(null)
+const audioRef = shallowRef<HTMLAudioElement | null>(null)
 const playlist = ref<IPageMusicTrack[]>([])
 const curIdx = ref(0)
 const playing = ref(false)
@@ -285,7 +285,7 @@ function toggleQueueRepeat() {
 const showLyrics = ref(false)
 const showPanel = ref(false)
 const showQueue = ref(false)
-const playerRoot = ref<HTMLElement | null>(null)
+const playerRoot = shallowRef<HTMLElement | null>(null)
 let queueBoundsObserver: ResizeObserver | undefined
 const panelTab = ref<PanelTab>('queue')
 const errMsg = ref('')

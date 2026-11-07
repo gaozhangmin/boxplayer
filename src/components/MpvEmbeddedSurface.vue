@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, ref, watch, shallowRef } from 'vue'
 import { Button, Input, Modal, Option as AOption, Select } from '@arco-design/web-vue'
 import {
   formatSubtitleDownloadCount,
@@ -37,8 +37,8 @@ const emit = defineEmits<{
   playlistPrev: []
 }>()
 
-const canvasRef = ref<HTMLCanvasElement | null>(null)
-const fallbackCanvasRef = ref<HTMLCanvasElement | null>(null)
+const canvasRef = shallowRef<HTMLCanvasElement | null>(null)
+const fallbackCanvasRef = shallowRef<HTMLCanvasElement | null>(null)
 const loading = ref(false)
 const loaded = ref(false)
 const errorText = ref('')

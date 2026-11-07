@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, watch, nextTick, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import { useAppStore } from '../store'
 import SettingPlay from './SettingPlay.vue'
 import SettingGeneral from './SettingGeneral.vue'
@@ -36,8 +36,8 @@ withDefaults(defineProps<{ sidebarVisible?: boolean }>(), { sidebarVisible: true
 
 const hideSetting = computed(() => appStore.appTab !== 'setting')
 const settingSearch = ref('')
-const settingSearchResults = ref<Array<{ label: string; element: HTMLElement }>>([])
-const settingSearchAnchor = ref<HTMLElement>()
+const settingSearchResults = shallowRef<Array<{ label: string; element: HTMLElement }>>([])
+const settingSearchAnchor = shallowRef<HTMLElement>()
 const settingSearchPopupStyle = ref<Record<string, string>>({})
 
 const matchesSettingSearch = (text: string, query: string) => {
@@ -147,7 +147,7 @@ onUnmounted(() => {
           <template #icon><IconFont name="iconlock" /></template>
           {{ t('settings.ai') }}
         </a-menu-item>
-        <a-menu-item key="SettingSecurity">
+        <a-menu-item key="SettingSecurity" data-testid="settings-security-menu">
           <template #icon><IconFont name="iconchrome" /></template>
           {{ t('settings.security') }}
         </a-menu-item>
