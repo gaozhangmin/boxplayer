@@ -286,6 +286,7 @@ bool MpvContext::create(const MpvConfig& config) {
     mpv_observe_property(m_mpv, 11, "sid", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 14, "secondary-sid", MPV_FORMAT_INT64);
     mpv_observe_property(m_mpv, 15, "secondary-sub-text", MPV_FORMAT_STRING);
+    mpv_observe_property(m_mpv, 31, "sub-text", MPV_FORMAT_STRING);
     mpv_observe_property(m_mpv, 12, "paused-for-cache", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 13, "eof-reached", MPV_FORMAT_FLAG);
 
@@ -532,7 +533,10 @@ void MpvContext::setVideoProperty(const std::string& name, const std::string& va
         "hwdec", "deinterlace", "tone-mapping", "brightness", "contrast",
         "saturation", "gamma", "hue", "audio-delay", "af", "sub-delay",
         "sub-scale", "sub-pos", "sub-font-size", "sub-color", "sub-border-color",
-        "sub-border-size", "sub-back-color", "sub-font", "secondary-sid", "secondary-sub-pos"
+        "sub-border-size", "sub-back-color", "sub-font", "secondary-sid", "secondary-sub-pos",
+        "sub-visibility", "secondary-sub-visibility", "secondary-sub-delay", "secondary-sub-scale",
+        "sub-ass-override", "secondary-sub-ass-override", "sub-shadow-color", "sub-shadow-offset",
+        "stretch-image-subs-to-screen", "image-subs-video-resolution"
     };
     bool supported = false;
     for (const char* property : allowed) {
@@ -856,12 +860,20 @@ void MpvContext::handlePropertyChange(mpv_event_property* prop) {
         } else if (strcmp(prop->name, "track-list") == 0 && prop->format == MPV_FORMAT_NODE && prop->data) {
             cacheTracks(*static_cast<mpv_node*>(prop->data));
             statusChanged = true;
+        } else if (strcmp(prop->name, "sub-text") == 0) {
+            const char* text = prop->format == MPV_FORMAT_STRING && prop->data ? *static_cast<char**>(prop->data) : nullptr;
+            std::lock_guard<std::mutex> tracksLock(m_tracksMutex);
+            const std::string next = text ? text : "";
+            statusChanged = m_tracks.subtitleText != next;
+            m_tracks.subtitleText = next;
         } else if (strcmp(prop->name, "secondary-sub-text") == 0) {
             const char* text = prop->format == MPV_FORMAT_STRING && prop->data ? *static_cast<char**>(prop->data) : nullptr;
             int lines = text && *text ? 1 + static_cast<int>(std::count(text, text + std::strlen(text), '\n')) : 0;
             std::lock_guard<std::mutex> tracksLock(m_tracksMutex);
-            statusChanged = m_tracks.secondarySubtitleLines != lines;
+            const std::string next = text ? text : "";
+            statusChanged = m_tracks.secondarySubtitleLines != lines || m_tracks.secondarySubtitleText != next;
             m_tracks.secondarySubtitleLines = lines;
+            m_tracks.secondarySubtitleText = next;
         } else if (strcmp(prop->name, "aid") == 0 || strcmp(prop->name, "sid") == 0 || strcmp(prop->name, "secondary-sid") == 0) {
             std::lock_guard<std::mutex> tracksLock(m_tracksMutex);
             int id = prop->format == MPV_FORMAT_INT64 && prop->data ? static_cast<int>(*static_cast<int64_t*>(prop->data)) : -1;

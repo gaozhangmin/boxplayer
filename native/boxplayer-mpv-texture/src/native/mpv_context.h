@@ -53,6 +53,8 @@ struct MpvTrackStatus {
     int subtitleId = -1;
     int secondarySubtitleId = -1;
     int secondarySubtitleLines = 0;
+    std::string subtitleText;
+    std::string secondarySubtitleText;
     std::vector<MpvTrack> tracks;
 };
 

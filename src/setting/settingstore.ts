@@ -86,6 +86,8 @@ export interface SettingState {
 
   // 弹幕库
   danmakuApis: DanmakuApiSetting[]
+  danmakuDelay: number
+  danmakuBorderSize: number
   danmakuSpeed: number
   danmakuMarginTop: number
   danmakuMarginBottom: string
@@ -304,6 +306,8 @@ const setting: SettingState = {
 
   // 弹幕库
   danmakuApis: [],
+  danmakuDelay: 0,
+  danmakuBorderSize: 1.5,
   danmakuSpeed: 5,
   danmakuMarginTop: 10,
   danmakuMarginBottom: '25%',
@@ -536,6 +540,8 @@ function _loadSetting(val: any) {
         url: defaultString(api.url, '')
       }))
     : []
+  setting.danmakuDelay = defaultNumberSub(val.danmakuDelay, 0, -100, 100)
+  setting.danmakuBorderSize = defaultNumberSub(val.danmakuBorderSize, 1.5, 0, 10)
   setting.danmakuSpeed = defaultNumberSub(val.danmakuSpeed, 5, 1, 10)
   setting.danmakuMarginTop = defaultNumberSub(val.danmakuMarginTop, 10, 0, 200)
   setting.danmakuMarginBottom = defaultString(val.danmakuMarginBottom, '25%')

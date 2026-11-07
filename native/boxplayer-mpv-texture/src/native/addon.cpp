@@ -95,6 +95,8 @@ Napi::Object TrackStatusToJS(Napi::Env env, const MpvTrackStatus& status) {
     obj.Set("subtitleId", Napi::Number::New(env, status.subtitleId));
     obj.Set("secondarySubtitleId", Napi::Number::New(env, status.secondarySubtitleId));
     obj.Set("secondarySubtitleLines", Napi::Number::New(env, status.secondarySubtitleLines));
+    obj.Set("subtitleText", Napi::String::New(env, status.subtitleText));
+    obj.Set("secondarySubtitleText", Napi::String::New(env, status.secondarySubtitleText));
     auto tracks = Napi::Array::New(env, status.tracks.size());
     for (size_t i = 0; i < status.tracks.size(); ++i) {
         const auto& track = status.tracks[i];

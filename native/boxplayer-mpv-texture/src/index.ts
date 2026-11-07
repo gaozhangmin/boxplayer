@@ -110,6 +110,8 @@ export interface MpvTrackStatus {
   subtitleId: number;
   secondarySubtitleId: number;
   secondarySubtitleLines: number;
+  subtitleText?: string
+  secondarySubtitleText?: string
   tracks: MpvTrack[];
 }
 

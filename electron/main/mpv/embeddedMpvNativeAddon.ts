@@ -45,6 +45,8 @@ export interface EmbeddedMpvTrackStatus {
   audioId?: number
   secondarySubtitleId?: number
   secondarySubtitleLines?: number
+  subtitleText?: string
+  secondarySubtitleText?: string
   subtitleId?: number
   tracks?: EmbeddedMpvTrack[]
 }

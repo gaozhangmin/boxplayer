@@ -69,6 +69,7 @@ import { resolveDriveProvider } from '../utils/driveProvider'
 import { getWebDavConnection, getWebDavConnectionId, isWebDavDrive, listWebDavDirectory } from '../utils/webdavClient'
 import useMediaServerRegistryStore from '../store/mediaServerRegistry'
 import MpvEmbeddedSurface from '../components/MpvEmbeddedSurface.vue'
+import PlaybackDanmakuSettings from '../components/PlaybackDanmakuSettings.vue'
 import { t, useLocale } from '../i18n'
 import {
   getMediaServerItemDetail,
@@ -981,6 +982,20 @@ const renderMediaServerControls = (art: Artplayer) => {
     removeMediaServerControl(art, 'mediaServerSubtitle')
   }
   renderMediaSearchControl(art)
+  art.controls.add({
+    name: 'playbackDanmakuSettings', position: 'right', index: 22, html: '弹幕设置',
+    click: () => {
+      Modal.open({ title: '弹幕设置', width: 460, footer: false,
+        content: () => h(PlaybackDanmakuSettings, { onChange: () => {
+          applyDanmakuPluginConfig(art)
+          const plugin = getDanmakuPlugin(art)
+          if (useSettingStore().danmakuVisible) plugin?.show?.(); else plugin?.hide?.()
+          const raw = rawPlaybackDanmaku.get(art)
+          if (raw) void loadDanmakuToPlayer(art, raw, false)
+        } })
+      })
+    }
+  } as any)
 }
 
 const refreshMediaServerPlayList = async (art: Artplayer, itemId?: string) => {
@@ -1624,14 +1639,19 @@ const applyDanmakuPluginConfig = (art: Artplayer) => {
   plugin?.config?.(buildDanmakuPluginOption(useSettingStore()) as any)
 }
 
-const loadDanmakuToPlayer = async (art: Artplayer, danmus: Danmu[], tip = t('video.loadedDanmaku')) => {
+const rawPlaybackDanmaku = new WeakMap<Artplayer, Danmu[]>()
+
+const loadDanmakuToPlayer = async (art: Artplayer, danmus: Danmu[], tip: string | false = t('video.loadedDanmaku')) => {
   const plugin = getDanmakuPlugin(art)
   if (!plugin) return
   applyDanmakuPluginConfig(art)
-  await plugin.load?.(danmus)
+  rawPlaybackDanmaku.set(art, danmus)
+  const preferences = useSettingStore()
+  await plugin.load?.(danmus.map(item => ({ ...item, time: Math.max(0, (item.time || 0) + preferences.danmakuDelay),
+    style: { ...item.style, textShadow: `0 0 ${preferences.danmakuBorderSize}px #000, 0 0 ${preferences.danmakuBorderSize}px #000` } })))
   if (useSettingStore().danmakuVisible) plugin.show?.()
   else plugin.hide?.()
-  message.success(`${tip}（${danmus.length} 条）`)
+  if (tip) message.success(`${tip}（${danmus.length} 条）`)
 }
 
 const getJassubInstance = (art: Artplayer) => {
