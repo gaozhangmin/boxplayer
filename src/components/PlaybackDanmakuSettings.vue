@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PlaybackSubtitleNumberRow from './PlaybackSubtitleNumberRow.vue'
 import useSettingStore from '../setting/settingstore'
 const store = useSettingStore()
 const emit = defineEmits<{ change: [] }>()
@@ -21,20 +22,14 @@ const set = (key: string, next: number) => {
 </script>
 <template>
   <div class="playback-danmaku-settings">
-    <label><input :checked="store.danmakuVisible" type="checkbox" @change="store.updateStore({ danmakuVisible: ($event.target as HTMLInputElement).checked }); emit('change')" /> 显示弹幕</label>
-    <div v-for="row in rows" :key="row.key" class="playback-danmaku-row">
-      <span>{{ row.label }}</span>
-      <input :value="value(row.key)" :min="row.min" :max="row.max" :step="row.step" type="number" :aria-label="row.label" @change="set(row.key, Math.max(row.min, Math.min(row.max, Number(($event.target as HTMLInputElement).value))))" />
-      <span>{{ row.unit }}</span>
-      <button type="button" :disabled="value(row.key) <= row.min" :aria-label="`减少${row.label}`" @click="set(row.key, Math.max(row.min, Number((value(row.key) - row.step).toFixed(2))))">−</button>
-      <button type="button" :disabled="value(row.key) >= row.max" :aria-label="`增加${row.label}`" @click="set(row.key, Math.min(row.max, Number((value(row.key) + row.step).toFixed(2))))">+</button>
-    </div>
+    <PlaybackSubtitleNumberRow v-for="row in rows" :key="row.key"
+      :label="row.label" :value="value(row.key)" :min="row.min" :max="row.max"
+      :step="row.step" :unit="row.unit" :digits="row.step < 1 ? 1 : 0"
+      :editable="row.key === 'danmakuDelay'" @change="set(row.key, $event)" />
   </div>
 </template>
 <style scoped>
-.playback-danmaku-settings { display: grid; gap: 12px; color: inherit; }
-.playback-danmaku-row { display: grid; grid-template-columns: minmax(72px,1fr) 65px 24px 32px 32px; gap: 6px; align-items: center; min-height: 44px; }
-input[type=number] { min-width: 0; width: 100%; box-sizing: border-box; color: inherit; background: #80808025; border: 0; border-radius: 8px; padding: 6px; }
-button { color: inherit; background: #80808025; border: 0; border-radius: 12px; min-height: 32px; cursor: pointer; }
-button:disabled { opacity: .35; cursor: default; }
+.playback-danmaku-settings { display:grid; color:inherit; }
+.playback-danmaku-settings :deep(.subtitle-number-row) { min-height:54px; }
+.playback-danmaku-settings :deep(.subtitle-number-row:last-child) { border-bottom:0; }
 </style>

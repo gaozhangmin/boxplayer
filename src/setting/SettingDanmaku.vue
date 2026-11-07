@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import useSettingStore, { DanmakuApiSetting, DanmakuMode } from './settingstore'
+import { ref } from 'vue'
+import useSettingStore, { DanmakuApiSetting } from './settingstore'
 import MySwitch from '../layout/MySwitch.vue'
 import { t } from '../i18n'
 
@@ -30,20 +31,34 @@ const patchApi = (id: string, partial: Partial<DanmakuApiSetting>) => {
   updateApis(settingStore.danmakuApis.map((api) => api.id === id ? { ...api, ...partial } : api))
 }
 
-const modeOptions: Array<{ label: string, value: DanmakuMode }> = [
-  { label: t('settings.danmaku.mode.scroll'), value: 0 },
-  { label: t('settings.danmaku.mode.top'), value: 1 },
-  { label: t('settings.danmaku.mode.bottom'), value: 2 }
-]
+const editingAPI = ref(false)
+const reset = () => update({ danmakuEnabled: true, danmakuSearchHistory: true, danmakuMatchYear: false,
+  danmakuSkipShort: true, danmakuFontFamily: 'system-ui', danmakuChinese: 'none',
+  danmakuFixedToScroll: false, danmakuFilterText: '', danmakuLastQuery: '' })
 </script>
-
 <template>
-  <div class="settingcard play-settings-card">
-<!--    <div class="play-settings-intro">-->
-<!--      <div class="play-settings-kicker">Danmaku</div>-->
-<!--      <div class="play-settings-copy">配置弹幕库 API、自动匹配和 ArtPlayer 弹幕显示参数。</div>-->
-<!--    </div>-->
-
+  <div class="global-danmaku">
+    <section><div class="row"><span>{{ t('globalDan.enabled') }}</span><MySwitch :value="settingStore.danmakuEnabled" @update:value="update({danmakuEnabled: $event})" /></div></section>
+    <p class="hint">{{ t('globalDan.offHint') }}</p>
+    <section>
+      <div class="row"><span>{{ t('globalDan.history') }}</span><MySwitch :value="settingStore.danmakuSearchHistory" @update:value="update({danmakuSearchHistory: $event, ...(!$event ? {danmakuLastQuery: ''} : {})})" /></div>
+      <div class="row"><span>{{ t('globalDan.year') }}</span><MySwitch :value="settingStore.danmakuMatchYear" @update:value="update({danmakuMatchYear: $event})" /></div>
+      <div class="row unsupported" :title="t('globalDan.pipHint')"><span>{{ t('globalDan.pip') }}</span><input type="checkbox" disabled :checked="false" /></div>
+    </section>
+    <section><button class="row link" @click="editingAPI = true"><span>{{ t('globalDan.api') }}</span><span>›</span></button></section>
+    <section>
+      <label class="row"><span>{{ t('globalDan.font') }}</span><select :value="settingStore.danmakuFontFamily" @change="update({danmakuFontFamily: ($event.target as HTMLSelectElement).value})"><option value="system-ui">{{ t('globalDan.systemFont') }}</option><option value="sans-serif">Sans Serif</option><option value="serif">Serif</option><option value="monospace">Monospace</option></select></label>
+      <label class="row"><span>{{ t('globalDan.chinese') }}</span><select :value="settingStore.danmakuChinese" @change="update({danmakuChinese: ($event.target as HTMLSelectElement).value as 'none' | 'simplified' | 'traditional'})"><option value="none">{{ t('globalDan.none') }}</option><option value="simplified">{{ t('globalDan.simplified') }}</option><option value="traditional">{{ t('globalDan.traditional') }}</option></select></label>
+      <div class="row"><span>{{ t('globalDan.fixed') }}</span><MySwitch :value="settingStore.danmakuFixedToScroll" @update:value="update({danmakuFixedToScroll: $event})" /></div>
+      <div class="row"><span>{{ t('globalDan.short') }}<small>{{ t('globalDan.shortHint') }}</small></span><MySwitch :value="settingStore.danmakuSkipShort" @update:value="update({danmakuSkipShort: $event})" /></div>
+      <button class="row link reset" @click="reset">{{ t('globalDan.reset') }}</button>
+    </section>
+    <h3>{{ t('globalDan.keywords') }}</h3>
+    <section><textarea :aria-label="t('globalDan.keywords')" :value="settingStore.danmakuFilterText" @input="update({danmakuFilterText: ($event.target as HTMLTextAreaElement).value})" /></section>
+    <p class="hint">{{ t('globalDan.keywordHint') }}</p>
+    <h3>{{ t('globalDan.aboutTitle') }}</h3>
+    <section class="about">{{ t('globalDan.about') }}</section>
+    <a-modal v-model:visible="editingAPI" :title="t('globalDan.api')" :footer="false" width="min(800px, 90vw)">
     <div class="play-setting-group">
       <div class="play-setting-header">
         <div class="settinghead">{{ t('settings.danmaku.api') }}</div>
@@ -72,78 +87,21 @@ const modeOptions: Array<{ label: string, value: DanmakuMode }> = [
       </div>
     </div>
 
-    <div class="play-setting-group">
-      <div class="play-setting-header">
-        <div class="settinghead">{{ t('settings.danmaku.display') }}</div>
-      </div>
-      <div class="settingrow play-setting-row danmaku-grid">
-        <label>{{ t('settings.danmaku.duration') }}</label>
-        <a-input-number mode="button" :min="1" :max="10" :step="1" :model-value="settingStore.danmakuSpeed" @update:model-value="update({ danmakuSpeed: Number($event) })" />
-        <label>{{ t('settings.danmaku.marginTop') }}</label>
-        <a-input-number mode="button" :min="0" :max="200" :step="1" :model-value="settingStore.danmakuMarginTop" @update:model-value="update({ danmakuMarginTop: Number($event) })" />
-        <label>{{ t('settings.danmaku.marginBottom') }}</label>
-        <a-input-number mode="button" :min="0" :max="String(settingStore.danmakuMarginBottom).includes('%') ? 100 : 200" :step="1" :model-value="parseFloat(settingStore.danmakuMarginBottom) || 0" @update:model-value="update({ danmakuMarginBottom: String($event ?? 0) + (String(settingStore.danmakuMarginBottom).includes('%') ? '%' : '') })">
-          <template #suffix>{{ String(settingStore.danmakuMarginBottom).includes('%') ? '%' : 'px' }}</template>
-        </a-input-number>
-        <label>{{ t('settings.danmaku.opacity') }}</label>
-        <a-input-number mode="button" :min="0" :max="1" :step="0.1" :model-value="settingStore.danmakuOpacity" @update:model-value="update({ danmakuOpacity: Number($event) })" />
-        <label>{{ t('settings.danmaku.fontSize') }}</label>
-        <a-input-number mode="button" :min="12" :max="80" :step="1" :model-value="settingStore.danmakuFontSize" @update:model-value="update({ danmakuFontSize: Number($event) })" />
-        <label>{{ t('settings.danmaku.defaultColor') }}</label>
-        <a-input tabindex="-1" :model-value="settingStore.danmakuColor" @update:model-value="update({ danmakuColor: $event })" />
-        <label>{{ t('settings.danmaku.defaultMode') }}</label>
-        <a-radio-group type="button" tabindex="-1" :model-value="settingStore.danmakuMode" @update:model-value="update({ danmakuMode: $event as DanmakuMode })">
-          <a-radio v-for="mode in modeOptions" :key="mode.value" tabindex="-1" :value="mode.value">{{ mode.label }}</a-radio>
-        </a-radio-group>
-        <label>{{ t('settings.danmaku.visibleMode') }}</label>
-        <a-checkbox-group tabindex="-1" :model-value="settingStore.danmakuModes" @update:model-value="update({ danmakuModes: $event as DanmakuMode[] })">
-          <a-checkbox v-for="mode in modeOptions" :key="mode.value" tabindex="-1" :value="mode.value">{{ mode.label }}</a-checkbox>
-        </a-checkbox-group>
-        <label>{{ t('settings.danmaku.theme') }}</label>
-        <a-radio-group type="button" tabindex="-1" :model-value="settingStore.danmakuTheme" @update:model-value="update({ danmakuTheme: $event })">
-          <a-radio tabindex="-1" value="dark">Dark</a-radio>
-          <a-radio tabindex="-1" value="light">Light</a-radio>
-        </a-radio-group>
-      </div>
-      <div class="settingrow play-setting-row danmaku-switches">
-        <MySwitch :value="settingStore.danmakuVisible" @update:value="update({ danmakuVisible: $event })">{{ t('settings.danmaku.visible') }}</MySwitch>
-        <MySwitch :value="settingStore.danmakuAntiOverlap" @update:value="update({ danmakuAntiOverlap: $event })">{{ t('settings.danmaku.antiOverlap') }}</MySwitch>
-        <MySwitch :value="settingStore.danmakuSynchronousPlayback" @update:value="update({ danmakuSynchronousPlayback: $event })">{{ t('settings.danmaku.syncPlayback') }}</MySwitch>
-        <MySwitch :value="settingStore.danmakuHeatmap" @update:value="update({ danmakuHeatmap: $event })">{{ t('settings.danmaku.heatmap') }}</MySwitch>
-      </div>
-      <div class="settingrow play-setting-row play-setting-row--stack">
-        <div class="settinghead">{{ t('settings.danmaku.filter') }}</div>
-        <a-input
-          tabindex="-1"
-          :model-value="settingStore.danmakuFilterText"
-          :placeholder="t('settings.danmaku.filterPlaceholder')"
-          @update:model-value="update({ danmakuFilterText: $event })"
-        />
-      </div>
-    </div>
+    </a-modal>
   </div>
 </template>
-
 <style scoped>
-.danmaku-api-row {
-  gap: 10px;
-  align-items: center;
-}
-
-.danmaku-grid {
-  display: grid;
-  grid-template-columns: 92px minmax(160px, 1fr) 92px minmax(160px, 1fr);
-  gap: 12px 16px;
-  align-items: center;
-}
-
-.danmaku-grid label {
-  color: #516070;
-}
-
-.danmaku-switches {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 18px;
-}
+.global-danmaku { max-width:760px; margin:auto; padding:24px 16px; color:var(--color-text-1); }
+section { background:var(--color-bg-2); border-radius:22px; padding:0 20px; margin-top:28px; }
+.row { display:flex; align-items:center; justify-content:space-between; gap:16px; width:100%; min-height:54px; box-sizing:border-box; border-bottom:1px solid var(--color-border-1); }
+.row:last-child { border-bottom:0; }
+select { max-width:45%; color:var(--color-text-2); background:transparent; border:0; }
+.link { background:transparent; color:inherit; border:0; cursor:pointer; text-align:left; font:inherit; }
+.reset { color:rgb(var(--primary-6)); }
+small,.hint { display:block; color:var(--color-text-3); font-size:13px; margin:8px 0; }
+h3 { color:var(--color-text-3); margin:28px 20px -12px; font-size:14px; }
+textarea { width:100%; box-sizing:border-box; min-height:120px; padding:12px 0; color:inherit; background:transparent; border:0; resize:vertical; }
+.about { white-space:pre-line; padding:20px; }
+.unsupported { opacity:.45; }
+.danmaku-api-row { gap:8px; flex-wrap:wrap; }
 </style>

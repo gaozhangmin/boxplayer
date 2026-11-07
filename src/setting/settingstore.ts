@@ -85,6 +85,14 @@ export interface SettingState {
   uiXBTWidth: number
 
   // 弹幕库
+  danmakuEnabled: boolean
+  danmakuSearchHistory: boolean
+  danmakuMatchYear: boolean
+  danmakuSkipShort: boolean
+  danmakuFontFamily: string
+  danmakuChinese: 'none' | 'simplified' | 'traditional'
+  danmakuFixedToScroll: boolean
+  danmakuLastQuery: string
   danmakuApis: DanmakuApiSetting[]
   danmakuDelay: number
   danmakuBorderSize: number
@@ -305,17 +313,25 @@ const setting: SettingState = {
   uiXBTWidth: 960,
 
   // 弹幕库
+  danmakuEnabled: true,
+  danmakuSearchHistory: true,
+  danmakuMatchYear: false,
+  danmakuSkipShort: true,
+  danmakuFontFamily: 'system-ui',
+  danmakuChinese: 'none',
+  danmakuFixedToScroll: false,
+  danmakuLastQuery: '',
   danmakuApis: [],
   danmakuDelay: 0,
   danmakuBorderSize: 1.5,
   danmakuSpeed: 5,
   danmakuMarginTop: 10,
-  danmakuMarginBottom: '25%',
+  danmakuMarginBottom: '0%',
   danmakuOpacity: 1,
   danmakuColor: '#FFFFFF',
   danmakuMode: 0,
   danmakuModes: [0, 1, 2],
-  danmakuFontSize: 25,
+  danmakuFontSize: 20,
   danmakuAntiOverlap: true,
   danmakuSynchronousPlayback: false,
   danmakuHeatmap: false,
@@ -540,18 +556,26 @@ function _loadSetting(val: any) {
         url: defaultString(api.url, '')
       }))
     : []
+  setting.danmakuEnabled = defaultBool(val.danmakuEnabled, true)
+  setting.danmakuSearchHistory = defaultBool(val.danmakuSearchHistory, true)
+  setting.danmakuMatchYear = defaultBool(val.danmakuMatchYear, false)
+  setting.danmakuSkipShort = defaultBool(val.danmakuSkipShort, true)
+  setting.danmakuFontFamily = defaultString(val.danmakuFontFamily, 'system-ui')
+  setting.danmakuChinese = defaultValue(val.danmakuChinese, ['none', 'simplified', 'traditional'])
+  setting.danmakuFixedToScroll = defaultBool(val.danmakuFixedToScroll, false)
+  setting.danmakuLastQuery = defaultString(val.danmakuLastQuery, '')
   setting.danmakuDelay = defaultNumberSub(val.danmakuDelay, 0, -100, 100)
   setting.danmakuBorderSize = defaultNumberSub(val.danmakuBorderSize, 1.5, 0, 10)
   setting.danmakuSpeed = defaultNumberSub(val.danmakuSpeed, 5, 1, 10)
   setting.danmakuMarginTop = defaultNumberSub(val.danmakuMarginTop, 10, 0, 200)
-  setting.danmakuMarginBottom = defaultString(val.danmakuMarginBottom, '25%')
+  setting.danmakuMarginBottom = defaultString(val.danmakuMarginBottom, '0%')
   setting.danmakuOpacity = defaultNumberSub(val.danmakuOpacity, 1, 0, 1)
   setting.danmakuColor = defaultString(val.danmakuColor, '#FFFFFF')
   setting.danmakuMode = defaultValue(val.danmakuMode, [0, 1, 2])
   setting.danmakuModes = Array.isArray(val.danmakuModes) && val.danmakuModes.length > 0
     ? val.danmakuModes.filter((mode: any) => [0, 1, 2].includes(mode))
     : [0, 1, 2]
-  setting.danmakuFontSize = defaultNumberSub(val.danmakuFontSize, 25, 12, 80)
+  setting.danmakuFontSize = defaultNumberSub(val.danmakuFontSize, 20, 12, 80)
   setting.danmakuAntiOverlap = defaultBool(val.danmakuAntiOverlap, true)
   setting.danmakuSynchronousPlayback = defaultBool(val.danmakuSynchronousPlayback, false)
   setting.danmakuHeatmap = defaultBool(val.danmakuHeatmap, false)

@@ -11,12 +11,14 @@ import message from '../utils/message'
 import { toSimplified, toTraditional } from 'chinese-simple2traditional'
 import type { CSSProperties } from 'vue'
 import PlaybackDanmakuSettings from './PlaybackDanmakuSettings.vue'
+import { formatDanmakuText, danmakuMatchTitle } from '../utils/danmakuPreferences'
+import PlaybackSubtitleNumberRow from './PlaybackSubtitleNumberRow.vue'
 import useSettingStore from '../setting/settingstore'
-import { autoMatchDanmaku, loadDanmakuComments } from '../utils/danmakuApi'
+import { autoMatchDanmaku, loadDanmakuComments, createDanmakuFilter } from '../utils/danmakuApi'
 import type { Danmu } from 'artplayer-plugin-danmuku'
 import { MpvPlaybackSession } from '../utils/mpvPlaybackSession'
 import { getAutoSubtitleTrackId, subtitleSelectionCommands } from '../utils/mpvSubtitleTrack'
-import { Captions, Flag, ListVideo, Pause, Play, Settings2, SkipBack, SkipForward } from 'lucide-vue-next'
+import { Captions, MessageSquare, Search, Flag, ListVideo, Pause, Play, Settings2, SkipBack, SkipForward } from 'lucide-vue-next'
 
 const props = defineProps<{
   url: string
@@ -90,28 +92,28 @@ const loadSubtitleStyles = (): SubtitleStyle[] => {
   return [defaultSubtitleStyle(), defaultSubtitleStyle(true)]
 }
 const subtitleStyles = ref(loadSubtitleStyles())
+subtitleStyles.value[1].custom = subtitleStyles.value[0].custom
 const subtitleStyleIndex = ref(0)
 const selectedSubtitleStyle = computed(() => subtitleStyles.value[subtitleStyleIndex.value])
+const primarySubtitleStyle = computed(() => subtitleStyles.value[0])
+const customSubtitleEnabled = computed({
+  get: () => subtitleStyles.value[0].custom,
+  set: (enabled: boolean) => { for (const style of subtitleStyles.value) style.custom = enabled }
+})
 const subtitleText = ref('')
 const secondarySubtitleText = ref('')
 const pgsAspectCorrection = ref(localStorage.getItem('playbackPgsAspectCorrection') !== 'false')
-const styleField = <K extends keyof SubtitleStyle>(key: K) => computed({
-  get: () => selectedSubtitleStyle.value[key],
-  set: (value: SubtitleStyle[K]) => { selectedSubtitleStyle.value[key] = value }
+const styleField = <K extends keyof SubtitleStyle>(key: K, primary = false) => computed({
+  get: () => subtitleStyles.value[primary ? 0 : subtitleStyleIndex.value][key],
+  set: (value: SubtitleStyle[K]) => { subtitleStyles.value[primary ? 0 : subtitleStyleIndex.value][key] = value }
 })
-const subtitleDelay = styleField('delay')
-const subtitleScale = styleField('scale')
-const subtitleBorderSize = styleField('borderSize')
-const subtitleBorderColor = styleField('border')
+const subtitleDelay = styleField('delay', true)
+const subtitleScale = styleField('scale', true)
 const subtitleBackgroundColor = styleField('background')
 const audioDelay = ref(0)
 const equalizerBands = ref([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 const equalizerFrequencies = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
-const subtitleFontSize = styleField('fontSize')
-const subtitleColor = styleField('color')
-const subtitlePosition = styleField('position')
-const subtitleBold = styleField('bold')
-const subtitleItalic = styleField('italic')
+const subtitlePosition = styleField('position', true)
 const isBitmapSubtitle = (index: number) => {
   const id = index === 0 ? subtitleTrackId.value : secondarySubtitleTrackId.value
   const codec = subtitleTracks.value.find(track => track.id === id)?.codec || ''
@@ -176,8 +178,9 @@ const matchPlaybackDanmaku = async () => {
   const sequence = loadSequence
   danmakuLoading.value = true
   try {
+    if (!danmakuPreferences.danmakuEnabled) return
     const apis = danmakuPreferences.danmakuApis.filter(api => api.url.trim() && api.name.trim())
-    const match = await autoMatchDanmaku(props.title || '', apis)
+    const match = await autoMatchDanmaku(danmakuMatchTitle(props.title || '', danmakuPreferences.danmakuMatchYear), apis)
     const episode = match?.response.matches?.[0]
     if (!match || !episode) { showNotice('未找到匹配弹幕'); return }
     const comments = await loadDanmakuComments(episode.episodeId, match.api)
@@ -188,7 +191,7 @@ const matchPlaybackDanmaku = async () => {
   finally { danmakuLoading.value = false }
 }
 const activeDanmaku = computed(() => {
-  if (!danmakuPreferences.danmakuVisible) return []
+  if (!danmakuPreferences.danmakuEnabled || !danmakuPreferences.danmakuVisible) return []
   const comments = danmakuComments.value
   const time = danmakuTime.value - danmakuPreferences.danmakuDelay
   const lifetime = danmakuPreferences.danmakuSpeed
@@ -201,14 +204,14 @@ const activeDanmaku = computed(() => {
   const start = lowerBound(time - lifetime)
   const end = lowerBound(time + 0.001)
   const rows = Math.max(1, Math.floor((100 - parseFloat(danmakuPreferences.danmakuMarginBottom || '0')) / 6))
-  return comments.slice(start, Math.min(end, start + 60)).map((comment, offset) => {
+  return comments.slice(start, Math.min(end, start + 60)).filter(createDanmakuFilter(danmakuPreferences.danmakuFilterText)).map((comment, offset) => {
     const progress = Math.min(1, Math.max(0, (time - (comment.time || 0)) / lifetime))
-    const mode = comment.mode || 0
+    const mode = danmakuPreferences.danmakuFixedToScroll ? 0 : comment.mode || 0
     return {
-      id: start + offset, text: comment.text,
+      id: start + offset, text: formatDanmakuText(comment.text, danmakuPreferences),
       style: {
         color: comment.color || danmakuPreferences.danmakuColor,
-        fontSize: `${danmakuPreferences.danmakuFontSize}px`, opacity: danmakuPreferences.danmakuOpacity,
+        fontFamily: danmakuPreferences.danmakuFontFamily, fontSize: `${danmakuPreferences.danmakuFontSize}px`, opacity: danmakuPreferences.danmakuOpacity,
         top: mode === 2 ? `${(rows - 1 - (start + offset) % rows) * 6}%` : `${(start + offset) % rows * 6}%`,
         left: mode ? '50%' : '0',
         transform: mode ? 'translateX(-50%)' : `translateX(calc((100cqw + 100%) * ${1 - progress} - 100%))`,
@@ -974,10 +977,6 @@ const handleSubtitleSelection = async (event: Event, secondary: boolean) => {
 const handleSubtitleTrackChange = (event: Event) => handleSubtitleSelection(event, false)
 const handleSecondarySubtitleTrackChange = (event: Event) => handleSubtitleSelection(event, true)
 
-const handleSubtitleDelayChange = (event: Event) => { subtitleDelay.value = Number((event.target as HTMLInputElement).value || 0) }
-const handleSubtitleScaleChange = (event: Event) => { subtitleScale.value = Number((event.target as HTMLInputElement).value || 1) }
-const handleSubtitleBorderSizeChange = (event: Event) => { subtitleBorderSize.value = Number((event.target as HTMLInputElement).value || 0) }
-const handleSubtitleBorderColorChange = (event: Event) => { subtitleBorderColor.value = (event.target as HTMLInputElement).value }
 const handleSubtitleBackgroundColorChange = (event: Event) => { subtitleBackgroundColor.value = (event.target as HTMLInputElement).value }
 
 const handleAddExternalSubtitle = () => {
@@ -1012,36 +1011,6 @@ const applySubtitleStyle = async () => {
     await setVideoProperty(`${prefix}-visibility`, usesTextOverlay(index) ? 'no' : 'yes')
   }
   await setVideoProperty('stretch-image-subs-to-screen', pgsAspectCorrection.value ? 'no' : 'yes')
-}
-
-const handleSubtitleSizeChange = async (event: Event) => {
-  revealControls()
-  subtitleFontSize.value = Number((event.target as HTMLInputElement).value || 44)
-  await applySubtitleStyle()
-}
-
-const handleSubtitleColorChange = async (event: Event) => {
-  revealControls()
-  subtitleColor.value = String((event.target as HTMLInputElement).value || '#ffffff')
-  await applySubtitleStyle()
-}
-
-const handleSubtitlePositionChange = async (event: Event) => {
-  revealControls()
-  subtitlePosition.value = Number((event.target as HTMLInputElement).value || 96)
-  await applySubtitleStyle()
-}
-
-const handleSubtitleBoldChange = async (event: Event) => {
-  revealControls()
-  subtitleBold.value = Boolean((event.target as HTMLInputElement).checked)
-  await applySubtitleStyle()
-}
-
-const handleSubtitleItalicChange = async (event: Event) => {
-  revealControls()
-  subtitleItalic.value = Boolean((event.target as HTMLInputElement).checked)
-  await applySubtitleStyle()
 }
 
 const handleIntroSkipToggle = () => {
@@ -1255,7 +1224,7 @@ watch([paused, loading, errorText, seeking], () => {
   if (isControlsPinned()) controlsVisible.value = true
 })
 
-watch([dualSubtitles, secondarySubtitleLines, subtitlePosition, subtitleFontSize, subtitleScale], () => {
+watch([dualSubtitles, secondarySubtitleLines, subtitlePosition, subtitleScale], () => {
   if (props.url && !disposed) void applySubtitleLayout()
 })
 
@@ -1302,6 +1271,8 @@ watch(chapters, (nextChapters) => {
             </button>
             <button class="mpv-icon-btn" :disabled="!canPlayNext" title="下一曲" aria-label="下一曲" type="button" @click="emit('playlistNext')"><SkipForward :size="21" /></button>
             <button class="mpv-icon-btn" :class="{ active: playlistOpen }" title="播放列表" aria-label="播放列表" type="button" @click="togglePlaylist"><ListVideo :size="19" /></button>
+            <button v-if="danmakuPreferences.danmakuEnabled" class="mpv-icon-btn" :class="{ active: danmakuPreferences.danmakuVisible }" title="显示/隐藏弹幕" aria-label="显示/隐藏弹幕" type="button" @click="danmakuPreferences.updateStore({ danmakuVisible: !danmakuPreferences.danmakuVisible })"><MessageSquare :size="19" /></button>
+            <button v-if="danmakuPreferences.danmakuEnabled" class="mpv-icon-btn" title="匹配当前视频弹幕" aria-label="匹配当前视频弹幕" type="button" :disabled="danmakuLoading" @click="matchPlaybackDanmaku"><Search :size="19" /></button>
             <button class="mpv-icon-btn" :class="{ active: settingsOpen }" title="设置" aria-label="设置" type="button" @click="toggleSettings"><Settings2 :size="19" /></button>
             <button class="mpv-icon-btn mpv-marker-btn" :class="{ active: introSkipSeconds > 0 }" title="设置片头" aria-label="设置片头" type="button" @click="handleIntroSkipToggle"><Flag :size="18" /></button>
             <button class="mpv-icon-btn mpv-marker-btn" :class="{ active: outroSkipSeconds > 0 }" title="设置片尾" aria-label="设置片尾" type="button" @click="handleOutroSkipToggle"><Flag :size="18" /></button>
@@ -1372,15 +1343,15 @@ watch(chapters, (nextChapters) => {
           <div class="mpv-side-panel-header">
             <div>
               <span class="mpv-side-panel-kicker">VIDEO SETTINGS</span>
-              <strong>播放设置</strong>
+              <strong>{{ settingsTab === 'danmaku' ? '弹幕设置' : settingsTab === 'subtitle' ? '字幕设置' : '播放设置' }}</strong>
             </div>
             <button class="mpv-side-close" type="button" aria-label="关闭设置" @click="settingsOpen = false">×</button>
           </div>
-          <div class="mpv-settings-tabs">
+          <div v-if="settingsTab !== 'danmaku' && settingsTab !== 'subtitle'" class="mpv-settings-tabs">
             <button :class="{ active: settingsTab === 'video' }" type="button" @click="settingsTab = 'video'">视频</button>
             <button :class="{ active: settingsTab === 'audio' }" type="button" @click="settingsTab = 'audio'">音频</button>
-            <button :class="{ active: settingsTab === 'subtitle' }" type="button" @click="settingsTab = 'subtitle'">字幕</button>
-            <button :class="{ active: settingsTab === 'danmaku' }" type="button" @click="settingsTab = 'danmaku'">弹幕</button>
+            <button type="button" @click="settingsTab = 'subtitle'">字幕</button>
+            <button v-if="danmakuPreferences.danmakuEnabled" type="button" @click="settingsTab = 'danmaku'">弹幕</button>
           </div>
 
           <div v-if="settingsTab === 'video'" class="mpv-side-settings-content">
@@ -1462,42 +1433,46 @@ watch(chapters, (nextChapters) => {
 
           <div v-else-if="settingsTab === 'subtitle'" class="mpv-side-settings-content">
             <section class="mpv-side-section">
+              <span class="mpv-side-label">播放调整</span>
+              <PlaybackSubtitleNumberRow label="延迟显示[主]" :value="subtitleDelay" :min="-100" :max="100" :step="0.1" :digits="1" unit="s" editable @change="subtitleDelay = $event" />
+              <PlaybackSubtitleNumberRow label="垂直偏移" :value="100 - subtitlePosition" :min="0" :max="100" :step="1" @change="subtitlePosition = 100 - $event" />
+              <PlaybackSubtitleNumberRow label="大小缩放[主]" :value="subtitleScale * 100" :min="25" :max="300" :step="5" unit="%" @change="subtitleScale = $event / 100" />
+              <PlaybackSubtitleNumberRow label="不透明度" :disabled="isBitmapSubtitle(0)" :value="primarySubtitleStyle.opacity * 100" :min="0" :max="100" :step="5" unit="%" @change="primarySubtitleStyle.opacity = $event / 100" />
+              <label class="mpv-side-select-row"><span>简繁中文转换</span><select :disabled="isBitmapSubtitle(0)" v-model.number="primarySubtitleStyle.conversion"><option :value="0">禁用</option><option :value="1">转为简体</option><option :value="2">转为繁体</option></select></label>
+              <label class="mpv-side-select-row"><span>PGS 字幕比例修正</span><input v-model="pgsAspectCorrection" type="checkbox" /></label>
+            </section>
+            <section class="mpv-side-section">
+              <span class="mpv-side-label">自定义样式</span>
+              <label class="mpv-side-select-row"><span>使用自定义样式</span><input v-model="customSubtitleEnabled" type="checkbox" /></label>
+              <template v-if="customSubtitleEnabled">
+                <div class="mpv-subtitle-mode-tabs"><button :class="{ active: subtitleStyleIndex === 0 }" type="button" @click="subtitleStyleIndex = 0">主字幕</button><button :class="{ active: subtitleStyleIndex === 1 }" type="button" @click="subtitleStyleIndex = 1">副字幕</button></div>
+                <fieldset :disabled="isBitmapSubtitle(subtitleStyleIndex)" class="mpv-subtitle-custom-fields">
+                  <label class="mpv-side-select-row"><span>字体</span><select v-model="selectedSubtitleStyle.font"><option value="sans-serif">系统字体</option><option value="serif">衬线</option><option value="monospace">等宽</option></select></label>
+                  <label class="mpv-side-select-row"><span>加粗</span><input v-model="selectedSubtitleStyle.bold" type="checkbox" /></label>
+                  <label class="mpv-side-select-row"><span>斜体</span><input v-model="selectedSubtitleStyle.italic" type="checkbox" /></label>
+                  <label class="mpv-side-select-row"><span>字体颜色</span><input v-model="selectedSubtitleStyle.color" type="color" /></label>
+                  <label class="mpv-side-select-row"><span>背景颜色</span><input :value="selectedSubtitleStyle.background.slice(0, 7)" type="color" @change="handleSubtitleBackgroundColorChange" /></label>
+                  <label class="mpv-side-select-row"><span>描边颜色</span><input v-model="selectedSubtitleStyle.border" type="color" /></label>
+                  <PlaybackSubtitleNumberRow label="描边大小" :value="selectedSubtitleStyle.borderSize" :min="0" :max="10" :step="0.1" :digits="1" @change="selectedSubtitleStyle.borderSize = $event" />
+                  <label class="mpv-side-select-row"><span>阴影颜色</span><input v-model="selectedSubtitleStyle.shadow" type="color" /></label>
+                  <PlaybackSubtitleNumberRow label="阴影大小" :value="selectedSubtitleStyle.shadowSize" :min="0" :max="10" :step="0.1" :digits="1" @change="selectedSubtitleStyle.shadowSize = $event" />
+                </fieldset>
+                <p v-if="isBitmapSubtitle(subtitleStyleIndex)" class="mpv-side-empty">位图字幕保留原始图像，无法更改文字样式。</p>
+                <button class="mpv-side-action" type="button" @click="subtitleStyles[subtitleStyleIndex] = { ...defaultSubtitleStyle(subtitleStyleIndex === 1), custom: true, delay: selectedSubtitleStyle.delay, position: selectedSubtitleStyle.position, scale: selectedSubtitleStyle.scale, opacity: selectedSubtitleStyle.opacity, conversion: selectedSubtitleStyle.conversion }">恢复默认样式</button>
+              </template>
+            </section>
+            <section class="mpv-side-section">
               <span class="mpv-side-label">字幕轨道</span>
               <label class="mpv-side-select-row"><span>字幕</span><select :disabled="subtitleFileLoading" :value="subtitleSelectValue" title="字幕" @change="handleSubtitleTrackChange"><option value="track:-1">关闭字幕</option><option v-for="track in subtitleTracks" :key="`sub-${track.id}`" :value="`track:${track.id}`">{{ formatTrackLabel(track) }}</option><optgroup v-if="unloadedSubtitleFiles.length" label="网盘字幕"><option v-for="file in unloadedSubtitleFiles" :key="file.id" :value="`file:${file.id}`">{{ file.title }}</option></optgroup></select></label>
               <label class="mpv-side-select-row"><span>副字幕</span><select :disabled="subtitleFileLoading" :value="secondarySubtitleSelectValue" title="副字幕" @change="handleSecondarySubtitleTrackChange"><option value="track:-1">关闭副字幕</option><option v-for="track in subtitleTracks" :key="`secondary-sub-${track.id}`" :value="`track:${track.id}`">{{ formatTrackLabel(track) }}</option><optgroup v-if="unloadedSubtitleFiles.length" label="网盘字幕"><option v-for="file in unloadedSubtitleFiles" :key="file.id" :value="`file:${file.id}`">{{ file.title }}</option></optgroup></select></label>
               <div v-if="subtitleFileLoading" class="mpv-side-empty" role="status">正在加载字幕…</div>
               <div class="mpv-side-action-row"><button class="mpv-side-action" type="button" @click="handleAddExternalSubtitle">加载字幕…</button><button class="mpv-side-action" type="button" @click="openSubtitleSearchModal"><Captions :size="15" /> 在线查找</button></div>
             </section>
-            <section class="mpv-side-section">
-              <div class="mpv-subtitle-mode-tabs"><button :class="{ active: subtitleStyleIndex === 0 }" type="button" @click="subtitleStyleIndex = 0">主字幕</button><button :class="{ active: subtitleStyleIndex === 1 }" type="button" @click="subtitleStyleIndex = 1">副字幕</button></div>
-              <label class="mpv-side-slider"><span>字幕延迟 <b>{{ subtitleDelay.toFixed(1) }}s</b></span><input :value="subtitleDelay" max="5" min="-5" step="0.1" type="range" @change="handleSubtitleDelayChange" /></label>
-              <label class="mpv-side-slider"><span>垂直偏移 <b>{{ subtitlePosition }}</b></span><input :value="subtitlePosition" max="100" min="0" step="1" type="range" @change="handleSubtitlePositionChange" /></label>
-              <label class="mpv-side-slider"><span>大小缩放 <b>{{ Math.round(subtitleScale * 100) }}%</b></span><input :value="subtitleScale" max="3" min="0.25" step="0.05" type="range" @change="handleSubtitleScaleChange" /></label>
-            </section>
-            <section class="mpv-side-section">
-              <label class="mpv-side-slider"><span>不透明度 <b>{{ Math.round(selectedSubtitleStyle.opacity * 100) }}%</b></span><input :disabled="isBitmapSubtitle(subtitleStyleIndex)" v-model.number="selectedSubtitleStyle.opacity" min="0" max="1" step="0.05" type="range" /></label>
-              <label class="mpv-side-select-row"><span>简繁中文转换</span><select :disabled="isBitmapSubtitle(subtitleStyleIndex)" v-model.number="selectedSubtitleStyle.conversion"><option :value="0">禁用</option><option :value="1">转为简体</option><option :value="2">转为繁体</option></select></label>
-              <label><input v-model="pgsAspectCorrection" type="checkbox" /> PGS 字幕比例修正</label>
-              <label><input v-model="selectedSubtitleStyle.custom" type="checkbox" /> 使用自定义样式</label>
-            </section>
-            <section v-if="selectedSubtitleStyle.custom" class="mpv-side-section">
-              <span class="mpv-side-label">自定义样式</span>
-              <p v-if="isBitmapSubtitle(subtitleStyleIndex)" class="mpv-side-empty">位图字幕保留原始图像，无法更改文字样式。</p>
-              <fieldset :disabled="isBitmapSubtitle(subtitleStyleIndex)" class="mpv-subtitle-custom-fields">
-              <label class="mpv-side-select-row"><span>字体</span><select v-model="selectedSubtitleStyle.font"><option value="sans-serif">系统字体</option><option value="serif">衬线</option><option value="monospace">等宽</option></select></label>
-              <label class="mpv-side-slider"><span>字号 <b>{{ subtitleFontSize }}</b></span><input :value="subtitleFontSize" max="80" min="20" step="1" type="range" @change="handleSubtitleSizeChange" /></label>
-              <label class="mpv-side-slider"><span>描边 <b>{{ subtitleBorderSize }}</b></span><input :value="subtitleBorderSize" max="10" min="0" step="1" type="range" @change="handleSubtitleBorderSizeChange" /></label>
-              <div class="mpv-side-style-row"><label><input :checked="subtitleBold" type="checkbox" @change="handleSubtitleBoldChange" /> 粗体</label><label><input :checked="subtitleItalic" type="checkbox" @change="handleSubtitleItalicChange" /> 斜体</label><label>颜色 <input :value="subtitleColor" type="color" aria-label="字幕颜色" @change="handleSubtitleColorChange" /></label></div>
-              <div class="mpv-side-style-row"><label>描边色 <input :value="subtitleBorderColor" type="color" aria-label="描边颜色" @change="handleSubtitleBorderColorChange" /></label><label>背景 <input :value="subtitleBackgroundColor" type="color" aria-label="背景颜色" @change="handleSubtitleBackgroundColorChange" /></label></div>
-              <div class="mpv-side-style-row"><label>阴影颜色 <input v-model="selectedSubtitleStyle.shadow" type="color" /></label></div>
-              <label class="mpv-side-slider"><span>阴影大小 <b>{{ selectedSubtitleStyle.shadowSize.toFixed(1) }}</b></span><input v-model.number="selectedSubtitleStyle.shadowSize" min="0" max="10" step="0.1" type="range" /></label>
-              </fieldset>
-              <button class="mpv-side-action" type="button" @click="subtitleStyles[subtitleStyleIndex] = { ...defaultSubtitleStyle(subtitleStyleIndex === 1), custom: true, delay: selectedSubtitleStyle.delay, position: selectedSubtitleStyle.position, scale: selectedSubtitleStyle.scale, opacity: selectedSubtitleStyle.opacity }">恢复默认样式</button>
-            </section>
+
           </div>
           <div v-else class="mpv-side-section">
             <PlaybackDanmakuSettings />
-            <button class="mpv-side-action" type="button" :disabled="danmakuLoading" @click="matchPlaybackDanmaku">{{ danmakuLoading ? '加载中…' : '匹配当前视频弹幕' }}</button>
+
           </div>
         </template>
       </aside>
