@@ -205,6 +205,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
       await subtitleContent.getByLabel(label).evaluate((element, nextValue) => {
         const input = element as HTMLInputElement
         input.value = nextValue
+        input.dispatchEvent(new Event('input', { bubbles: true }))
         input.dispatchEvent(new Event('change', { bubbles: true }))
       }, value)
     }
