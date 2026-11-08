@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 22.12.0
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - run: node scripts/install-ci-dependencies.mjs
       - run: node scripts/generate-secrets.mjs --mode=local
       - name: Verify scraping, source membership and library UI
         run: |
@@ -152,7 +152,7 @@ jobs:
           run_install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: node scripts/install-ci-dependencies.mjs
 
       - name: Verify file renderer in Electron
         run: |
@@ -278,7 +278,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          pnpm install --frozen-lockfile
+          node scripts/install-ci-dependencies.mjs
 
       - name: Download verified Windows x64 embedded MPV runtime
         if: matrix.os == 'windows-latest'

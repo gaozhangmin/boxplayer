@@ -52,7 +52,7 @@ jobs:
       - name: Install project and native build dependencies
         run: |
           brew install mpv pkgconf
-          pnpm install --frozen-lockfile
+          node scripts/install-ci-dependencies.mjs
           pnpm exec electron-rebuild -f -w better-sqlite3
           pnpm --dir native/boxplayer-mpv-texture install --ignore-workspace --no-frozen-lockfile --ignore-scripts
 

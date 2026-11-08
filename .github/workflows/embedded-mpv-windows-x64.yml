@@ -54,7 +54,7 @@ jobs:
 
       - name: Install project dependencies
         run: |
-          pnpm install --frozen-lockfile
+          node scripts/install-ci-dependencies.mjs
           pnpm exec electron-rebuild -f -w better-sqlite3
           pnpm --dir native/boxplayer-mpv-texture install --ignore-workspace --no-frozen-lockfile --ignore-scripts
 

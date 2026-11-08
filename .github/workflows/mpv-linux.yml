@@ -36,7 +36,7 @@ jobs:
           cache: pnpm
 
       - name: Install project dependencies
-        run: pnpm install --frozen-lockfile
+        run: node scripts/install-ci-dependencies.mjs
 
       - name: Install MPV and FFmpeg
         run: |
