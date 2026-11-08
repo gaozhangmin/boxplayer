@@ -12,6 +12,7 @@ import message from '../utils/message'
 import { toSimplified, toTraditional } from 'chinese-simple2traditional'
 import type { CSSProperties } from 'vue'
 import PlaybackDanmakuSettings from './PlaybackDanmakuSettings.vue'
+import MpvSkipIntroOutroDialog from './MpvSkipIntroOutroDialog.vue'
 import { formatDanmakuText, danmakuMatchTitle } from '../utils/danmakuPreferences'
 import PlaybackSubtitleNumberRow from './PlaybackSubtitleNumberRow.vue'
 import useSettingStore from '../setting/settingstore'
@@ -19,7 +20,7 @@ import { autoMatchDanmaku, loadDanmakuComments, createDanmakuFilter } from '../u
 import type { Danmu } from 'artplayer-plugin-danmuku'
 import { MpvPlaybackSession } from '../utils/mpvPlaybackSession'
 import { getAutoSubtitleTrackId, subtitleSelectionCommands } from '../utils/mpvSubtitleTrack'
-import { Captions, MessageSquare, Search, Flag, ListVideo, Pause, Play, Settings2, SkipBack, SkipForward } from 'lucide-vue-next'
+import { Captions, MessageSquare, Search, Flag, ListVideo, Pause, Play, Settings, Volume2, VolumeX, RotateCcw, RotateCw, Maximize2, PictureInPicture2, Check, ChevronRight, Gauge, RectangleHorizontal, SkipBack, SkipForward } from 'lucide-vue-next'
 
 const props = defineProps<{
   url: string
@@ -61,11 +62,42 @@ const volume = ref(100)
 const speed = ref(1)
 const bufferedPosition = ref(0)
 const seeking = ref(false)
-const seekProgress = ref<HTMLInputElement | null>(null)
+const seekProgress = shallowRef<HTMLInputElement | null>(null)
 let seekPreview: SeekThumbnailPreview | undefined
 const controlsVisible = ref(true)
 const controlsHover = ref(false)
+const toggleFullscreen = () => window.WebToWindow?.({ cmd: 'fullscreen' })
+const optionsOpen = ref(false)
+const volumeOpen = ref(false)
+const quickMenu = ref<'speed' | 'aspect' | null>(null)
 const settingsOpen = ref(false)
+const openSettingsTab = (tab: 'video' | 'audio' | 'subtitle' | 'danmaku') => {
+  settingsTab.value = tab
+  settingsOpen.value = true
+  playlistOpen.value = false
+  optionsOpen.value = false
+}
+let pipVideo: HTMLVideoElement | null = null
+const closePictureInPicture = () => {
+  const stream = pipVideo?.srcObject as MediaStream | null
+  stream?.getTracks().forEach(track => track.stop())
+  if (pipVideo) pipVideo.srcObject = null
+  pipVideo?.remove()
+  pipVideo = null
+}
+const togglePictureInPicture = async () => {
+  try {
+    if (document.pictureInPictureElement) { await document.exitPictureInPicture(); return }
+    const canvas = renderMode.value === 'fallback' ? fallbackCanvasRef.value : canvasRef.value
+    if (!canvas || !document.pictureInPictureEnabled) { showNotice('当前环境不支持画中画'); return }
+    pipVideo = document.createElement('video')
+    pipVideo.muted = true
+    pipVideo.srcObject = canvas.captureStream(30)
+    await pipVideo.play()
+    pipVideo.addEventListener('leavepictureinpicture', closePictureInPicture, { once: true })
+    await pipVideo.requestPictureInPicture()
+  } catch { closePictureInPicture(); showNotice('无法打开画中画') }
+}
 const playlistOpen = ref(false)
 const playlistTab = ref<'playlist' | 'chapters'>('playlist')
 const noticeText = ref('')
@@ -146,6 +178,14 @@ const overlaySubtitleStyle = (index: number): CSSProperties => {
     textShadow: style.custom && style.shadowSize > 0 ? `${style.shadowSize}px ${style.shadowSize}px ${style.shadowSize}px ${style.shadow}` : 'none'
   }
 }
+const skipDialogOpen = ref(false)
+const introSkipEnabled = ref(false)
+const outroSkipEnabled = ref(false)
+const openSkipDialog = () => {
+  optionsOpen.value = false
+  quickMenu.value = null
+  skipDialogOpen.value = true
+}
 const introSkipSeconds = ref(0)
 const outroSkipSeconds = ref(0)
 const aspectRatio = ref('no')
@@ -164,7 +204,7 @@ const outroTriggered = ref(false)
 const tracks = ref<Array<{ id: number; type: string; title?: string; language?: string; codec?: string; selected?: boolean; external?: boolean }>>([])
 const nativeBuffering = ref(false)
 const isBuffering = computed(() => !errorText.value && (loading.value || nativeBuffering.value || frameCount.value === 0))
-const shouldShowControls = computed(() => controlsVisible.value || controlsHover.value || paused.value || loading.value || Boolean(errorText.value) || seeking.value || settingsOpen.value || playlistOpen.value)
+const shouldShowControls = computed(() => controlsVisible.value || controlsHover.value || paused.value || loading.value || Boolean(errorText.value) || seeking.value || settingsOpen.value || playlistOpen.value || optionsOpen.value || volumeOpen.value || skipDialogOpen.value)
 
 const danmakuPreferences = useSettingStore()
 const danmakuComments = shallowRef<Danmu[]>([])
@@ -285,7 +325,7 @@ const audioTracks = computed(() => tracks.value.filter((track) => track.type ===
 const subtitleTracks = computed(() => tracks.value.filter((track) => track.type === 'sub'))
 const unloadedSubtitleFiles = computed(() => (props.subtitleFiles || []).filter(file => !subtitleTracks.value.some(track => track.external && track.title === file.title)))
 const videoTracks = computed(() => tracks.value.filter((track) => track.type === 'video'))
-const speedOptions = [0.5, 1, 1.25, 1.5, 2, 3]
+const speedOptions = Array.from({ length: 39 }, (_, index) => 0.5 + index * 0.25)
 const aspectOptions = [{ label: '默认', value: 'no' }, { label: '4:3', value: '1.3333' }, { label: '16:9', value: '1.7778' }, { label: '16:10', value: '1.6' }, { label: '21:9', value: '2.3333' }, { label: '5:4', value: '1.25' }]
 const cropOptions = [{ label: '无', value: 'no' }, { label: '4:3', value: '4:3' }, { label: '16:9', value: '16:9' }, { label: '16:10', value: '16:10' }, { label: '21:9', value: '21:9' }, { label: '5:4', value: '5:4' }]
 const rotationOptions = [0, 90, 180, 270]
@@ -565,7 +605,7 @@ const clearControlsHideTimer = () => {
   controlsHideTimer = null
 }
 
-const isControlsPinned = () => paused.value || loading.value || Boolean(errorText.value) || seeking.value || controlsHover.value || settingsOpen.value || playlistOpen.value
+const isControlsPinned = () => paused.value || loading.value || Boolean(errorText.value) || seeking.value || controlsHover.value || settingsOpen.value || playlistOpen.value || optionsOpen.value || volumeOpen.value || skipDialogOpen.value
 
 const scheduleControlsAutoHide = () => {
   clearControlsHideTimer()
@@ -583,12 +623,6 @@ const handleControlsEnter = () => {
 
 const handleControlsLeave = () => {
   controlsHover.value = false
-}
-
-const toggleSettings = () => {
-  revealControls()
-  settingsOpen.value = !settingsOpen.value
-  if (settingsOpen.value) playlistOpen.value = false
 }
 
 const togglePlaylist = () => {
@@ -803,7 +837,7 @@ const formatTime = (seconds: number) => {
   const second = safeSeconds % 60
   return hour > 0
     ? `${hour}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`
-    : `${minute}:${String(second).padStart(2, '0')}`
+    : `${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}`
 }
 
 const handleSeekInput = (event: Event) => {
@@ -1017,38 +1051,17 @@ const applySubtitleStyle = async () => {
   await setVideoProperty('stretch-image-subs-to-screen', pgsAspectCorrection.value ? 'no' : 'yes')
 }
 
-const handleIntroSkipToggle = () => {
-  revealControls()
-  if (introSkipSeconds.value > 0) {
-    introSkipSeconds.value = 0
-    showNotice('取消设置片头')
-  } else {
-    introSkipSeconds.value = Math.max(0, Math.floor(position.value || 0))
-    showNotice(`设置片头：${formatTime(introSkipSeconds.value)}`)
-  }
-  introSkipped.value = false
-}
-
-const handleOutroSkipToggle = () => {
-  revealControls()
-  if (outroSkipSeconds.value > 0) {
-    outroSkipSeconds.value = 0
-    showNotice('取消设置片尾')
-  } else {
-    outroSkipSeconds.value = Math.max(0, Math.floor(position.value || 0))
-    showNotice(`设置片尾：${formatTime(outroSkipSeconds.value)}`)
-  }
-  outroTriggered.value = false
-}
+watch([introSkipSeconds, introSkipEnabled], () => { introSkipped.value = false })
+watch([outroSkipSeconds, outroSkipEnabled], () => { outroTriggered.value = false })
 
 const handleIntroOutroSkip = () => {
   if (!loaded.value || paused.value || seeking.value) return
-  if (introSkipSeconds.value > 0 && !introSkipped.value && position.value >= 0 && position.value < Math.min(introSkipSeconds.value, Math.max(1, duration.value - 1))) {
+  if (introSkipEnabled.value && introSkipSeconds.value > 0 && !introSkipped.value && position.value >= 0 && position.value < Math.min(introSkipSeconds.value, Math.max(1, duration.value - 1))) {
     introSkipped.value = true
     void control('seek', introSkipSeconds.value)
     return
   }
-  if (outroSkipSeconds.value > 0 && !outroTriggered.value && position.value >= outroSkipSeconds.value) {
+  if (outroSkipEnabled.value && outroSkipSeconds.value > 0 && duration.value > 0 && !outroTriggered.value && position.value >= Math.max(0, duration.value - outroSkipSeconds.value)) {
     outroTriggered.value = true
     if (canPlayNext.value) emit('playlistNext')
     else void control('stop')
@@ -1203,6 +1216,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  closePictureInPicture()
   seekPreview?.dispose()
   cancelAnimationFrame(danmakuFrame)
   disposed = true
@@ -1266,34 +1280,63 @@ watch(chapters, (nextChapters) => {
       <div v-else-if="errorText" class="mpv-embedded-error">{{ errorText }}</div>
     </div>
     <div v-if="noticeText" class="mpv-embedded-notice">{{ noticeText }}</div>
+    <MpvSkipIntroOutroDialog v-if="skipDialogOpen" v-model:intro-enabled="introSkipEnabled" v-model:outro-enabled="outroSkipEnabled" v-model:intro-seconds="introSkipSeconds" v-model:outro-seconds="outroSkipSeconds" :position="position" :duration="duration" @close="skipDialogOpen = false" />
     <div class="mpv-embedded-gradient"></div>
+    <div v-if="optionsOpen || volumeOpen" class="mpv-menu-dismiss" @click="optionsOpen = false; volumeOpen = false"></div>
     <div class="mpv-embedded-controls" @mouseenter="handleControlsEnter" @mouseleave="handleControlsLeave">
       <div class="mpv-control-panel">
         <div class="mpv-control-row">
-          <div class="mpv-transport-buttons">
-            <button class="mpv-icon-btn" :disabled="!canPlayPrevious" title="上一曲" aria-label="上一曲" type="button" @click="emit('playlistPrev')"><SkipBack :size="21" /></button>
-            <button class="mpv-icon-btn mpv-play-btn" :title="playButtonLabel" :aria-label="playButtonLabel" type="button" @click="control(paused ? 'play' : 'pause')">
-              <Pause v-if="!paused" :size="18" fill="currentColor" />
-              <Play v-else :size="18" fill="currentColor" />
-            </button>
-            <button class="mpv-icon-btn" :disabled="!canPlayNext" title="下一曲" aria-label="下一曲" type="button" @click="emit('playlistNext')"><SkipForward :size="21" /></button>
-            <button class="mpv-icon-btn" :class="{ active: playlistOpen }" title="播放列表" aria-label="播放列表" type="button" @click="togglePlaylist"><ListVideo :size="19" /></button>
-            <button v-if="danmakuPreferences.danmakuEnabled" class="mpv-icon-btn" :class="{ active: danmakuPreferences.danmakuVisible }" title="显示/隐藏弹幕" aria-label="显示/隐藏弹幕" type="button" @click="danmakuPreferences.updateStore({ danmakuVisible: !danmakuPreferences.danmakuVisible })"><MessageSquare :size="19" /></button>
-            <button v-if="danmakuPreferences.danmakuEnabled" class="mpv-icon-btn" title="匹配当前视频弹幕" aria-label="匹配当前视频弹幕" type="button" :disabled="danmakuLoading" @click="matchPlaybackDanmaku"><Search :size="19" /></button>
-            <button class="mpv-icon-btn" :class="{ active: settingsOpen }" title="设置" aria-label="设置" type="button" @click="toggleSettings"><Settings2 :size="19" /></button>
-            <button class="mpv-icon-btn mpv-marker-btn" :class="{ active: introSkipSeconds > 0 }" title="设置片头" aria-label="设置片头" type="button" @click="handleIntroSkipToggle"><Flag :size="18" /></button>
-            <button class="mpv-icon-btn mpv-marker-btn" :class="{ active: outroSkipSeconds > 0 }" title="设置片尾" aria-label="设置片尾" type="button" @click="handleOutroSkipToggle"><Flag :size="18" /></button>
+          <div class="mpv-volume-anchor">
+            <button class="mpv-icon-btn" aria-label="音量" title="音量" :aria-expanded="volumeOpen" type="button" @click="volumeOpen = !volumeOpen"><VolumeX v-if="volume === 0" :size="21" /><Volume2 v-else :size="21" /></button>
+            <label v-if="volumeOpen" class="mpv-volume-popover">
+              <span>音量 {{ Math.round(volume) }}%</span>
+              <input aria-label="音量" max="100" min="0" step="1" type="range" :value="volume" @input="handleVolumeChange" />
+            </label>
           </div>
-          <label class="mpv-volume-control mpv-inline-volume">
-            <span>音量 {{ Math.round(volume) }}%</span>
-            <input aria-label="音量" max="100" min="0" step="1" type="range" :style="{ '--mpv-volume': volumePercent }" :value="volume" @change="handleVolumeChange" />
-          </label>
+          <div class="mpv-transport-buttons">
+            <button class="mpv-icon-btn" :disabled="!canPlayPrevious" title="上一个" aria-label="上一个" type="button" @click="emit('playlistPrev')"><SkipBack :size="21" fill="currentColor" /></button>
+            <button class="mpv-icon-btn" :disabled="duration <= 0" title="后退 10 秒" aria-label="后退 10 秒" type="button" @click="control('seek', Math.max(0, position - 10))"><RotateCcw :size="23" /></button>
+            <button class="mpv-icon-btn mpv-play-btn" :title="playButtonLabel" :aria-label="playButtonLabel" type="button" @click="control(paused ? 'play' : 'pause')">
+              <Pause v-if="!paused" :size="22" fill="currentColor" /><Play v-else :size="22" fill="currentColor" />
+            </button>
+            <button class="mpv-icon-btn" :disabled="duration <= 0" title="快进 10 秒" aria-label="快进 10 秒" type="button" @click="control('seek', Math.min(duration, position + 10))"><RotateCw :size="23" /></button>
+            <button class="mpv-icon-btn" :disabled="!canPlayNext" title="下一个" aria-label="下一个" type="button" @click="emit('playlistNext')"><SkipForward :size="21" fill="currentColor" /></button>
+          </div>
+          <div class="mpv-window-actions">
+            <button class="mpv-icon-btn" :class="{ active: optionsOpen }" title="播放选项" aria-label="播放选项" :aria-expanded="optionsOpen" type="button" @click="optionsOpen = !optionsOpen; quickMenu = null; volumeOpen = false"><Settings :size="21" /></button>
+            <button class="mpv-icon-btn" title="画中画" aria-label="画中画" type="button" @click="togglePictureInPicture"><PictureInPicture2 :size="23" /></button>
+            <button class="mpv-icon-btn" title="全屏" aria-label="全屏" type="button" @click="toggleFullscreen"><Maximize2 :size="23" /></button>
+          </div>
+          <div v-if="optionsOpen" class="mpv-options-menu" @keydown.esc.stop="quickMenu ? quickMenu = null : optionsOpen = false">
+            <template v-if="quickMenu === 'speed' || quickMenu === 'aspect'">
+              <button class="mpv-menu-back" type="button" @click="quickMenu = null"><ChevronRight class="mpv-back-chevron" :size="17" /><span>{{ quickMenu === 'speed' ? '播放速度' : '画面比例' }}</span></button>
+              <div class="mpv-choice-menu" :class="{ 'mpv-speed-menu': quickMenu === 'speed' }" role="menu" :aria-label="quickMenu === 'speed' ? '播放速度' : '画面比例'">
+                <template v-if="quickMenu === 'speed'">
+                  <button v-for="option in speedOptions" :key="option" role="menuitemradio" :aria-checked="speed === option" :class="{ active: speed === option }" type="button" @click="speed = option; control('setSpeed', option); optionsOpen = false; quickMenu = null"><span>{{ option }}×</span><Check v-if="speed === option" :size="16" /></button>
+                </template>
+                <template v-else>
+                  <button v-for="option in aspectOptions" :key="option.value" role="menuitemradio" :aria-checked="aspectRatio === option.value" :class="{ active: aspectRatio === option.value }" type="button" @click="handleAspectRatioChange(option.value); optionsOpen = false; quickMenu = null"><span>{{ option.label }}</span><Check v-if="aspectRatio === option.value" :size="16" /></button>
+                </template>
+              </div>
+            </template>
+            <template v-else>
+            <button type="button" @click="openSettingsTab('video')"><Settings :size="17" /><span>播放设置</span></button>
+            <button type="button" @click="openSettingsTab('subtitle')"><Captions :size="17" /><span>字幕</span><ChevronRight :size="17" /></button>
+            <button v-if="danmakuPreferences.danmakuEnabled" type="button" @click="openSettingsTab('danmaku')"><MessageSquare :size="17" /><span>弹幕</span><ChevronRight :size="17" /></button>
+            <button type="button" @click="quickMenu = 'speed'"><Gauge :size="17" /><span>播放速度</span><ChevronRight :size="17" /></button>
+
+            <button type="button" @click="quickMenu = 'aspect'"><RectangleHorizontal :size="17" /><span>画面比例</span><ChevronRight :size="17" /></button>
+
+            <button type="button" @click="openSkipDialog"><Flag :size="17" /><span>跳过片头片尾</span></button>
+            <button v-if="(props.playlist || []).length > 0 || chapters.length" type="button" @click="optionsOpen = false; togglePlaylist()"><ListVideo :size="17" /><span>播放列表与章节</span><ChevronRight :size="17" /></button>
+            </template>
+          </div>
         </div>
 
         <div class="mpv-progress-row">
           <span class="mpv-time mpv-time-current">{{ formatTime(position) }}</span>
           <input ref="seekProgress" class="mpv-embedded-progress" aria-label="播放进度" type="range" min="0" :max="Math.max(duration, 1)" step="0.1" :style="{ '--mpv-progress': progressPercent, '--mpv-buffered': bufferedPercent }" :value="position" @change="handleSeekChange" @input="handleSeekInput" />
-          <span class="mpv-time">{{ formatTime(duration) }}</span>
+          <span class="mpv-time">−{{ formatTime(Math.max(0, duration - position)) }}</span>
         </div>
       </div>
     </div>
@@ -1354,11 +1397,11 @@ watch(chapters, (nextChapters) => {
             </div>
             <button class="mpv-side-close" type="button" aria-label="关闭设置" @click="settingsOpen = false">×</button>
           </div>
-          <div v-if="settingsTab !== 'danmaku' && settingsTab !== 'subtitle'" class="mpv-settings-tabs">
+          <div class="mpv-settings-tabs">
             <button :class="{ active: settingsTab === 'video' }" type="button" @click="settingsTab = 'video'">视频</button>
             <button :class="{ active: settingsTab === 'audio' }" type="button" @click="settingsTab = 'audio'">音频</button>
-            <button type="button" @click="settingsTab = 'subtitle'">字幕</button>
-            <button v-if="danmakuPreferences.danmakuEnabled" type="button" @click="settingsTab = 'danmaku'">弹幕</button>
+            <button :class="{ active: settingsTab === 'subtitle' }" type="button" @click="settingsTab = 'subtitle'">字幕</button>
+            <button v-if="danmakuPreferences.danmakuEnabled" :class="{ active: settingsTab === 'danmaku' }" type="button" @click="settingsTab = 'danmaku'">弹幕</button>
           </div>
 
           <div v-if="settingsTab === 'video'" class="mpv-side-settings-content">
@@ -1374,15 +1417,11 @@ watch(chapters, (nextChapters) => {
             </section>
             <section class="mpv-side-section">
               <span class="mpv-side-label">宽高比</span>
-              <div class="mpv-option-grid">
-                <button v-for="option in aspectOptions" :key="`aspect-${option.value}`" :class="{ active: aspectRatio === option.value }" type="button" @click="handleAspectRatioChange(option.value)">{{ option.label }}</button>
-              </div>
+              <select class="mpv-side-choice" aria-label="画面比例" :value="aspectRatio" @change="handleAspectRatioChange(($event.target as HTMLSelectElement).value)"><option v-for="option in aspectOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select>
             </section>
             <section class="mpv-side-section">
               <span class="mpv-side-label">裁剪</span>
-              <div class="mpv-option-grid">
-                <button v-for="option in cropOptions" :key="`crop-${option.value}`" :class="{ active: cropRatio === option.value }" type="button" @click="handleCropRatioChange(option.value)">{{ option.label }}</button>
-              </div>
+              <select class="mpv-side-choice" aria-label="裁剪" :value="cropRatio" @change="handleCropRatioChange(($event.target as HTMLSelectElement).value)"><option v-for="option in cropOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select>
             </section>
             <section class="mpv-side-section">
               <span class="mpv-side-label">旋转</span>
@@ -1410,10 +1449,7 @@ watch(chapters, (nextChapters) => {
             </section>
             <section class="mpv-side-section">
               <span class="mpv-side-label">片头 / 片尾</span>
-              <div class="mpv-side-skip-grid">
-                <button class="mpv-side-skip" :class="{ active: introSkipSeconds > 0 }" type="button" @click="handleIntroSkipToggle"><span>片头</span><b>{{ introSkipSeconds > 0 ? formatTime(introSkipSeconds) : '设置' }}</b></button>
-                <button class="mpv-side-skip" :class="{ active: outroSkipSeconds > 0 }" type="button" @click="handleOutroSkipToggle"><span>片尾</span><b>{{ outroSkipSeconds > 0 ? formatTime(outroSkipSeconds) : '设置' }}</b></button>
-              </div>
+              <button class="mpv-side-action" type="button" @click="openSkipDialog"><Flag :size="15" />跳过片头片尾设置</button>
             </section>
           </div>
 
@@ -1478,6 +1514,7 @@ watch(chapters, (nextChapters) => {
 
           </div>
           <div v-else class="mpv-side-section">
+            <button class="mpv-side-action" type="button" :disabled="danmakuLoading" @click="matchPlaybackDanmaku"><Search :size="15" />{{ danmakuLoading ? '正在匹配弹幕…' : '匹配当前视频弹幕' }}</button>
             <PlaybackDanmakuSettings />
 
           </div>
@@ -3368,4 +3405,38 @@ watch(chapters, (nextChapters) => {
   border-radius: 6px;
   background: rgba(245,245,245,.95);
 }
+</style>
+
+<style scoped>
+/* Match the compact macOS transport, keeping secondary actions in the gear menu. */
+.mpv-embedded-controls { padding: 0 16px 28px; }
+.mpv-control-panel { position: relative; box-sizing: border-box; width: min(600px, calc(100% - 32px)); padding: 10px 16px; border-radius: 12px; background: rgba(100, 89, 99, .72); backdrop-filter: blur(28px) saturate(115%); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.mpv-control-row { position: relative; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; min-height: 30px; margin-bottom: 8px; }
+.mpv-transport-buttons { gap: 8px; }
+.mpv-window-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.mpv-control-panel .mpv-icon-btn { width: 28px; height: 28px; padding: 2px; border: 0; border-radius: 5px; color: #fff; background: transparent; box-shadow: none; }
+.mpv-control-panel .mpv-icon-btn:hover:not(:disabled), .mpv-control-panel .mpv-icon-btn.active { color: #fff; background: rgba(255,255,255,.16); }
+.mpv-control-panel .mpv-icon-btn:focus-visible, .mpv-options-menu button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+.mpv-progress-row { gap: 8px; padding: 0; min-height: 24px; }
+.mpv-progress-row .mpv-time { color: rgba(255,255,255,.94); font: 500 12px/1.3 -apple-system, BlinkMacSystemFont, sans-serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mpv-progress-row .mpv-embedded-progress { flex: 1; width: 0; height: 20px; margin: 0; }
+.mpv-embedded-progress::-webkit-slider-runnable-track { height: 8px; border: 1px solid rgba(255,255,255,.55); border-radius: 8px; background: linear-gradient(to right, #f4f4f4 0 var(--mpv-progress), rgba(255,255,255,.4) var(--mpv-progress) var(--mpv-buffered), rgba(255,255,255,.08) var(--mpv-buffered) 100%); box-shadow: none; }
+.mpv-embedded-progress::-webkit-slider-thumb { width: 16px; height: 16px; margin-top: -5px; border: 0; border-radius: 50%; background: #fff; box-shadow: none; }
+.mpv-menu-dismiss { position: absolute; inset: 0; z-index: 3; }
+.mpv-volume-anchor { position: relative; justify-self: start; }
+.mpv-volume-popover, .mpv-options-menu { position: absolute; bottom: calc(100% + 14px); z-index: 12; border: 1px solid rgba(255,255,255,.3); border-radius: 12px; background: rgba(65,53,63,.9); backdrop-filter: blur(28px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.mpv-volume-popover { left: -8px; display: grid; gap: 10px; padding: 14px; width: 150px; font-size: 12px; color: white; }
+.mpv-volume-popover input { width: 100%; accent-color: white; }
+.mpv-options-menu { right: -12px; width: 192px; max-height: min(60vh, 460px); overflow-y: auto; padding: 6px; }
+.mpv-options-menu > button { display: flex; width: 100%; min-height: 30px; align-items: center; gap: 10px; padding: 5px 10px; border: 0; border-radius: 5px; background: transparent; color: rgba(255,255,255,.92); font: 600 14px/1.4 -apple-system, BlinkMacSystemFont, sans-serif; text-align: left; cursor: pointer; }
+.mpv-options-menu > button span { flex: 1; }
+.mpv-options-menu button:hover { background: rgba(255,255,255,.16); }
+.mpv-back-chevron { transform: rotate(180deg); }
+.mpv-menu-back { border-bottom: 1px solid rgba(255,255,255,.12) !important; border-radius: 0 !important; margin-bottom: 4px; }
+.mpv-choice-menu { display: grid; gap: 2px; }
+.mpv-speed-menu { max-height: min(320px, 42vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.4) transparent; }
+.mpv-choice-menu button { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 30px; padding: 5px 10px; border: 0; border-radius: 5px; background: transparent; color: white; font-size: 14px; text-align: left; cursor: pointer; }
+.mpv-side-choice { width: 100%; padding: 6px 8px; border: 1px solid rgba(255,255,255,.18); border-radius: 5px; background: #363636; color: white; }
+@media (max-width: 700px) { .mpv-control-panel { width: calc(100% - 12px); } }
+@media (max-width: 440px) { .mpv-control-panel { padding: 8px; } .mpv-control-row, .mpv-transport-buttons, .mpv-window-actions { gap: 2px; } .mpv-control-panel .mpv-icon-btn { width: 25px; } }
 </style>

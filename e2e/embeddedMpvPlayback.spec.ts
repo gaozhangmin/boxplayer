@@ -253,7 +253,8 @@ test('MPV equalizers retain dragged values and settings fit the panel', async ({
     await expect.poll(async () => (await player.evaluate(() => window.WebMpvEmbeddedStatus())).status?.duration || 0, { timeout: 20_000 }).toBeGreaterThan(0)
     expect((await player.evaluate(() => window.WebMpvEmbeddedControl({ action: 'pause' }))).ok).toBe(true)
     await player.locator('#mpvEmbeddedPlayer').hover()
-    await player.getByRole('button', { name: '设置', exact: true }).click()
+    await player.getByRole('button', { name: '播放选项', exact: true }).click()
+    await player.getByRole('button', { name: '播放设置', exact: true }).click()
 
     const dragAndHold = async (name: string, vertical = false) => {
       const slider = player.getByRole('slider', { name, exact: true })

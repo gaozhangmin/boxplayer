@@ -299,8 +299,8 @@ Napi::Value SetSpeed(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     const double speed = info[0].As<Napi::Number>().DoubleValue();
-    if (!std::isfinite(speed) || speed < 0.25 || speed > 4.0) {
-        Napi::RangeError::New(env, "Speed must be between 0.25 and 4.0").ThrowAsJavaScriptException();
+    if (!std::isfinite(speed) || speed < 0.25 || speed > 10.0) {
+        Napi::RangeError::New(env, "Speed must be between 0.25 and 10.0").ThrowAsJavaScriptException();
         return env.Undefined();
     }
     g_context->setSpeed(speed);

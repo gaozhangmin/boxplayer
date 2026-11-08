@@ -256,7 +256,7 @@ function toEmbeddedMpvNativeAddon(value: any): EmbeddedMpvNativeAddon | null {
       },
       setSpeed: typeof mpvTexture.setSpeed === 'function' || typeof mpvTexture.setVideoProperty === 'function'
         ? (speed: number) => {
-            if (!Number.isFinite(speed) || speed < 0.25 || speed > 4) throw new RangeError('MPV 倍速必须在 0.25–4 倍之间。')
+            if (!Number.isFinite(speed) || speed < 0.25 || speed > 10) throw new RangeError('MPV 倍速必须在 0.25–10 倍之间。')
             if (typeof mpvTexture.setSpeed === 'function') mpvTexture.setSpeed(speed)
             else mpvTexture.setVideoProperty('speed', String(speed))
             requestedSpeed = speed

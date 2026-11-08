@@ -254,6 +254,10 @@ bool MpvContext::create(const MpvConfig& config) {
         mpv_set_option_string(m_mpv, "sub-font", "Noto Sans CJK SC");
     }
 
+    // LOG_MESSAGE events are opt-in. Without this, END_FILE only exposes the
+    // generic "loading failed" and drops the underlying HTTP/TLS/decoder error.
+    mpv_request_log_messages(m_mpv, "error");
+
     // Initialize mpv
     if (mpv_initialize(m_mpv) < 0) {
         if (m_errorCallback) {
@@ -483,7 +487,7 @@ void MpvContext::setVolume(double volume) {
 }
 
 void MpvContext::setSpeed(double speed) {
-    if (!m_mpv || speed < 0.25 || speed > 4.0) return;
+    if (!m_mpv || speed < 0.25 || speed > 10.0) return;
     mpv_set_property_async(m_mpv, 0, "speed", MPV_FORMAT_DOUBLE, &speed);
 }
 

@@ -5,6 +5,7 @@ import { EmbeddedMpvCapability, getEmbeddedMpvCapability } from './embeddedMpvCa
 import { EmbeddedMpvNativeAddonLoadResult, EmbeddedMpvNativeInstance, EmbeddedMpvNativeResourceStatus, EmbeddedMpvStatus, EmbeddedMpvTextureInfo, getEmbeddedMpvNativeResourceStatus, loadEmbeddedMpvNativeAddon } from './embeddedMpvNativeAddon'
 import type { EmbeddedMpvControlRequest, EmbeddedMpvControlResult, EmbeddedMpvLoadRequest, EmbeddedMpvLoadResult } from './embeddedMpvBridge'
 import { buildMpvLoadOptions } from './embeddedMpvLoadOptions'
+import { sanitizeMpvDiagnostic } from '../../../shared/mpvDiagnostics'
 
 export interface EmbeddedMpvTextureBridgeOptions {
   nativeAddonAvailable?: boolean
@@ -30,6 +31,7 @@ export class EmbeddedMpvTextureBridge {
   private mpv: EmbeddedMpvNativeInstance | null = null
   private latestStatus: EmbeddedMpvStatus | null = null
   private lastNativeError = ''
+  private nativeErrorDetails: string[] = []
   private consecutiveFrameErrors = 0
   private frameStats = { received: 0, dropped: 0, sent: 0, errors: 0, importMs: 0, sendMs: 0, sendCount: 0 }
   private frameStatsTimer: ReturnType<typeof setInterval> | null = null
@@ -140,9 +142,15 @@ export class EmbeddedMpvTextureBridge {
     })
     this.mpv.onError((error) => {
       if (generation !== this.generation) return
-      this.lastNativeError = String(error || 'MPV native error')
+      const diagnostic = sanitizeMpvDiagnostic(error) || 'MPV native error'
+      if (diagnostic.startsWith('Playback error:')) {
+        this.lastNativeError = [diagnostic, ...this.nativeErrorDetails].join('\n')
+      } else {
+        this.nativeErrorDetails = [...this.nativeErrorDetails, diagnostic].slice(-4)
+        this.lastNativeError = diagnostic
+      }
       this.publishStatus()
-      console.error('[mpv] native addon error:', error)
+      console.error('[mpv] native addon error:', this.lastNativeError)
     })
     this.initialized = true
     console.error('[mpv] initialize: callbacks installed')
@@ -213,6 +221,7 @@ export class EmbeddedMpvTextureBridge {
     this.softwareAck = null
     this.latestStatus = null
     this.lastNativeError = ''
+    this.nativeErrorDetails = []
     try {
       console.error('[mpv] load: invoking native load')
       console.info('[播放][MPV] native 加载链接', {
