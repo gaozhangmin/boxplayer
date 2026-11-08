@@ -338,6 +338,13 @@ if (!enabled) {
       let player: Page | undefined
       let stage = '切换账号'
       const electronStderr: string[] = []
+      const playerConsole: string[] = []
+      const onWindow = (candidate: Page) => candidate.on('console', message => {
+        if (message.type() === 'error' || message.type() === 'warning') {
+          playerConsole.push(sanitizeConsoleText(message.text()).replace(/https?:\/\/[^\s<>"']+/gi, '[media URL]'))
+        }
+      })
+      app.on('window', onWindow)
       const stderr = app.process().stderr
       const onStderr = (chunk: Buffer | string) => electronStderr.push(String(chunk))
       stderr?.on('data', onStderr)
@@ -384,9 +391,13 @@ if (!enabled) {
             }
           })
         }).catch(() => [] as string[])
-        const apiDiagnostics = sanitizeConsoleText([...pageErrors, ...consoleErrors, ...electronStderr, ...rootDiagnostics].join('\n'))
+        const playerMessage = player && !player.isClosed()
+          ? await player.locator('#mpvEmbeddedPlayer').textContent({ timeout: 1000 }).catch(() => '')
+          : ''
+        const apiDiagnostics = sanitizeConsoleText([...pageErrors, ...consoleErrors, ...electronStderr, ...rootDiagnostics, ...playerConsole, playerMessage || ''].join('\n'))
         throw new Error(`${target.provider} [${stage}]: ${sanitizeConsoleText(errorText)}${apiDiagnostics ? `\n\nElectron diagnostics:\n${apiDiagnostics}` : ''}`, { cause: error })
       } finally {
+        app.off('window', onWindow)
         stderr?.off('data', onStderr)
         if (player && !player.isClosed()) await player.close().catch(() => undefined)
       }
