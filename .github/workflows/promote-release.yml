@@ -17,18 +17,38 @@ jobs:
     name: Promote Pre-release To Release
     runs-on: ubuntu-latest
     environment: production-release
+    outputs:
+      newly_published: ${{ steps.publish.outputs.newly_published }}
     permissions:
       contents: write
 
     steps:
       - name: Promote GitHub Release
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ inputs.tag }}
         shell: bash
         run: |
           release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG_NAME}" --jq .id)"
+          was_public="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" --jq '(.draft == false and .prerelease == false)')"
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
             -f prerelease=false \
             -f draft=false \
             -f make_latest=true
+
+          if [[ "${was_public}" != "true" ]]; then
+            echo "newly_published=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  announce-discord:
+    name: Announce release in Discord
+    needs: promote
+    if: needs.promote.outputs.newly_published == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/discord-release.yml
+    with:
+      tag: ${{ inputs.tag }}
+    secrets:
+      DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
