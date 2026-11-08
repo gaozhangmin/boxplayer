@@ -30,6 +30,20 @@ function fixture() {
 afterEach(() => vi.useRealTimers())
 
 describe('MPV shared texture ownership', () => {
+  it('passes 10x speed through the main-process bridge and rejects out-of-range values', async () => {
+    const { bridge, window } = fixture()
+    mock.native.setSpeed = vi.fn(async () => {})
+    try {
+      await bridge.load(window as any, { url: 'test', sessionId: 'speed' })
+      expect(await bridge.control({ action: 'setSpeed', value: 10 })).toMatchObject({ ok: true })
+      expect(mock.native.setSpeed).toHaveBeenCalledWith(10)
+      for (const value of [10.25, 0, NaN, Infinity]) {
+        expect(await bridge.control({ action: 'setSpeed', value })).toMatchObject({ ok: false })
+      }
+      expect(mock.native.setSpeed).toHaveBeenCalledOnce()
+    } finally { bridge.destroy() }
+  })
+
   it('retains native texture until all Electron references are released', async () => {
     const { bridge, window, frame } = fixture()
     await bridge.load(window as any, { url: 'test', sessionId: 'one' })

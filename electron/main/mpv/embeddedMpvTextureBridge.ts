@@ -281,7 +281,7 @@ export class EmbeddedMpvTextureBridge {
           await mpv.setVolume(request.value)
           break
         case 'setSpeed':
-          if (typeof request.value !== 'number' || !Number.isFinite(request.value) || request.value < 0.25 || request.value > 4) return { ok: false, capability, error: '倍速必须在 0.25–4 倍之间。' }
+          if (typeof request.value !== 'number' || !Number.isFinite(request.value) || request.value < 0.25 || request.value > 10) return { ok: false, capability, error: '倍速必须在 0.25–10 倍之间。' }
           if (!mpv.setSpeed) return this.getUnsupportedOptionalControlResult(capability, '当前 sbtlTV MPV 内核尚未暴露倍速控制。')
           await mpv.setSpeed(request.value)
           break

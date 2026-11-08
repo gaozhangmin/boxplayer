@@ -35,6 +35,7 @@ jobs:
             src/utils/__tests__/startupDiagnostics.test.ts \
             electron/main/core/__tests__/embeddedMpvHostLifecycle.test.ts \
             electron/main/core/__tests__/embeddedMpvCapability.test.ts \
+            electron/main/core/__tests__/embeddedMpvTextureLifetime.test.ts \
             electron/main/core/__tests__/mpvDiagnostics.test.ts \
             electron/main/core/__tests__/seekThumbnail.test.ts \
             electron/main/core/__tests__/embeddedMpvLoadOptions.test.ts \
