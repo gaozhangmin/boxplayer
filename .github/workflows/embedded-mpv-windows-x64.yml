@@ -29,6 +29,9 @@ on:
     branches:
       - codex/mpv-runner-validation
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   windows-x64:
     env:

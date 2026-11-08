@@ -9,6 +9,9 @@ concurrency:
   # prevents a failed or stalled Windows provider test from blocking retries.
   cancel-in-progress: true
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   media-regressions:
     name: Verify media library regressions
@@ -43,6 +46,7 @@ jobs:
             scripts/__tests__/checkPackagedMpv.test.mjs \
             scripts/__tests__/packagedDownloadRuntime.test.mjs \
             scripts/__tests__/releaseDraftPolicy.test.mjs \
+            scripts/__tests__/installCiDependencies.test.mjs \
             electron/main/core/__tests__/embeddedMpvPreloadSession.test.ts \
             src/utils/__tests__/cloud123TokenRetry.test.ts \
             src/utils/__tests__/mediaScrapePersistence.test.ts \

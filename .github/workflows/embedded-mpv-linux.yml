@@ -39,6 +39,9 @@ on:
     branches:
       - codex/mpv-runner-validation
 
+env:
+  GH_TOKEN: ${{ github.token }}
+
 jobs:
   linux:
     env:
