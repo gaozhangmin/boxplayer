@@ -41,6 +41,12 @@ describe('MPV shared texture ownership', () => {
       expect((await bridge.getStatus()).error).toBe('Playback error: loading failed\nffmpeg: HTTP 403 at [media URL]')
       await bridge.load(window as any, { url: 'next' })
       expect((await bridge.getStatus()).error).toBeUndefined()
+      error('MPV diagnostic: ffmpeg: https://example.test/video?access_token=private')
+      error('MPV diagnostic: Authorization: Bearer private')
+      expect((await bridge.getStatus()).error).toBeUndefined()
+      error('Playback error: loading failed')
+      expect((await bridge.getStatus()).error).toContain('[redacted source diagnostic]')
+      expect((await bridge.getStatus()).error).not.toContain('private')
     } finally { bridge.destroy() }
   })
 
