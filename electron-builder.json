@@ -12,6 +12,7 @@
   "afterPack": "./scripts/check-packaged-download-runtime.cjs",
   "compression": "maximum",
   "electronDownload": {
+    "force": false,
     "checksums": {
       "electron-v40.10.6-linux-x64.zip": "da36f45ca25374ada825997c0bbdeb6a2cea31de4d9326d348529f137d3c3069",
       "electron-v40.10.6-linux-arm64.zip": "f67089ad542f80685f8af369d9f0317948e34f0a3a0b50bee85f9c125ce99bd2",

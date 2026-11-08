@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
-import { mkdtemp, readFile, rm, access } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, access, mkdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
@@ -19,6 +19,24 @@ async function fixture() {
   return { version: '1.2.3', platform: 'linux', arch: 'x64', expectedSha256: createHash('sha256').update(bytes).digest('hex'), destination: join(dir, 'cache', 'electron.zip'), fetchImpl, bytes }
 }
 describe('verified CI Electron installation', () => {
+  it('passes pinned checksums through the installed electron-builder downloader', async () => {
+    const builderRequire = createRequire(require.resolve('electron-builder/package.json'))
+    const appBuilderRequire = createRequire(builderRequire.resolve('app-builder-lib/package.json'))
+    const electronGet = appBuilderRequire('@electron/get')
+    const downloader = appBuilderRequire('./out/util/electronGet.js')
+    const input = await fixture()
+    await mkdir(join(input.destination, '..'), { recursive: true })
+    await writeFile(input.destination, input.bytes)
+    const download = vi.spyOn(electronGet, 'downloadArtifact').mockResolvedValue(input.destination)
+    const builder = require('../../electron-builder.json')
+    const { version } = require('electron/package.json')
+    try {
+      await downloader.downloadElectronArtifactZip({ electronDownload: builder.electronDownload, version, platformName: 'linux', arch: 'x64', artifactName: 'electron' })
+      expect(download.mock.calls[0][0].checksums).toEqual(builder.electronDownload.checksums)
+      expect(download.mock.calls[0][0].unsafelyDisableChecksums).not.toBe(true)
+    } finally { download.mockRestore() }
+  })
+
   it('pins the official package checksums for every packaged desktop architecture', () => {
     const { version } = require('electron/package.json')
     const official = require('electron/checksums.json')
