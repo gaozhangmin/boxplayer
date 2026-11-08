@@ -1,0 +1,110 @@
+name: Discord Release Announcement
+
+on:
+  release:
+    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: Published release tag
+        required: true
+        type: string
+    secrets:
+      DISCORD_RELEASE_WEBHOOK:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Announce published release
+        env:
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import json
+          import os
+          import sys
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          def fail(message):
+              print(message, file=sys.stderr)
+              sys.exit(1)
+
+          webhook = os.environ.get("DISCORD_RELEASE_WEBHOOK", "")
+          parts = urllib.parse.urlsplit(webhook)
+          if parts.scheme != "https" or parts.hostname != "discord.com" or not parts.path.startswith("/api/webhooks/"):
+              fail("DISCORD_RELEASE_WEBHOOK is missing or invalid.")
+
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as event_file:
+              event = json.load(event_file)
+          release = event.get("release")
+          if os.environ.get("RELEASE_TAG"):
+              tag = urllib.parse.quote(os.environ["RELEASE_TAG"], safe="")
+              api = os.environ["GITHUB_API_URL"]
+              repo = os.environ["GITHUB_REPOSITORY"]
+              request = urllib.request.Request(
+                  f"{api}/repos/{repo}/releases/tags/{tag}",
+                  headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                           "Accept": "application/vnd.github+json"})
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      release = json.load(response)
+              except urllib.error.HTTPError as error:
+                  fail(f"Could not read published release (HTTP {error.code}).")
+              except urllib.error.URLError:
+                  fail("Could not connect to GitHub to read the release.")
+          if not release or release.get("draft"):
+              fail("Only published releases can be announced.")
+
+          tag = release["tag_name"]
+          url = release["html_url"]
+          notes = (release.get("body") or "").strip()
+          if not notes:
+              notes = "更新详情请查看 Release 页面。 See the release page for details."
+          if len(notes) > 3500:
+              notes = notes[:3400] + "\n\n…完整更新日志 / Full changelog: " + url
+          downloads = []
+          for asset in release.get("assets", []):
+              if asset.get("browser_download_url"):
+                  line = f'[{asset["name"][:100]}]({asset["browser_download_url"]})'
+                  if len("\n".join(downloads + [line])) > 950:
+                      break
+                  downloads.append(line)
+          download_text = "\n".join(downloads) or f"[下载 / Downloads]({url})"
+          title = ("BoxPlayer " + tag + (" · Pre-release" if release.get("prerelease") else " · 新版本发布 / New release"))[:256]
+          payload = {
+              "username": "BoxPlayer Releases",
+              "allowed_mentions": {"parse": []},
+              "embeds": [{
+                  "title": title, "url": url, "description": notes,
+                  "color": 5793266,
+                  "fields": [{"name": "下载 / Downloads", "value": download_text}],
+                  "footer": {"text": "BoxPlayer · Official GitHub Release"}
+              }]
+          }
+          if release.get("published_at"):
+              payload["embeds"][0]["timestamp"] = release["published_at"]
+          query = urllib.parse.parse_qsl(parts.query)
+          query = [(key, value) for key, value in query if key != "wait"] + [("wait", "true")]
+          destination = urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query)))
+          request = urllib.request.Request(
+              destination, data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json", "User-Agent": "BoxPlayer-Release-Notifier"},
+              method="POST")
+          try:
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  message = json.load(response)
+              print("Discord release announcement sent successfully.")
+          except urllib.error.HTTPError as error:
+              fail(f"Discord rejected the announcement (HTTP {error.code}).")
+          except urllib.error.URLError:
+              fail("Could not connect to Discord; check the channel before rerunning.")
