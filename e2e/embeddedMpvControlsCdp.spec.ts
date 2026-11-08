@@ -208,6 +208,21 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
         input.dispatchEvent(new Event('change', { bubbles: true }))
       }, value)
     }
+    // Custom text styling now renders in Vue; placement/timing still go to
+    // MPV. Verify both effects rather than requiring the removed command path.
+    const primarySubtitleOverlay = player.locator('.mpv-live-subtitle').first()
+    await expect(primarySubtitleOverlay).toHaveCSS('font-family', 'serif')
+    await expect(primarySubtitleOverlay).toHaveCSS('font-weight', '700')
+    await expect(primarySubtitleOverlay).toHaveCSS('font-style', 'italic')
+    await expect(primarySubtitleOverlay).toHaveCSS('color', 'rgb(255, 255, 0)')
+    await expect(primarySubtitleOverlay).toHaveCSS('background-color', 'rgb(34, 34, 34)')
+    await expect(primarySubtitleOverlay).toHaveCSS('opacity', '0.95')
+    for (const [property, propertyValue] of [['sub-delay', 0.2], ['sub-pos', 95], ['sub-scale', 1.05], ['sub-visibility', 'no']] as const) {
+      await expect.poll(() => player.evaluate(({ property, propertyValue }) =>
+        (window as any).__mpvControlLog.some((entry: any) => entry.request.action === 'setVideoProperty'
+          && entry.request.property === property && entry.request.propertyValue === propertyValue && entry.result?.ok),
+      { property, propertyValue }), { message: `MPV must accept ${property}=${propertyValue}`, timeout: 10_000 }).toBe(true)
+    }
     await subtitleContent.getByRole('button', { name: '在线查找' }).click()
     await expect(player.getByText('在线字幕搜索')).toBeVisible()
     await player.locator('.mpv-subtitle-modal-close').click()
@@ -229,7 +244,7 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
 
     const log = await player.evaluate(() => (window as any).__mpvControlLog)
     const actions = log.map((entry: any) => entry.request.action)
-    for (const action of ['pause', 'play', 'seek', 'setVolume', 'setSpeed', 'addAudio', 'setAudioTrack', 'addSubtitle', 'setSubtitleTrack', 'setSubtitleStyle', 'setVideoProperty']) expect(actions).toContain(action)
+    for (const action of ['pause', 'play', 'seek', 'setVolume', 'setSpeed', 'addAudio', 'setAudioTrack', 'addSubtitle', 'setSubtitleTrack', 'setVideoProperty']) expect(actions).toContain(action)
     const failures = log.filter((entry: any) => !entry.result?.ok)
     expect(failures, JSON.stringify(failures, null, 2)).toEqual([])
     await expect(surface.locator('.mpv-embedded-error')).toHaveCount(0)
