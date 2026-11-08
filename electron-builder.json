@@ -11,6 +11,15 @@
   "asar": true,
   "afterPack": "./scripts/check-packaged-download-runtime.cjs",
   "compression": "maximum",
+  "electronDownload": {
+    "checksums": {
+      "electron-v40.10.6-linux-x64.zip": "da36f45ca25374ada825997c0bbdeb6a2cea31de4d9326d348529f137d3c3069",
+      "electron-v40.10.6-linux-arm64.zip": "f67089ad542f80685f8af369d9f0317948e34f0a3a0b50bee85f9c125ce99bd2",
+      "electron-v40.10.6-darwin-x64.zip": "f5f0ea7d8392645241c584646ffa94ccf0646919ba254cafbb747690acc32ad5",
+      "electron-v40.10.6-darwin-arm64.zip": "24e3b1a13ff7243f6b9036ebb743b6f62b19e4a925242d27eaa2be90de90a691",
+      "electron-v40.10.6-win32-x64.zip": "072480360a5d5e3ec0d4173b1f9d7d0bca435098567d7e6bb5829638072febfd"
+    }
+  },
   "npmRebuild": true,
   "buildDependenciesFromSource": true,
   "directories": { "output": "release" },

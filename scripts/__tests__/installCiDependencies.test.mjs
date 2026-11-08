@@ -3,8 +3,10 @@ import { createHash } from 'node:crypto'
 import { mkdtemp, readFile, rm, access } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
 import { downloadVerifiedElectronArchive } from '../install-ci-dependencies.mjs'
 
+const require = createRequire(import.meta.url)
 const directories = []
 afterEach(async () => { await Promise.all(directories.splice(0).map(dir => rm(dir, { recursive: true, force: true }))) })
 async function fixture() {
@@ -17,6 +19,17 @@ async function fixture() {
   return { version: '1.2.3', platform: 'linux', arch: 'x64', expectedSha256: createHash('sha256').update(bytes).digest('hex'), destination: join(dir, 'cache', 'electron.zip'), fetchImpl, bytes }
 }
 describe('verified CI Electron installation', () => {
+  it('pins the official package checksums for every packaged desktop architecture', () => {
+    const { version } = require('electron/package.json')
+    const official = require('electron/checksums.json')
+    const builder = require('../../electron-builder.json')
+    for (const [platform, arch] of [['linux', 'x64'], ['linux', 'arm64'], ['darwin', 'x64'], ['darwin', 'arm64'], ['win32', 'x64']]) {
+      const name = `electron-v${version}-${platform}-${arch}.zip`
+      expect(builder.electronDownload.checksums[name]).toBe(official[name])
+      expect(builder.electronDownload.checksums[name]).toMatch(/^[a-f0-9]{64}$/)
+    }
+  })
+
   it('downloads through the official asset API and caches only checksum-verified bytes', async () => {
     const input = await fixture()
     await downloadVerifiedElectronArchive(input)
