@@ -194,7 +194,9 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
     }
     await subtitleContent.getByRole('button', { name: '减少不透明度', exact: true }).click()
     await subtitleContent.getByLabel('使用自定义样式', { exact: true }).check()
-    await subtitleContent.getByLabel('字体', { exact: true }).selectOption('serif')
+    const subtitleFont = subtitleContent.getByRole('combobox', { name: '字体', exact: true })
+    await subtitleFont.selectOption('serif')
+    await expect(subtitleFont).toHaveValue('serif')
     await subtitleContent.getByLabel('加粗', { exact: true }).check()
     await subtitleContent.getByLabel('斜体', { exact: true }).check()
     await subtitleContent.getByRole('button', { name: '增加描边大小', exact: true }).click()
