@@ -112,7 +112,11 @@ test('all visible MPV player controls execute successfully', async ({}, testInfo
       window.WebShowOpenDialogSync = (options, callback) => callback([String(options?.title || '').includes('音频') ? externalAudioPath : externalSubtitlePath])
     }, { externalAudioPath: audioPath, externalSubtitlePath: subtitlePath })
     const surface = player.locator('#mpvEmbeddedPlayer')
-    await surface.hover()
+    const surfaceBounds = await surface.boundingBox()
+    if (!surfaceBounds) throw new Error('MPV surface has no visible bounds')
+    // Reveal the auto-hiding transport through the same bottom pointer zone
+    // used by real viewers, before Playwright waits for a stable play button.
+    await player.mouse.move(surfaceBounds.x + surfaceBounds.width / 2, surfaceBounds.y + surfaceBounds.height - 40)
 
     markStage('play, pause and seek controls')
     const playButton = player.locator('.mpv-play-btn')

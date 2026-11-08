@@ -3,6 +3,15 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 describe('human-owned release publication', () => {
+  it('keeps unpacked verification jobs from implicitly publishing on tags', () => {
+    for (const name of ['linux', 'windows-x64', 'macos-arm64', 'macos-x64']) {
+      const source = readFileSync(resolve(`.github/workflows/embedded-mpv-${name}.yml`), 'utf8')
+      const commands = source.split('\n').filter(line => line.includes('pnpm exec electron-builder') && line.includes('--dir'))
+      expect(commands.length).toBeGreaterThan(0)
+      for (const command of commands) expect(command).toContain('--publish never')
+    }
+  })
+
   const workflow = readFileSync(resolve('.github/workflows/release.yml'), 'utf8')
   it('keeps packaging and the final release update in draft state', () => {
     const builder = JSON.parse(readFileSync(resolve('electron-builder.json'), 'utf8'))
