@@ -143,12 +143,16 @@ export class EmbeddedMpvTextureBridge {
     this.mpv.onError((error) => {
       if (generation !== this.generation) return
       const diagnostic = sanitizeMpvDiagnostic(error) || 'MPV native error'
-      if (diagnostic.startsWith('Playback error:')) {
-        this.lastNativeError = [diagnostic, ...this.nativeErrorDetails].join('\n')
-      } else {
-        this.nativeErrorDetails = [...this.nativeErrorDetails, diagnostic].slice(-4)
-        this.lastNativeError = diagnostic
+      if (diagnostic.startsWith('MPV diagnostic: ')) {
+        // MPV may recover from decoder/track diagnostics while video continues.
+        // Keep their context for END_FILE errors without poisoning live status.
+        this.nativeErrorDetails = [...this.nativeErrorDetails, diagnostic.slice('MPV diagnostic: '.length)].slice(-4)
+        console.error('[mpv] native diagnostic:', diagnostic)
+        return
       }
+      this.lastNativeError = diagnostic.startsWith('Playback error:')
+        ? [diagnostic, ...this.nativeErrorDetails].join('\n')
+        : diagnostic
       this.publishStatus()
       console.error('[mpv] native addon error:', this.lastNativeError)
     })

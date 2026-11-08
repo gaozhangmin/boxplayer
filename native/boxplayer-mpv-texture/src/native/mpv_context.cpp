@@ -799,7 +799,7 @@ void MpvContext::handleEvent(mpv_event* event) {
             if (msg->log_level <= MPV_LOG_LEVEL_ERROR) {
                 std::lock_guard<std::mutex> lock(m_callbackMutex);
                 if (m_errorCallback) {
-                    m_errorCallback(std::string(msg->prefix) + ": " + msg->text);
+                    m_errorCallback("MPV diagnostic: " + std::string(msg->prefix) + ": " + msg->text);
                 }
             }
             break;

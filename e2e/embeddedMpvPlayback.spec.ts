@@ -342,7 +342,13 @@ for (const closeWhileLoading of [false, true]) {
       }), { videoPath, parentPath: path.dirname(videoPath), subtitleUrl: `http://127.0.0.1:${address.port}/slow.srt` })
       const player = await playerPromise
       await expect(player.locator('#mpvEmbeddedPlayer')).toBeVisible({ timeout: 30_000 })
-      await expect.poll(() => received, { timeout: 15_000 }).toBe(true)
+      try {
+        await expect.poll(() => received, { timeout: 15_000 }).toBe(true)
+      } catch (cause) {
+        const status = await player.evaluate(() => window.WebMpvEmbeddedStatus())
+        const text = await player.locator('#mpvEmbeddedPlayer').innerText()
+        throw new Error(`Slow subtitle request did not reach the server: ${JSON.stringify({ status, text })}`, { cause })
+      }
       // With synchronous sub-add the Cocoa/main event loop cannot service
       // even this ping until the test server releases the subtitle response.
       const responsive = await Promise.race([
