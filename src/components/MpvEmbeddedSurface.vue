@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { SeekThumbnailPreview } from '../utils/seekThumbnailPreview'
 import { computed, h, onBeforeUnmount, onMounted, ref, watch, shallowRef } from 'vue'
 import { Button, Input, Modal, Option as AOption, Select } from '@arco-design/web-vue'
 import {
@@ -60,6 +61,8 @@ const volume = ref(100)
 const speed = ref(1)
 const bufferedPosition = ref(0)
 const seeking = ref(false)
+const seekProgress = ref<HTMLInputElement | null>(null)
+let seekPreview: SeekThumbnailPreview | undefined
 const controlsVisible = ref(true)
 const controlsHover = ref(false)
 const settingsOpen = ref(false)
@@ -703,6 +706,7 @@ const applyStatusResult = (result: any) => {
 }
 
 const load = async () => {
+  seekPreview?.hide()
   if (!props.url) return
   const sequence = playbackSession.begin()
   loadSequence = sequence
@@ -1185,6 +1189,8 @@ const handleQualityChange = (event: Event) => {
 }
 
 onMounted(async () => {
+  if (seekProgress.value) seekPreview = new SeekThumbnailPreview(seekProgress.value,
+    () => ({ url: props.url, headers: props.headers, duration: duration.value }))
   danmakuFrame = requestAnimationFrame(tickDanmaku)
   window.WebMpvSharedTexture?.onFrame?.(drawFrame)
   window.WebMpvSharedTexture?.onSoftwareFrame?.(drawSoftwareFrame)
@@ -1197,6 +1203,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  seekPreview?.dispose()
   cancelAnimationFrame(danmakuFrame)
   disposed = true
   loadSequence = playbackSession.begin()
@@ -1285,7 +1292,7 @@ watch(chapters, (nextChapters) => {
 
         <div class="mpv-progress-row">
           <span class="mpv-time mpv-time-current">{{ formatTime(position) }}</span>
-          <input class="mpv-embedded-progress" aria-label="播放进度" type="range" min="0" :max="Math.max(duration, 1)" step="0.1" :style="{ '--mpv-progress': progressPercent, '--mpv-buffered': bufferedPercent }" :value="position" @change="handleSeekChange" @input="handleSeekInput" />
+          <input ref="seekProgress" class="mpv-embedded-progress" aria-label="播放进度" type="range" min="0" :max="Math.max(duration, 1)" step="0.1" :style="{ '--mpv-progress': progressPercent, '--mpv-buffered': bufferedPercent }" :value="position" @change="handleSeekChange" @input="handleSeekInput" />
           <span class="mpv-time">{{ formatTime(duration) }}</span>
         </div>
       </div>

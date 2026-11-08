@@ -5,6 +5,7 @@ let mpv = mpvModule.mpvTexture || mpvModule
 let waitingForFrameAck = false
 let pendingFrame = null
 let statusTimer = null
+let thumbnailJob = null
 let nextTextureId = 0
 const textures = new Map()
 
@@ -14,6 +15,14 @@ function send(message) {
 
 process.on('message', async (message) => {
   try {
+    if (message.type === 'thumbnail-cancel') { thumbnailJob?.cancel(); return }
+    if (message.type === 'thumbnail') {
+      if (typeof mpvModule.beginSeekThumbnail !== 'function') { send({type:'thumbnail-result', ok:false}); return }
+      thumbnailJob = mpvModule.beginSeekThumbnail(message.url, message.options, message.directory)
+      const ok = await thumbnailJob.promise
+      send({type:'thumbnail-result', ok:!!ok})
+      return
+    }
     if (message.type === 'create-audio') {
       if (typeof mpvModule.createAudioDeck !== 'function') throw new Error('Music audio decks require an updated MPV core')
       mpv = mpvModule.createAudioDeck()
@@ -79,6 +88,7 @@ process.on('message', async (message) => {
 })
 
 process.on('disconnect', async () => {
+  thumbnailJob?.cancel()
   if (statusTimer) clearInterval(statusTimer)
   await mpv.destroy()
   process.exit(0)

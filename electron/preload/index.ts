@@ -288,6 +288,9 @@ window.WebMusicAudioLoad = (data: any) => ipcRenderer.invoke('MusicAudio:load', 
 window.WebMusicAudioControl = (data: any) => ipcRenderer.invoke('MusicAudio:control', data)
 window.WebMusicAudioStatus = () => ipcRenderer.invoke('MusicAudio:status')
 
+window.WebSeekThumbnail = (data: { url: string; headers?: Record<string, string>; time: number }) => ipcRenderer.invoke('Playback:thumbnail', data)
+window.WebCancelSeekThumbnail = () => ipcRenderer.send('Playback:cancelThumbnail')
+
 let currentMpvSessionId = ''
 window.WebMpvEmbeddedLoad = async function(data: any) {
   currentMpvSessionId = String(data?.sessionId || crypto.randomUUID())

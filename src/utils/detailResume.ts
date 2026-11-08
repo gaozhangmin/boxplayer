@@ -5,7 +5,12 @@ export function detailSeriesId(id: string): string {
 export function detailResumeState(positionSeconds: number | undefined, durationSeconds: number | undefined, progressPercent?: number) {
   const position = Number(positionSeconds)
   const duration = Number(durationSeconds)
-  if (!Number.isFinite(position) || position < 1) return null
+  if (!Number.isFinite(position) || position < 1) {
+    const percent = Number(progressPercent)
+    return Number.isFinite(percent) && percent > 0 && percent < 100
+      ? { label: '继续播放', percent }
+      : null
+  }
   const seconds = Math.floor(position)
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor(seconds / 60) % 60

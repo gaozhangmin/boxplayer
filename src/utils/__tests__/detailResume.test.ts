@@ -16,6 +16,13 @@ describe('detail resume button', () => {
     expect(detailResumeState(300, 100)?.percent).toBe(100)
     expect(detailResumeState(300, undefined)?.percent).toBe(0)
   })
+  it('preserves percentage-only history when file duration and position are unavailable', () => {
+    expect(detailResumeState(0, 0, 40)).toEqual({ label: '继续播放', percent: 40 })
+    expect(detailResumeState(undefined, undefined, 40)?.percent).toBe(40)
+    for (const percent of [0, -1, 100, NaN, Infinity]) {
+      expect(detailResumeState(0, 0, percent)).toBeNull()
+    }
+  })
   it('does not show resume for empty or invalid history', () => {
     for (const position of [undefined, 0, -1, NaN, Infinity]) expect(detailResumeState(position, 100)).toBeNull()
   })

@@ -61,6 +61,8 @@ declare interface Window {
     WebMpvEmbeddedLoad: (data: any) => Promise<any>
   WebMpvEmbeddedControl: (data: any) => Promise<any>
   WebMpvEmbeddedStatus: () => Promise<any>
+    WebSeekThumbnail: (data: { url: string; headers?: Record<string, string>; time: number }) => Promise<string | null>
+    WebCancelSeekThumbnail: () => void
   WebMpvSharedTextureCapability: () => { available: boolean; platform: string; reason?: string }
   WebMpvSharedTexture: {
     onStatus?: (callback: (status: any) => void) => void

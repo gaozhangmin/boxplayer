@@ -6,6 +6,7 @@ import type { MediaLibraryItem } from '../types/media'
 import { computed, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Button, Input, Modal, Option as AOption, Select } from '@arco-design/web-vue'
 import Artplayer from 'artplayer'
+import { SeekThumbnailPreview } from '../utils/seekThumbnailPreview'
 import HlsJs from 'hls.js'
 import mpegts from 'mpegts.js'
 import * as dashjs from 'dashjs'
@@ -1200,6 +1201,11 @@ const createVideo = async (name: string) => {
   Artplayer.LOG_VERSION = false
   Artplayer.PLAYBACK_RATE = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
   ArtPlayerRef = new Artplayer(options)
+  const previewPlayer = ArtPlayerRef
+  const thumbnailPreview = new SeekThumbnailPreview(previewPlayer.template.$progress,
+    () => ({ url: previewPlayer.url, duration: previewPlayer.duration }))
+  previewPlayer.on('destroy', () => thumbnailPreview.dispose())
+  previewPlayer.on('video:loadstart', () => thumbnailPreview.hide())
   // 获取用户配置
   initStorage(ArtPlayerRef)
   initEvent(ArtPlayerRef)

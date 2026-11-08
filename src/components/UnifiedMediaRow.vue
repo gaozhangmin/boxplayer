@@ -101,7 +101,7 @@ const failedImages = ref(new Set<string>())
           <MediaPosterPlaceholder v-if="!row.grouped" :kind="row.key === 'resume' ? 'resume' : row.key === 'music' ? 'music' : row.key === 'books' ? 'book' : 'film'" />
           <img v-if="card.image && !failedImages.has(card.image)" :src="row.grouped ? detailBackdropUrl(card.image) : card.image" :alt="card.title" loading="lazy" @error="failedImages.add(card.image!)" />
           <WatchedIndicator v-if="generalPreferences.watchIndicators && row.key !== 'resume' && card.posterMenu" corner :watched="card.posterMenu.watched" />
-          <PosterRatingBadge :rating="card.rating" :is-movie="card.posterMenu ? !card.posterMenu.tv : undefined" />
+          <PosterRatingBadge v-if="row.key !== 'resume'" :rating="card.rating" :is-movie="card.posterMenu ? !card.posterMenu.tv : undefined" />
           <span v-if="row.key === 'resume'" class="resume-play" aria-hidden="true">▶</span>
           <progress v-if="generalPreferences.watchIndicators && (row.key === 'resume' || (card.progress || 0) > 0)" :aria-label="card.title" :value="card.progress || 0" max="100" />
           <div v-if="row.grouped" class="group-copy"><img v-if="categoryNetworkLogo(card.title) && !failedImages.has(categoryNetworkLogo(card.title)!)" class="group-logo" :class="{ 'network-logo-original': card.title.trim().toLowerCase() === 'netflix' }" :src="categoryNetworkLogo(card.title)" :alt="card.title" @error="failedImages.add(categoryNetworkLogo(card.title)!)" /><strong v-else class="group-title">{{ card.title }}</strong><span v-if="card.subtitle" class="group-subtitle">{{ card.subtitle }}</span></div>
