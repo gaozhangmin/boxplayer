@@ -33,6 +33,15 @@ export async function downloadVerifiedElectronArchive({ version, platform, arch,
   } finally { await rm(partial, { force: true }) }
 }
 
+export async function ensureVerifiedElectronArchive(options) {
+  try {
+    const hash = createHash('sha256')
+    for await (const chunk of createReadStream(options.destination)) hash.update(chunk)
+    if (hash.digest('hex') === options.expectedSha256) return
+  } catch { /* The executable may exist even when the archive cache is empty. */ }
+  await downloadVerifiedElectronArchive(options)
+}
+
 async function installDependencies() {
   const pnpm = args => spawnSync('pnpm', args, { stdio: 'inherit', shell: process.platform === 'win32', env: { ...process.env, ELECTRON_SKIP_BINARY_DOWNLOAD: '1' } }).status ?? 1
   let code = 1
@@ -42,31 +51,42 @@ async function installDependencies() {
     if (attempt < 3) await setTimeout(10_000)
   }
   if (code !== 0) return code
-  try { require('electron'); return 0 } catch { /* Install Electron separately so its CDN cannot abort other dependency setup. */ }
+  let installed = false
+  try { require('electron'); installed = true } catch { /* Extract after preparing the verified archive cache. */ }
   const packagePath = require.resolve('electron/package.json')
   const electronRequire = createRequire(packagePath)
   const { version } = electronRequire('./package.json')
   const platform = process.env.npm_config_platform || process.platform
-  const arch = process.env.npm_config_arch || process.arch
-  const filename = `electron-v${version}-${platform}-${arch}.zip`
+  const hostArch = process.env.npm_config_arch || process.arch
+  const architectures = process.argv.includes('--all-platform-architectures') && platform !== 'win32' ? ['x64', 'arm64'] : [hostArch]
   const { Cache } = electronRequire('@electron/get/dist/cjs/Cache.js')
-  const destination = new Cache(process.env.electron_config_cache).getCachePath(`https://github.com/electron/electron/releases/download/v${version}/${filename}`, filename)
-  const expectedSha256 = electronRequire('./checksums.json')[filename]
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      await downloadVerifiedElectronArchive({ version, platform, arch, destination, expectedSha256, token: process.env.GH_TOKEN || process.env.GITHUB_TOKEN })
-      const env = { ...process.env }
-      delete env.ELECTRON_SKIP_BINARY_DOWNLOAD
-      const result = spawnSync(process.execPath, [resolve(dirname(packagePath), 'install.js')], { stdio: 'inherit', env })
-      if (result.status !== 0) throw new Error('Electron extraction failed')
-      require('electron')
-      return 0
-    } catch (error) {
-      console.error(`Electron installation attempt ${attempt}/3: ${error.message}`)
-      if (attempt < 3) await setTimeout(10_000)
+  const cache = new Cache(process.env.electron_config_cache)
+  const checksums = electronRequire('./checksums.json')
+  for (const arch of architectures) {
+    const filename = `electron-v${version}-${platform}-${arch}.zip`
+    const destination = cache.getCachePath(`https://github.com/electron/electron/releases/download/v${version}/${filename}`, filename)
+    let prepared = false
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await ensureVerifiedElectronArchive({ version, platform, arch, destination, expectedSha256: checksums[filename], token: process.env.GH_TOKEN || process.env.GITHUB_TOKEN })
+        prepared = true
+        break
+      } catch (error) {
+        console.error(`Electron archive preparation attempt ${attempt}/3: ${error.message}`)
+        if (attempt < 3) await setTimeout(10_000)
+      }
     }
+    if (!prepared) return 1
   }
-  return 1
+  // Do not return just because the executable exists: electron-builder needs
+  // the ZIP cache too, including additional architectures in release jobs.
+  if (installed) return 0
+  const env = { ...process.env }
+  delete env.ELECTRON_SKIP_BINARY_DOWNLOAD
+  const result = spawnSync(process.execPath, [resolve(dirname(packagePath), 'install.js')], { stdio: 'inherit', env })
+  if (result.status !== 0) return 1
+  require('electron')
+  return 0
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

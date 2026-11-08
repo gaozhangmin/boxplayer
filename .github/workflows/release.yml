@@ -283,7 +283,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          node scripts/install-ci-dependencies.mjs
+          node scripts/install-ci-dependencies.mjs --all-platform-architectures
 
       - name: Download verified Windows x64 embedded MPV runtime
         if: matrix.os == 'windows-latest'

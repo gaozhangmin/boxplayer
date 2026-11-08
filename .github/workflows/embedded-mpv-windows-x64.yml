@@ -180,7 +180,7 @@ jobs:
 
       - name: Verify the unpacked Electron package contains the complete bundle
         run: |
-          pnpm exec electron-builder --win --dir --x64
+          pnpm exec electron-builder --win --dir --x64 --publish never
           node scripts/check-packaged-mpv.mjs win32 x64
 
       - uses: actions/upload-artifact@v4

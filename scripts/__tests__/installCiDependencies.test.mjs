@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, access, mkdir, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
-import { downloadVerifiedElectronArchive } from '../install-ci-dependencies.mjs'
+import { downloadVerifiedElectronArchive, ensureVerifiedElectronArchive } from '../install-ci-dependencies.mjs'
 
 const require = createRequire(import.meta.url)
 const directories = []
@@ -19,6 +19,20 @@ async function fixture() {
   return { version: '1.2.3', platform: 'linux', arch: 'x64', expectedSha256: createHash('sha256').update(bytes).digest('hex'), destination: join(dir, 'cache', 'electron.zip'), fetchImpl, bytes }
 }
 describe('verified CI Electron installation', () => {
+  it('prepares an absent archive even when an executable could already be installed', async () => {
+    const input = await fixture()
+    await ensureVerifiedElectronArchive(input)
+    expect(await readFile(input.destination)).toEqual(input.bytes)
+    expect(input.fetchImpl).toHaveBeenCalledTimes(2)
+  })
+  it('reuses only a checksum-valid archive without contacting the CDN', async () => {
+    const input = await fixture()
+    await mkdir(join(input.destination, '..'), { recursive: true })
+    await writeFile(input.destination, input.bytes)
+    await ensureVerifiedElectronArchive(input)
+    expect(input.fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('passes pinned checksums through the installed electron-builder downloader', async () => {
     const builderRequire = createRequire(require.resolve('electron-builder/package.json'))
     const appBuilderRequire = createRequire(builderRequire.resolve('app-builder-lib/package.json'))

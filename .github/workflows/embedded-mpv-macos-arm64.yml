@@ -146,7 +146,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
-          pnpm exec electron-builder --mac --dir --arm64
+          pnpm exec electron-builder --mac --dir --arm64 --publish never
           node scripts/check-packaged-mpv.mjs darwin arm64
 
       - uses: actions/upload-artifact@v4
