@@ -1445,7 +1445,7 @@ watch(chapters, (nextChapters) => {
               <PlaybackSubtitleNumberRow label="垂直偏移" :value="100 - subtitlePosition" :min="0" :max="100" :step="1" @change="subtitlePosition = 100 - $event" />
               <PlaybackSubtitleNumberRow label="大小缩放[主]" :value="subtitleScale * 100" :min="25" :max="300" :step="5" unit="%" @change="subtitleScale = $event / 100" />
               <PlaybackSubtitleNumberRow label="不透明度" :disabled="isBitmapSubtitle(0)" :value="primarySubtitleStyle.opacity * 100" :min="0" :max="100" :step="5" unit="%" @change="primarySubtitleStyle.opacity = $event / 100" />
-              <label class="mpv-side-select-row"><span>简繁中文转换</span><select :disabled="isBitmapSubtitle(0)" v-model.number="primarySubtitleStyle.conversion"><option :value="0">禁用</option><option :value="1">转为简体</option><option :value="2">转为繁体</option></select></label>
+              <label class="mpv-side-select-row"><span>简繁中文转换</span><select :disabled="isBitmapSubtitle(0)" v-model.number="primarySubtitleStyle.conversion" aria-label="简繁中文转换"><option :value="0">禁用</option><option :value="1">转为简体</option><option :value="2">转为繁体</option></select></label>
               <label class="mpv-side-select-row"><span>PGS 字幕比例修正</span><input v-model="pgsAspectCorrection" type="checkbox" /></label>
             </section>
             <section class="mpv-side-section">
@@ -1454,7 +1454,7 @@ watch(chapters, (nextChapters) => {
               <template v-if="customSubtitleEnabled">
                 <div class="mpv-subtitle-mode-tabs"><button :class="{ active: subtitleStyleIndex === 0 }" type="button" @click="subtitleStyleIndex = 0">主字幕</button><button :class="{ active: subtitleStyleIndex === 1 }" type="button" @click="subtitleStyleIndex = 1">副字幕</button></div>
                 <fieldset :disabled="isBitmapSubtitle(subtitleStyleIndex)" class="mpv-subtitle-custom-fields">
-                  <label class="mpv-side-select-row"><span>字体</span><select v-model="selectedSubtitleStyle.font"><option value="sans-serif">系统字体</option><option value="serif">衬线</option><option value="monospace">等宽</option></select></label>
+                  <label class="mpv-side-select-row"><span>字体</span><select v-model="selectedSubtitleStyle.font" aria-label="字体"><option value="sans-serif">系统字体</option><option value="serif">衬线</option><option value="monospace">等宽</option></select></label>
                   <label class="mpv-side-select-row"><span>加粗</span><input v-model="selectedSubtitleStyle.bold" type="checkbox" /></label>
                   <label class="mpv-side-select-row"><span>斜体</span><input v-model="selectedSubtitleStyle.italic" type="checkbox" /></label>
                   <label class="mpv-side-select-row"><span>字体颜色</span><input v-model="selectedSubtitleStyle.color" type="color" /></label>
@@ -3357,14 +3357,14 @@ watch(chapters, (nextChapters) => {
 .mpv-embedded-progress::-webkit-slider-runnable-track {
   height: 8px;
   border: 1px solid rgba(255,255,255,.35);
-  background: linear-gradient(to right, rgba(245,245,245,.95) 0 var(--mpv-progress), rgba(184,184,184,.65) var(--mpv-progress) var(--mpv-buffered), rgba(48,57,64,.45) var(--mpv-buffered) 100%);
+  background: linear-gradient(180deg, rgba(255,255,255,.22), transparent 45%, rgba(0,0,0,.12)), linear-gradient(to right, #fff 0 var(--mpv-progress), #8d8d8d var(--mpv-progress) var(--mpv-buffered), rgba(57,57,57,.8) var(--mpv-buffered) 100%);
   box-shadow: inset 0 1px 2px rgba(255,255,255,.3), 0 1px 4px rgba(0,0,0,.3);
   backdrop-filter: blur(16px) saturate(150%);
 }
 .mpv-embedded-progress::-webkit-slider-thumb {
-  width: 6px;
-  height: 12px;
-  margin-top: -3px;
+  width: 4px;
+  height: 8px;
+  margin-top: -1px;
   border-radius: 6px;
   background: rgba(245,245,245,.95);
 }
