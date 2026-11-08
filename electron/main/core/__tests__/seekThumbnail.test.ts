@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({ handlers: new Map<string, any>(), listeners: new Map<string, any>(), begin: vi.fn(), remove: vi.fn() }))
 vi.mock('electron', () => ({ ipcMain: {
   handle: (name: string, fn: any) => mock.handlers.set(name, fn),
@@ -19,6 +19,12 @@ const owner = () => Object.assign(new EventEmitter(), { id: ++nextId, isDestroye
 const request = (sender: any, time: number, url = 'https://video.invalid/movie', headers = { Authorization: 'Bearer example' }) =>
   mock.handlers.get('Playback:thumbnail')({ sender }, { url, headers, time })
 const frameJob = () => ({ promise: Promise.resolve(true), cancel: vi.fn() })
+
+// These fixtures exercise the in-process macOS addon contract. Linux uses a
+// separate Node host, covered by the platform lifecycle and playback suites.
+const hostPlatform = process.platform
+beforeAll(() => { Object.defineProperty(process, 'platform', { value: 'darwin' }) })
+afterAll(() => { Object.defineProperty(process, 'platform', { value: hostPlatform }) })
 
 describe('independent seek thumbnails', () => {
   it('retains authorization and reuses cached frames within the same time bucket', async () => {

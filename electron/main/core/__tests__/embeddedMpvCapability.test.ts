@@ -1,10 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'fs'
 import path from 'path'
 import { tmpdir } from 'os'
 import { getEmbeddedMpvCapability } from '../../mpv/embeddedMpvCapability'
 import { DisabledEmbeddedMpvBridge } from '../../mpv/embeddedMpvBridge'
 import { getEmbeddedMpvNativeAddonRelativePaths, getEmbeddedMpvNativeResourceStatus, loadEmbeddedMpvNativeAddon } from '../../mpv/embeddedMpvNativeAddon'
+
+// These fixtures exercise the in-process macOS addon contract. Linux uses a
+// separate Node host, covered by the platform lifecycle and playback suites.
+const hostPlatform = process.platform
+beforeAll(() => { Object.defineProperty(process, 'platform', { value: 'darwin' }) })
+afterAll(() => { Object.defineProperty(process, 'platform', { value: hostPlatform }) })
 
 describe('embedded MPV capability', () => {
   it('enables macOS embedded MPV when native addon and resources are complete', () => {
