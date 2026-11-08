@@ -49,6 +49,7 @@ jobs:
             scripts/__tests__/installCiDependencies.test.mjs \
             electron/main/core/__tests__/embeddedMpvPreloadSession.test.ts \
             src/utils/__tests__/cloud123TokenRetry.test.ts \
+            src/quark/__tests__/dirfilelist.test.ts \
             src/utils/__tests__/mediaScrapePersistence.test.ts \
             src/utils/__tests__/mediaScrapeMerge.test.ts \
             src/utils/__tests__/mediaFileNormalizer.test.ts \

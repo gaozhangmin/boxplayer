@@ -103,6 +103,23 @@ describe('apiQuarkMkdir', () => {
 })
 
 describe('apiQuarkDownloadUrl', () => {
+  it('retries a transient Electron gateway response and retains authenticated playback headers', async () => {
+    const download = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 503, body: '<html>Service unavailable</html>' })
+      .mockResolvedValueOnce({ ok: true, status: 200, cookie: '__uid=u1; __kps=refreshed', body: JSON.stringify({ data: [{ download_url: 'https://download.quark.cn/movie.mkv', size: 10 }] }) })
+    vi.stubGlobal('window', { WebQuarkDownloadUrl: download })
+    const result = await apiQuarkDownloadUrl('quark_u1', 'fid-video')
+    expect(download).toHaveBeenCalledTimes(2)
+    expect(result.url).toBe('https://download.quark.cn/movie.mkv')
+    expect(result.headers).toMatchObject({ cookie: '__uid=u1; __kps=refreshed', 'x-urlp': '/movie.mkv' })
+  })
+  it('reports non-JSON Electron errors without throwing or retrying authorization failures', async () => {
+    const download = vi.fn().mockResolvedValue({ ok: false, status: 403, body: '<html>Forbidden</html>' })
+    vi.stubGlobal('window', { WebQuarkDownloadUrl: download })
+    await expect(apiQuarkDownloadUrl('quark_u1', 'fid-video')).resolves.toMatchObject({ url: '', error: '获取夸克下载地址失败（HTTP 403）' })
+    expect(download).toHaveBeenCalledOnce()
+  })
+
   it('uses Quark desktop client download parameters and user agent', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
