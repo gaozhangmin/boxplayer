@@ -178,9 +178,13 @@ jobs:
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
         run: pnpm exec playwright test e2e/realCloudProviders.spec.ts e2e/realMediaServerMpv.spec.ts --workers=1
 
+      - name: Verify Windows ASAR download dependency checks
+        run: pnpm exec vitest run scripts/__tests__/packagedDownloadRuntime.test.mjs
+
       - name: Verify the unpacked Electron package contains the complete bundle
         run: |
           pnpm exec electron-builder --win --dir --x64 --publish never
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/check-packaged-mpv.mjs win32 x64
 
       - uses: actions/upload-artifact@v4

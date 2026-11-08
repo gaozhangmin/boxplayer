@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module'
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { it, expect, vi } from 'vitest'
@@ -36,6 +37,21 @@ it('normalizes Windows ASAR paths without hiding missing dependencies', async ()
   expect(() => verifyDownloadRuntime(archive)).toThrow('missing dependency ws')
   pkg('ws'); await asar.createPackage(source, archive)
   expect(verifyDownloadRuntime(archive)).toHaveLength(3)
+  // ASAR's reader splits on the host separator; a normalized listing alone
+  // does not make a POSIX lookup path valid on Windows.
+  const originalNormalize = path.normalize.bind(path)
+  const originalExtract = asar.extractFile.bind(asar)
+  const extract = vi.spyOn(asar, 'extractFile').mockImplementation((file, entry, ...args) => {
+   expect(entry).toContain('\\')
+   expect(entry).not.toContain('/')
+   return originalExtract(file, originalNormalize(entry.replace(/\\/g, '/')), ...args)
+  })
+  const winModule = { exports: {} }
+  const winRequire = Object.assign(id => id === 'node:path' ? { ...path, normalize: path.win32.normalize } : require(id), { resolve: require.resolve })
+  try {
+   runInNewContext(readFileSync(new URL('../check-packaged-download-runtime.cjs', import.meta.url), 'utf8'), { module: winModule, require: winRequire, console })
+   expect(winModule.exports.verifyDownloadRuntime(archive)).toHaveLength(3)
+  } finally { extract.mockRestore() }
   rmSync(path.join(source, 'node_modules/@motrix/nat-api/index.js'))
   await asar.createPackage(source, archive)
   expect(() => verifyDownloadRuntime(archive)).toThrow('missing entry point')

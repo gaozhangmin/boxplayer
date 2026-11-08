@@ -26,7 +26,7 @@ function verifyDownloadRuntime(archive) {
     const directory = locate(name, from)
     if (visited.has(directory)) return
     visited.add(directory)
-    const pkg = JSON.parse(asar.extractFile(archive, directory + '/package.json').toString())
+    const pkg = JSON.parse(asar.extractFile(archive, path.normalize(directory + '/package.json')).toString())
     const entry = path.posix.join(directory, pkg.main || 'index.js')
     if (![entry, entry + '.js', entry + '.json', entry + '/index.js'].some(file => files.has(file))) {
       throw new Error(`Packaged download runtime missing entry point ${entry}`)
