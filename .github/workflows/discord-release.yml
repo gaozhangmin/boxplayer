@@ -10,6 +10,10 @@ on:
         required: true
         type: string
     secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: true
+      TELEGRAM_CHAT_ID:
+        required: true
       DISCORD_RELEASE_WEBHOOK:
         required: true
 
@@ -21,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
       - name: Announce published release
         env:
           DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
@@ -29,6 +34,7 @@ jobs:
         shell: python
         run: |
           import json
+          import re
           import os
           import sys
           import urllib.error
@@ -66,20 +72,14 @@ jobs:
               fail("Only published releases can be announced.")
 
           tag = release["tag_name"]
-          url = release["html_url"]
+          url = "https://boxplayer.cc/download/"
           notes = (release.get("body") or "").strip()
+          notes = re.sub(r"https://github\.com/[^\s)<>]+/(?:releases/download|releases/tag)/[^\s)<>]+", "https://boxplayer.cc/download/", notes)
           if not notes:
               notes = "更新详情请查看 Release 页面。 See the release page for details."
           if len(notes) > 3500:
               notes = notes[:3400] + "\n\n…完整更新日志 / Full changelog: " + url
-          downloads = []
-          for asset in release.get("assets", []):
-              if asset.get("browser_download_url"):
-                  line = f'[{asset["name"][:100]}]({asset["browser_download_url"]})'
-                  if len("\n".join(downloads + [line])) > 950:
-                      break
-                  downloads.append(line)
-          download_text = "\n".join(downloads) or f"[下载 / Downloads]({url})"
+          download_text = "[官网下载安装 / Official downloads](https://boxplayer.cc/download/)"
           title = ("BoxPlayer " + tag + (" · Pre-release" if release.get("prerelease") else " · 新版本发布 / New release"))[:256]
           payload = {
               "username": "BoxPlayer Releases",
@@ -108,3 +108,11 @@ jobs:
               fail(f"Discord rejected the announcement (HTTP {error.code}).")
           except urllib.error.URLError:
               fail("Could not connect to Discord; check the channel before rerunning.")
+      - name: Announce published release on Telegram
+        if: ${{ !cancelled() }}
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/telegram-release.py
