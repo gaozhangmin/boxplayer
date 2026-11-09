@@ -207,8 +207,8 @@ onUnmounted(() => {
           {{ t('settings.logs') }}
         </a-menu-item>
       </a-menu>
+      <div class="settings-support-links"><h3>{{ t("settings.community") }}</h3><button type="button" @click="openExternal('https://discord.gg/BXwGcQA36X')"><img src="/community/discord.svg" width="20" height="20" alt="" /><span>BoxPlayer Discord</span><ExternalLink :size="14" /></button><button type="button" @click="openExternal('https://xhslink.cn/m/1hvKIte6Cly')"><img src="/community/xiaohongshu.svg" width="20" height="20" alt="" /><span>小红书</span><ExternalLink :size="14" /></button><button type="button" @click="openExternal('https://t.me/+ndIYfSmPvN4yOWE1')"><img src="/community/telegram.svg" width="20" height="20" alt="" /><span>Telegram</span><ExternalLink :size="14" /></button></div>
       <div class="settings-support-links">
-        <button type="button" @click="openExternal(SETTINGS_FOLLOW_URL)"><span>{{ t('supportLinks.supportFollow') }}</span><ExternalLink :size="14" /></button>
         <button type="button" @click="openExternal(SETTINGS_HELP_URL)"><span>{{ t('supportLinks.supportHelpCenter') }}</span><ExternalLink :size="14" /></button>
         <button type="button" @click="reportSettingsError"><span>{{ t('supportLinks.supportReportError') }}</span><ExternalLink :size="14" /></button>
       </div>
