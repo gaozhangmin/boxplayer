@@ -2009,7 +2009,21 @@ async function resumeMedia(item: MediaLibraryItem) {
     : item.driveFiles || []
   const file = files.find(file => file.id === item.lastPlayedFileId) || files[0]
   if (!file) { message.warning(t('mediaLibrary.noPlayableVideo')); return }
-  await menuOpenFile(buildAliFileModel(file), '')
+  const resumeFile = buildAliFileModel(file)
+  const savedSeconds = Number(item.lastPlayedPositionSeconds) || 0
+  if (savedSeconds > 0) resumeFile.media_play_cursor = String(savedSeconds)
+  const playlistFiles = item.type === 'tv'
+    ? (item.seasons || []).flatMap(season => season.episodes || []).flatMap(episode => {
+      const version = episode.driveFiles?.find(entry => entry.id === file.id)
+        || playbackVersions(episode.driveFiles || [])[0]
+      return version ? [version] : []
+    })
+    : [file]
+  const playlist = playlistFiles.map(entry => buildPlaylistEntry(buildAliFileModel(entry), entry.name || item.name))
+  await menuOpenFile(resumeFile, '', {
+    customPlaylistLabel: item.name,
+    customPlaylist: playlist
+  })
 }
 
 function shuffleInPlace<T>(items: T[]): void {

@@ -2695,7 +2695,7 @@ const openMediaServerPlayback = async (
       encType: '',
       password: '',
       expire_time: 0,
-      play_cursor: playback.playCursorSeconds || 0,
+      play_cursor: playback.playCursorSeconds || ('playbackPositionTicks' in item ? Math.max(0, (item.playbackPositionTicks || 0) / 10_000_000) : 0),
       media_url: playback.url,
       media_headers: playback.headers,
       media_subtitle_sources: playback.subtitleSources || [],
@@ -2879,6 +2879,21 @@ const resolveHomePlaybackTarget = async (server: MediaServerConfig, item: MediaS
       item: episodes[0],
       playlistLabel: item.title,
       episodePlaylist: episodes.map((episode) => ({ id: episode.id, title: episode.title }))
+    }
+  }
+
+  if (item.kind === 'episode') {
+    const detail = await content.loadItemDetail(server, item.id)
+    const seriesId = detail.seriesId || item.seriesId
+    if (seriesId) {
+      const episodes = (await loadAllMediaServerChildren(server, seriesId, true))
+        .filter(child => child.kind === 'episode')
+        .sort(compareEpisodeItems)
+      return {
+        item: { ...item, ...detail },
+        playlistLabel: detail.seriesTitle || item.seriesTitle || item.parentTitle || '',
+        episodePlaylist: episodes.map(episode => ({ id: episode.id, title: episode.title }))
+      }
     }
   }
 

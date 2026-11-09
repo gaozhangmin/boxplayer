@@ -4,6 +4,7 @@ export class SeekThumbnailPreview {
   private readonly image = document.createElement('img')
   private readonly time = document.createElement('div')
   private timer?: ReturnType<typeof setTimeout>
+  private hideTimer?: ReturnType<typeof setTimeout>
   private generation = 0
   private bucket = -1
   private source = ''
@@ -53,6 +54,8 @@ export class SeekThumbnailPreview {
     const rect = this.progress.getBoundingClientRect()
     const parent = this.progress.parentElement!.getBoundingClientRect()
     const fraction = Math.max(0, Math.min(1, seconds / source.duration))
+    clearTimeout(this.hideTimer)
+    this.hideTimer = setTimeout(() => this.hide(), 3000)
     this.card.style.display = 'block'
     const halfWidth = Math.min(120, parent.width / 2)
     this.card.style.left = `${Math.min(Math.max(halfWidth, rect.left - parent.left + rect.width * fraction), Math.max(halfWidth, parent.width - halfWidth))}px`
@@ -81,6 +84,7 @@ export class SeekThumbnailPreview {
   }
 
   hide() {
+    clearTimeout(this.hideTimer)
     this.generation++; this.bucket = -1
     clearTimeout(this.timer)
     this.card.style.display = 'none'
