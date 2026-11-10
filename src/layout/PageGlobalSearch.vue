@@ -420,11 +420,12 @@ async function handleClick(result: GlobalSearchResult) {
     const panTreeStore = usePanTreeStore()
 
     if (panTreeStore.user_id !== result.user_id) {
-      await UserDAL.UserChange(result.user_id)
+      if (!await UserDAL.UserChange(result.user_id)) return
     }
 
     await nextTick()
 
+    appStore.toggleTabMenu('pan', 'wangpan')
     let fileId = result.parent_file_id || result.file_id
     if (result.provider === 'quark') {
       try {
@@ -451,7 +452,9 @@ async function handleClick(result: GlobalSearchResult) {
       else if (result.provider === 'box') fileId = 'box_root'
     }
 
-    PanDAL.aReLoadOneDirToShow(result.drive_id, fileId, true)
+    if (!await PanDAL.aReLoadOneDirToShow(result.drive_id, fileId, true)) {
+      message.error(t('pan.unrecognizedCurrentDir'))
+    }
   })
 }
 

@@ -112,8 +112,9 @@ function handleFileNavigate(file: FileResult) {
     const { default: PanDAL } = await import('../pan/pandal')
     const { default: UserDAL } = await import('../user/userdal')
     const panTreeStore = usePanTreeStore()
-    if (panTreeStore.user_id !== file.userId) await UserDAL.UserChange(file.userId)
+    if (panTreeStore.user_id !== file.userId && !await UserDAL.UserChange(file.userId)) return
     await nextTick()
+    appStore.toggleTabMenu('pan', 'wangpan')
     let fileId = file.parentFileId || file.fileId
     if (file.provider === 'quark') {
       try {
@@ -137,7 +138,9 @@ function handleFileNavigate(file: FileResult) {
       }
       fileId = map[file.provider] || fileId
     }
-    PanDAL.aReLoadOneDirToShow(file.driveId || fileId, fileId, true)
+    if (!await PanDAL.aReLoadOneDirToShow(file.driveId || fileId, fileId, true)) {
+      message.error(t('pan.unrecognizedCurrentDir'))
+    }
   })
 }
 

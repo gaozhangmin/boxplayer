@@ -377,7 +377,7 @@ export default class UserDAL {
   }
 
 
-  static async UserLogin(token: ITokenInfo, isInteractive: boolean = false, sourceName?: string) {
+  static async UserLogin(token: ITokenInfo, isInteractive: boolean = false, sourceName?: string, waitForPanData = false) {
     const keepFileSourcesPage = useUserStore().loginFromFileSources
     ++this.loginRevision
     const loadingKey = 'userlogin_' + Date.now().toString()
@@ -434,7 +434,7 @@ export default class UserDAL {
     })
     // 已保存账号优先进入网盘，目录和账号资料在后台补全，避免任一网盘阻塞启动。
     const loadPanData = UserDAL.LoadPanData(token)
-    if (isInteractive) await loadPanData
+    if (isInteractive || waitForPanData) await loadPanData
     else void loadPanData.catch((err: any) => DebugLog.mSaveWarning('UserLogin LoadPanData ' + token.user_id, err?.message || err))
     if (isInteractive && token.tokenfrom !== 'unknown') captureProviderLogin(token.tokenfrom)
     // 刷新所有状态
@@ -567,7 +567,7 @@ export default class UserDAL {
       return false
     }
     try {
-      await this.UserLogin(token)
+      await this.UserLogin(token, false, undefined, true)
       return true
     } catch (error: any) {
       DebugLog.mSaveWarning('UserChange login ' + user_id, error?.message || error)
