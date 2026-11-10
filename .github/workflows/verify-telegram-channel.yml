@@ -1,0 +1,41 @@
+name: Verify Telegram release channel permissions
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check bot and public channel without sending messages
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHANNEL: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+          token = os.environ['TELEGRAM_BOT_TOKEN']
+          def call(method, payload):
+              request = urllib.request.Request('https://api.telegram.org/bot' + token + '/' + method,
+                  data=json.dumps(payload).encode(), headers={'Content-Type':'application/json'}, method='POST')
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response: data=json.load(response)
+              except urllib.error.HTTPError as error:
+                  print('Telegram permission check failed: HTTP', error.code)
+                  sys.exit(1)
+              except urllib.error.URLError:
+                  print('Telegram permission check failed: connection error')
+                  sys.exit(1)
+              if not data.get('ok'): sys.exit('Telegram permission check rejected')
+              return data['result']
+          bot=call('getMe', {})
+          print('Release bot: @' + bot['username'], flush=True)
+          chat=call('getChat', {'chat_id':os.environ['CHANNEL']})
+          print('Target:', chat.get('title'), chat.get('username'), chat.get('type'), chat['id'], flush=True)
+          if chat.get('username', '').lower() != 'boxplayer_re': sys.exit('Unexpected configured Telegram channel')
+          member=call('getChatMember', {'chat_id':chat['id'], 'user_id':bot['id']})
+          can_post=chat['type']=='channel' and member.get('status')=='administrator' and member.get('can_post_messages',False)
+          print('Bot status:',member.get('status'),'can_post_messages:',can_post)
+          if not can_post: sys.exit('Add the bot as channel administrator with permission to post messages.')
+          PY
