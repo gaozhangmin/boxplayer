@@ -9,6 +9,7 @@ const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ 'update:visible': [v: boolean]; login: [user: { email: string }] }>()
 
 const loading = ref(false)
+const oauthProvider = ref<'github' | 'google' | null>(null)
 const emailInput = ref('')
 const codeSent = ref(false)
 const emailCode = ref('')
@@ -25,8 +26,10 @@ function saveUser(email: string) {
 
 // ── OAuth ──
 async function handleOAuth(provider: 'github' | 'google') {
+  if (loading.value) return
   if (!supabase) { message.error('未配置 Supabase'); return }
   loading.value = true
+  oauthProvider.value = provider
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
@@ -37,7 +40,7 @@ async function handleOAuth(provider: 'github' | 'google') {
       openExternal(data.url)
     }
   } catch (e: any) { message.error(e?.message || 'OAuth 失败') }
-  finally { loading.value = false }
+  finally { loading.value = false; oauthProvider.value = null }
 }
 
 // ── Email OTP ──
@@ -105,10 +108,12 @@ onMounted(setupCallbackListener)
 
       <div class="al-body">
         <button class="al-btn al-btn-github" :disabled="loading" @click="handleOAuth('github')">
-          <Github :size="18" :stroke-width="1.5" /><span>GitHub 登录</span>
+          <Loader2 v-if="oauthProvider === 'github'" :size="18" class="al-spin" />
+          <Github v-else :size="18" :stroke-width="1.5" /><span>GitHub 登录</span>
         </button>
         <button class="al-btn al-btn-google" :disabled="loading" @click="handleOAuth('google')">
-          <Chrome :size="18" :stroke-width="1.5" /><span>Google 登录</span>
+          <Loader2 v-if="oauthProvider === 'google'" :size="18" class="al-spin" />
+          <Chrome v-else :size="18" :stroke-width="1.5" /><span>Google 登录</span>
         </button>
 
         <div class="al-divider"><span>或使用邮箱</span></div>

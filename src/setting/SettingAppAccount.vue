@@ -9,6 +9,7 @@ import { openExternal } from '../utils/electronhelper'
 import { BOXPLAYER_SITE_URL, clearBoxPlayerAppSession, fetchBoxPlayerSubscription, getBoxPlayerSupabase } from '../utils/boxplayerAuth'
 
 const loading = ref(false)
+const oauthProvider = ref<'github' | 'google' | null>(null)
 const emailInput = ref('')
 const showEmail = ref(false)
 const codeSent = ref(false)
@@ -67,8 +68,10 @@ function handleLogout() {
 }
 
 async function handleOAuth(provider: 'github' | 'google') {
+  if (loading.value) return
   if (!supabase) { message.error('未配置 Supabase'); return }
   loading.value = true
+  oauthProvider.value = provider
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
@@ -78,7 +81,7 @@ async function handleOAuth(provider: 'github' | 'google') {
     else if (data.url) {
       openExternal(data.url)
     }
-  } finally { loading.value = false }
+  } finally { loading.value = false; oauthProvider.value = null }
 }
 
 async function handleEmailSend() {
@@ -231,8 +234,8 @@ onMounted(() => {
 
         <template v-else>
           <div class='acc-oauth'>
-            <button class='acc-provider acc-gh' :disabled="loading" @click="handleOAuth('github')" title="GitHub"><Github :size="18" /></button>
-            <button class='acc-provider acc-go' :disabled="loading" @click="handleOAuth('google')" title="Google"><Chrome :size="18" /></button>
+            <button class='acc-provider acc-gh' :disabled="loading" @click="handleOAuth('github')" title="GitHub"><Loader2 v-if="oauthProvider === 'github'" :size="18" class="spin" /><Github v-else :size="18" /></button>
+            <button class='acc-provider acc-go' :disabled="loading" @click="handleOAuth('google')" title="Google"><Loader2 v-if="oauthProvider === 'google'" :size="18" class="spin" /><Chrome v-else :size="18" /></button>
             <button class='acc-provider acc-em' :class="{ active: showEmail }" :disabled="loading" @click="showEmail = !showEmail" title="邮箱"><Mail :size="18" /></button>
           </div>
 
