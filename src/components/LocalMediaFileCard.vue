@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import WatchedIndicator from './WatchedIndicator.vue'
 import MediaPosterPlaceholder from './MediaPosterPlaceholder.vue'
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { Folder, Check, Star } from 'lucide-vue-next'
 import { getLocalVideoPreview, type LocalVideoPreview } from '../utils/localVideoPreview'
 import { t } from '../i18n'
-const props = defineProps<{ name: string; seasonLabel?: string; metadata?: { title?: string; rating?: number; year?: string; certification?: string; overview?: string }; path?: string; thumbnail?: string; duration?: string | number; height?: number; mode?: 'grid' | 'list'; portraitList?: boolean; directory?: boolean; watched?: boolean; selection?: boolean; selected?: boolean }>()
+import { videoResolutionLabel } from '@shared/videoContainerProbe'
+const props = defineProps<{ name: string; seasonLabel?: string; metadata?: { title?: string; rating?: number; year?: string; certification?: string; overview?: string }; path?: string; thumbnail?: string; duration?: string | number; height?: number; hdr?: boolean; mode?: 'grid' | 'list'; portraitList?: boolean; directory?: boolean; watched?: boolean; selection?: boolean; selected?: boolean }>()
 const emit = defineEmits<{ open: []; watched: []; context: [event: MouseEvent] }>()
 const root = ref<HTMLElement>()
 const preview = ref<LocalVideoPreview>({ thumbnail: '', duration: 0, height: 0 })
+// Stored/scraped media info wins; the cached probe fills in what the library lacks.
+const mediaDuration = computed(() => Number(props.duration) || preview.value.duration)
+const mediaHeight = computed(() => Number(props.height) || preview.value.height)
+const mediaHdr = computed(() => !!props.hdr || !!preview.value.hdr)
 let observer: IntersectionObserver | undefined
 let version = 0
 let visible = false
 async function load() {
   const current = ++version
   preview.value = { thumbnail: '', duration: 0, height: 0 }
-  if (!props.path || props.directory || !/\.(mp4|m4v|mov|webm|mkv|avi|ts|m2ts)$/i.test(props.path)) return
+  if (!props.path || props.directory || !/\.(mp4|m4v|mov|webm|mkv|avi|ts|m2ts|mts|wmv|flv|mpg|mpeg|vob|3gp|rmvb)$/i.test(props.path)) return
   const result = await getLocalVideoPreview(props.path)
   if (current === version) preview.value = result
 }
@@ -30,7 +35,7 @@ onUnmounted(() => { version++; observer?.disconnect() })
 </script>
 <template>
   <div ref="root" class="local-file-card" :class="{ 'local-file-list': mode === 'list', 'local-file-portrait-list': mode === 'list' && portraitList }" role="button" tabindex="0" :aria-label="name" :aria-pressed="selection ? !!selected : undefined" @click="emit('open')" @keydown.enter.prevent="emit('open')" @keydown.space.prevent="emit('open')" @contextmenu.prevent="emit('context', $event)">
-    <div class="local-file-art">
+    <div class="local-file-art" :class="{ 'local-file-art-tile': directory || !(thumbnail || preview.thumbnail) }">
       <img v-if="thumbnail || preview.thumbnail" :src="thumbnail || preview.thumbnail" alt="" />
       <Folder v-else-if="directory" :size="mode === 'list' ? 30 : 56" />
       <MediaPosterPlaceholder v-else />
@@ -40,6 +45,11 @@ onUnmounted(() => { version++; observer?.disconnect() })
     <div class="local-file-info">
       <strong :title="metadata?.title || name">{{ mode === 'list' ? metadata?.title || name : name }}</strong>
       <small v-if="seasonLabel" class="local-file-season">{{ seasonLabel }}</small>
+      <div v-if="mode === 'list' && !directory && (mediaDuration || mediaHeight || mediaHdr)" class="local-file-tech">
+        <span v-if="mediaDuration">{{ t('unified.durationMinutes', { count: Math.max(1, Math.ceil(mediaDuration / 60)) }) }}</span>
+        <span v-if="mediaHeight">{{ videoResolutionLabel(mediaHeight) }}</span>
+        <span v-if="mediaHdr" class="local-file-hdr">HDR</span>
+      </div>
       <template v-if="mode === 'list' && !directory && metadata">
         <div class="local-file-meta">
           <span v-if="metadata.rating != null"><Star :size="13" />{{ metadata.rating.toFixed(1) }}</span>
@@ -49,7 +59,6 @@ onUnmounted(() => { version++; observer?.disconnect() })
         <p v-if="metadata.overview" class="local-file-overview">{{ metadata.overview }}</p>
       </template>
       <template v-if="mode === 'list' && !directory && !portraitList">
-        <small><span v-if="Number(duration) || preview.duration">{{ t('unified.durationMinutes', { count: Math.max(1, Math.ceil((Number(duration) || preview.duration) / 60)) }) }}</span><span v-if="height || preview.height">{{ height || preview.height }}p</span></small>
         <button v-if="!selection" :class="['local-file-watched', { 'is-watched': watched }]" :aria-pressed="!!watched" :aria-label="t(watched ? 'mediaServer.markUnwatched' : 'mediaServer.markWatched')" @click.stop="emit('watched')" @keydown.stop><Check :size="14" />{{ t(watched ? 'unified.watched' : 'mediaServer.markWatched') }}</button>
       </template>
     </div>
@@ -66,6 +75,10 @@ onUnmounted(() => { version++; observer?.disconnect() })
 .local-file-portrait-list{gap:22px;padding:12px 0}.local-file-list.local-file-portrait-list .local-file-art{width:98px;height:147px;aspect-ratio:2/3}
 
 .local-file-season{line-height:18px}
+/* Folder and placeholder video tiles share one dark rounded background; the icon is the orange accent. */
+.local-file-art.local-file-art-tile{background:#232625!important;color:#ff8000}
+.local-file-tech{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--color-text-3);margin-top:6px}
+.local-file-hdr{display:inline-flex;align-items:center;padding:0 5px;border-radius:4px;background:#c9cdd4;color:#1d2129;font-size:11px;font-weight:700;line-height:16px}
 .local-file-meta{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--color-text-3);margin-top:6px}
 .local-file-meta span{display:inline-flex;align-items:center;gap:4px}
 .local-file-certification{border:1px solid currentColor;border-radius:3px;padding:0 4px}

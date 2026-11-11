@@ -2707,6 +2707,8 @@ const getVideoInfo = async (art: Artplayer) => {
     renderMediaServerControls(art)
     return
   }
+  // Do not retain a previous video's quality control while querying this source.
+  art.controls.remove('quality')
   // 获取视频链接
   const data: string | IRawUrl = await getRawUrl(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, pageVideo.encType, pageVideo.password, false, 'video', '', 'thirdParty', pageVideo.tokenfrom)
   if (typeof data != 'string' && data.qualities.length > 0) {
@@ -2723,12 +2725,12 @@ const getVideoInfo = async (art: Artplayer) => {
     setArtVideoUrl(art, defaultUrl, defaultQuality.type)
     defaultQuality.default = true
     pageVideo.expire_time = GetExpiresTime(defaultQuality.url)
-    art.controls.update({
+    if (data.qualities.length > 1) art.controls.update({
       name: 'quality',
       index: 20,
       position: 'right',
       style: { marginRight: '15px' },
-      html: defaultQuality ? defaultQuality.html : '',
+      html: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>',
       selector: data.qualities,
       onSelect: (selector: any, element: HTMLElement, event: Event) => {
         const item = selector as selectorItem
@@ -2785,7 +2787,7 @@ const getVideoInfo = async (art: Artplayer) => {
           art.off('video:error', handleQualityError)
           console.error('[播放][网页] 切换播放链接失败', { quality: item.quality || '', url: itemUrl, error })
         })
-        return item.html
+        return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>'
       }
     })
     // 内嵌字幕
@@ -3375,7 +3377,7 @@ const getSubTitleList = async (art: Artplayer, autoLoad = true) => {
           await switchSubtitleText(art, onlineSubData.name, onlineSubData.ext, data)
           art.notice.show = tips
         }
-        return item.html
+        return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>'
       }
     }, {
       html: t('video.importLocalSubtitle'),
@@ -3405,11 +3407,11 @@ const getSubTitleList = async (art: Artplayer, autoLoad = true) => {
           if (subDefault.file_id) await loadOnlineSub(art, subDefault)
           else if (subDefault.url) await loadSubtitleUrlToPlayer(art, subDefault)
           art.notice.show = t('video.dualSubtitle') + t('video.off')
-          return item.html
+          return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>'
         }
         const ok = await applyMultipleSubtitles(art, multipleSubtitleCandidates.slice(0, 2), item.mode === 'reverse')
         if (ok && item.$parent) item.$parent.tooltip = item.mode === 'reverse' ? t('video.reverse') : t('video.on')
-        return item.html
+        return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>'
       }
     }] : []), {
       html: t('video.subtitleOffset'),

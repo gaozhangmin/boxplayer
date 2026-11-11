@@ -1,4 +1,5 @@
 import UserDAL from '../user/userdal'
+import { isRemoteSourceProvider } from './driveProvider'
 
 type DriveUser = string | { user_id?: string; tokenfrom?: string }
 
@@ -26,6 +27,6 @@ export const isBoxUser = (user: DriveUser) => isProviderUser(user, 'box', 'box_'
 export const isGoogleUser = (user: DriveUser) => isProviderUser(user, 'google', 'google_')
 export const isRemoteDriveUser = (user: DriveUser) => {
   const info = resolveUserTokenInfo(user)
-  return info.tokenfrom === 'webdav' || info.tokenfrom === 'alist' || info.user_id.startsWith('webdav_') || info.user_id.startsWith('alist_')
+  return isRemoteSourceProvider(info.tokenfrom) || /^(webdav|alist|smb|nfs|ftp)_/.test(info.user_id)
 }
 export const isNonAliyunProvider = (user: DriveUser) => !isAliyunUser(user) && (isCloud123User(user) || isDrive115User(user) || isCloud139User(user) || isCloud189User(user) || isGuangyaUser(user) || isBaiduUser(user) || isPikPakUser(user) || isQuarkUser(user) || isDropboxUser(user) || isOneDriveUser(user) || isBoxUser(user) || isGoogleUser(user) || isRemoteDriveUser(user))

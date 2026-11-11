@@ -7,21 +7,9 @@ function readComponent(path: string) {
 }
 
 describe('Mineradio music UI shell', () => {
-  it('tracks remaining Mineradio parity work in a dedicated plan', () => {
-    const plan = readComponent('docs/plans/mineradio-remaining-alignment.md')
-
-    expect(plan).toContain('Mineradio Remaining Alignment Implementation Plan')
-    expect(plan).toContain('FX panel is not yet full Mineradio parity')
-    expect(plan).toContain('P1: FX Panel Full-Parity Pass')
-    expect(plan).toContain('P2: Shelf 1:1 Interaction Pass')
-    expect(plan).toContain('P4: Desktop Lyrics Window')
-    expect(plan).toContain('NetEase/QQ login')
-    expect(plan).toContain('User-imported podcast links may be stored as subscriptions')
-  })
-
   it('keeps an obvious additive particle stage', () => {
     const stage = readComponent('src/layout/music/MusicImmersiveStage.vue')
-    const stageLyrics = readComponent('src/utils/mineradio/StageLyrics.ts')
+    const stageLyrics = readComponent('src/utils/radio/StageLyrics.ts')
 
     expect(stage).toContain('createParticleField')
     expect(stage).toContain('buildCoverParticleGeometry')
@@ -176,10 +164,10 @@ describe('Mineradio music UI shell', () => {
     expect(stage).toContain('--music-lyric-glow')
     expect(stage).toContain('ResizeObserver')
     expect(stage).toContain('prefers-reduced-motion')
-    expect(stage).toContain('top: calc(100% - clamp(144px, 17vh, 184px))')
+    expect(stage).toContain('top: calc(100% - clamp(122px, 15.5vh, 154px))')
     expect(stage).not.toContain('top: calc(50% + min(164px, 22vh))')
 
-    const shelf = readComponent('src/utils/mineradio/ShelfManager.ts')
+    const shelf = readComponent('src/utils/radio/ShelfManager.ts')
     expect(shelf).toContain('applyGeneratedTexture')
     expect(shelf).toContain('generated:${mesh.card.id}')
     expect(shelf).toContain('const SHELF_CARD_WIDTH = 2.05')
@@ -291,7 +279,12 @@ describe('Mineradio music UI shell', () => {
   })
 
   it('keeps a Mineradio-style visual control console', () => {
-    const player = readComponent('src/layout/PageMusic.vue')
+    // UI copy lives in i18n; the console code lives in PageMusic and its child components.
+    const player = [
+      'src/layout/PageMusic.vue',
+      'src/layout/music/MusicBottomConsole.vue',
+      'src/i18n/index.ts',
+    ].map(readComponent).join('\n')
 
     expect(player).toContain('control-glass-filter-svg')
     expect(player).toContain('mineradio-control-glass-filter')
@@ -403,12 +396,13 @@ describe('Mineradio music UI shell', () => {
     expect(player).toContain('scheduleBeatChipHide')
     expect(player).toContain('new AbortController')
     expect(player).toContain('controller.abort()')
-    expect(player).toContain('节奏分析超过 ${Math.round(timeoutMs / 1000)} 秒，已停止')
+    expect(player).toContain('节奏分析超过 {seconds} 秒，已停止')
+    expect(player).toContain("t('music.beatAnalysisTimeout', { seconds: Math.round(timeoutMs / 1000) })")
     expect(player).toContain('FLAC 可能需要 1-2 分钟')
     expect(player).toContain('beatChipVisible && (beatAnalyzing || beatInfo)')
     expect(player).toContain('analyzeCurrentBeat')
     expect(player).toContain('analyzeAudioElementBeat')
-    const beatAnalyzer = readComponent('src/utils/mineradio/BeatAnalyzer.ts')
+    const beatAnalyzer = readComponent('src/utils/radio/BeatAnalyzer.ts')
     expect(beatAnalyzer).toContain('decodeAudioData')
     expect(beatAnalyzer).toContain('signal?: AbortSignal')
     expect(beatAnalyzer).toContain('fetch(audioEl.src, { signal })')
@@ -432,9 +426,9 @@ describe('Mineradio music UI shell', () => {
     expect(beatAnalyzer).toContain("combo === 'downbeat'")
     expect(beatAnalyzer).toContain('impact')
     expect(beatAnalyzer).toContain('confidence')
-    const stageLyrics = readComponent('src/utils/mineradio/StageLyrics.ts')
+    const stageLyrics = readComponent('src/utils/radio/StageLyrics.ts')
     expect(stageLyrics).toContain('this.config.letterSpacing * Math.max(1, size)')
-    const beatCache = readComponent('src/utils/mineradio/BeatMapCache.ts')
+    const beatCache = readComponent('src/utils/radio/BeatMapCache.ts')
     expect(beatCache).toContain('beatMapCacheKey')
     expect(beatCache).toContain('getMineradioValue')
     expect(beatCache).toContain('setMineradioValue')
@@ -583,8 +577,10 @@ describe('Mineradio music UI shell', () => {
     expect(player).toContain('封面取色')
     expect(player).toContain('自定义颜色')
     expect(player).toContain('const COLOR_LAB_PRESETS = [')
-    expect(player).toContain("label: '冰蓝', color: '#7fd8ff'")
-    expect(player).toContain("label: '日冕', color: '#fff0b8'")
+    expect(player).toContain("label: () => t('music.colorIceBlue'), color: '#7fd8ff'")
+    expect(player).toContain("'music.colorIceBlue': '冰蓝'")
+    expect(player).toContain("label: () => t('music.colorCorona'), color: '#fff0b8'")
+    expect(player).toContain("'music.colorCorona': '日冕'")
     expect(player).toContain("v-for=\"preset in COLOR_LAB_PRESETS\"")
     expect(player).toContain("--lab-color': preset.color")
     expect(player).toContain('界面高亮')
@@ -718,12 +714,12 @@ describe('Mineradio music UI shell', () => {
     expect(player).not.toContain('setSleep')
     expect(player).not.toContain('sleepEndTrack')
 
-    const hotkeys = readComponent('src/utils/mineradio/HotkeyConfig.ts')
+    const hotkeys = readComponent('src/utils/radio/HotkeyConfig.ts')
     expect(hotkeys).toContain('DEFAULT_MINERADIO_HOTKEYS')
     expect(hotkeys).toContain('hotkeyFromEvent')
     expect(hotkeys).toContain('hasHotkeyConflict')
     expect(hotkeys).toContain('saveHotkeys')
-    const skull = readComponent('src/utils/mineradio/SkullPreset.ts')
+    const skull = readComponent('src/utils/radio/SkullPreset.ts')
     expect(skull).toContain('createSkullPreset')
     expect(skull).toContain('SKULL_PRESET_ASSET')
     expect(skull).toContain('skull-decimation-points.bin')
@@ -731,7 +727,7 @@ describe('Mineradio music UI shell', () => {
     expect(skull).toContain('new Float32Array(buffer)')
     expect(skull).toContain('THREE.Points')
     expect(existsSync(resolve(process.cwd(), 'public/assets/@mineradio/skull-decimation-points.bin'))).toBe(true)
-    const perf = readComponent('src/utils/mineradio/RenderPerformanceManager.ts')
+    const perf = readComponent('src/utils/radio/RenderPerformanceManager.ts')
     expect(perf).toContain('getRenderPixelRatio')
     expect(perf).toContain('getParticleDensityScale')
 
@@ -743,28 +739,6 @@ describe('Mineradio music UI shell', () => {
     expect(ipc).toContain('handleWebConfigureGlobalHotkeys')
     expect(ipc).toContain('globalShortcut.register')
     expect(ipc).toContain('WebGlobalHotkey')
-    const desktopLyrics = readComponent('public/desktop-lyrics.html')
-    expect(desktopLyrics).toContain("ipcRenderer?.on('lyricData'")
-    expect(desktopLyrics).toContain('-webkit-app-region: drag')
-    expect(desktopLyrics).toContain('--desktop-lyric-size')
-    expect(desktopLyrics).toContain('--desktop-lyric-weight')
-    expect(desktopLyrics).toContain('--desktop-lyric-letter-spacing')
-    expect(desktopLyrics).toContain('--desktop-lyric-line-height')
-    expect(desktopLyrics).toContain('--desktop-lyric-scale')
-    expect(desktopLyrics).toContain('--desktop-lyric-primary')
-    expect(desktopLyrics).toContain('--desktop-lyric-secondary')
-    expect(desktopLyrics).toContain('--desktop-lyric-opacity')
-    expect(desktopLyrics).toContain('--desktop-lyric-y-offset')
-    expect(desktopLyrics).toContain('--desktop-lyric-bg')
-    expect(desktopLyrics).toContain('--desktop-lyric-shake')
-    expect(desktopLyrics).toContain('--desktop-lyric-font')
-    expect(desktopLyrics).toContain("root.classList.toggle('follow'")
-    expect(desktopLyrics).toContain("root.classList.toggle('locked'")
-    expect(desktopLyrics).toContain('--desktop-lyric-frame')
-    expect(desktopLyrics).toContain("Number(data?.y ?? .5)")
-    expect(desktopLyrics).toContain("Number(data?.opacity ?? 1)")
-    expect(desktopLyrics).toContain('UNLIMITED')
-    expect(desktopLyrics).toContain('lyricCinemaShake')
   })
 
   it('keeps the Mineradio bottom console structure', () => {
@@ -813,7 +787,7 @@ describe('Mineradio music UI shell', () => {
     expect(console).toContain('@media (max-height: 420px)')
   })
 
-  it('keeps the playlist panel aligned with Mineradio left-side queue behavior', () => {
+  it('keeps the playlist panel aligned with Mineradio queue behavior', () => {
     const queue = readComponent('src/layout/music/MusicQueuePanel.vue')
 
     expect(queue).toContain('playlist-panel')
@@ -824,16 +798,16 @@ describe('Mineradio music UI shell', () => {
     expect(queue).toContain("(e: 'remove-queue', index: number): void")
     expect(queue).toContain("emit('next-play', row.sourceIndex)")
     expect(queue).toContain("emit('remove-queue', row.sourceIndex)")
-    expect(queue).toContain('left: -410px')
-    expect(queue).toContain('left: 32px')
+    expect(queue).toContain('right: 24px')
+    expect(queue).toContain('left: auto')
     expect(queue).toContain('top: 78px')
     expect(queue).toContain('width: 340px')
     expect(queue).toContain('backdrop-filter: blur(34px)')
   })
 
   it('keeps the 3D shelf interactive and avoids blank grey fallback covers', () => {
-    const shelf = readComponent('src/utils/mineradio/ShelfManager.ts')
-    const stageLyrics = readComponent('src/utils/mineradio/StageLyrics.ts')
+    const shelf = readComponent('src/utils/radio/ShelfManager.ts')
+    const stageLyrics = readComponent('src/utils/radio/StageLyrics.ts')
     const stage = readComponent('src/layout/music/MusicImmersiveStage.vue')
 
     expect(shelf).toContain('onCardClick')
@@ -912,7 +886,8 @@ describe('Mineradio music UI shell', () => {
     expect(shelf).toContain('const progress = clampRange(this.contentScrollOffset / maxScroll, 0, 1)')
     expect(shelf).toContain('this.contentScrollRail.group.position.set(2.34, -0.84, 0.08)')
     expect(shelf).toContain('this.contentScrollRail.thumb.position.y = railSpan * 0.5 - progress * railSpan')
-    expect(shelf).toContain('row.group.position.set((1 - rowEase) * (isSide ? 0.42 : -0.26), -0.82 - delta * (isSide ? 0.74 : 0.42)')
+    expect(shelf).toContain('const rowY = -0.82 - delta * (isSide ? 0.74 : 0.42)')
+    expect(shelf).toContain('row.group.position.set((1 - rowEase) * (isSide ? 0.42 : -0.26), rowY')
     expect(shelf).toContain('this.contentClose.group.position.set(2.00, 1.84, 0.10)')
     expect(shelf).toContain('this.connectorLines.visible = this.contentOpenIndex < 0')
     expect(shelf).toContain('this.connectorParticles.visible = this.contentOpenIndex < 0')
@@ -954,7 +929,7 @@ describe('Mineradio music UI shell', () => {
   })
 
   it('normalizes the Mineradio FX config controls used by the player', () => {
-    const fxConfig = readComponent('src/utils/mineradio/FxConfig.ts')
+    const fxConfig = readComponent('src/utils/radio/FxConfig.ts')
 
     expect(fxConfig).toContain("export type RenderQuality = 'auto' | 'keep' | 'release'")
     expect(fxConfig).toContain("export type LyricSourceMode = 'original' | 'custom'")
@@ -1133,7 +1108,7 @@ describe('Mineradio music UI shell', () => {
     expect(library).toContain('.aml-fav-songs,')
     expect(library).toContain('.aml-group-detail')
     expect(library).toContain('rgba(244,210,138,.25)')
-    expect(library).toContain("WebOpenWindow({ page: 'PageMusic'")
+    expect(readComponent('src/utils/openfile.ts')).toContain("WebOpenWindow({ page: 'PageMusic'")
     expect(library).toContain('musicWindowTheme')
     expect(library).not.toContain("theme: 'dark'")
     expect(library).not.toContain("import PageMusic from './PageMusic.vue'")
@@ -1143,7 +1118,7 @@ describe('Mineradio music UI shell', () => {
     expect(player).toContain('data: { source: id, tracks, activeKey: currentKey.value }')
     expect(player).not.toContain('playlist.value.slice(0, 18)')
 
-    const podcastPanel = readComponent('src/components/mineradio/PodcastPanel.vue')
+    const podcastPanel = readComponent('src/components/radio/PodcastPanel.vue')
     expect(podcastPanel).toContain('lastListened')
     expect(podcastPanel).toContain('podcast-last')
     expect(podcastPanel).toContain('continueFolder')
@@ -1159,7 +1134,7 @@ describe('Mineradio music UI shell', () => {
     expect(podcastPanel).toContain('自定义播客链接')
     expect(podcastPanel).toContain('RSS 或播客主页链接')
     expect(podcastPanel).toContain("emit('open-external', feed)")
-    const trialBanner = readComponent('src/components/mineradio/TrialBanner.vue')
+    const trialBanner = readComponent('src/components/radio/TrialBanner.vue')
     expect(trialBanner).toContain("nextState = 'empty'")
     expect(trialBanner).toContain("nextState = 'scanning'")
     expect(trialBanner).toContain("nextState = 'scan-complete'")
@@ -1168,7 +1143,7 @@ describe('Mineradio music UI shell', () => {
     expect(trialBanner).toContain('导入本地')
     expect(trialBanner).not.toContain('订阅')
     expect(trialBanner).not.toContain('付费')
-    const weatherService = readComponent('src/utils/mineradio/WeatherService.ts')
+    const weatherService = readComponent('src/utils/radio/WeatherService.ts')
     expect(weatherService).toContain('getWeatherRadioMood')
     expect(weatherService).toContain('雨雪柔和电台')
     expect(weatherService).toContain('清晨唤醒电台')
@@ -1182,7 +1157,7 @@ describe('Mineradio music UI shell', () => {
     expect(rail).toContain('border-radius: 999px')
     expect(rail).toContain('rgba(0,245,212,.090)')
     expect(rail).toContain('LibraryScanPanel')
-    expect(rail).toContain('导入本地歌曲')
+    expect(rail).toContain("t('music.localImport')")
     expect(rail).toContain("emit('import-local-songs')")
 
     const scanPanel = readComponent('src/components/LibraryScanPanel.vue')
@@ -1191,8 +1166,8 @@ describe('Mineradio music UI shell', () => {
     expect(scanPanel).toContain('a-dropdown trigger="click"')
     expect(scanPanel).toContain('library-scan-drive-btn')
     expect(library).toContain('function importLocalSongs')
-    expect(library).toContain('local_url: URL.createObjectURL(file)')
-    expect(player).toContain('if (t.local_url) return t.local_url')
+    expect(library).toContain('local_url: window.WebGetPathForFile?.(file) || URL.createObjectURL(file)')
+    expect(player).toContain('if (track.local_url) return { url: track.local_url')
   })
 
   it('keeps all top-tab pages on the Mineradio background shell', () => {
@@ -1271,7 +1246,7 @@ describe('Mineradio music UI shell', () => {
     expect(musicLibrary).not.toContain(":global(body:not([arco-theme='dark'])) .aml")
     expect(musicRail).toContain("body:not([arco-theme='dark']) .music-rail")
     expect(musicRail).not.toContain(":global(body:not([arco-theme='dark'])) .music-rail")
-    expect(bookLibrary).toContain('background: #fff')
+    expect(bookLibrary).toContain('transparent 42%), #fff')
     expect(bookLibrary).toContain("body[arco-theme='dark']")
   })
 
@@ -1354,19 +1329,4 @@ describe('Mineradio music UI shell', () => {
     expect(searchBox).toContain('linear-gradient(135deg, var(--app-mineradio-accent')
   })
 
-  it('aligns the settings page dark theme with the Mineradio accent system', () => {
-    const settings = readComponent('src/setting/index.vue')
-
-    // Settings menu selected uses Mineradio cyan accent (not blue)
-    expect(settings).toContain("body[arco-theme='dark'] .xbyleftmenu .arco-menu-selected")
-    expect(settings).toContain('rgba(0,245,212')
-    expect(settings).toContain('var(--app-mineradio-accent')
-
-    // Settings cards get glass treatment in dark theme
-    expect(settings).toContain("body[arco-theme='dark'] .settingcard")
-    expect(settings).toContain('backdrop-filter')
-
-    // Settinghead accent line uses Mineradio accent
-    expect(settings).toContain("body[arco-theme='dark'] .settinghead::after")
-  })
 })

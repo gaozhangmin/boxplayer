@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { IPageMusic } from './appstore'
+import { IPageMusic, IPageMusicTrack } from './appstore'
 
 export interface MusicPlayerState {
   title: string
@@ -26,6 +26,8 @@ export default defineStore('musicplayer', {
     command: '' as MusicPlayerCommand | '',
     loadSeq: 0,
     pendingLoad: null as IPageMusic | null,
+    nextSeq: 0,
+    pendingNext: [] as IPageMusicTrack[],
     state: {
       title: '',
       artist: '',
@@ -53,6 +55,11 @@ export default defineStore('musicplayer', {
     loadMusic(pageMusic: IPageMusic) {
       this.pendingLoad = pageMusic
       this.loadSeq += 1
+    },
+    /** Insert tracks right after the current one in the active queue ("Play Next"). */
+    queueNext(tracks: IPageMusicTrack[]) {
+      this.pendingNext = tracks.slice()
+      this.nextSeq += 1
     },
     togglePanel() {
       this.panelVisible = !this.panelVisible

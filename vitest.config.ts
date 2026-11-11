@@ -19,6 +19,7 @@ export default defineConfig({
     include: [
       'electron/main/core/__tests__/**/*.test.ts',
       'electron/main/aria/__tests__/**/*.test.ts',
+      'electron/main/netShare/__tests__/**/*.test.ts',
       'shared/__tests__/**/*.test.ts',
       'src/down/motrix-integration/**/*.test.ts',
       'src/down/integration/**/*.test.ts',

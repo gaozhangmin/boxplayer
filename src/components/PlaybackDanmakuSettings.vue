@@ -31,5 +31,6 @@ const set = (key: string, next: number) => {
 <style scoped>
 .playback-danmaku-settings { display:grid; color:inherit; }
 .playback-danmaku-settings :deep(.subtitle-number-row) { min-height:54px; }
+.playback-danmaku-settings :deep(input) { background:transparent; }
 .playback-danmaku-settings :deep(.subtitle-number-row:last-child) { border-bottom:0; }
 </style>

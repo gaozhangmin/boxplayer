@@ -1400,6 +1400,7 @@
 </template>
 
 <script setup lang="ts">
+import { openVideoPage } from '../utils/videoPlayback'
 import { generalPreferences, displayScopeAllows } from '../utils/seriesVersionPreferences'
 import MediaPosterPlaceholder from '../components/MediaPosterPlaceholder.vue'
 import MediaLoadingIndicator from '../components/MediaLoadingIndicator.vue'
@@ -2681,7 +2682,7 @@ const openMediaServerPlayback = async (
     settingStore.uiMediaServerCustomDeviceProfile,
     settingStore.uiMediaServerBitrateTestSize
   )
-  window.WebOpenWindow?.({
+  void openVideoPage({
     page: 'PageVideo',
     theme: 'dark',
     data: {
@@ -9750,4 +9751,18 @@ body:not([arco-theme='dark']) #xbybody .media-server-workspace .detail-backdrop-
 #xbybody .media-server-workspace .detail-play-row:not(.has-version) {
   grid-template-columns: minmax(0, 1fr);
 }
+</style>
+
+<style scoped>
+#xbybody .media-server-workspace .detail-primary-play.has-resume {
+  color: #111 !important;
+  background: rgba(160, 157, 164, .35) !important;
+  backdrop-filter: blur(16px);
+}
+#xbybody .media-server-workspace .detail-primary-play > .detail-play-progress {
+  background: #fff;
+  border-right: 0;
+}
+.detail-episode-progress { height: 3px; bottom: 8px; }
+.detail-episode-progress-bar { background: #fff; }
 </style>

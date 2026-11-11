@@ -1,4 +1,5 @@
 <script setup lang='ts'>
+import { openVideoPage } from '../utils/videoPlayback'
 import AppUpdateNotice from '../components/AppUpdateNotice.vue'
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import {
@@ -177,7 +178,7 @@ function openSystemFile(payload: { filePath: string; fileUrl: string }) {
   if (!filePath || !fileUrl || !fileName) return
 
   if (SYSTEM_VIDEO_EXTENSIONS.has(ext)) {
-    window.WebOpenWindow?.({
+    void openVideoPage({
       page: 'PageVideo',
       theme: appStore.appTheme,
       data: { user_id: 'local', drive_id: 'local', file_id: filePath, parent_file_id: '', parent_file_name: '', file_name: fileName, html: '', encType: '', password: '', expire_time: 0, play_cursor: 0 }

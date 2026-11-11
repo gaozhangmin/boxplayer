@@ -1432,7 +1432,7 @@ watch(chapters, (nextChapters) => {
             <section class="mpv-side-section">
               <span class="mpv-side-label">播放</span>
               <label class="mpv-side-select-row"><span>速度</span><select :value="speed" aria-label="倍速" @change="handleSpeedChange"><option v-for="option in speedOptions" :key="option" :value="option">{{ option }}x</option></select></label>
-              <label class="mpv-side-select-row"><span>清晰度</span><select v-if="qualityOptions.length > 1" :value="props.currentQuality" aria-label="清晰度" @change="handleQualityChange"><option v-for="item in qualityOptions" :key="item.quality || item.html || item.name" :value="item.quality">{{ item.html || item.name || item.label || item.quality }}</option></select><b v-else>{{ qualityLabel }}</b></label>
+              <label v-if="qualityOptions.length > 1" class="mpv-side-select-row"><span>清晰度</span><select v-if="qualityOptions.length > 1" :value="props.currentQuality" aria-label="清晰度" @change="handleQualityChange"><option v-for="item in qualityOptions" :key="item.quality || item.html || item.name" :value="item.quality">{{ item.html || item.name || item.label || item.quality }}</option></select><b v-else>{{ qualityLabel }}</b></label>
             </section>
             <section class="mpv-side-section">
               <span class="mpv-side-label">视频处理</span>

@@ -92,6 +92,9 @@ function readableTokenLabel(token: ITokenInfo): string {
     case '189': return `天翼云盘 · ${token.nick_name || token.user_name || ''}`.trim()
     case 'webdav': return `WebDAV · ${token.nick_name || token.user_name || ''}`.trim()
     case 'alist': return `AList · ${token.nick_name || token.user_name || ''}`.trim()
+    case 'smb': return `SMB · ${token.nick_name || token.user_name || ''}`.trim()
+    case 'nfs': return `NFS · ${token.nick_name || token.user_name || ''}`.trim()
+    case 'ftp': return `FTP · ${token.nick_name || token.user_name || ''}`.trim()
     default: return token.nick_name || token.user_name || token.user_id
   }
 }
@@ -187,10 +190,10 @@ class BookScanner {
       return
     }
 
-    if (token.tokenfrom === 'webdav' || token.tokenfrom === 'alist' || isWebDavDrive(token.default_drive_id)) {
+    if (['webdav', 'alist', 'smb', 'nfs', 'ftp'].includes(token.tokenfrom) || isWebDavDrive(token.default_drive_id)) {
       const driveId = token.default_drive_id || `webdav:${token.access_token}`
       const connection = getWebDavConnection(getWebDavConnectionId(driveId))
-      if (!connection) throw new Error('WebDAV 连接不存在或已被移除')
+      if (!connection) throw new Error('远程文件来源连接不存在或已被移除')
       const rootFolder: IAliGetFileModel = {
         ...({} as any),
         file_id: '/',

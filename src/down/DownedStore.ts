@@ -1,3 +1,4 @@
+import { openVideoPage } from '../utils/videoPlayback'
 import { Modal } from '@arco-design/web-vue'
 import { h } from 'vue'
 import fuzzysort from 'fuzzysort'
@@ -296,7 +297,7 @@ const useDownStore = defineStore('down', {
         try {
           if (fs.existsSync(localFilePath)) {
             if (isLocalVideoPath(localFilePath)) {
-              window.WebOpenWindow({ page: 'PageVideo', data: buildLocalVideoPage(localFilePath), theme: 'dark' })
+              void openVideoPage({ page: 'PageVideo', data: buildLocalVideoPage(localFilePath), theme: 'dark' })
             } else {
               window.Electron.shell.openPath(localFilePath)
             }

@@ -4,7 +4,7 @@ import { Checkbox as AntdCheckbox } from 'ant-design-vue'
 import { useUserStore, useWinStore } from '../../store'
 import UserDAL from '../../user/userdal'
 import message from '../../utils/message'
-import { getWebDavConnections } from '../../utils/webdavClient'
+import { getRemoteSourceLabel, getWebDavConnections } from '../../utils/webdavClient'
 import { deleteDriveLargeFiles, scanDriveLargeFiles, type LargeFileItem, type LargeFileScanMode } from '../../utils/drive-tools/largeFiles'
 import type { DuplicateDriveTarget } from '../../utils/drive-tools/duplicates'
 import { driveToolDriveIdForPlatform, driveToolRootIdFor } from '../../utils/drive-tools/directLinks'
@@ -54,7 +54,7 @@ const loadDriveOptions = async () => {
     }
   }
   for (const connection of getWebDavConnections()) {
-    options.push({ userId: connection.id, driveId: `webdav:${connection.id}`, rootId: '/', name: `${connection.name} / WebDAV` })
+    options.push({ userId: connection.id, driveId: `webdav:${connection.id}`, rootId: '/', name: `${connection.name} / ${getRemoteSourceLabel(connection.kind)}` })
   }
   driveOptions.value = options
   if (!selectedDriveKeys.value.length && options.length) selectedDriveKeys.value = [driveKey(options[0])]

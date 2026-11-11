@@ -1,0 +1,49 @@
+diff --git a/dist/client.js b/dist/client.js
+index 8998d79e324d0ea2d2a0d8b96f9bfcb70bcb582f..f8acf6976b4aa203385c6e9da331386b3f0fdb99 100644
+--- a/dist/client.js
++++ b/dist/client.js
+@@ -17,6 +17,10 @@ import { encodeSetInfoRequest, encodeFileRenameInformation } from "./wire/struct
+ import { InfoType, FileInformationClass } from "./wire/structs/queryInfo.js";
+ import { SmbCommand, Cipher, Capability, SecurityMode, isSuccess, statusName } from "./wire/commands.js";
+ import { SmbError } from "./errors.js";
++import { getCiphers } from "node:crypto";
++// Electron's BoringSSL has no AES-CCM; offering it lets the server pick a cipher we cannot use ("Unknown cipher").
++const runtimeCiphers = new Set(getCiphers());
++const cipherSupported = (id) => runtimeCiphers.has(id === Cipher.AES_128_GCM ? "aes-128-gcm" : id === Cipher.AES_256_GCM ? "aes-256-gcm" : id === Cipher.AES_128_CCM ? "aes-128-ccm" : "aes-256-ccm");
+ import { encodeWriteRequest, decodeWriteResponse } from "./wire/structs/write.js";
+ import { encodeReadRequest, decodeReadResponse } from "./wire/structs/read.js";
+ import { encodeBindRequest, encodeRequest as rpcRequest, parseResponse as rpcResponse, encodeNetrShareEnumRequest, parseNetrShareEnumResponse, SRVSVC_UUID, SRVSVC_MAJOR, SRVSVC_MINOR, } from "./rpc/srvsvc.js";
+@@ -40,7 +44,7 @@ export class Client {
+         const signing = this.opts.signing ?? "if-offered";
+         const ciphers = encryption === "disabled"
+             ? []
+-            : [Cipher.AES_128_GCM, Cipher.AES_128_CCM, Cipher.AES_256_GCM, Cipher.AES_256_CCM];
++            : [Cipher.AES_128_GCM, Cipher.AES_128_CCM, Cipher.AES_256_GCM, Cipher.AES_256_CCM].filter(cipherSupported);
+         // Capability.ENCRYPTION signals encryption support to SMB 3.0 / 3.0.2 servers,
+         // which don't use the EncryptionCapabilities negotiate context.
+         const capabilities = ciphers.length > 0 ? Capability.LARGE_MTU | Capability.ENCRYPTION : Capability.LARGE_MTU;
+diff --git a/package.json b/package.json
+index 29d4fcfae4c8bc63240af58d2613447b5cac80ef..c97e1a1c88b877ffb71ad171c7d0ed3528910e07 100644
+--- a/package.json
++++ b/package.json
+@@ -26,13 +26,19 @@
+   "bugs": {
+     "url": "https://github.com/euricojardim/smb3-client/issues"
+   },
+-  "engines": { "node": ">=20" },
++  "engines": {
++    "node": ">=20"
++  },
+   "main": "./dist/index.js",
+   "types": "./dist/index.d.ts",
+   "exports": {
+     ".": {
+       "types": "./dist/index.d.ts",
+       "import": "./dist/index.js"
++    },
++    "./dist/*": {
++      "types": "./dist/*.d.ts",
++      "import": "./dist/*.js"
+     }
+   },
+   "files": [

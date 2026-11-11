@@ -5,7 +5,7 @@ import { IAliFileItem, IAliGetFileModel } from './alimodels'
 import AliDirFileList, { IAliFileResp } from './dirfilelist'
 import { listProviderItems } from '../drive/providerList'
 import UserDAL from '../user/userdal'
-import { resolveDriveProvider } from '../utils/driveProvider'
+import { isRemoteSourceProvider, resolveDriveProvider } from '../utils/driveProvider'
 
 export default class AliTrash {
 
@@ -68,7 +68,7 @@ export default class AliTrash {
 
     const route = resolveDriveProvider(user_id, drive_id, UserDAL.GetUserToken(user_id)?.tokenfrom)
     if (!route.isValid) return dir
-    if (route.provider !== 'aliyun' && route.provider !== 'webdav' && route.provider !== 'alist') {
+    if (route.provider !== 'aliyun' && !isRemoteSourceProvider(route.provider)) {
       const result = await listProviderItems(route.provider, user_id, drive_id, dirID, type !== 'folder')
       if (!result) return dir
       dir.items = max > 0 ? result.items.slice(0, max) : result.items
@@ -151,7 +151,7 @@ export default class AliTrash {
   static async ApiFileListOnePageAria(orderby: string, order: string, dir: IAliFileResp) {
     const route = resolveDriveProvider(dir.m_user_id, dir.m_drive_id, UserDAL.GetUserToken(dir.m_user_id)?.tokenfrom)
     if (!route.isValid) return false
-    if (route.provider !== 'aliyun' && route.provider !== 'webdav' && route.provider !== 'alist') {
+    if (route.provider !== 'aliyun' && !isRemoteSourceProvider(route.provider)) {
       const result = await listProviderItems(route.provider, dir.m_user_id, dir.m_drive_id, dir.dirID, true, dir.next_marker)
       if (!result) return false
       AliTrash.appendProviderItems(dir, result.items)

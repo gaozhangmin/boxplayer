@@ -347,7 +347,7 @@ import { fetchMediaServerLoginProfile, signInMediaServer } from '../../media-ser
 import { createPlexServerConfigs, signInPlex, verifyPlexServerConfig } from '../../media-server/plexAuth'
 import { t } from '../../i18n'
 
-const props = defineProps<{ formOnly?: boolean; embedded?: boolean; defaultType?: MediaServerType }>()
+const props = defineProps<{ formOnly?: boolean; embedded?: boolean; defaultType?: MediaServerType; editServerId?: string }>()
 const registry = useMediaServerRegistryStore()
 type ListOption = 'showAddress' | 'showMediaStatistics' | 'showConnectionStatus' | 'showWatchTime'
 const serverStatistics = ref<Record<string, MediaServerHomeStatistics>>({})
@@ -370,8 +370,9 @@ const emit = defineEmits<{ (event: 'open-server', id: string): void; (event: 'cl
 const MEDIA_SERVER_ICON_SET_URLS_KEY = 'MediaServer_IconSetUrls'
 const showServerModal = ref(!!props.embedded)
 const showPlexResourcesModal = ref(false)
-const editingServer = ref<MediaServerConfig | null>(null)
-const pendingType = ref<MediaServerType>(props.defaultType || 'jellyfin')
+// Embedded editor opened from 已存储的共享 starts on that server instead of an empty add form.
+const editingServer = ref<MediaServerConfig | null>((props.editServerId && registry.servers.find((item) => item.id === props.editServerId)) || null)
+const pendingType = ref<MediaServerType>(editingServer.value?.type || props.defaultType || 'jellyfin')
 const pendingPlexName = ref('')
 const submitting = ref(false)
 watch([showServerModal, showPlexResourcesModal, submitting], ([form, resources, busy]) => {

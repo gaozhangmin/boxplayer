@@ -1,3 +1,5 @@
+import { openVideoPage } from './videoPlayback'
+import { buildLocalVideoPage } from '../down/integration/localVideoPlayback'
 import { IAliGetFileModel } from '../aliapi/alimodels'
 import AliArchive from '../aliapi/archive'
 import AliFile from '../aliapi/file'
@@ -185,6 +187,10 @@ export async function menuOpenFile(
     return
   }
   if (isVideoFile(file)) {
+    if (file.drive_id === 'local') {
+      await openVideoPage({ page: 'PageVideo', data: { ...buildLocalVideoPage(file.file_id), custom_playlist: options?.customPlaylist, playlist_loop: options?.playlistLoop }, theme: 'dark' })
+      return
+    }
     const token = await resolveTokenForFile(file)
     if (!token || !token.access_token) {
       message.error('在线预览失败 账号失效，操作取消')

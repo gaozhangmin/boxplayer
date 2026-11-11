@@ -30,7 +30,7 @@ export const PROVIDER_CAPABILITIES: Record<string, ProviderCapabilityManifest> =
 
 export function normalizeProviderPlatform(platform?: string): string {
   const value = String(platform || '').toLowerCase()
-  if (value === 'alist') return 'webdav'
+  if (value === 'alist' || value === 'smb' || value === 'nfs' || value === 'ftp') return 'webdav'
   if (value === '123') return 'cloud123'
   if (value === '139') return 'cloud139'
   if (value === '189') return 'cloud189'

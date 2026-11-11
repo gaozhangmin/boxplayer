@@ -9,12 +9,14 @@ import { ShowError } from './dialog'
 import { getAsarPath, getStaticPath, getUserDataPath } from '../utils/mainfile'
 import { registerMediaImageCacheIpc } from '../mediaImageCache'
 import { registerTraktIpc } from '../trakt'
+import { registerNetShareIpc } from '../netShare/ipc'
 import { createHash } from 'crypto'
 import { getMotrixApplicationRpcPort } from '../aria/runtime'
 import { request as httpsRequest } from 'https'
 import { requestPanHub, requestPanHubStream } from './panHubRequest'
 import { embeddedMpvBridge } from '../mpv/embeddedMpvBridge'
 import { registerSeekThumbnailIpc } from '../mpv/seekThumbnail'
+import { registerLocalVideoPreviewIpc } from '../mpv/localVideoPreview'
 import { registerMusicAudioIpc } from '../mpv/musicAudioBridge'
 import {
   getBookMeta,
@@ -227,6 +229,7 @@ export default class ipcEvent {
     }
     registerMediaImageCacheIpc()
     registerTraktIpc()
+    registerNetShareIpc()
     this.handleReedy()
     this.handleMediaAcquisition()
     this.handleDocumentReading()
@@ -236,6 +239,7 @@ export default class ipcEvent {
     ipcMain.handle('MpvEmbedded:getCapability', async () => embeddedMpvBridge.getCapability())
     registerMusicAudioIpc()
     registerSeekThumbnailIpc()
+    registerLocalVideoPreviewIpc()
     ipcMain.handle('MpvEmbedded:load', async (event, data) => embeddedMpvBridge.load(data || {}, event.sender))
     ipcMain.handle('MpvEmbedded:control', async (_event, data) => embeddedMpvBridge.control(data || {}))
     ipcMain.handle('MpvEmbedded:getStatus', async () => embeddedMpvBridge.getStatus())

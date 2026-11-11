@@ -101,6 +101,7 @@ import AliDirFileList from '../aliapi/dirfilelist'
 import { apiBaiduFileList, mapBaiduFileToAliModel } from '../cloudbaidu/dirfilelist'
 import { getWebDavConnection, getWebDavConnectionId, isWebDavDrive, listWebDavDirectory } from '../utils/webdavClient'
 import { resolveDriveFileToken } from '../drive/account'
+import { listLocalDirectory } from '../utils/videoFile'
 
 const mediaStore = useMediaLibraryStore()
 const panTreeStore = usePanTreeStore()
@@ -406,24 +407,7 @@ const loadLocalFolderContent = async (folder: MediaLibraryFolder) => {
       return
     }
 
-    const entries = await fs.promises.readdir(folderPath, { withFileTypes: true })
-    const items = []
-    for (const entry of entries) {
-      const fullPath = path.join(folderPath, entry.name)
-      const stat = await fs.promises.stat(fullPath)
-      items.push({
-        name: entry.name,
-        file_id: fullPath,
-        isDir: entry.isDirectory(),
-        ext: entry.isDirectory() ? '' : path.extname(entry.name).replace('.', ''),
-        size: stat.size || 0,
-        category: entry.isDirectory() ? 'folder' : 'video',
-        description: '',
-        drive_id: 'local',
-        parent_file_id: folderPath
-      })
-    }
-
+    const items = await listLocalDirectory(folderPath)
     mediaLibrary.value?.showFolderFiles(items, folder)
   } catch (error) {
     console.error('加载本地文件夹失败:', error)

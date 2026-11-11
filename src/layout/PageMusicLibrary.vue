@@ -728,7 +728,7 @@ defineExpose({ playFromList, selectTab })
 
 <template>
   <div class="aml">
-    <MusicLibraryBrowser v-if="!showSources" :tracks="musicStore.tracks" :total="musicStore.totalCount" :loading="musicStore.isLoadingPage" :has-more="musicStore.hasMoreTracks" @load-all="musicStore.loadAllTracks()" @load-more="loadMoreTracks" @play="playPageTracks" @sources="showSources = true" />
+    <MusicLibraryBrowser v-if="!showSources" :tracks="musicStore.tracks" :total="musicStore.totalCount" :loading="musicStore.isLoadingPage" :has-more="musicStore.hasMoreTracks" @load-all="musicStore.loadAllTracks()" @load-more="loadMoreTracks" @play="playPageTracks" @sources="showSources = true" @import-local="importLocalSongs" />
     <button v-if="showSources" class="music-source-back" @click="showSources = false"><ArrowLeft :size="18" /> 返回音乐</button>
     <div v-if="showSources" class="aml-main-row">
       <MusicLibraryRail
@@ -852,7 +852,7 @@ defineExpose({ playFromList, selectTab })
                 </div>
               </section>
 
-              <section class="aml-hscroll-section aml-home-section-panel aml-home-tile-panel">
+              <section v-if="musicStore.recentlyAdded.length" class="aml-hscroll-section aml-home-section-panel aml-home-tile-panel">
                 <div class="aml-home-section-head">
                   <div class="aml-section-label">{{ tt('media.recentlyAdded') }}</div>
                   <div class="aml-home-section-note">RECENT CLOUD TRACKS</div>

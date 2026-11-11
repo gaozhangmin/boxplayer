@@ -502,18 +502,20 @@ const PlayerUtils = {
     const directInvocation = buildDirectPlayerInvocation(currentPlayerPlatform(), command)
     // 构造播放参数
     let { file, subTitleFile, rawData, quality } = otherArgs
-    let encType = getEncType(file)
+    const resolvedSource = otherArgs.resolvedSource === true
+    let encType = resolvedSource ? '' : getEncType(file)
     let play_url = ''
-    let play_referer = token.open_api_access_token ? 'https://openapi.alipan.com/' : 'https://www.aliyundrive.com/'
+    let play_referer = resolvedSource ? '' : token.open_api_access_token ? 'https://openapi.alipan.com/' : 'https://www.aliyundrive.com/'
     let {
       uiVideoEnablePlayerList,
       uiVideoPlayerExit,
       uiVideoPlayerHistory,
       uiVideoPlayerParams
     } = useSettingStore()
+    if (resolvedSource) uiVideoEnablePlayerList = false
     let playerArgs: any = []
     let options: SpawnOptions = { detached: !uiVideoPlayerExit }
-    let subTitleUrl = ''
+    let subTitleUrl = resolvedSource ? otherArgs.subtitleUrl || '' : ''
     let rawHeaders: Record<string, string> = {}
     const headerFields = () => Object.entries(rawHeaders)
       .filter(([key, value]) => !!key && !!value)
@@ -532,13 +534,14 @@ const PlayerUtils = {
         rawHeaders = selectedQuality?.headers || rawData.headers || {}
       }
     }
+    if (resolvedSource) play_referer = Object.entries(rawHeaders).find(([key]) => key.toLowerCase() === 'referer')?.[1] || ''
     // 优先加载网盘内字幕文件
     if (subTitleFile && !subTitleFile.isDir) {
       subTitleUrl = await resolveExternalSubtitleUrl(token.user_id, subTitleFile)
     }
     // 获取播放进度
-    let play_cursor = 0
-    if (uiVideoPlayerHistory) {
+    let play_cursor = resolvedSource ? Math.max(0, Number(otherArgs.playCursor) || 0) : 0
+    if (uiVideoPlayerHistory && !resolvedSource) {
       let playCursorInfo = await PlayerUtils.getPlayCursor(token.user_id, file.drive_id, file.file_id)
       if (playCursorInfo) {
         play_cursor = playCursorInfo.play_cursor
@@ -551,7 +554,7 @@ const PlayerUtils = {
       playerArgs = [
         '/new',
         '/autoplay',
-        `/referer=${argsToStr(play_referer)}`,
+        ...(play_referer ? [`/referer=${argsToStr(play_referer)}`] : []),
         `/title=${argsToStr(file.name)}`
       ]
       if (!uiVideoEnablePlayerList) {
@@ -577,7 +580,7 @@ const PlayerUtils = {
         '--alang=[en,eng,zh,chi,chs,sc,zho]',
         '--slang=[zh,chi,chs,sc,zho,en,eng]',
         `--force-media-title=${argsToStr(file.name)}`,
-        `--referrer=${argsToStr(play_referer)}`,
+        ...(play_referer ? [`--referrer=${argsToStr(play_referer)}`] : []),
         `--title=${argsToStr(file.name)}`
       ]
       if (!uiVideoEnablePlayerList) {
@@ -632,7 +635,7 @@ const PlayerUtils = {
       }
       otherArgs = {}
     }
-    if (!encType && play_url) {
+    if (!resolvedSource && !encType && play_url) {
       let info: any = {
         user_id: token.user_id,
         drive_id: file.drive_id,
@@ -647,7 +650,9 @@ const PlayerUtils = {
       }
       await Db.saveValueObject('ProxyInfo', info)
     }
-    if (directMpvControl) {
+    if (directMpvControl && resolvedSource) {
+      this.commandSpawn(directInvocation.binary, [...directInvocation.args, ...playArgs], { ...options, shell: false, windowsVerbatimArguments: false }, exitCallBack)
+    } else if (directMpvControl) {
       await this.mpvPlayer(token, directInvocation.binary, [...directInvocation.args, ...playArgs], otherArgs, options, exitCallBack)
     } else {
       if (currentPlayerPlatform() === 'linux') {

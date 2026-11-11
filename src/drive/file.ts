@@ -26,6 +26,9 @@ export default class DriveFile {
       case 'aliyun':
       case 'webdav':
       case 'alist':
+      case 'smb':
+      case 'nfs':
+      case 'ftp':
         return AliFile.ApiFileDownloadUrl(userId, driveId, fileId, expireSec)
       case 'baidu': return getBaiduDownloadUrl(userId, driveId, fileId)
       case 'cloud123': return getCloud123DownloadUrl(userId, driveId, fileId)

@@ -8,7 +8,7 @@ export interface RemoteDriveAccount {
 }
 
 export const createRemoteDriveAccount = (connection: WebDavConnectionConfig): RemoteDriveAccount => {
-  const kind = connection.kind === 'alist' ? 'alist' : 'webdav'
+  const kind = connection.kind && ['alist', 'smb', 'nfs', 'ftp'].includes(connection.kind) ? connection.kind : 'webdav'
   const userId = `${kind}_${connection.id}`
   const driveId = `webdav:${connection.id}`
 

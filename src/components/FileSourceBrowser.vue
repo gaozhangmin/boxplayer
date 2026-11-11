@@ -17,7 +17,10 @@ import message from '../utils/message'
 import { modalDownload } from '../utils/modal'
 import type { MediaServerConfig } from '../types/mediaServer'
 import type { MediaServerCardItem } from '../types/mediaServerContent'
-import { getMediaServerLibraries, getMediaServerLibraryPagedItems, getMediaServerDownloadInfo, updateMediaServerFavoriteState } from '../media-server/contentGateway'
+import { getMediaServerLibraries, getMediaServerLibraryPagedItems, getMediaServerDownloadInfo, getMediaServerPlaybackInfo, updateMediaServerFavoriteState } from '../media-server/contentGateway'
+import { menuOpenFile } from '../utils/openfile'
+import { openVideoPage } from '../utils/videoPlayback'
+import getFileIcon from '../aliapi/fileicon'
 import { serverFolderFavorites, rememberServerFolderFavorite } from '../media-server/folderFavorites'
 const locale = useLocale()
 const props = defineProps<{ source?: { name: string; favorite?: boolean; driveServerId?: string; server?: MediaServerConfig; folder: IAliGetFileModel; drives?: Array<{ label: string; folder: IAliGetFileModel }> }; device?: boolean }>()
@@ -101,6 +104,25 @@ const allFolders = computed<Entry | undefined>(() => {
   return folder ? { name: t('source.allFolders'), directory: true, folder } : undefined
 })
 function isVideo(entry: Entry) { return !entry.directory && (/\.(mp4|mkv|avi|mov|m4v|webm|ts|m2ts|wmv|flv)$/i.test(entry.name) || entry.folder?.category === 'video' || !!entry.serverItem) }
+// Files open in place: video plays, audio goes to the music player, books to the reader.
+function localFileModel(entry: Entry): IAliGetFileModel {
+  const ext = (entry.name.split('.').pop() || '').toLowerCase()
+  const [category, icon] = getFileIcon('others', ext, ext, '', 0)
+  const parent = window.require('path').dirname(entry.path!)
+  return { name: entry.name, namesearch: entry.name.toLowerCase(), file_id: entry.path!, path: entry.path, drive_id: 'local', parent_file_id: parent, ext, mime_type: '', mime_extension: ext, category, icon, size: 0, sizeStr: '', time: Date.now(), timeStr: '', starred: false, isDir: false, thumbnail: '', description: '' } as unknown as IAliGetFileModel
+}
+async function playServerItem(server: MediaServerConfig, item: MediaServerCardItem) {
+  const playback = await getMediaServerPlaybackInfo(server, item.id, undefined, -1, -1, -1, settings.uiMediaServerVideoQuality, settings.uiMediaServerCompatibilityMode, settings.uiMediaServerCustomDeviceProfile, settings.uiMediaServerBitrateTestSize)
+  await openVideoPage({ page: 'PageVideo', theme: 'dark', data: { user_id: server.userId || '', drive_id: 'media_server', file_id: item.id, parent_file_id: '', parent_file_name: item.parentTitle || '', file_name: item.title, html: item.title, encType: '', password: '', expire_time: 0, play_cursor: playback.playCursorSeconds || 0, media_url: playback.url, media_headers: playback.headers, media_subtitle_sources: playback.subtitleSources || [], media_server_tracks_selectable: playback.tracksSelectable === true, media_server_id: server.id, media_server_item_id: item.id, media_server_play_session_id: playback.playSessionId || '' } as any })
+}
+async function openEntry(entry: Entry) {
+  if (entry.directory) { void load(entry); return }
+  try {
+    if (entry.serverItem && props.source?.server) await playServerItem(props.source.server, entry.serverItem)
+    else if (entry.folder) await menuOpenFile(entry.folder)
+    else if (entry.path) await menuOpenFile(localFileModel(entry))
+  } catch (e) { message.error(String(e)) }
+}
 async function download(entry: Entry) {
   const savePath = settings.AriaIsLocal ? settings.downSavePath : settings.ariaSavePath
   if (!savePath) { modalDownload(false); return }
@@ -189,7 +211,7 @@ watch(() => [props.source?.server?.id, (props.source?.folder as any)?.user_id, p
     <div v-if="loading" class="share-browser-status"><a-spin /></div>
     <div v-else-if="error" class="share-browser-status" role="alert">{{ error }}<a-button @click="load(history.at(-1), false)">重试</a-button></div>
     <div v-else-if="!entries.length" class="share-browser-status">暂无文件</div>
-    <div v-else class="share-browser-files"><div v-for="(entry, index) in entries" :key="index" class="source-file-row"><button class="source-file-name" :disabled="!entry.directory" @click="load(entry)"><Folder v-if="entry.directory" :size="22" /><File v-else :size="22" /><span>{{ entry.name }}</span></button><button v-if="entry.directory" class="source-star" :aria-label="isFavorite(entry) ? t('unified.removeFavoriteFolder') : t('unified.addToFavorites')" @click="toggleFavorite(entry)"><Star :size="20" :fill="isFavorite(entry) ? 'currentColor' : 'none'" /></button><button v-else-if="isVideo(entry)" class="source-download" aria-label="下载" @click="download(entry)"><Download :size="20" /></button></div></div>
+    <div v-else class="share-browser-files"><div v-for="(entry, index) in entries" :key="index" class="source-file-row"><button class="source-file-name" @click="openEntry(entry)"><Folder v-if="entry.directory" :size="22" /><File v-else :size="22" /><span>{{ entry.name }}</span></button><button v-if="entry.directory" class="source-star" :aria-label="isFavorite(entry) ? t('unified.removeFavoriteFolder') : t('unified.addToFavorites')" @click="toggleFavorite(entry)"><Star :size="20" :fill="isFavorite(entry) ? 'currentColor' : 'none'" /></button><button v-else-if="isVideo(entry)" class="source-download" aria-label="下载" @click="download(entry)"><Download :size="20" /></button></div></div>
     <a-modal modal-class="file-source-confirm-modal" :visible="!!pendingRemoval" :title="t('unified.removeFavoriteFolder')" :ok-text="t('unified.removeFavoriteFolder')" :ok-button-props="{ status: 'danger' }" :width="400" @ok="removeFavorite" @cancel="pendingRemoval = undefined">{{ pendingRemoval?.path ? t('source.removeLocalFavoriteConfirmation') : t('unified.removeFavoriteConfirmation') }}</a-modal>
     <a-modal modal-class="file-source-confirm-modal" :visible="!!renameEntry" :title="t('unified.addToFavorites')" :ok-text="t('common.save')" :width="400" :confirm-loading="saving" @ok="saveFavorite" @cancel="renameEntry = undefined"><a-input v-model="favoriteName" :placeholder="t('mediaServer.name')" @press-enter="saveFavorite" /></a-modal>
   </div>

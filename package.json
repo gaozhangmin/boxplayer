@@ -1,7 +1,7 @@
 {
   "name": "boxplayer",
   "description": "BoxPlayer",
-  "version": "5.0.42",
+  "version": "5.0.43",
   "main": "dist/electron/main/index.js",
   "packageManager": "pnpm@10.32.1",
   "author": {
@@ -88,6 +88,7 @@
     "artplayer-plugin-jassub": "^1.1.0",
     "artplayer-plugin-multiple-subtitles": "^1.2.0",
     "axios": "^1.6.8",
+    "basic-ftp": "^6.2.6",
     "bittorrent-peerid": "^1.3.6",
     "builder-util-runtime": "^9.5.1",
     "chardet": "^2.0.0",
@@ -112,9 +113,11 @@
     "fflate": "^0.8.2",
     "fix-path": "^4.0.0",
     "fs-extra": "^10.1.0",
+    "ftp-srv": "^4.6.3",
     "fuzzysort": "^2.0.4",
     "hls.js": "^1.5.7",
     "howler": "^2.2.4",
+    "iconv-lite": "^0.7.3",
     "isomorphic-fetch": "^3.0.0",
     "jassub": "^1.7.15",
     "js-untar": "^2.0.0",
@@ -141,6 +144,7 @@
     "rangy": "1.3.0",
     "secp256k1": "^5.0.0",
     "semver": "^7.6.0",
+    "smb3-client": "0.2.0",
     "socks-proxy-agent": "^8.0.3",
     "terser": "^5.30.3",
     "three": "^0.185.0",
@@ -181,12 +185,12 @@
     "vue"
   ],
   "dependencies": {
+    "@motrix/nat-api": "0.3.4",
+    "aria2-lib": "1.0.1",
     "better-sqlite3": "^12.11.1",
     "mpegts.js": "^1.8.2",
     "posthog-js": "^1.413.3",
-    "qrcode-terminal": "^0.12.0",
-    "@motrix/nat-api": "0.3.4",
-    "aria2-lib": "1.0.1"
+    "qrcode-terminal": "^0.12.0"
   },
   "pnpm": {
     "overrides": {
@@ -201,6 +205,9 @@
       "protobufjs",
       "secp256k1",
       "vue-demi"
-    ]
+    ],
+    "patchedDependencies": {
+      "smb3-client@0.2.0": "patches/smb3-client@0.2.0.patch"
+    }
   }
 }

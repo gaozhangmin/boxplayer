@@ -9,7 +9,8 @@ import { useUserStore } from '../store'
 import SidebarProBadge from '../components/SidebarProBadge.vue'
 import type { ITokenInfo } from '../user/userstore'
 import { makeScanFolder, tokenRootScanFolders, type ScanSourceTarget } from '../utils/fileSourceRoots'
-import { getWebDavConnections, saveWebDavConnection, removeWebDavConnection, type WebDavConnectionConfig } from '../utils/webdavClient'
+import { getWebDavConnections, isNetShareConnection, saveWebDavConnection, removeWebDavConnection, type WebDavConnectionConfig } from '../utils/webdavClient'
+import NetShareSourceForm from '../components/NetShareSourceForm.vue'
 import { MediaScanner } from '../utils/mediaScanner'
 import { getDriveProviderById, getDriveProviderIcon } from '../utils/driveProvider'
 import { libraryCategoryIcon, librarySidebarCategoryIcon } from '../utils/libraryCategoryIcon'
@@ -38,7 +39,10 @@ async function loadConnectedFileRoots() {
       driveServerId: 'aliyun', drives, providerIcon }]
   })
   for (const connection of getWebDavConnections()) {
-    roots.push({ value: `webdav:${connection.id}`, label: connection.name, driveServerId: 'webdav',
+    // Network shares show their protocol tile (WebDAV/SMB/NFS/FTP) in Files and in 已存储的共享.
+    const kind = connection.kind || 'webdav'
+    const providerIcon = ({ webdav: 'images/source-tiles/webdav.png', alist: 'images/source-tiles/alist.svg', smb: 'images/source-tiles/smb.png', nfs: 'images/source-tiles/nfs.png', ftp: 'images/source-tiles/ftp.png' } as Record<string, string>)[kind] || ''
+    roots.push({ value: `webdav:${connection.id}`, label: connection.name || connection.host || kind.toUpperCase(), driveServerId: 'webdav', providerIcon,
       folder: makeScanFolder({ user_id: connection.id } as ITokenInfo, `webdav:${connection.id}`, '/', connection.name, '/') })
   }
   connectedFileRoots.value = [...new Map(roots.map(root => [root.value, root])).values()]
@@ -720,7 +724,9 @@ const rootEditor = ref<{ key: string; name: string; connection?: WebDavConnectio
 async function saveRootEditor() {
   const editor = rootEditor.value
   if (!editor || !editor.name.trim()) return
-  if (editor.connection) {
+  if (editor.connection && isNetShareConnection(editor.connection)) {
+    saveWebDavConnection({ ...editor.connection, name: editor.name.trim() })
+  } else if (editor.connection) {
     try {
       const url = new URL(editor.connection.url)
       if (!['http:', 'https:'].includes(url.protocol)) return
@@ -728,6 +734,16 @@ async function saveRootEditor() {
     saveWebDavConnection({ ...editor.connection, name: editor.name.trim() })
   }
   sourceOverrides.value[editor.key] = { ...sourceOverrides.value[editor.key], name: editor.name.trim() }
+  persistSources()
+  await loadConnectedFileRoots()
+  rootEditor.value = undefined
+}
+async function onNetShareEdited(connection: WebDavConnectionConfig) {
+  const editor = rootEditor.value
+  if (!editor) return
+  const name = connection.name.trim() || editor.name.trim()
+  saveWebDavConnection({ ...connection, name })
+  sourceOverrides.value[editor.key] = { ...sourceOverrides.value[editor.key], name }
   persistSources()
   await loadConnectedFileRoots()
   rootEditor.value = undefined
@@ -842,7 +858,7 @@ const folderFavoriteCards = computed(() => serverFolderFavorites.value.filter(en
  action: () => entry.item.id === '__all__' ? showServer(entry.item.serverId) : entry.item.kind === 'folder' ? showServer(entry.item.serverId, { kind: 'library-page', libraryId: entry.item.id, title: entry.item.title }) : showServer(entry.item.serverId, { kind: 'item-detail', itemId: entry.item.id, title: entry.item.title }) })))
 const fileSourceCards = computed(() => [
  ...folderFavoriteCards.value.map(card => ({ ...card, server: null, providerIcon: '', icon: Folder })),
- ...libraryBookmarks.favorites.filter(route => route.startsWith('home-entry/')).map(route => ({ key: 'server-category:' + route, title: libraryBookmarks.titles[route] || categoryBookmarkTitle(route), server: null, providerIcon: '', icon: Folder, action: () => showCatalog(route) })),...connectedFileRoots.value.filter(root => !media.folders.some(folder => folder.isFavorite !== false && rootFolderMatchesAny(root, folder))).map(root => ({ key: `root:${root.value}`, title: sourceOverrides.value[`root:${root.value}`]?.name || root.label, server: null, providerIcon: root.providerIcon || '', icon: root.driveServerId === 'webdav' ? Network : Folder, action: () => { void openConnectedFileRoot(root) } })), ...registry.servers.map(server => ({ key: 'server:' + server.id, title: server.name, server, providerIcon: '', icon: Star, action: () => showServer(server.id) })), ...media.folders.filter(folder => (!isConnectedRootFolder(folder) || folder.isDriveRootFavorite) && folder.isFavorite !== false).map(folder => ({ key: 'folder:' + folder.id, title: folder.name, subtitle: folder.isDriveRootFavorite ? rootFavoriteDriveName(folder) : '', server: null, providerIcon: folder.isDriveRootFavorite || ['/', '0', 'root', 'quark_root', 'baidu_root'].includes(folder.fileId) ? getDriveProviderIcon(getDriveProviderById(folder.driveId || folder.driveServerId)) : '', icon: Star, action: () => { void showFolder(folder) } }))].sort((a,b) => ((sourceOverrides.value[a.key]?.order ?? 9999) - (sourceOverrides.value[b.key]?.order ?? 9999)) || a.title.localeCompare(b.title) * (fileSourceDescending.value ? -1 : 1)))
+ ...libraryBookmarks.favorites.filter(route => route.startsWith('home-entry/')).map(route => ({ key: 'server-category:' + route, title: libraryBookmarks.titles[route] || categoryBookmarkTitle(route), server: null, providerIcon: '', icon: Folder, action: () => showCatalog(route) })),...connectedFileRoots.value.filter(root => !media.folders.some(folder => folder.isFavorite !== false && rootFolderMatchesAny(root, folder) && (!isConnectedRootFolder(folder) || folder.isDriveRootFavorite))).map(root => ({ key: `root:${root.value}`, title: sourceOverrides.value[`root:${root.value}`]?.name || root.label, server: null, providerIcon: root.providerIcon || '', icon: root.driveServerId === 'webdav' ? Network : Folder, action: () => { void openConnectedFileRoot(root) } })), ...registry.servers.map(server => ({ key: 'server:' + server.id, title: server.name, server, providerIcon: '', icon: Star, action: () => showServer(server.id) })), ...media.folders.filter(folder => (!isConnectedRootFolder(folder) || folder.isDriveRootFavorite) && folder.isFavorite !== false).map(folder => ({ key: 'folder:' + folder.id, title: folder.name, subtitle: folder.isDriveRootFavorite ? rootFavoriteDriveName(folder) : '', server: null, providerIcon: folder.isDriveRootFavorite || ['/', '0', 'root', 'quark_root', 'baidu_root'].includes(folder.fileId) ? getDriveProviderIcon(getDriveProviderById(folder.driveId || folder.driveServerId)) : '', icon: Star, action: () => { void showFolder(folder) } }))].sort((a,b) => ((sourceOverrides.value[a.key]?.order ?? 9999) - (sourceOverrides.value[b.key]?.order ?? 9999)) || a.title.localeCompare(b.title) * (fileSourceDescending.value ? -1 : 1)))
 function sourceServer(key: string) { return registry.servers.find(server => key === 'source:server:' + server.id) }
 function openFileSource(card: typeof fileSourceCards.value[number]) { if (fileSourceReordering.value || sourceDragKey.value || sourceDragSuppressClick) return; if (!fileSourceSelection.value) { card.action(); return }; selectedFileSources.value = selectedFileSources.value.includes(card.key) ? selectedFileSources.value.filter(key => key !== card.key) : [...selectedFileSources.value, card.key] }
 const serverRootSelection = ref(false)
@@ -882,6 +898,20 @@ function togglePickerRootFavorite(id: string) {
     for (const folder of [...media.folders]) if (folder.isDriveRootFavorite && rootFolderMatches(root, folder)) media.removeFolder(folder.id)
     persistSources()
   })
+}
+/** Saved from the inline editor in 已存储的共享: same storage as the source card's 编辑共享. */
+async function savePickerSource(id: string, name: string, connection?: WebDavConnectionConfig) {
+  const key = `root:${id}`
+  if (connection) saveWebDavConnection({ ...connection, name })
+  sourceOverrides.value[key] = { ...sourceOverrides.value[key], name }
+  persistSources()
+  await loadConnectedFileRoots()
+}
+/** Delete from the inline editor; confirms first like the source card's 删除. */
+async function deletePickerSource(id: string) {
+  if (id.startsWith('server:')) { addRegistryView.value?.deleteServer(id.slice(7)); return }
+  sourceMenu.value = { key: `root:${id}`, x: 0, y: 0 }
+  await sourceAction('delete')
 }
 async function fileSourceConnected() {
   await loadConnectedFileRoots().catch(() => undefined)
@@ -1917,7 +1947,8 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
       <a-input v-model="sourceText" />
     </a-modal>
     <a-modal :visible="!!rootEditor" :title="t('unified.editShare')" :footer="false" @cancel="rootEditor = undefined">
-      <a-form v-if="rootEditor" :model="rootEditor" layout="vertical" @submit-success="saveRootEditor">
+      <NetShareSourceForm v-if="rootEditor?.connection && isNetShareConnection(rootEditor.connection)" :key="rootEditor.connection.id" :kind="rootEditor.connection.kind" :existing="rootEditor.connection" :source-name="rootEditor.name" @saved="onNetShareEdited" @cancel="rootEditor = undefined" />
+      <a-form v-else-if="rootEditor" :model="rootEditor" layout="vertical" @submit-success="saveRootEditor">
         <a-form-item :label="t('unified.sourceLocalName')"><a-input v-model="rootEditor.name" /></a-form-item>
         <template v-if="rootEditor.connection">
           <a-form-item :label="t('unified.sourceUrl')"><a-input v-model="rootEditor.connection.url" /></a-form-item>
@@ -1942,7 +1973,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
     </a-modal>
   </div>
 <MediaShareModal /><MediaPersonalRatingModal /><CustomMediaSeriesModal /><WatchingUpdateModal />
-<AddFileSourceModal @toggle-root="togglePickerRootFavorite" :device-name="localDeviceName" :sources="connectedFileRoots.map(root => ({ id: root.value, name: root.label, icon: root.providerIcon, favorite: rootIsFavorite(root), folder: root.folder, driveServerId: root.driveServerId, drives: root.drives })).concat(registry.servers.map(server => ({ id: 'server:' + server.id, name: server.name, icon: '', favorite: false, server, folder: makeScanFolder({ user_id: server.userId || '' } as ITokenInfo, 'media_server', '__all__', server.name), driveServerId: 'media_server', drives: undefined })))"  :visible="showAddFileSource" @close="showAddFileSource = false" @connected="fileSourceConnected" />
+<AddFileSourceModal @toggle-root="togglePickerRootFavorite" :device-name="localDeviceName" :sources="connectedFileRoots.map(root => ({ id: root.value, name: root.label, icon: root.providerIcon, favorite: rootIsFavorite(root), folder: root.folder, driveServerId: root.driveServerId, drives: root.drives })).concat(registry.servers.map(server => ({ id: 'server:' + server.id, name: server.name, icon: '', favorite: false, server, folder: makeScanFolder({ user_id: server.userId || '' } as ITokenInfo, 'media_server', '__all__', server.name), driveServerId: 'media_server', drives: undefined })))"  :visible="showAddFileSource" @close="showAddFileSource = false" @connected="fileSourceConnected" @save-source="savePickerSource" @delete-source="deletePickerSource" />
 <LimitReachedModal :visible="showProPurchase" @update:visible="showProPurchase = $event" />
 <TraktAccountModal :visible="showTraktAccount" @close="showTraktAccount = false" />
 </template>

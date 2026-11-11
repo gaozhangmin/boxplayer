@@ -290,6 +290,7 @@ window.WebMusicAudioStatus = () => ipcRenderer.invoke('MusicAudio:status')
 
 window.WebSeekThumbnail = (data: { url: string; headers?: Record<string, string>; time: number }) => ipcRenderer.invoke('Playback:thumbnail', data)
 window.WebCancelSeekThumbnail = () => ipcRenderer.send('Playback:cancelThumbnail')
+window.WebLocalVideoPreview = (data: { path: string }) => ipcRenderer.invoke('LocalVideo:preview', data)
 
 let currentMpvSessionId = ''
 window.WebMpvEmbeddedLoad = async function(data: any) {

@@ -8,7 +8,7 @@ declare const __APP_VERSION__: string
 
 const getAppVersion = () => typeof __APP_VERSION__ === 'undefined' ? '' : __APP_VERSION__
 
-type Provider = 'aliyun' | 'cloud123' | '115' | '139' | '189' | 'guangya' | 'baidu' | 'pikpak' | 'quark' | 'dropbox' | 'onedrive' | 'box' | 'google' | 'webdav' | 'alist'
+type Provider = 'aliyun' | 'cloud123' | '115' | '139' | '189' | 'guangya' | 'baidu' | 'pikpak' | 'quark' | 'dropbox' | 'onedrive' | 'box' | 'google' | 'webdav' | 'alist' | 'smb' | 'nfs' | 'ftp'
 
 const installIdKey = 'boxplayer.analytics.install_id'
 let initialized = false

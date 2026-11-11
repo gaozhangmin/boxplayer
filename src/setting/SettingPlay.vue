@@ -26,7 +26,7 @@ function handleSelectPlayer() {
       },
       (result: string[] | undefined) => {
         if (result && result[0]) {
-          settingStore.updateStore({ uiVideoPlayerPath: result[0] })
+          settingStore.updateStore({ uiVideoPlayer: 'other', uiVideoPlayerPath: result[0] })
         }
       }
     )

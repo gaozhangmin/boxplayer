@@ -1,5 +1,6 @@
 <script setup lang='ts'>
 import { computed, h, ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ChevronDown, ChevronUp } from 'lucide-vue-next'
 import SourceFormSurface from '../components/SourceFormSurface.vue'
 import { ITokenInfo, useAppStore, useSettingStore, useUserStore } from '../store'
 import UserDAL from '../user/userdal'
@@ -120,7 +121,8 @@ const googleState = ref('')
 const googleRedirectUri = ref('')
 const googleLoading = ref(false)
 const remoteDriveLoading = ref(false)
-const remoteDriveForm = ref({ name: props.sourceName || '', url: '', username: '', password: '', rootPath: '/' })
+const remoteAdvanced = ref(false)
+const remoteDriveForm = ref({ name: '', url: '', username: '', password: '', rootPath: '' })
 const drive115ClientId = ref(DRIVE115_APP_ID || '')
 const drive115Verifier = ref('')
 const drive115Uid = ref('')
@@ -488,7 +490,7 @@ const handleClose = () => {
   boxLoading.value = false
   boxAuthUrl.value = ''
   remoteDriveLoading.value = false
-  remoteDriveForm.value = { name: '', url: '', username: '', password: '', rootPath: '/' }
+  remoteDriveForm.value = { name: '', url: '', username: '', password: '', rootPath: '' }; remoteAdvanced.value = false
 }
 
 const submitRemoteDrive = async () => {
@@ -499,6 +501,7 @@ const submitRemoteDrive = async () => {
     return
   }
 
+  if (!form.name.trim()) form.name = t('mediaServer.defaultName', { type: provider === 'alist' ? 'AList' : 'WebDAV' })
   remoteDriveLoading.value = true
   try {
     const connection = provider === 'alist' ? createAListConnection(form) : createWebDavConnection(form)
@@ -1598,12 +1601,14 @@ const loginSuccess = (token: ITokenInfo) => {
         <div id='logindiv'>
           <div class='logincontent'>
             <form class="remote-drive-login-form" :class="{ 'remote-drive-embedded': embedded }" @submit.prevent="submitRemoteDrive">
-              <label class="remote-field"><span>{{ t('mediaServer.name') }}</span><a-input v-model="remoteDriveForm.name" :placeholder="t('mediaServer.name')" :disabled="remoteDriveLoading" allow-clear /></label>
-              <label class="remote-field"><span>{{ t('mediaServer.address') }}</span><a-input v-model="remoteDriveForm.url" :placeholder="loginProvider === 'alist' ? 'http://127.0.0.1:5244' : 'https://example.com/dav'" :disabled="remoteDriveLoading" allow-clear /></label>
-              <label class="remote-field"><span>{{ t('mediaServer.username') }}</span><a-input v-model="remoteDriveForm.username" :disabled="remoteDriveLoading" autocomplete="username" allow-clear /></label>
-              <label class="remote-field"><span>{{ t('mediaServer.password') }}</span><a-input-password v-model="remoteDriveForm.password" :disabled="remoteDriveLoading" autocomplete="current-password" allow-clear /></label>
-              <label class="remote-field"><span>{{ t('mediaServer.path') }}</span><a-input v-model="remoteDriveForm.rootPath" placeholder="/" :disabled="remoteDriveLoading" allow-clear /></label>
-              <a-button html-type="submit" type="primary" :loading="remoteDriveLoading">{{ t('mediaServer.connect') }}</a-button>
+              <div class="remote-field"><label for="remote-name">{{ t('mediaServer.name') }}</label><input id="remote-name" v-model="remoteDriveForm.name" :placeholder="t('mediaServer.defaultName', { type: loginProvider === 'alist' ? 'AList' : 'WebDAV' })" :disabled="remoteDriveLoading" autocomplete="off" /></div>
+              <div class="remote-field"><label>{{ t('mediaServer.protocol') }}</label><span class="remote-value">{{ loginProvider === 'alist' ? 'AList' : 'WebDAV' }}</span></div>
+              <div class="remote-field"><label for="remote-url">{{ t('mediaServer.address') }}</label><input id="remote-url" v-model="remoteDriveForm.url" :placeholder="loginProvider === 'alist' ? 'http://127.0.0.1:5244' : 'https://example.com/dav'" :disabled="remoteDriveLoading" autocapitalize="off" spellcheck="false" /></div>
+              <div class="remote-field"><label for="remote-user">{{ t('mediaServer.username') }}</label><input id="remote-user" v-model="remoteDriveForm.username" placeholder="johnappleseed" :disabled="remoteDriveLoading" autocomplete="username" /></div>
+              <div class="remote-field"><label for="remote-password">{{ t('mediaServer.password') }}</label><input id="remote-password" v-model="remoteDriveForm.password" type="password" :placeholder="t('mediaServer.password')" :disabled="remoteDriveLoading" autocomplete="current-password" /></div>
+              <button type="button" class="remote-advanced" :aria-expanded="remoteAdvanced" :disabled="remoteDriveLoading" @click="remoteAdvanced = !remoteAdvanced">{{ t('mediaServer.advanced') }}<ChevronUp v-if="remoteAdvanced" :size="16" /><ChevronDown v-else :size="16" /></button>
+              <div v-if="remoteAdvanced" class="remote-field"><label for="remote-path">{{ t('netShare.startDir') }}</label><input id="remote-path" v-model="remoteDriveForm.rootPath" :placeholder="t('netShare.startDirPlaceholder')" :disabled="remoteDriveLoading" /></div>
+              <div class="remote-actions"><button type="submit" :disabled="remoteDriveLoading || !remoteDriveForm.url.trim()">{{ remoteDriveLoading ? t('mediaServer.connect') + '…' : t('mediaServer.create') }}</button></div>
             </form>
           </div>
         </div>
@@ -1857,11 +1862,21 @@ const loginSuccess = (token: ITokenInfo) => {
 .login-embedded .login-provider-content{padding:0;min-width:0}
 .login-embedded .login-provider-heading{display:none}
 .login-embedded #logindiv .logincontent{width:100%;max-width:400px;height:auto;min-height:400px}
+.login-embedded #logindiv .logincontent:has(.remote-drive-embedded){max-width:520px}
 </style>
 
 <style scoped>
-.remote-field{display:grid;grid-template-columns:88px minmax(0,1fr);gap:16px;align-items:center;text-align:right;color:var(--color-text-2);font-size:14px}
-.remote-drive-embedded{padding-top:40px!important;width:100%;max-width:400px!important}
-.remote-drive-embedded :deep(.arco-input-wrapper){background:transparent;border-radius:4px}
-.remote-drive-embedded>.arco-btn{align-self:flex-start;margin-left:104px;min-width:130px}
+.remote-field{display:grid;grid-template-columns:100px minmax(0,1fr);gap:16px;align-items:center;min-height:40px}
+.remote-field>label{text-align:right;color:var(--color-text-2);font-size:14px}
+.remote-field input{min-width:0;width:100%;box-sizing:border-box;background:transparent;border:0;border-radius:4px;color:var(--color-text-1);padding:8px 4px;font:inherit;font-size:14px;outline:none}
+.remote-field input::placeholder{color:var(--color-text-4);opacity:1}
+#remote-name::placeholder{color:var(--color-text-1)}
+.remote-field input:focus-visible{box-shadow:0 0 0 1px #ff8700}
+.remote-value{color:var(--color-text-3);font-size:14px;padding-left:4px}
+.remote-advanced{display:flex;align-items:center;gap:12px;margin:16px 0 4px 116px;padding:8px 0;border:0;background:transparent;color:var(--color-text-2);font:inherit;font-size:14px;cursor:pointer}
+.remote-actions{display:flex;gap:12px;margin:26px 0 0 116px}
+.remote-actions button{min-height:38px;min-width:130px;padding:0 20px;border:1px solid #ff8700;border-radius:9px;background:#ff8700;color:#111;font:inherit;font-size:14px;cursor:pointer}
+.remote-actions button:disabled{opacity:.5;cursor:default}
+.remote-drive-login-form.remote-drive-embedded{gap:0;padding-top:20px!important;width:100%;max-width:520px!important}
+@media(max-width:560px){.remote-field{grid-template-columns:84px minmax(0,1fr);gap:12px}.remote-advanced,.remote-actions{margin-left:96px}}
 </style>

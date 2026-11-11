@@ -1197,6 +1197,21 @@ function moveQueueNext(index: number) {
   playlist.value.splice(nextIndex, 0, track)
   if (index < curIdx.value) curIdx.value -= 1
 }
+function insertQueueNext(tracks: IPageMusicTrack[]) {
+  if (!tracks.length) return
+  if (!playlist.value.length) {
+    loadPageMusic({ ...tracks[0], playlist: tracks })
+    return
+  }
+  const selected = currentKey.value
+  const incomingKeys = new Set(tracks.map(musicTrackKey))
+  const incoming = tracks.filter(track => musicTrackKey(track) !== selected)
+  const rest = playlist.value.filter(track => musicTrackKey(track) === selected || !incomingKeys.has(musicTrackKey(track)))
+  const index = Math.max(0, rest.findIndex(track => musicTrackKey(track) === selected))
+  rest.splice(index + 1, 0, ...incoming)
+  playlist.value = rest
+  curIdx.value = index
+}
 function playShelfCard(card: ShelfCard) {
   const track = card.data?.track || card.data?.tracks?.[0] || card.data
   playShelfTrack(track)
@@ -1478,6 +1493,10 @@ watch(() => musicPlayerStore.commandSeq, () => {
   else if (musicPlayerStore.command === 'volume') setVol(musicPlayerStore.commandValue)
   else if (musicPlayerStore.command === 'mode') cycleMode()
   else if (musicPlayerStore.command === 'queue') showQueue.value = !showQueue.value
+})
+watch(() => musicPlayerStore.nextSeq, () => {
+  if (!props.sidePanel) return
+  insertQueueNext(musicPlayerStore.pendingNext)
 })
 watch(() => musicPlayerStore.loadSeq, () => {
   if (!props.sidePanel) return

@@ -1,5 +1,5 @@
 import UserDAL from '../user/userdal'
-import { resolveDriveProvider, type DriveProvider } from '../utils/driveProvider'
+import { getDriveProviderLabel, isRemoteSourceProvider, resolveDriveProvider, type DriveProvider } from '../utils/driveProvider'
 
 export type DriveContext = { title: string; name: string; key: string }
 
@@ -26,7 +26,7 @@ export function getDriveId(userId: string, drive: string): string {
   if (route.driveProvider !== 'unknown' && route.provider !== 'aliyun') return drive
   if (route.provider !== 'aliyun') {
     if (route.provider === 'cloud123') return token?.default_drive_id || token?.resource_drive_id || 'cloud123'
-    if (route.provider === 'webdav' || route.provider === 'alist') return token?.default_drive_id || ''
+    if (isRemoteSourceProvider(route.provider)) return token?.default_drive_id || ''
     return token?.default_drive_id || (route.provider === '115' ? 'drive115' : route.provider)
   }
   if (drive.includes('backup')) return token?.backup_drive_id || ''
@@ -39,7 +39,7 @@ export function getDriveId(userId: string, drive: string): string {
 export function getDriveType(userId: string, driveId: string): DriveContext {
   if ((driveId || '').startsWith('webdav:')) {
     const token = UserDAL.GetUserToken(userId)
-    return { title: token?.nick_name || token?.user_name || (token?.tokenfrom === 'alist' ? 'AList' : 'WebDAV'), name: token?.tokenfrom === 'alist' ? 'alist' : 'webdav', key: '/' }
+    return { title: token?.nick_name || token?.user_name || getDriveProviderLabel(isRemoteSourceProvider(token?.tokenfrom) ? token?.tokenfrom : 'webdav'), name: token?.tokenfrom && isRemoteSourceProvider(token.tokenfrom) ? token.tokenfrom : 'webdav', key: '/' }
   }
   const token = UserDAL.GetUserToken(userId)
   const route = resolveDriveProvider(userId, driveId, token?.tokenfrom)

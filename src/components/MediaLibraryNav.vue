@@ -342,6 +342,7 @@
 </template>
 
 <script setup lang="ts">
+import { openVideoPage } from '../utils/videoPlayback'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { ChevronDown, ChevronRight, CalendarDays, CircleHelp, CirclePlay, Clock3, EyeOff, Film, Folder, FolderClosed, Heart, House, ListVideo, Play, Search, Shapes, Star, Tags, Tv, Video } from 'lucide-vue-next'
 import { useMediaLibraryStore } from '../store/medialibrary'
@@ -351,7 +352,7 @@ import { Modal } from '@arco-design/web-vue'
 import { MediaScanner } from '../utils/mediaScanner'
 import message from '../utils/message'
 import LibraryScanPanel from './LibraryScanPanel.vue'
-import { getWebDavConnection, getWebDavConnectionId, getWebDavConnections } from '../utils/webdavClient'
+import { getRemoteSourceLabel, getWebDavConnection, getWebDavConnectionId, getWebDavConnections } from '../utils/webdavClient'
 import UserDAL from '../user/userdal'
 import type { ITokenInfo } from '../user/userstore'
 import { tokenRootScanFolders } from '../utils/fileSourceRoots'
@@ -398,7 +399,7 @@ const openLocalFolder = (folder: MediaLibraryFolder) => {
 }
 const openLocalEntry = (entry: { path: string; directory: boolean }) => {
   if (entry.directory) void loadLocalDirectory(entry.path)
-  else window.WebOpenWindow({ page: 'PageVideo', data: buildLocalVideoPage(entry.path), theme: 'dark' })
+  else void openVideoPage({ page: 'PageVideo', data: buildLocalVideoPage(entry.path), theme: 'dark' })
 }
 const localBrowserBack = () => {
   if (localBrowserPath.value === localBrowserRoot.value) { showLocalDevice(); return }
@@ -520,7 +521,8 @@ const isWebDavFolderSource = (folder: MediaLibraryFolder) => {
 
 const getFolderSourceLabel = (folder: MediaLibraryFolder) => {
   const connectionId = folder.userId || getWebDavConnectionId(folder.driveId)
-  if (connectionId && getWebDavConnection(connectionId)?.kind === 'alist') return 'AList'
+  const remoteKind = connectionId ? getWebDavConnection(connectionId)?.kind : undefined
+  if (remoteKind && remoteKind !== 'webdav') return getRemoteSourceLabel(remoteKind)
   if (isWebDavFolderSource(folder)) return 'WebDAV'
   if (folder.driveId === 'local' || folder.driveServerId === 'local') return t('drive.local')
   if (folder.driveId === 'cloud123' || folder.driveServerId === 'cloud123') return '123'
@@ -539,7 +541,8 @@ const getFolderSourceLabel = (folder: MediaLibraryFolder) => {
 
 const getFolderSourceClass = (folder: MediaLibraryFolder) => {
   const connectionId = folder.userId || getWebDavConnectionId(folder.driveId)
-  if (connectionId && getWebDavConnection(connectionId)?.kind === 'alist') return 'source-alist'
+  const remoteKind = connectionId ? getWebDavConnection(connectionId)?.kind : undefined
+  if (remoteKind && remoteKind !== 'webdav') return remoteKind === 'alist' ? 'source-alist' : 'source-webdav'
   if (isWebDavFolderSource(folder)) return 'source-webdav'
   if (folder.driveId === 'local' || folder.driveServerId === 'local') return 'source-local'
   if (folder.driveId === 'cloud123' || folder.driveServerId === 'cloud123') return 'source-123'

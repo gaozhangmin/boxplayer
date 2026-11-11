@@ -1,8 +1,8 @@
-export interface LocalVideoPreview { thumbnail: string; duration: number; height: number }
+export interface LocalVideoPreview { thumbnail: string; duration: number; height: number; hdr?: boolean }
 const cache = new Map<string, Promise<LocalVideoPreview>>()
 let active = 0
 const waiting: Array<() => void> = []
-async function readPreview(path: string): Promise<LocalVideoPreview> {
+async function readBrowserPreview(path: string): Promise<LocalVideoPreview> {
   if (active >= 2) await new Promise<void>(resolve => waiting.push(resolve))
   active++
   try {
@@ -41,6 +41,14 @@ async function readPreview(path: string): Promise<LocalVideoPreview> {
       video.src = urlModule?.pathToFileURL ? urlModule.pathToFileURL(path).href : 'file://' + encodeURI(path)
     })
   } finally { active--; waiting.shift()?.() }
+}
+// The main process decodes with libmpv (MKV, AV1, HEVC, HDR) and caches frames on disk;
+// Chromium's <video> only covers what it can decode and is kept as a fallback.
+async function readPreview(path: string): Promise<LocalVideoPreview> {
+  const native = await window.WebLocalVideoPreview?.({ path }).catch(() => null)
+  if (native?.thumbnail) return native
+  const browser = await readBrowserPreview(path)
+  return { thumbnail: browser.thumbnail, duration: native?.duration || browser.duration, height: native?.height || browser.height, hdr: !!native?.hdr }
 }
 export function getLocalVideoPreview(path: string): Promise<LocalVideoPreview> {
   if (!cache.has(path)) {

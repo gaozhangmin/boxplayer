@@ -3,7 +3,7 @@
   <div class='media-pan-right'>
     <div v-if="props.unifiedFiles" class="folder-browser" :class="{ 'folder-browser-list': browseMode === 'list' }">
       <template v-for="item in browserItems" :key="item.file_id">
-        <LocalMediaFileCard portrait-list v-if="item.drive_id === 'local'" :season-label="browserSeasonLabels.get(item.file_id)" :name="browserMedia.get(item.file_id)?.name || item.name" :metadata="browserMetadata.get(item.file_id)" :path="item.file_id" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir && !browserMedia.has(item.file_id)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
+        <LocalMediaFileCard portrait-list v-if="item.drive_id === 'local'" :season-label="browserSeasonLabels.get(item.file_id)" :name="browserMedia.get(item.file_id)?.name || item.name" :metadata="browserMetadata.get(item.file_id)" :path="item.file_id" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
       <FileBrowserCard v-else :downloadable="!item.isDir && item.category === 'video'" :download-label="t('fileContext.download')" @download="emit('fileAction', 'download', item)" :key="item.file_id" :season-label="browserSeasonLabels.get(item.file_id)" :name="browserMedia.get(item.file_id)?.name || item.name" :directory="item.isDir && !browserMedia.has(item.file_id)" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :size-text="item.isDir ? '' : browserSubtitle(item)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" @context="openFileMenu($event, item)" @open="props.browseSelection ? handleSelect(item.file_id, $event, true) : handleOpenFile($event, item)" />
       </template>
     </div>
@@ -266,7 +266,8 @@ watch(
           ...(item.driveFiles || []),
           ...('seasons' in item ? item.seasons || [] : []).flatMap(season => (season.episodes || []).flatMap(episode => episode.driveFiles || []))
         ].some(candidate => fileMatches(candidate, file)))
-        if (matches.length && (!file.isDir || new Set(matches.map(item => item.id)).size === 1)) {
+        // Local subfolders stay real folders (navigable), never collapsed into the media they contain.
+        if (matches.length && (!file.isDir || (file.drive_id !== 'local' && new Set(matches.map(item => item.id)).size === 1))) {
           media.set(file.file_id, matches[0])
           if (matches[0].type === 'tv') {
             const seasons = [...new Set((matches[0].seasons || []).filter(season =>
@@ -298,7 +299,7 @@ watch(
   { immediate: true }
 )
 onUnmounted(() => { artworkRequest++ })
-const browserItems = computed(() => [...mediaPanFileStore.ListDataShow].filter(file => !props.favoriteBrowse || file.isDir || file.category === 'video').sort((a, b) => a.name.localeCompare(b.name, 'zh-CN', { numeric: true }) * (props.descending ? -1 : 1)))
+const browserItems = computed(() => [...mediaPanFileStore.ListDataShow].filter(file => !props.favoriteBrowse || file.isDir || file.category === 'video').sort((a, b) => Number(b.isDir) - Number(a.isDir) || a.name.localeCompare(b.name, 'zh-CN', { numeric: true }) * (props.descending ? -1 : 1)))
 const listViewportHeight = computed(() => Math.min(500, Math.max(50, mediaPanFileStore.ListDataShow.length * 50)))
 
 const handleListScroll = () => {

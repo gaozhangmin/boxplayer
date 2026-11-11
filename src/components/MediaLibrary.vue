@@ -650,6 +650,7 @@ import { useLibraryBrowseMode } from '../store/libraryBrowseMode'
 import PosterRatingBadge from './PosterRatingBadge.vue'
 import { isMediaWatched, localWatchedKeys, setMediaWatched } from '../utils/localWatchedState'
 import MediaPanRight from './MediaPanRight.vue'
+import { listLocalDirectory } from '../utils/videoFile'
 import { useMediaPanFileStore, useMediaPanTreeStore } from './stores'
 import CategoryCard from './CategoryCard.vue'
 import MediaDetail from './MediaDetail.vue'
@@ -2199,8 +2200,12 @@ const handleEnterFolder = async (file: any) => {
 
     let items: any[] = []
 
+    // Local sources list the subfolder's own children from disk, like the source root.
+    if (driveId === 'local') {
+      items = await listLocalDirectory(fileId)
+    }
     // 检查是否为 WebDAV 驱动器
-    if (isWebDavDrive(driveId)) {
+    else if (isWebDavDrive(driveId)) {
       console.log('使用WebDAV API获取子文件夹文件列表')
       const connectionId = getWebDavConnectionId(driveId)
       const connection = getWebDavConnection(connectionId)

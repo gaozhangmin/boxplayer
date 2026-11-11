@@ -13,7 +13,10 @@ type Owner = { source: string; generation: number; cancel?: () => void; running?
 const owners = new Map<number, Owner>()
 const requireNative = createRequire(import.meta.url)
 
-function beginDecode(url: string, options: string, directory: string): Job | undefined {
+// Keyframe seek + cheap decode: preview frames only need to be close, not exact (~10x faster on remote 4K).
+const FAST_PREVIEW_OPTIONS = 'hr-seek=no,demuxer-readahead-secs=0,vd-lavc-skiploopfilter=all,vd-lavc-fast=yes,vd-lavc-threads=0'
+
+export function beginDecode(url: string, options: string, directory: string): Job | undefined {
   for (const candidate of getEmbeddedMpvNativeAddonCandidates()) {
     if (!existsSync(candidate)) continue
     if (process.platform === 'linux') {
@@ -82,7 +85,7 @@ export function registerSeekThumbnailIpc() {
       if (!directory) return null
       try {
         if (owner.generation !== token) return null
-        const job = beginDecode(input.url, buildMpvLoadOptions({ url: input.url, headers, startPosition: bucket * 2 }), directory)
+        const job = beginDecode(input.url, `${buildMpvLoadOptions({ url: input.url, headers, startPosition: bucket * 2 })},${FAST_PREVIEW_OPTIONS}`, directory)
         if (!job) return null
         owner.cancel = job.cancel
         const ok = await job.promise

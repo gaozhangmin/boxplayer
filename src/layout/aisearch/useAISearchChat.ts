@@ -25,7 +25,7 @@ import { scanDriveDuplicates, type DuplicateDriveTarget, type DuplicateScanMode 
 import { scanDriveLargeFiles, type LargeFileScanMode } from '../../utils/drive-tools/largeFiles'
 import { flattenDriveToolFolders, moveDriveToolFiles, type OrganizeFileItem } from '../../utils/drive-tools/organize'
 import { buildMediaOrganizePlan, executeMediaOrganizePlan } from '../../utils/drive-tools/mediaOrganize'
-import { getWebDavConnections } from '../../utils/webdavClient'
+import { getRemoteSourceLabel, getWebDavConnections } from '../../utils/webdavClient'
 import { searchPanHubStream, type PanHubMergedLinks } from '../../utils/panHubSearch'
 import AliFile from '../../aliapi/file'
 import DriveFile from '../../drive/file'
@@ -462,7 +462,7 @@ export function useAISearchChat() {
     }
     if (!platforms?.length || platforms.some((platform: string) => driveToolPlatformMatches('webdav', platform))) {
       for (const connection of getWebDavConnections()) {
-        targets.push({ userId: connection.id, driveId: `webdav:${connection.id}`, rootId: '/', name: `${connection.name} / WebDAV` })
+        targets.push({ userId: connection.id, driveId: `webdav:${connection.id}`, rootId: '/', name: `${connection.name} / ${getRemoteSourceLabel(connection.kind)}` })
       }
     }
     return targets

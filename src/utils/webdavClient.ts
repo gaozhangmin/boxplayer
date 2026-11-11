@@ -3,19 +3,167 @@ import fsPromises from 'fs/promises'
 import { createClient, type FileStat } from 'webdav'
 import type { IAliGetFileModel } from '../aliapi/alimodels'
 import getFileIcon from '../aliapi/fileicon'
+import { describeNetShare, isNetShareKind, normalizeSharePath, type NetShareConfig, type NetShareEntry, type NetShareKind } from '@shared/netShare'
 
 const STORAGE_KEY = 'MediaLibrary_WebDavConnections'
 const aListTokenCache = new Map<string, string>()
 
+export type RemoteSourceKind = 'webdav' | 'alist' | NetShareKind
+
 export interface WebDavConnectionConfig {
   id: string
-  kind?: 'webdav' | 'alist'
+  kind?: RemoteSourceKind
   name: string
+  /** WebDAV/AList endpoint; for SMB/NFS/FTP a display-only `smb://host/share` style address. */
   url: string
   username: string
+  /** WebDAV/AList: plaintext (legacy). SMB/NFS/FTP: `safe:` value encrypted by the main process when secure storage is available. */
   password: string
   rootPath: string
   createdAt: string
+  host?: string
+  port?: number
+  share?: string
+  domain?: string
+  anonymous?: boolean
+  exportPath?: string
+  secure?: boolean
+  allowUntrustedCert?: boolean
+  passive?: boolean
+  encoding?: string
+}
+
+export const isNetShareConnection = (config?: Pick<WebDavConnectionConfig, 'kind'>): config is WebDavConnectionConfig & { kind: NetShareKind } => isNetShareKind(config?.kind)
+
+export const getRemoteSourceLabel = (kind?: string) => {
+  switch (kind) {
+    case 'alist': return 'AList'
+    case 'smb': return 'SMB'
+    case 'nfs': return 'NFS'
+    case 'ftp': return 'FTP'
+    default: return 'WebDAV'
+  }
+}
+
+export const toNetShareConfig = (config: WebDavConnectionConfig): NetShareConfig => ({
+  id: config.id,
+  kind: config.kind as NetShareKind,
+  host: String(config.host || '').trim(),
+  port: config.port || undefined,
+  share: config.share || '',
+  domain: config.domain || '',
+  username: config.username || '',
+  password: config.password || '',
+  anonymous: !!config.anonymous,
+  exportPath: config.exportPath || '',
+  rootPath: normalizeSharePath(config.rootPath),
+  secure: !!config.secure,
+  allowUntrustedCert: !!config.allowUntrustedCert,
+  passive: config.passive !== false,
+  encoding: config.encoding || 'utf8'
+})
+
+const netShareInvoke = async <T>(channel: string, ...args: unknown[]): Promise<T> => {
+  const ipc = typeof window !== 'undefined' ? (window as any).Electron?.ipcRenderer : undefined
+  if (!ipc?.invoke) throw new Error('网络共享仅在桌面客户端中可用')
+  try {
+    return await ipc.invoke(channel, ...args)
+  } catch (error: any) {
+    // Electron prefixes remote errors with "Error invoking remote method '…': Error: "
+    throw new Error(String(error?.message || error).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, ''))
+  }
+}
+
+export const protectNetShareSecret = (plain: string) => plain ? netShareInvoke<string>('NetShare:protectSecret', plain) : Promise.resolve('')
+export const listNetShareShares = (config: WebDavConnectionConfig) => netShareInvoke<string[]>('NetShare:listShares', toNetShareConfig(config))
+export const getNetShareStreamUrl = (config: WebDavConnectionConfig, relativePath: string) => netShareInvoke<string>('NetShare:streamUrl', toNetShareConfig(config), normalizeSharePath(relativePath))
+
+export interface NetShareConnectionInput {
+  kind: NetShareKind
+  name: string
+  host: string
+  port?: number | string
+  share?: string
+  domain?: string
+  username?: string
+  password?: string
+  anonymous?: boolean
+  exportPath?: string
+  rootPath?: string
+  secure?: boolean
+  allowUntrustedCert?: boolean
+  passive?: boolean
+  encoding?: string
+}
+
+/** Normalises a user-entered host: strips scheme (smb://, ftp://), credentials, path and brackets around IPv6. */
+export const normalizeNetShareHost = (value: string) => {
+  let host = String(value || '').trim().replace(/^[a-z][a-z0-9+.-]*:\/\//i, '').replace(/^\\\\/, '')
+  host = host.replace(/^[^@/]*@/, '').split(/[/\\]/)[0]
+  if (/^\[.*\](:\d+)?$/.test(host)) return host.replace(/^\[(.*)\](:\d+)?$/, '$1')
+  const colon = host.split(':')
+  return colon.length === 2 && /^\d+$/.test(colon[1]) ? colon[0] : host
+}
+
+export const createNetShareConnection = (input: NetShareConnectionInput, existing?: WebDavConnectionConfig): WebDavConnectionConfig => {
+  const host = normalizeNetShareHost(input.host)
+  const portNumber = Number(input.port)
+  const port = Number.isInteger(portNumber) && portNumber > 0 && portNumber < 65536 ? portNumber : undefined
+  const share = String(input.share || '').trim().replace(/^[\\/]+|[\\/]+$/g, '')
+  const anonymous = input.kind === 'nfs' ? true : !!input.anonymous
+  const base = {
+    kind: input.kind,
+    host,
+    port,
+    share: input.kind === 'smb' ? share : '',
+    domain: input.kind === 'smb' ? String(input.domain || '').trim() : '',
+    username: anonymous ? '' : String(input.username || '').trim(),
+    password: anonymous ? '' : String(input.password || ''),
+    anonymous,
+    exportPath: input.kind === 'nfs' ? normalizeSharePath(input.exportPath || '/') : '',
+    rootPath: normalizeSharePath(input.rootPath || '/'),
+    secure: input.kind === 'ftp' ? !!input.secure : false,
+    allowUntrustedCert: input.kind === 'ftp' ? !!input.allowUntrustedCert : false,
+    passive: input.kind === 'ftp' ? input.passive !== false : undefined,
+    encoding: input.kind === 'ftp' ? (String(input.encoding || 'utf8').trim() || 'utf8') : undefined
+  }
+  const timestamp = Date.now().toString()
+  const id = existing?.id || btoa(encodeURIComponent(`${input.kind}|${host}|${port || ''}|${base.share}${base.exportPath}|${base.username}|${base.rootPath}|${timestamp}`)).replace(/[^a-zA-Z0-9]/g, '').slice(-24)
+  const url = describeNetShare({ kind: input.kind, host, port, share: base.share, exportPath: base.exportPath })
+  return {
+    ...base,
+    id,
+    name: String(input.name || '').trim() || (input.kind === 'smb' && base.share ? `${base.share} (${host})` : host),
+    url,
+    createdAt: existing?.createdAt || new Date().toISOString()
+  }
+}
+
+const netShareEntryToModel = (config: WebDavConnectionConfig, entry: NetShareEntry, parentPath: string): IAliGetFileModel => {
+  const ext = entry.isDir ? '' : path.extname(entry.name).replace('.', '').toLowerCase()
+  const iconInfo = entry.isDir ? ['folder', 'iconfile-folder'] : getFileIcon(VIDEO_EXTENSIONS.has(`.${ext}`) ? 'video' : 'others', ext, ext, '', entry.size)
+  return {
+    __v_skip: true,
+    drive_id: `webdav:${config.id}`,
+    file_id: entry.path,
+    parent_file_id: parentPath,
+    name: entry.name,
+    namesearch: entry.name.toLowerCase(),
+    path: entry.path,
+    ext,
+    mime_type: '',
+    mime_extension: ext,
+    category: iconInfo[0],
+    icon: iconInfo[1],
+    size: entry.size,
+    sizeStr: '',
+    time: entry.mtime || Date.now(),
+    timeStr: '',
+    starred: false,
+    isDir: entry.isDir,
+    thumbnail: '',
+    description: ''
+  }
 }
 
 const VIDEO_EXTENSIONS = new Set([
@@ -150,9 +298,11 @@ export const saveWebDavConnection = (config: WebDavConnectionConfig) => {
 }
 
 export const removeWebDavConnection = (id: string) => {
+  const removed = getWebDavConnection(id)
   const list = getWebDavConnections().filter(item => item.id !== id)
   saveWebDavConnections(list)
   aListTokenCache.delete(id)
+  if (isNetShareConnection(removed)) void netShareInvoke('NetShare:forget', id).catch(() => undefined)
 }
 
 export const getWebDavConnection = (id: string) => {
@@ -294,12 +444,12 @@ export const getWebDavPlayUrl = async (config: WebDavConnectionConfig, relativeP
 }
 
 export const getWebDavDownloadUrl = async (config: WebDavConnectionConfig, relativePath: string): Promise<string> => {
+  if (isNetShareConnection(config)) return getNetShareStreamUrl(config, relativePath)
   if (config.kind !== 'alist') return buildWebDavDownloadUrl(config, relativePath)
   try {
     return await getWebDavPlayUrl(config, relativePath)
   } catch (error) {
     console.warn('获取 WebDAV 播放地址失败，回退直链:', error)
-    const client = createWebDavClient(config)
     return buildWebDavDownloadUrl(config, relativePath)
   }
 }
@@ -309,6 +459,10 @@ export const listWebDavDirectory = async (
   relativePath = '/'
 ): Promise<IAliGetFileModel[]> => {
   const normalizedRelativePath = normalizeWebDavPath(relativePath)
+  if (isNetShareConnection(config)) {
+    const entries = await netShareInvoke<NetShareEntry[]>('NetShare:list', toNetShareConfig(config), normalizedRelativePath)
+    return entries.map(entry => netShareEntryToModel(config, entry, normalizedRelativePath))
+  }
   const requestPath = joinDavPath(config.rootPath, normalizedRelativePath)
   if (config.kind === 'alist') {
     const data = await requestAListApi<{ content?: Array<{
@@ -364,18 +518,29 @@ export const listWebDavDirectory = async (
 }
 
 
+const assertWritable = (config: WebDavConnectionConfig) => {
+  if (isNetShareConnection(config)) throw new Error(`${getRemoteSourceLabel(config.kind)} 文件来源为只读，不支持修改文件`)
+}
+
 export const statWebDavPath = async (config: WebDavConnectionConfig, relativePath: string) => {
+  if (isNetShareConnection(config)) {
+    const stat = await netShareInvoke<{ isDir: boolean; size: number; mtime: number }>('NetShare:stat', toNetShareConfig(config), normalizeWebDavPath(relativePath))
+    const normalized = normalizeWebDavPath(relativePath)
+    return { filename: normalized, basename: path.posix.basename(normalized), lastmod: new Date(stat.mtime || Date.now()).toUTCString(), size: stat.size, type: stat.isDir ? 'directory' : 'file', etag: null } as FileStat
+  }
   const client = createWebDavClient(config)
   const requestPath = joinDavPath(config.rootPath, relativePath)
   return await client.stat(requestPath) as FileStat
 }
 
 export const copyWebDavPath = async (config: WebDavConnectionConfig, sourcePath: string, targetPath: string) => {
+  assertWritable(config)
   const client = createWebDavClient(config)
   await client.copyFile(joinDavPath(config.rootPath, sourcePath), joinDavPath(config.rootPath, targetPath))
 }
 
 export const moveWebDavPath = async (config: WebDavConnectionConfig, sourcePath: string, targetPath: string) => {
+  assertWritable(config)
   const client = createWebDavClient(config)
   await client.moveFile(joinDavPath(config.rootPath, sourcePath), joinDavPath(config.rootPath, targetPath))
 }
@@ -388,11 +553,13 @@ export const renameWebDavPath = async (config: WebDavConnectionConfig, sourcePat
 }
 
 export const deleteWebDavPath = async (config: WebDavConnectionConfig, relativePath: string) => {
+  assertWritable(config)
   const client = createWebDavClient(config)
   await client.deleteFile(joinDavPath(config.rootPath, relativePath))
 }
 
 export const createWebDavDirectory = async (config: WebDavConnectionConfig, relativePath: string) => {
+  assertWritable(config)
   const client = createWebDavClient(config)
   await client.createDirectory(joinDavPath(config.rootPath, relativePath), { recursive: true })
 }
@@ -415,6 +582,7 @@ const uploadWebDavEntry = async (client: ReturnType<typeof createWebDavClient>, 
 }
 
 export const uploadWebDavLocalPaths = async (config: WebDavConnectionConfig, parentRelativePath: string, localPaths: string[]) => {
+  assertWritable(config)
   const client = createWebDavClient(config)
   const parentRemotePath = joinDavPath(config.rootPath, parentRelativePath)
   await client.createDirectory(parentRemotePath, { recursive: true })
@@ -426,5 +594,9 @@ export const uploadWebDavLocalPaths = async (config: WebDavConnectionConfig, par
 }
 
 export const testWebDavConnection = async (config: WebDavConnectionConfig) => {
+  if (isNetShareConnection(config)) {
+    await netShareInvoke('NetShare:test', toNetShareConfig(config))
+    return
+  }
   await listWebDavDirectory(config, '/')
 }

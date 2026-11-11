@@ -5,6 +5,7 @@ import type { ILibrarySource } from '../types/librarySource'
 import DB from '../utils/db'
 import { loadMusicTrackList } from '../utils/musicPlayerStorage'
 import { musicCatalogHints } from '../utils/musicCatalog'
+import { mergeMusicEnrichment, mergeRescannedMusicTrack, recentlyAddedMusicTracks } from '../utils/musicTrackMerge'
 
 const LS_AUTOSCAN = 'musicLibrary.autoScan'
 const LS_LASTSCAN = 'musicLibrary.lastScanAt'
@@ -90,9 +91,7 @@ const useMusicLibraryStore = defineStore('musiclibrary', () => {
   }
 
   const recentlyAdded = computed<IMusicTrack[]>(() => {
-    return [...tracks.value]
-      .sort((a, b) => (b.scanned_at || 0) - (a.scanned_at || 0))
-      .slice(0, 30)
+    return recentlyAddedMusicTracks(tracks.value, 30)
   })
 
   const randomPicks = computed<IMusicTrack[]>(() => {
@@ -293,21 +292,7 @@ const useMusicLibraryStore = defineStore('musiclibrary', () => {
     const enriched = newTracks.map(ensureArtistTitle).map((track) => {
       const existing = existingById.get(track.id)
       if (!existing) return track
-      const sourceIds = Array.from(new Set([...(existing.source_ids || (existing.source_id ? [existing.source_id] : [])), ...(track.source_ids || (track.source_id ? [track.source_id] : []))]))
-      return {
-        ...existing,
-        ...track,
-        source_ids: sourceIds,
-        source_id: sourceIds[0],
-        artist: existing.artist || track.artist,
-        title: existing.title || track.title,
-        album: existing.album || track.album,
-        cover_url: existing.cover_url || track.cover_url,
-        duration_ms: existing.duration_ms || track.duration_ms,
-        lyric_source: existing.lyric_source || track.lyric_source,
-        metadata_source: existing.metadata_source || track.metadata_source,
-        enriched_at: existing.enriched_at
-      }
+      return mergeRescannedMusicTrack(existing, track)
     })
     await DB.saveMusicTracks(enriched)
     for (const track of enriched) {
@@ -381,12 +366,7 @@ const useMusicLibraryStore = defineStore('musiclibrary', () => {
     const idx = tracks.value.findIndex((t) => t.id === id)
     const existing = idx >= 0 ? tracks.value[idx] : await DB.getMusicTrackById(id)
     if (!existing) return false
-    const merged: IMusicTrack = {
-      ...existing,
-      ...patch,
-      id: existing.id,
-      enriched_at: Date.now()
-    }
+    const merged = mergeMusicEnrichment(existing, patch)
     await DB.saveMusicTracks([merged])
     if (idx >= 0) {
       tracks.value = [

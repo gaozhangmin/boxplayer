@@ -70,6 +70,7 @@ declare global {
     WebMpvEmbeddedStatus: () => Promise<any>
     WebSeekThumbnail: (data: { url: string; headers?: Record<string, string>; time: number }) => Promise<string | null>
     WebCancelSeekThumbnail: () => void
+    WebLocalVideoPreview?: (data: { path: string }) => Promise<{ thumbnail: string; duration: number; height: number; hdr: boolean } | null>
     WebMpvSharedTextureCapability: () => { available: boolean; platform: string; reason?: string }
     WebMpvSharedTexture: {
     onStatus?: (callback: (status: any) => void) => void

@@ -90,6 +90,21 @@ const driveProviderMap: Record<DriveProvider, DriveProviderMeta> = {
   alist: {
     key: 'alist',
     label: 'AList',
+    icon: 'images/source-tiles/alist.svg'
+  },
+  smb: {
+    key: 'smb',
+    label: 'SMB',
+    icon: ''
+  },
+  nfs: {
+    key: 'nfs',
+    label: 'NFS',
+    icon: ''
+  },
+  ftp: {
+    key: 'ftp',
+    label: 'FTP',
     icon: ''
   },
   unknown: {
@@ -149,8 +164,15 @@ const providerByUserIdPrefix: Array<[string, DriveProvider]> = [
   ['box_', 'box'],
   ['google_', 'google'],
   ['webdav_', 'webdav'],
-  ['alist_', 'alist']
+  ['alist_', 'alist'],
+  ['smb_', 'smb'],
+  ['nfs_', 'nfs'],
+  ['ftp_', 'ftp']
 ]
+
+/** Account kinds that share the `webdav:<connectionId>` virtual drive id (see remoteDriveAccount.ts). */
+export const REMOTE_SOURCE_PROVIDERS: readonly DriveProvider[] = ['webdav', 'alist', 'smb', 'nfs', 'ftp']
+export const isRemoteSourceProvider = (provider?: string): boolean => REMOTE_SOURCE_PROVIDERS.includes(provider as DriveProvider)
 
 export const getDriveProviderById = (driveId?: string): DriveProvider => {
   if (!driveId) return 'unknown'
@@ -178,6 +200,9 @@ export const getStoredTokenProvider = (token?: Pick<ITokenInfo, 'user_id' | 'tok
 export const resolveDriveProvider = (userId?: string, driveId?: string, tokenfrom?: string): DriveProviderResolution => {
   const accountProvider = getDriveProviderByAccount(userId, tokenfrom)
   const driveProvider = getDriveProviderById(driveId)
+  if (driveProvider === 'webdav' && isRemoteSourceProvider(accountProvider)) {
+    return { provider: accountProvider, accountProvider, driveProvider, isValid: true, error: '' }
+  }
 
   if (driveProvider !== 'unknown' && accountProvider !== 'unknown' && driveProvider !== accountProvider) {
     return { provider: 'unknown', accountProvider, driveProvider, isValid: false, error: `账号属于 ${getDriveProviderLabel(accountProvider)}，但当前 drive_id 属于 ${getDriveProviderLabel(driveProvider)}` }

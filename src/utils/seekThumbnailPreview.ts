@@ -1,7 +1,10 @@
 /** Shared by native MPV and HTML video controls. No playback seek is issued here. */
 export class SeekThumbnailPreview {
   private readonly card = document.createElement('div')
+  private readonly frame = document.createElement('div')
   private readonly image = document.createElement('img')
+  private readonly spinner = document.createElement('div')
+  private spin?: Animation
   private readonly time = document.createElement('div')
   private timer?: ReturnType<typeof setTimeout>
   private hideTimer?: ReturnType<typeof setTimeout>
@@ -17,9 +20,12 @@ export class SeekThumbnailPreview {
     const parent = progress.parentElement!
     if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative'
     this.card.style.cssText = 'display:none;position:absolute;z-index:100;pointer-events:none;width:min(240px,80vw);padding:5px;border-radius:10px;border:1px solid #ffffff55;background:#111d;box-shadow:0 4px 18px #0006;color:white;text-align:center;line-height:20px;font:12px sans-serif;transform:translateX(-50%);white-space:normal'
-    this.image.style.cssText = 'display:none;width:100%;aspect-ratio:16/9;object-fit:contain;border-radius:6px;background:black'
+    this.frame.style.cssText = 'display:none;position:relative;width:100%;aspect-ratio:16/9;border-radius:6px;background:black;overflow:hidden'
+    this.image.style.cssText = 'display:none;width:100%;height:100%;object-fit:contain'
     this.image.alt = ''
-    this.card.append(this.image, this.time)
+    this.spinner.style.cssText = 'display:none;position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:2px solid #ffffff40;border-top-color:white;box-sizing:border-box'
+    this.frame.append(this.image, this.spinner)
+    this.card.append(this.frame, this.time)
     parent.append(this.card)
     this.listen(progress, 'pointermove', event => this.move(event as PointerEvent))
     this.listen(progress, 'pointerdown', event => { this.pointerDown = true; this.move(event as PointerEvent) })
@@ -68,23 +74,41 @@ export class SeekThumbnailPreview {
     this.bucket = bucket; this.source = key
     this.image.style.display = 'none'
     this.image.removeAttribute('src')
+    this.setLoading(true)
     const token = ++this.generation
     clearTimeout(this.timer)
     // Cancel native work immediately; only start the replacement after settling.
     window.WebCancelSeekThumbnail?.()
     this.timer = setTimeout(async () => {
       try {
-        const image = await window.WebSeekThumbnail?.({ url: source.url, headers: source.headers, time: bucket * 2 })
-        if (!this.disposed && token === this.generation && image && this.source === JSON.stringify([this.getSource().url, this.getSource().headers])) {
+        // Vue props are reactive Proxies; Electron IPC cannot structured-clone them.
+        const headers: Record<string, string> = {}
+        for (const [name, value] of Object.entries(source.headers || {})) if (typeof value === 'string') headers[name] = value
+        const image = await window.WebSeekThumbnail?.({ url: source.url, headers, time: bucket * 2 })
+        if (this.disposed || token !== this.generation) return
+        if (image && this.source === JSON.stringify([this.getSource().url, this.getSource().headers])) {
           this.image.src = image
           this.image.style.display = 'block'
-        }
-      } catch { /* Time-only fallback when native capture or the source is unavailable. */ }
-    }, 200)
+          this.setLoading(false)
+        } else this.setLoading(false, true)
+      } catch {
+        // Time-only fallback when native capture or the source is unavailable.
+        if (token === this.generation) this.setLoading(false, true)
+      }
+    }, 120)
+  }
+
+  /** Spinner while a frame is in flight; collapse to time-only when capture fails. */
+  private setLoading(loading: boolean, failed = false) {
+    this.frame.style.display = failed ? 'none' : 'block'
+    this.spinner.style.display = loading ? 'block' : 'none'
+    if (loading && !this.spin) this.spin = this.spinner.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 800, iterations: Infinity })
+    if (!loading) { this.spin?.cancel(); this.spin = undefined }
   }
 
   hide() {
     clearTimeout(this.hideTimer)
+    this.setLoading(false)
     this.generation++; this.bucket = -1
     clearTimeout(this.timer)
     this.card.style.display = 'none'
