@@ -101,3 +101,23 @@ electron/**/*.d.ts.map
 
 # Windows embedded runtime is supplied by the release workflow.
 static/engine/win32/x64/mpv-texture/
+
+# Agent rule migration archive.
+!docs/agents/
+docs/agents/*
+!docs/agents/claude-before-unification.md
+
+# Versioned agent guidance and subsystem contracts.
+!/AGENTS.md
+!/CLAUDE.md
+!/LESSONS.md
+!/docs/
+!/docs/agent-development.md
+!/docs/code-standards.md
+!/docs/subsystems/
+!/docs/subsystems/README.md
+!/docs/subsystems/account-and-sync.md
+!/docs/subsystems/media-library.md
+!/docs/subsystems/playback.md
+!/docs/subsystems/providers.md
+!/docs/subsystems/releases.md
