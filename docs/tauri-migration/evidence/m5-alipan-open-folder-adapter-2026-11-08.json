@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-08",
+  "scope": "M5 standalone alipan-open plain folder creation",
+  "originalUi": "Electron CreatNewDirModal.vue and ApiCreatNewForder retained; only provider account guard and native request channel adapted",
+  "nativeProtocolReference": {
+    "path": "../XbyVideoHub/Packages/CloudServiceKit/Sources/AliyunDriveServiceProvider.swift",
+    "sha256": "000414c69a8b1b18cee6db6f6fc1d925d861b5d7d955a76b14542db24c5ab88e",
+    "methods": [
+      "createFolder",
+      "attributesOfItem"
+    ],
+    "endpoints": [
+      "https://openapi.alipan.com/adrive/v1.0/openFile/create",
+      "https://openapi.alipan.com/adrive/v1.0/openFile/get"
+    ]
+  },
+  "checks": [
+    "Concrete driveId/fileId required; no account UUID used as drive",
+    "Original refuse name mode retained; web-only empty description not sent to OpenAPI",
+    "Created file ID verified through detail drive/parent/type/name",
+    "Window context and account identity checked before and after requests",
+    "No fallback to web-token API"
+  ],
+  "validation": {
+    "frontendFiles": 202,
+    "frontendTests": 1947,
+    "focusedTests": 29,
+    "originalComponentTests": 3,
+    "build": "macOS arm64 debug app 210.55MiB; includes typecheck",
+    "nativeTests": "Not rerun: no Rust changes; prior baseline 168 passed / 10 ignored"
+  },
+  "notVerified": [
+    "Real OAuth account/native IPC/provider behavior",
+    "New bundle runtime",
+    "Open-channel rename/move/copy/trash/share/import",
+    "Web-channel cross-drive move identity reconciliation"
+  ],
+  "m6Started": false
+}

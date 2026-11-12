@@ -1,0 +1,38 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "fix": "frame after original selection-control unmount with context/new-focus guards",
+  "frontend": {
+    "files": 229,
+    "tests": 2243,
+    "passed": true
+  },
+  "managerCases": 28,
+  "typecheck": "passed in build",
+  "sourceVerifier": [
+    200,
+    22,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "bundle": {
+    "size": "211.07MiB",
+    "sha256": "a047226ef4280f5ad54b9deab310d63e287bd2098f8cf533e50488714e790df3",
+    "restarted": true,
+    "oldProcessObservedStopped": true
+  },
+  "native": {
+    "cancelFocus": "source-browser container",
+    "CmdF": "typed M5-frame-focus into actual filter;0/0 empty state",
+    "F3": "typed P8.4 into actual filter;0/5 original fuzzy results",
+    "cleared": "0/21; input blank",
+    "activation": "AX buttons; final coordinate retry unavailable"
+  },
+  "priorPhysicalReproduction": "013f4a package: mouse cancel left HTML focus and Cmd+F typing did not reach input",
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

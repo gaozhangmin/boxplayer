@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-08",
+  "scope": "M5 alipan-open same-drive move and same/cross-drive copy",
+  "originals": [
+    "Electron ApiMoveBatch, ApiCopyBatch and body builders retained with explicit native account guard replacements",
+    "Original Cmd+C/Cmd+X and directory picker templates retained"
+  ],
+  "references": {
+    "local": "../XbyVideoHub/Packages/CloudServiceKit/Sources/AliyunDriveServiceProvider.swift: copyItem and moveItem",
+    "taskImplementation": "https://github.com/tickstep/aliyunpan-api/blob/v0.2.9/aliyunpan_open/openapi/aynsc_task_api.go",
+    "moveAndCopyTypes": "https://pkg.go.dev/github.com/tickstep/aliyunpan-api/aliyunpan_open/openapi#FileMoveParam"
+  },
+  "nativeAdaptation": [
+    "Open move maps original auto_rename=true to check_name_mode=auto_rename",
+    "Open copy supplies actual to_drive_id even on same-drive original recipes",
+    "Preflight reads original identity and non-root destination folder; acknowledged target/task bound to initiating public Account",
+    "Task queried through openFile/async_task/get in foreground only; only Succeed permits target proof",
+    "Target ID/drive/parent/type/name verified; original source ID returned to original success mapping",
+    "Open move receipt retained until guarded catalog transaction succeeds; original-target retry does not rePOST move",
+    "Unknown mutation result does not rePOST; explicit request rejection releases receipt for a new user attempt"
+  ],
+  "validation": {
+    "focusedFiles": 3,
+    "focusedTests": 32,
+    "newProtocolTests": 18,
+    "newOriginalComponentTests": 4,
+    "allFrontendFiles": 206,
+    "allFrontendTests": 1987,
+    "typecheck": "passed standalone and in build",
+    "sourceMappings": 173,
+    "exactFileTemplates": 20,
+    "libraryMappings": 35,
+    "exactLibraryTemplates": 14,
+    "macOSArm64DebugAppMiB": 210.55,
+    "nativeTests": "No Rust changes; not rerun. Prior baseline 168 passed / 10 ignored."
+  },
+  "notVerified": [
+    "Cross-drive move identity reconciliation remains blocked before request, including web channel",
+    "Real account/native IPC/provider behavior",
+    "New bundle runtime/narrow nested picker and complete keyboard matrix",
+    "Persistent restart recovery, or automatic recovery when original source rows are no longer reachable",
+    "Task Failed is not treated as successful; no generic retry/transfer engine introduced"
+  ],
+  "m5Status": "active",
+  "m6Started": false
+}

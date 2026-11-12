@@ -1,0 +1,37 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "reference": "https://github.com/alibaba/aliyunpan-android-sdk/blob/7a1f62c1d657372d52603eccf7a219aa9a947069/opensdk/src/main/java/com/alicloud/databox/opensdk/scope/AliyunpanFileScope.kt",
+  "implementation": [
+    "original favorites menus and clear loop retained",
+    "Open starredList transport",
+    "Open get/update/get starred confirmation",
+    "same-ID owner and context checks",
+    "first-page clearing across drives without file delete"
+  ],
+  "frontend": {
+    "files": 229,
+    "tests": 2241,
+    "status": "passed"
+  },
+  "OpenFavoriteCases": 13,
+  "webFavoriteCases": 8,
+  "sourceVerifier": [
+    200,
+    22,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "typecheck": "passed in final build",
+  "bundle": {
+    "size": "211.07MiB",
+    "restarted": false
+  },
+  "nativeUnitRerun": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

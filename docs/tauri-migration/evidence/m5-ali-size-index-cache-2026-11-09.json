@@ -1,0 +1,36 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "wiredToUI": false,
+  "originalFunctions": [
+    "ApiFastAllDirList",
+    "TotalSize",
+    "GetDirSizeNeedRefresh",
+    "SaveDirSizeNeedRefresh"
+  ],
+  "focused": {
+    "files": 3,
+    "tests": 28,
+    "passed": true
+  },
+  "typecheck": "passed",
+  "sourceVerifier": [
+    206,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "remainingIntegration": [
+    "background lifecycle scheduler",
+    "durable cache restore/save/invalidation",
+    "row and size-sort publication"
+  ],
+  "fullFrontendRerun": false,
+  "bundleRebuilt": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

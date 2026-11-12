@@ -90,6 +90,8 @@ electron/**/*.d.ts.map
 !docs/
 !docs/releases/
 !docs/releases/v*.md
+!docs/tauri-migration/
+!docs/tauri-migration/*.md
 *.html
 *.mp4
 !e2e/assets/mpv-sample.mp4

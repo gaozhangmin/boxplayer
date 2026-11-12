@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "startup-recovery-integrated",
+  "frontend": {
+    "files": 239,
+    "passed": 2338
+  },
+  "focused": {
+    "files": 2,
+    "passed": 24
+  },
+  "nativeFocused": 6,
+  "fullNativeRerun": false,
+  "typecheck": "passed",
+  "build": "passed",
+  "bundleMiB": 211.38,
+  "sha256": "f3290c40881cae8d953a930bcc4f282e912b8ee654795ebf6b93cbb97bb91111",
+  "nativeSmoke": [
+    "startup",
+    "home",
+    "files",
+    "add source",
+    "Mac/testVideo 21 entries"
+  ],
+  "nativePendingRecoveryInjected": false,
+  "publicCrossDriveEnabled": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

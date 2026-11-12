@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 2,
+  "sourceVersion": "5.0.40-synthetic-copy",
+  "tables": {
+    "sources": 1,
+    "positions": 1,
+    "media": 1,
+    "playlists": 1,
+    "series": 1,
+    "preferences": 1
+  },
+  "sha256": "58040dce83c978a0cfd0a1b543d385d702b2ce27ab19fa8cf8b9a5612523cd73",
+  "payload": {
+    "sources": [
+      {
+        "id": "local-a",
+        "name": "Movies",
+        "path": "/synthetic/movies"
+      }
+    ],
+    "positions": [
+      {
+        "key": "position-a",
+        "position": 42,
+        "duration": 100
+      }
+    ],
+    "preferences": {
+      "general.posterTitles": "true"
+    },
+    "catalog": {
+      "schemaVersion": 1,
+      "revision": 0,
+      "items": [
+        {
+          "id": "[\"local-a\",\"hash-a\"]",
+          "sourceId": "local-a",
+          "fileId": "Movie.mkv",
+          "fileName": "Movie.mkv",
+          "name": "Synthetic Movie",
+          "type": "movie",
+          "local": true,
+          "addedAt": "2026-01-01T00:00:00.000Z",
+          "genres": [],
+          "size": 100,
+          "progress": 42,
+          "originalMetadata": {
+            "id": "movie",
+            "name": "Synthetic Movie",
+            "type": "movie",
+            "addedAt": "2026-01-01",
+            "watchProgress": 0.42,
+            "genres": []
+          },
+          "favorite": true,
+          "watched": false,
+          "personalRating": 8
+        }
+      ],
+      "playlists": {
+        "Mix": [
+          "[\"local-a\",\"hash-a\"]"
+        ]
+      },
+      "series": {
+        "Series": [
+          "[\"local-a\",\"hash-a\"]"
+        ]
+      }
+    }
+  }
+}

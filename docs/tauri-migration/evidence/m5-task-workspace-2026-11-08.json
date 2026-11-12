@@ -1,0 +1,76 @@
+{
+  "checkpoint": "original-task-workspace-entry",
+  "date": "2026-11-08",
+  "state": "M5 active; M6 not started",
+  "implementation": {
+    "sources": [
+      "src/down/DownDowning.vue",
+      "src/down/DowningStore.ts",
+      "src/down/index.vue",
+      "src/assets/global.css (task sidebar rules)",
+      "src/layout/PageMain.vue (task layout rules)"
+    ],
+    "retained": "Original four-page navigation, templates/styles, selection/filter/statistics, start/pause/remove/prioritize controls",
+    "exclusions": {
+      "planRows": [
+        23,
+        24,
+        25,
+        28
+      ],
+      "nodes": "aria2-only detail, BT/torrent selector, URL-download/drop entry, Sync and M3U8 panes; manifest declares exact removed nodes"
+    },
+    "nativeEntry": "AddFileSourceModal source navigation -> transfer modal -> original four-task workspace",
+    "controllers": "Opaque record/task IDs and bound per-pane event/read/control ports. No production engine/controller installed. No optimistic job state, queue or task persistence.",
+    "iconFix": "Explicitly imported original IconFont in all four task views and original workspace; original Electron global registration does not exist in Tauri."
+  },
+  "verification": {
+    "fullBeforeIconImports": {
+      "files": 221,
+      "tests": 2139,
+      "passed": true
+    },
+    "finalFocusedWithActualIcons": {
+      "files": 2,
+      "tests": 8,
+      "passed": true
+    },
+    "finalBuildTypecheck": "passed",
+    "sourceVerifier": {
+      "mappings": 196,
+      "exactTemplates": 22,
+      "assets": 2
+    },
+    "libraryVerifier": {
+      "mappings": 35,
+      "exactTemplates": 14,
+      "assets": 4
+    },
+    "macOSArm64DebugBundle": "210.75 MiB; final rebuilt/restarted explicit bundle after observed isRunning=false",
+    "runtimePassed": [
+      "Files -> Add source -> transfer entry -> original task window opens",
+      "Final package screenshot after Window/makeKeyAndOrderFront shows four task icons and downloading toolbar icons",
+      "Start All explicitly warns transfer service not enabled; zero tasks remain",
+      "Actual macOS Window/Move & Resize/Left screenshot: downloading toolbar/filter wrap within visible content and close remains visible",
+      "Window restored with Return to Previous Size",
+      "Task close removes task window and retains source manager"
+    ]
+  },
+  "runtimeLimitations": [
+    "Coordinate click on task tab failed with ScreenCaptureKit -3811; AX exposes combined navigation text, so all four native tab switches not accepted",
+    "Four-page switch/menu state verified by mounted component tests only",
+    "Some initial screenshots show stale source-dialog frame; accepted task screenshots obtained after actual Window menu focus",
+    "840px is the declared CSS width, not independently measured CSS pixels",
+    "No real tasks/accounts/remote changes/local file deletion/native task operations",
+    "No Rust edits/native tests rerun; previous 168 passed/10 ignored remains historical baseline",
+    "Full remaining M5 file operations/menu/hover/keyboard gates remain incomplete"
+  ],
+  "electron": "main read-only, same three concurrent dirty files preserved",
+  "logs": [
+    "/tmp/m5-task-workspace-tests.log",
+    "/tmp/m5-task-workspace-entry-tests.log",
+    "/tmp/m5-task-workspace-all.log",
+    "/tmp/m5-task-workspace-types.log",
+    "/tmp/m5-task-workspace-native-build.log"
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "active",
+  "change": "123 original batch dialog native port connected via verified original per-file rename",
+  "fullFrontend": {
+    "files": 226,
+    "tests": 2183
+  },
+  "finalAdditionalHostRun": {
+    "tests": 3,
+    "note": "includes one lifecycle test added after full run"
+  },
+  "typecheck": "passed",
+  "bundle": "macOS arm64 debug 211.05 MiB",
+  "runtime": "not restarted",
+  "realAccounts": "deferred",
+  "M6": "not started",
+  "electron": "main untouched, three pre-existing dirty files preserved",
+  "limitations": [
+    "sequential native per-file protocol, not original batch POST",
+    "no durable rename journal",
+    "remaining M5 operations and full native gates incomplete"
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "checkpoint": "original-downloaded-page",
+  "date": "2026-11-08",
+  "state": "M5 active; M6 not started",
+  "implementation": {
+    "sources": [
+      "src/down/DownDowned.vue",
+      "src/down/DownedStore.ts",
+      "src/down/DownDAL.ts (two interfaces only)",
+      "src/down/cloudDownloadSource.ts",
+      "src/down/integration/localVideoPlayback.ts (extension predicate only)"
+    ],
+    "template": "exact",
+    "styles": "original scoped styles",
+    "boundary": "downedTaskPorts.ts and completedDownloadActions.ts; native record ID commands; no fs/aria/database engine",
+    "retained": [
+      "original selection/filter/statistics",
+      "original delete confirmation; default record-only with explicit file-delete checkbox",
+      "partial failures retain actual records",
+      "open only first ten requested records; skip cloud/remote filesystem handling"
+    ],
+    "corrected": "row delete confirmation targets clicked record rather than previous selection"
+  },
+  "verification": {
+    "focused": {
+      "files": 1,
+      "tests": 9,
+      "passed": true
+    },
+    "full": {
+      "files": 219,
+      "tests": 2131,
+      "passed": true
+    },
+    "typecheck": "passed after import-name collision corrected",
+    "viteBuild": "passed; existing bundle/reka-ui warnings",
+    "sourceVerifier": {
+      "mappings": 191,
+      "exactTemplates": 23,
+      "assets": 2
+    },
+    "libraryVerifier": {
+      "mappings": 35,
+      "exactTemplates": 14,
+      "assets": 4
+    }
+  },
+  "limits": [
+    "No main task navigation or task shell integration yet",
+    "Downloading page remains pending",
+    "No native history/controller/transfer engine installed; native record operations not accepted",
+    "Component tests use synthetic completed records and Modal callbacks, not real user data",
+    "No Rust changes, new native bundle, native regression or GUI acceptance",
+    "Other M5 operation/native UI gates remain incomplete; real accounts deferred"
+  ],
+  "electron": "main read-only; same three concurrent dirty files preserved",
+  "logs": [
+    "/tmp/m5-downed-page-tests.log",
+    "/tmp/m5-downed-page-all.log",
+    "/tmp/m5-downed-page-types.log",
+    "/tmp/m5-downed-page-build.log"
+  ]
+}

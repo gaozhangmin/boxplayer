@@ -1,0 +1,1578 @@
+
+html.dark .media-server-workspace .workspace-header-card,
+html.dark .media-server-workspace .placeholder-card,
+html.dark .media-server-workspace .home-intro,
+html.dark .media-server-workspace .home-error,
+html.dark .media-server-workspace .home-loading,
+html.dark .media-server-workspace .empty-placeholder,
+html.dark .media-server-workspace .search-feedback-card,
+html.dark .media-server-workspace .detail-glass-panel,
+html.dark .media-server-workspace .detail-section-block,
+html.dark .media-server-workspace .detail-info-card,
+html.dark .media-server-workspace .detail-media-card,
+html.dark .media-server-workspace .detail-file-bar,
+html.dark .media-server-workspace .detail-episode-card,
+html.dark .media-server-workspace .detail-recommendation-card,
+html.dark .media-server-workspace .person-card,
+html.dark .media-server-workspace .person-about-card {
+  color: rgba(244, 247, 252, 0.96) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(18, 24, 36, 0.72) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22) !important;
+}
+
+html.dark .media-server-workspace .workspace-toolbar,
+html.dark .media-server-workspace .workspace-tabs,
+html.dark .media-server-workspace .workspace-content,
+html.dark .media-server-workspace .placeholder-card,
+html.dark .media-server-workspace .home-intro,
+html.dark .media-server-workspace .detail-lower-content,
+html.dark .media-server-workspace .detail-section,
+html.dark .media-server-workspace .detail-section-header,
+html.dark .media-server-workspace .detail-section-episodes,
+html.dark .media-server-workspace .detail-media-card-rail,
+html.dark .media-server-workspace .home-page,
+html.dark .media-server-workspace .library-shell,
+html.dark .media-server-workspace .collection-shell {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.dark .media-server-workspace .library-card,
+html.dark .media-server-workspace .library-card:not(.library-card-hero),
+html.dark .media-server-workspace .detail-section,
+html.dark .media-server-workspace .person-shelf-card,
+html.dark .media-server-workspace .person-rail-card {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html.dark .media-server-workspace .workspace-toolbar,
+html.dark .media-server-workspace .listing-toggle-group,
+html.dark .media-server-workspace .home-settings-menu,
+html.dark .media-server-workspace .server-switch-menu,
+html.dark .media-server-workspace .home-library-manager-list {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark .media-server-workspace .workspace-tab,
+html.dark .media-server-workspace .workspace-tab:hover,
+html.dark .media-server-workspace .workspace-tab.active {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html.dark .media-server-workspace .workspace-toolbar .arco-btn,
+html.dark .media-server-workspace .home-page .arco-btn,
+html.dark .media-server-workspace .search-shell-media-server .arco-btn,
+html.dark .media-server-workspace .library-shell .arco-btn,
+html.dark .media-server-workspace .collection-shell .arco-btn,
+html.dark .media-server-workspace .server-empty-shell .arco-btn {
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: rgba(255, 255, 255, 0.72) !important;
+  font-weight: 600;
+}
+
+html.dark .media-server-workspace .workspace-toolbar .arco-btn:hover,
+html.dark .media-server-workspace .home-page .arco-btn:hover,
+html.dark .media-server-workspace .search-shell-media-server .arco-btn:hover,
+html.dark .media-server-workspace .library-shell .arco-btn:hover,
+html.dark .media-server-workspace .collection-shell .arco-btn:hover,
+html.dark .media-server-workspace .server-empty-shell .arco-btn:hover {
+  color: rgba(255, 255, 255, 0.92) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+html.dark .media-server-workspace .workspace-toolbar .arco-btn-primary,
+html.dark .media-server-workspace .home-page .arco-btn-primary,
+html.dark .media-server-workspace .search-shell-media-server .arco-btn-primary,
+html.dark .media-server-workspace .library-shell .arco-btn-primary,
+html.dark .media-server-workspace .collection-shell .arco-btn-primary,
+html.dark .media-server-workspace .server-empty-shell .arco-btn-primary,
+html.dark .media-server-workspace .detail-primary-play {
+  color: #fff !important;
+  border-color: rgba(96, 165, 250, 0.38) !important;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.96), rgba(59, 130, 246, 0.88)) !important;
+  box-shadow: 0 22px 42px rgba(24, 70, 166, 0.32) !important;
+}
+
+html.dark .media-server-workspace .workspace-header h2,
+html.dark .media-server-workspace .workspace-header-card h2,
+html.dark .media-server-workspace .home-intro h2,
+html.dark .media-server-workspace .detail-section-title,
+html.dark .media-server-workspace .detail-section-header h4,
+html.dark .media-server-workspace .library-list-title,
+html.dark .media-server-workspace .person-shelf-title,
+html.dark .media-server-workspace .person-rail-title,
+html.dark .media-server-workspace .detail-main h3 {
+  color: rgba(244, 247, 252, 0.96) !important;
+}
+
+html.dark .media-server-workspace .workspace-header p,
+html.dark .media-server-workspace .workspace-header-card p,
+html.dark .media-server-workspace .library-meta-line,
+html.dark .media-server-workspace .library-list-overview,
+html.dark .media-server-workspace .person-rail-subtitle,
+html.dark .media-server-workspace .person-rail-overview,
+html.dark .media-server-workspace .detail-overview,
+html.dark .media-server-workspace .detail-tech-line,
+html.dark .media-server-workspace .detail-file-meta,
+html.dark .media-server-workspace .detail-episode-overview {
+  color: rgba(191, 201, 216, 0.78) !important;
+}
+
+html.dark .media-server-workspace .workspace-tab,
+html.dark .media-server-workspace .detail-chip-button,
+html.dark .media-server-workspace .detail-chip-link,
+html.dark .media-server-workspace .listing-toggle-group button {
+  color: rgba(255, 255, 255, 0.68) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.dark .media-server-workspace .workspace-tab.active,
+html.dark .media-server-workspace .detail-chip-button.active,
+html.dark .media-server-workspace .detail-square-action.active,
+html.dark .media-server-workspace .person-mini-action.active,
+html.dark .media-server-workspace .detail-version-option.active,
+html.dark .media-server-workspace .server-switcher-chip.active,
+html.dark .media-server-workspace .listing-toggle-group button.active {
+  color: rgba(255, 255, 255, 0.92) !important;
+  background: transparent !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+html.dark .media-server-workspace .workspace-toolbar,
+html.dark .media-server-workspace .workspace-tabs,
+html.dark .media-server-workspace .workspace-content,
+html.dark .media-server-workspace .home-intro,
+html.dark .media-server-workspace .detail-lower-content,
+html.dark .media-server-workspace .detail-section,
+html.dark .media-server-workspace .detail-section-header,
+html.dark .media-server-workspace .detail-section-episodes,
+html.dark .media-server-workspace .detail-media-card-rail,
+html.dark .media-server-workspace .home-page,
+html.dark .media-server-workspace .library-shell,
+html.dark .media-server-workspace .collection-shell {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.dark .media-server-workspace .workspace-tab,
+html.dark .media-server-workspace .workspace-tab:hover,
+html.dark .media-server-workspace .workspace-tab.active {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .workspace-toolbar,
+.media-server-workspace .workspace-tabs,
+.media-server-workspace .workspace-content,
+.media-server-workspace .home-page,
+.media-server-workspace .home-intro,
+.media-server-workspace .home-section,
+.media-server-workspace .home-section-header,
+.media-server-workspace .home-card-grid,
+.media-server-workspace .resume-strip,
+.media-server-workspace .poster-row,
+.media-server-workspace .detail-page,
+.media-server-workspace .detail-lower-content,
+.media-server-workspace .detail-section,
+.media-server-workspace .detail-section-header,
+.media-server-workspace .detail-section-episodes,
+.media-server-workspace .detail-episodes-rail,
+.media-server-workspace .detail-media-card-rail,
+.media-server-workspace .library-shell,
+.media-server-workspace .collection-shell {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.media-server-workspace .workspace-toolbar::before,
+.media-server-workspace .workspace-toolbar::after,
+.media-server-workspace .workspace-tabs::before,
+.media-server-workspace .workspace-tabs::after,
+.media-server-workspace .home-section::before,
+.media-server-workspace .home-section::after,
+.media-server-workspace .home-section-header::before,
+.media-server-workspace .home-section-header::after,
+.media-server-workspace .detail-lower-content::before,
+.media-server-workspace .detail-lower-content::after,
+.media-server-workspace .detail-section::before,
+.media-server-workspace .detail-section::after,
+.media-server-workspace .detail-section-header::before,
+.media-server-workspace .detail-section-header::after {
+  display: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .workspace-tab,
+.media-server-workspace .workspace-tab:hover,
+.media-server-workspace .workspace-tab.active {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html:not(.dark) .media-server-workspace {
+  --app-mineradio-ink: rgba(17, 24, 39, 0.94);
+  --app-glass-panel: rgba(255, 255, 255, 0.72);
+  --app-glass-line: rgba(15, 23, 42, 0.08);
+}
+
+html:not(.dark) .media-server-workspace .toolbar-btn,
+html:not(.dark) .media-server-workspace .detail-back-button,
+html:not(.dark) .media-server-workspace .server-switch-dropdown .arco-btn {
+  color: rgba(17, 24, 39, 0.88) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.66) !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+html:not(.dark) .media-server-workspace .server-switch-dropdown .arco-btn-content,
+html:not(.dark) .media-server-workspace .server-switch-trigger,
+html:not(.dark) .media-server-workspace .server-switch-trigger-text {
+  color: rgba(17, 24, 39, 0.92) !important;
+  opacity: 1 !important;
+}
+
+html:not(.dark) .media-server-workspace .toolbar-btn:hover,
+html:not(.dark) .media-server-workspace .detail-back-button:hover,
+html:not(.dark) .media-server-workspace .server-switch-dropdown .arco-btn:hover {
+  color: rgba(17, 24, 39, 0.96) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  background: rgba(255, 255, 255, 0.84) !important;
+}
+
+html:not(.dark) .media-server-workspace .toolbar-btn .iconfont,
+html:not(.dark) .media-server-workspace .detail-back-button .iconfont,
+html:not(.dark) .media-server-workspace .view-toggle-seg .iconfont {
+  color: currentColor !important;
+  opacity: 0.82 !important;
+  text-shadow: none !important;
+}
+
+html:not(.dark) .media-server-workspace .view-toggle-pill {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.66) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+html:not(.dark) .media-server-workspace .view-toggle-seg {
+  color: rgba(17, 24, 39, 0.5) !important;
+  background: transparent !important;
+}
+
+html:not(.dark) .media-server-workspace .view-toggle-seg:hover,
+html:not(.dark) .media-server-workspace .view-toggle-seg.active {
+  color: rgba(17, 24, 39, 0.92) !important;
+  background: rgba(15, 23, 42, 0.08) !important;
+}
+
+html:not(.dark) .media-server-workspace .view-toggle-divider {
+  background: rgba(15, 23, 42, 0.1) !important;
+}
+
+html:not(.dark) .media-server-workspace .listing-back-button {
+  width: auto !important;
+  max-width: min(520px, 100%) !important;
+  flex: 0 0 auto !important;
+}
+
+html:not(.dark) .home-library-manager-modal .arco-modal-header,
+html:not(.dark) .home-library-manager-modal-shell .arco-modal-header {
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+}
+
+html:not(.dark) .home-library-manager-modal .arco-modal-content,
+html:not(.dark) .home-library-manager-modal-shell .arco-modal-content,
+html:not(.dark) .detail-media-modal-shell .arco-modal-content {
+  color: rgba(17, 24, 39, 0.94) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  background: var(--app-overlay-bg) !important;
+  box-shadow: 0 28px 60px rgba(15, 23, 42, 0.14) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html:not(.dark) .home-library-manager-modal .arco-modal-title,
+html:not(.dark) .home-library-manager-modal-shell .arco-modal-title,
+html:not(.dark) .home-library-manager-modal .home-library-manager-item .arco-checkbox-label,
+html:not(.dark) .home-library-manager-modal-shell .home-library-manager-item .arco-checkbox-label {
+  color: rgba(17, 24, 39, 0.92) !important;
+  opacity: 1 !important;
+}
+
+html:not(.dark) .home-library-manager-modal .home-library-manager-hint,
+html:not(.dark) .home-library-manager-modal-shell .home-library-manager-hint {
+  color: rgba(31, 41, 55, 0.76) !important;
+  opacity: 1 !important;
+}
+
+html:not(.dark) .home-library-manager-modal .home-library-manager-list,
+html:not(.dark) .home-library-manager-modal-shell .home-library-manager-list,
+html:not(.dark) .server-switch-menu {
+  color: rgba(17, 24, 39, 0.94) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+html:not(.dark) .home-library-manager-modal .home-library-manager-empty,
+html:not(.dark) .home-library-manager-modal-shell .home-library-manager-empty {
+  color: rgba(17, 24, 39, 0.72) !important;
+  opacity: 1 !important;
+}
+
+html:not(.dark) .home-library-manager-modal .home-library-manager-drag-icon,
+html:not(.dark) .home-library-manager-modal-shell .home-library-manager-drag-icon {
+  color: rgba(17, 24, 39, 0.54) !important;
+  opacity: 1 !important;
+}
+
+html:not(.dark) .server-switch-menu {
+  color: rgba(17, 24, 39, 0.92) !important;
+  border: 1px solid rgba(15, 23, 42, 0.08) !important;
+  background: var(--app-overlay-bg) !important;
+  box-shadow: 0 24px 52px rgba(15, 23, 42, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html:not(.dark) .server-switch-menu .arco-dropdown-option,
+html:not(.dark) .server-switch-menu .arco-dropdown-submenu {
+  background: rgba(255, 255, 255, 0.4) !important;
+}
+
+html:not(.dark) .server-switch-menu .server-option-main > span,
+html:not(.dark) .server-switch-menu .server-option-check {
+  color: rgba(17, 24, 39, 0.92) !important;
+}
+
+html.dark .home-library-manager-modal.detail-media-modal .arco-modal,
+html.dark .home-library-manager-modal.detail-media-modal .arco-modal-content,
+html.dark .home-library-manager-modal-shell.detail-media-modal-shell .arco-modal-content {
+  color: var(--app-mineradio-ink, #e8ecef) !important;
+  border-color: var(--app-glass-line, rgba(255, 255, 255, 0.08)) !important;
+  background: var(--app-overlay-bg) !important;
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.dark .home-library-manager-modal.detail-media-modal .arco-modal-header,
+html.dark .home-library-manager-modal-shell.detail-media-modal-shell .arco-modal-header {
+  border-bottom: 1px solid var(--app-glass-line, rgba(255, 255, 255, 0.06)) !important;
+}
+
+html.dark .home-library-manager-modal.detail-media-modal .arco-modal-title,
+html.dark .home-library-manager-modal-shell.detail-media-modal-shell .arco-modal-title {
+  color: var(--app-mineradio-ink, #e8ecef) !important;
+}
+
+html.dark .home-library-manager-modal.detail-media-modal .home-library-manager-panel,
+html.dark .home-library-manager-modal-shell.detail-media-modal-shell .home-library-manager-panel {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+html.dark .home-library-manager-modal.detail-media-modal .home-library-manager-list,
+html.dark .home-library-manager-modal-shell.detail-media-modal-shell .home-library-manager-list {
+  border-color: var(--app-glass-line, rgba(255, 255, 255, 0.06)) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  box-shadow: none !important;
+}
+
+html.dark .home-library-manager-modal.detail-media-modal .home-library-manager-hint,
+html.dark .home-library-manager-modal.detail-media-modal .home-library-manager-item .arco-checkbox-label,
+html.dark .home-library-manager-modal-shell.detail-media-modal-shell .home-library-manager-hint,
+html.dark .home-library-manager-modal-shell.detail-media-modal-shell .home-library-manager-item .arco-checkbox-label {
+  color: var(--app-mineradio-ink, #e8ecef) !important;
+}
+
+.media-server-workspace .workspace-tabs {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  width: max-content !important;
+  max-width: 100% !important;
+  padding: 4px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+.media-server-workspace .workspace-tab {
+  height: 34px !important;
+  min-width: 72px !important;
+  padding: 0 18px !important;
+  border-radius: 11px !important;
+  border: 0 !important;
+  color: var(--app-mineradio-ink, #e8ecef) !important;
+  opacity: 0.62 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .workspace-tab:hover {
+  opacity: 0.82 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+.media-server-workspace .workspace-tab.active {
+  color: var(--app-mineradio-ink, #e8ecef) !important;
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+html:not(.dark) .media-server-workspace .workspace-tabs {
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.66) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+}
+
+html:not(.dark) .media-server-workspace .workspace-tab {
+  color: rgba(17, 24, 39, 0.58) !important;
+}
+
+html:not(.dark) .media-server-workspace .workspace-tab:hover,
+html:not(.dark) .media-server-workspace .workspace-tab.active {
+  color: rgba(17, 24, 39, 0.94) !important;
+  background: rgba(15, 23, 42, 0.08) !important;
+}
+
+html.dark .media-server-workspace .workspace-tabs {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+html.dark .media-server-workspace .workspace-tab {
+  color: var(--app-mineradio-ink, #e8ecef) !important;
+  opacity: 0.62 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.dark .media-server-workspace .workspace-tab:hover {
+  opacity: 0.82 !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+html.dark .media-server-workspace .workspace-tab.active {
+  color: var(--app-mineradio-ink, #e8ecef) !important;
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+.media-server-workspace .workspace-content-search,
+.media-server-workspace .search-shell-media-server,
+.media-server-workspace .search-result-stack,
+.media-server-workspace .search-feedback-card {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.dark .media-server-workspace .workspace-content-search,
+html.dark .media-server-workspace .search-shell-media-server,
+html.dark .media-server-workspace .search-result-stack,
+html.dark .media-server-workspace .search-feedback-card,
+html:not(.dark) .media-server-workspace .workspace-content-search,
+html:not(.dark) .media-server-workspace .search-shell-media-server,
+html:not(.dark) .media-server-workspace .search-result-stack,
+html:not(.dark) .media-server-workspace .search-feedback-card {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html:not(.dark) .media-server-workspace .detail-lower-content,
+html:not(.dark) .media-server-workspace .detail-section,
+html:not(.dark) .media-server-workspace .detail-section-header,
+html:not(.dark) .media-server-workspace .detail-section-episodes,
+html:not(.dark) .media-server-workspace .detail-chip-row,
+html:not(.dark) .media-server-workspace .detail-people-rail,
+html:not(.dark) .media-server-workspace .detail-recommendation-rail,
+html:not(.dark) .media-server-workspace .detail-media-card-rail {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html:not(.dark) .media-server-workspace .detail-section::before,
+html:not(.dark) .media-server-workspace .detail-section::after,
+html:not(.dark) .media-server-workspace .detail-section-header::before,
+html:not(.dark) .media-server-workspace .detail-section-header::after {
+  display: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html:not(.dark) .media-server-workspace .detail-section-header h4 {
+  color: rgba(17, 24, 39, 0.94) !important;
+  text-shadow: none !important;
+}
+
+html:not(.dark) .media-server-workspace .detail-chip-button,
+html:not(.dark) .media-server-workspace .detail-chip-link {
+  color: rgba(31, 41, 55, 0.78) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.42) !important;
+  box-shadow: none !important;
+}
+
+html:not(.dark) .media-server-workspace .person-card,
+html:not(.dark) .media-server-workspace .detail-media-card,
+html:not(.dark) .media-server-workspace .detail-file-bar {
+  color: rgba(17, 24, 39, 0.92) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  background: rgba(255, 255, 255, 0.48) !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08) !important;
+}
+
+.media-server-workspace .detail-hero-title,
+.media-server-workspace .detail-rating-line,
+.media-server-workspace .detail-tech-line,
+.media-server-workspace .detail-overview,
+.media-server-workspace .detail-section-header h4,
+.media-server-workspace .detail-media-card-title,
+.media-server-workspace .detail-media-row span,
+.media-server-workspace .detail-media-row strong {
+  text-shadow: none !important;
+  filter: none !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.media-server-workspace .detail-hero-logo {
+  filter: none !important;
+}
+
+.media-server-workspace .detail-hero-poster,
+.media-server-workspace .detail-square-action,
+.media-server-workspace .detail-primary-play,
+.media-server-workspace .detail-secondary-download,
+.media-server-workspace .detail-chip-button,
+.media-server-workspace .detail-chip-link,
+.media-server-workspace .detail-media-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.media-server-workspace .detail-section-header h4 {
+  font-size: 20px !important;
+  line-height: 1.25 !important;
+  font-weight: 760 !important;
+  letter-spacing: 0 !important;
+}
+
+.media-server-workspace .detail-media-card-title {
+  margin-bottom: 14px !important;
+  font-size: 16px !important;
+  line-height: 1.35 !important;
+  font-weight: 720 !important;
+}
+
+.media-server-workspace .detail-media-card-heading {
+  gap: 10px !important;
+}
+
+.media-server-workspace .detail-media-kind-badge {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 760 !important;
+}
+
+.media-server-workspace .detail-media-card {
+  min-height: 238px !important;
+  padding: 18px 20px !important;
+  border-radius: 20px !important;
+}
+
+.media-server-workspace .detail-media-row {
+  grid-template-columns: 96px minmax(0, 1fr) !important;
+  gap: 14px !important;
+}
+
+.media-server-workspace .detail-media-row span,
+.media-server-workspace .detail-media-row strong {
+  font-size: 13px !important;
+  line-height: 1.45 !important;
+}
+
+.media-server-workspace .detail-hero-title {
+  font-size: clamp(30px, 3.4vw, 52px) !important;
+  letter-spacing: 0 !important;
+}
+
+.media-server-workspace .detail-rating-line,
+.media-server-workspace .detail-tech-line {
+  font-size: 14px !important;
+  line-height: 1.45 !important;
+}
+
+.media-server-workspace .detail-overview {
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+}
+
+.media-server-workspace .detail-backdrop-mask {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.62) 0%, rgba(0, 0, 0, 0.42) 34%, rgba(0, 0, 0, 0.16) 72%, rgba(0, 0, 0, 0.08) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.08) 48%, rgba(0, 0, 0, 0.42) 100%) !important;
+}
+
+.media-server-workspace .detail-hero-title,
+.media-server-workspace .detail-episode-heading,
+.media-server-workspace .detail-rating-line,
+.media-server-workspace .detail-rating-line span,
+.media-server-workspace .detail-tech-line,
+.media-server-workspace .detail-overview {
+  color: rgba(255, 255, 255, 0.96) !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.38) !important;
+}
+
+.media-server-workspace .detail-meta-badge {
+  color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  background: rgba(0, 0, 0, 0.28) !important;
+}
+
+.media-server-workspace .detail-square-action,
+.media-server-workspace .detail-secondary-download {
+  color: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+  background: rgba(7, 12, 20, 0.54) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24) !important;
+}
+
+.media-server-workspace .detail-square-action:hover,
+.media-server-workspace .detail-secondary-download:hover {
+  background: rgba(7, 12, 20, 0.68) !important;
+}
+
+.media-server-workspace .detail-episode-card,
+html.dark .media-server-workspace .detail-episode-card,
+html:not(.dark) .media-server-workspace .detail-episode-card {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.media-server-workspace .detail-episode-card::before,
+.media-server-workspace .detail-episode-card::after {
+  display: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .detail-episode-cover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.18) !important;
+}
+
+.media-server-workspace .detail-episode-kicker,
+.media-server-workspace .detail-episode-title {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html:not(.dark) .media-server-workspace .detail-episode-kicker {
+  color: rgba(31, 41, 55, 0.72) !important;
+}
+
+html:not(.dark) .media-server-workspace .detail-episode-title {
+  color: rgba(17, 24, 39, 0.94) !important;
+}
+
+/* Keep the media-server home renderer stable in Electron.
+   Backdrop blur plus hover transforms can trigger layer invalidation and make the home nav/content flicker. */
+.media-server-workspace .workspace-page,
+.media-server-workspace .workspace-toolbar,
+.media-server-workspace .workspace-tabs,
+.media-server-workspace .workspace-content,
+.media-server-workspace .home-page,
+.media-server-workspace .home-section,
+.media-server-workspace .resume-strip,
+.media-server-workspace .poster-row {
+  backface-visibility: hidden !important;
+  -webkit-backface-visibility: hidden !important;
+  transform: translateZ(0) !important;
+}
+
+.media-server-workspace .workspace-toolbar,
+.media-server-workspace .workspace-tabs,
+.media-server-workspace .view-toggle-pill,
+.media-server-workspace .toolbar-btn,
+.media-server-workspace .see-all-button,
+.media-server-workspace .poster-overlay-badge,
+.media-server-workspace .section-error-card .arco-btn,
+.media-server-workspace .workspace-toolbar .arco-btn,
+.media-server-workspace .home-page .arco-btn {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.media-server-workspace .toolbar-btn:active,
+.media-server-workspace .view-toggle-seg:active,
+.media-server-workspace .see-all-button:active,
+.media-server-workspace .interactive-card:hover,
+.media-server-workspace .poster-tile:hover,
+.media-server-workspace .poster-tile:hover .poster-image img,
+.media-server-workspace .poster-tile:hover .poster-meta,
+.media-server-workspace .resume-card:hover,
+.media-server-workspace .resume-card:hover .resume-card-poster img,
+.media-server-workspace .resume-card:hover .resume-card-body {
+  transform: none !important;
+}
+
+/* All media-server image fallbacks share the same dark surface, including
+   home rows, library cards, detail posters, episode stills, and people. */
+html.dark .media-server-workspace .media-image-placeholder {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 54%),
+    linear-gradient(180deg, rgb(44, 52, 66) 0%, rgb(28, 34, 46) 100%) !important;
+}
+
+html.dark .media-server-workspace .media-image-placeholder::before {
+  box-shadow: inset 0 0 0 1px rgba(203, 213, 225, 0.16) !important;
+  filter: grayscale(1) brightness(1.18) contrast(0.9) !important;
+  opacity: 0.72 !important;
+}
+
+html.dark .media-server-workspace .media-image-placeholder:has(> .media-poster-placeholder-icon) {
+  background: #232625 !important;
+}
+
+/* ── Cinematic media detail, matched to the compact Emby-style reference. ── */
+.media-server-workspace .detail-shell {
+  --detail-surface: #191919;
+  --detail-surface-soft: #242424;
+  --detail-copy: rgba(255, 255, 255, 0.94);
+  --detail-copy-muted: rgba(255, 255, 255, 0.66);
+  --detail-accent: #ff7a00;
+  gap: 0 !important;
+  min-height: 100%;
+  color: var(--detail-copy) !important;
+  background: var(--detail-surface) !important;
+}
+
+.media-server-workspace .detail-shell::before,
+.media-server-workspace .detail-page-backdrop,
+.media-server-workspace .detail-page-tint {
+  display: none !important;
+}
+
+.media-server-workspace .detail-backdrop-stage {
+  min-height: max(620px, calc(100vh - 140px)) !important;
+  overflow: hidden !important;
+  background: #242424 !important;
+}
+
+.media-server-workspace .detail-backdrop-image,
+.media-server-workspace .detail-backdrop-fallback {
+  top: 54px !important;
+  height: calc(100% - 54px) !important;
+}
+
+.media-server-workspace .detail-backdrop-image {
+  object-position: center 10% !important;
+  filter: saturate(0.94) brightness(0.88);
+}
+
+.media-server-workspace .detail-backdrop-fallback,
+html.dark .media-server-workspace .detail-backdrop-fallback,
+html:not(.dark) .media-server-workspace .detail-backdrop-fallback {
+  background:
+    radial-gradient(circle at 34% 12%, rgba(76, 87, 104, 0.38), transparent 35%),
+    linear-gradient(180deg, #28303a 0%, #20252d 46%, #191919 100%) !important;
+}
+
+.media-server-workspace .detail-backdrop-mask {
+  top: 54px !important;
+  background:
+    linear-gradient(90deg, rgba(12, 12, 12, 0.18) 0%, rgba(12, 12, 12, 0.06) 45%, rgba(12, 12, 12, 0.16) 100%),
+    linear-gradient(180deg, rgba(12, 12, 12, 0.01) 0%, rgba(19, 19, 19, 0.03) 64%, rgba(25, 25, 25, 0.7) 87%, #191919 100%) !important;
+}
+
+.media-server-workspace .detail-backdrop-bottom-haze {
+  left: 0 !important;
+  right: 0 !important;
+  bottom: -1px !important;
+  height: 32% !important;
+  border-radius: 0 !important;
+  filter: none !important;
+  background: linear-gradient(180deg, transparent 0%, rgba(25, 25, 25, 0.38) 54%, #191919 100%) !important;
+}
+
+.media-server-workspace .detail-top-back {
+  position: absolute !important;
+  inset: 0 0 auto 0 !important;
+  z-index: 5 !important;
+  height: 54px !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+  background: #191919 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+}
+
+.media-server-workspace .detail-back-button {
+  min-width: 0 !important;
+  height: 54px !important;
+  padding: 0 !important;
+  gap: 12px !important;
+  color: rgba(255, 255, 255, 0.92) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  font-size: 15px !important;
+  font-weight: 760 !important;
+}
+
+.media-server-workspace .detail-back-button > .iconfont-svg {
+  width: 38px !important;
+  height: 38px !important;
+  padding: 9px !important;
+  overflow: visible !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 50% !important;
+  background: #222 !important;
+  box-sizing: border-box !important;
+  opacity: 1 !important;
+}
+
+.media-server-workspace .detail-back-button > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-server-workspace .detail-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.media-server-workspace .detail-top-icon-action {
+  position: relative;
+  height: 38px;
+  min-width: 38px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.78);
+  background: #222;
+  cursor: pointer;
+}
+
+.media-server-workspace .detail-top-icon-action:hover,
+.media-server-workspace .detail-top-icon-action.active {
+  color: #fff;
+  background: #303030;
+}
+
+.media-server-workspace .detail-top-icon-action[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.media-server-workspace .detail-top-actions > .detail-top-icon-action {
+  background: transparent;
+  border-color: transparent;
+}
+
+.media-server-workspace .detail-top-action-plus {
+  margin-left: -7px;
+  margin-top: -10px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.media-server-workspace .detail-top-chevron {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+.media-server-workspace .detail-hero-copy {
+  inset: 54px 0 0 !important;
+  padding: 0 34px 12px !important;
+  justify-content: flex-end !important;
+}
+
+.media-server-workspace .detail-overlay-grid {
+  width: 100% !important;
+  max-width: none !important;
+  grid-template-columns: minmax(232px, 280px) minmax(0, 1fr) !important;
+  column-gap: 34px !important;
+  align-items: end !important;
+}
+
+.media-server-workspace .detail-hero-controls {
+  min-height: 242px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.media-server-workspace .detail-title-block-brand {
+  min-height: 74px;
+  margin: 0 0 18px !important;
+  display: flex;
+  align-items: flex-end;
+}
+
+.media-server-workspace .detail-hero-logo {
+  max-width: 190px !important;
+  max-height: 82px !important;
+  object-position: left bottom !important;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.42)) !important;
+}
+
+.media-server-workspace .detail-actions-column {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  gap: 12px !important;
+}
+
+.media-server-workspace .detail-play-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  align-items: center;
+  gap: 10px;
+}
+
+.media-server-workspace .detail-primary-play {
+  order: 0;
+  width: 100% !important;
+  height: 46px !important;
+  min-height: 46px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: rgba(25, 25, 25, 0.9) !important;
+  background: rgba(231, 231, 235, 0.72) !important;
+  box-shadow: none !important;
+  font-size: 14px !important;
+  font-weight: 780 !important;
+}
+
+.media-server-workspace .detail-primary-play:hover {
+  color: #111 !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .detail-primary-play.has-resume {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: #fff !important;
+  background: rgba(150, 157, 160, 0.5) !important;
+}
+.media-server-workspace .detail-primary-play > .detail-play-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 0;
+  background: rgba(235, 239, 240, 0.42);
+  border-right: 1px solid rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.media-server-workspace .detail-play-version-trigger {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.9);
+  background: rgba(62, 62, 62, 0.94);
+  cursor: pointer;
+}
+
+.media-server-workspace .detail-play-version-trigger:hover {
+  color: #fff;
+  background: #505050;
+}
+
+.media-server-workspace .detail-play-version-trigger[disabled] {
+  opacity: 0.52;
+  cursor: default;
+}
+
+.media-server-workspace .detail-play-version-trigger > .iconfont-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.media-server-workspace .detail-icon-actions {
+  order: 1;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: stretch !important;
+  gap: 10px !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.media-server-workspace .detail-square-action {
+  position: relative;
+  flex: 1 1 0 !important;
+  width: auto !important;
+  height: 44px !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 999px !important;
+  color: rgba(255, 255, 255, 0.86) !important;
+  background: rgba(49, 49, 49, 0.94) !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .detail-square-action:hover,
+.media-server-workspace .detail-square-action.active {
+  color: #fff !important;
+  background: #414141 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.media-server-workspace .detail-square-action > .iconfont-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.media-server-workspace .detail-action-plus {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.media-server-workspace .detail-hero-main {
+  min-height: 242px !important;
+  max-width: none !important;
+  justify-content: flex-end !important;
+  gap: 0 !important;
+}
+
+.media-server-workspace .detail-synopsis-column {
+  width: min(100%, 1240px) !important;
+  max-width: none !important;
+  gap: 10px !important;
+  justify-content: flex-end !important;
+}
+
+.media-server-workspace .detail-episode-heading {
+  color: var(--detail-copy) !important;
+  font-size: clamp(18px, 1.45vw, 28px) !important;
+  line-height: 1.28 !important;
+  font-weight: 780 !important;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.52) !important;
+}
+
+.media-server-workspace .detail-facts-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 13px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 650;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.media-server-workspace .detail-facts-line .detail-meta-badge {
+  padding: 1px 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  border-radius: 4px !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  background: transparent !important;
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.media-server-workspace .detail-overview-block {
+  padding: 0 !important;
+}
+
+.media-server-workspace .detail-overview {
+  max-width: 1280px;
+  color: rgba(255, 255, 255, 0.84) !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  font-weight: 520 !important;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
+  -webkit-line-clamp: 2 !important;
+}
+
+.media-server-workspace .detail-score-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 13px;
+}
+
+.media-server-workspace .detail-score-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  flex: 0 0 24px;
+}
+
+.media-server-workspace .detail-lower-content {
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0 !important;
+  padding: 16px 34px 30px !important;
+  color: var(--detail-copy) !important;
+  background: var(--detail-surface) !important;
+}
+
+.media-server-workspace .detail-section {
+  margin: 0 0 24px !important;
+}
+
+.media-server-workspace .detail-section-episodes { order: 1; }
+.media-server-workspace .detail-section-genres { order: 2; }
+.media-server-workspace .detail-section-studios { order: 3; }
+.media-server-workspace .detail-section-links { order: 4; }
+.media-server-workspace .detail-section-people { order: 5; }
+.media-server-workspace .detail-section-media { order: 6; }
+.media-server-workspace .detail-section-similar { order: 7; }
+
+.media-server-workspace .detail-section-header {
+  min-height: 24px;
+  margin-bottom: 10px !important;
+}
+
+.media-server-workspace .detail-section-header h4 {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 15px !important;
+  line-height: 1.35 !important;
+  font-weight: 760 !important;
+}
+
+.media-server-workspace .detail-section-episodes > .detail-section-header h4::after {
+  content: '⌄';
+  display: inline-block;
+  margin-left: 5px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 13px;
+}
+
+.media-server-workspace .detail-season-picker {
+  margin-bottom: 10px !important;
+  gap: 8px !important;
+}
+
+.media-server-workspace .detail-chip-button,
+.media-server-workspace .detail-chip-link {
+  min-height: 30px !important;
+  padding: 5px 11px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 999px !important;
+  color: rgba(255, 255, 255, 0.68) !important;
+  background: #242424 !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+}
+
+.media-server-workspace .detail-chip-button.active {
+  color: #fff !important;
+  border-color: var(--detail-accent) !important;
+  background: rgba(255, 122, 0, 0.12) !important;
+}
+
+.media-server-workspace .detail-episodes-rail,
+.media-server-workspace .detail-recommendation-rail,
+.media-server-workspace .detail-people-rail {
+  gap: 12px !important;
+  padding: 2px 0 8px !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.media-server-workspace .detail-episode-card {
+  width: clamp(150px, 12vw, 250px) !important;
+}
+
+.media-server-workspace .detail-episode-cover {
+  height: auto !important;
+  aspect-ratio: 16 / 9 !important;
+  border-radius: 14px !important;
+  background: #262626 !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .detail-episode-card.selected .detail-episode-cover {
+  outline: 3px solid var(--detail-accent) !important;
+  outline-offset: -3px !important;
+}
+
+.media-server-workspace .detail-episode-caption {
+  min-width: 0;
+  margin-top: 7px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.media-server-workspace .detail-episode-index,
+.media-server-workspace .detail-episode-kicker,
+.media-server-workspace .detail-episode-title {
+  margin: 0 !important;
+  min-height: 0 !important;
+  color: inherit !important;
+  font: inherit !important;
+  display: inline !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+
+.media-server-workspace .detail-episode-title {
+  min-width: 0;
+  overflow: hidden !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-server-workspace .detail-section-people {
+  margin-top: 3px !important;
+}
+
+.media-server-workspace .person-card.person-card-rail {
+  width: 82px !important;
+  min-width: 82px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: rgba(255, 255, 255, 0.86) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.media-server-workspace .person-card.person-card-button:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.media-server-workspace .person-avatar {
+  width: 72px !important;
+  height: 72px !important;
+  margin: 0 0 7px !important;
+  border-radius: 16px !important;
+  background: #262626 !important;
+}
+
+.media-server-workspace .person-name {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.86) !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-server-workspace .person-role {
+  margin-top: 2px !important;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48) !important;
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-server-workspace .detail-section-media {
+  display: flex;
+  flex-direction: column;
+}
+
+.media-server-workspace .detail-section-media > .detail-section-header {
+  display: none !important;
+}
+
+.media-server-workspace .detail-file-bar {
+  order: 0;
+  margin: 3px 0 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  flex-direction: column;
+  gap: 2px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-align: left !important;
+}
+
+.media-server-workspace .detail-file-source {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.media-server-workspace .detail-file-name {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.48) !important;
+  font-size: 11px !important;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-server-workspace .detail-file-path {
+  overflow-wrap: anywhere;
+  color: rgba(255, 255, 255, 0.48) !important;
+  font-size: 11px !important;
+  line-height: 1.4;
+}
+
+.media-server-workspace .detail-file-meta {
+  align-self: flex-start;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  color: rgba(255, 255, 255, 0.52) !important;
+  font-size: 11px !important;
+  white-space: normal;
+}
+
+.media-server-workspace .detail-media-card-rail {
+  order: 1;
+  margin-top: 26px;
+  padding-top: 8px !important;
+}
+
+.media-server-workspace .detail-media-card {
+  min-height: 190px !important;
+  background: #222 !important;
+}
+
+@media (max-width: 980px) {
+  .media-server-workspace .detail-backdrop-stage {
+    min-height: 760px !important;
+  }
+
+  .media-server-workspace .detail-overlay-grid {
+    grid-template-columns: 218px minmax(0, 1fr) !important;
+    column-gap: 24px !important;
+  }
+
+  .media-server-workspace .detail-icon-actions {
+    gap: 10px !important;
+  }
+
+  .media-server-workspace .detail-square-action {
+    width: auto !important;
+    height: 38px !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .media-server-workspace .detail-backdrop-stage {
+    min-height: 840px !important;
+  }
+
+  .media-server-workspace .detail-hero-copy {
+    padding: 0 20px 28px !important;
+  }
+
+  .media-server-workspace .detail-overlay-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    row-gap: 24px !important;
+  }
+
+  .media-server-workspace .detail-hero-controls,
+  .media-server-workspace .detail-hero-main {
+    min-height: 0 !important;
+  }
+
+  .media-server-workspace .detail-title-block-brand {
+    min-height: 0;
+  }
+
+  .media-server-workspace .detail-actions-column {
+    max-width: 270px !important;
+  }
+
+  .media-server-workspace .detail-lower-content {
+    padding: 16px 20px 28px !important;
+  }
+
+  .media-server-workspace .detail-file-bar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .media-server-workspace .detail-file-meta {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+/* Server library root uses landscape collections, not media posters. */
+.media-server-workspace.unified-server-root .root-library-fallback { position:absolute;inset:0;display:grid;place-items:center;color:var(--primary);background:var(--secondary); }
+.media-server-workspace.unified-server-root .library-shell { margin:0!important; }
+#xbybody.media-server-workspace.unified-server-root .library-shell-list .library-card { width:100%!important;display:flex!important;flex-direction:row!important;align-items:center!important;gap:16px!important; }
+#xbybody.media-server-workspace.unified-server-root .library-shell-list .library-cover { width:92px!important;height:138px!important;min-width:92px!important;max-width:92px!important;aspect-ratio:2/3!important; }
+#xbybody.media-server-workspace.unified-server-root .library-shell-list .library-card h4 { display:block!important;position:static!important;color:var(--foreground)!important;font-size:14px!important; }
+.media-server-workspace.unified-server-root .workspace-page { padding:0!important;background:transparent!important; }
+.media-server-workspace.unified-server-root .library-card .listing-overlay-badge { display:none!important; }
+.media-server-workspace.unified-server-root .library-card-hero { gap:0!important; }
+.media-server-workspace.unified-server-root .workspace-content { padding: 0 !important; }
+.media-server-workspace.unified-server-root .home-page { padding: 16px !important; }
+.media-server-workspace.unified-server-root .library-shell-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 16px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important; }
+.media-server-workspace.unified-server-root .library-card { padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;min-width:0; }
+.media-server-workspace.unified-server-root .library-cover { width:100%;aspect-ratio:16/9!important;height:auto!important;border-radius:16px;background:var(--secondary)!important; }
+.media-server-workspace.unified-server-root .listing-overlay-badge { display:none!important; }
+.media-server-workspace.unified-server-root .library-card h4 { margin:8px 0 0;font-size:13px;font-weight:600;text-align:left;color:var(--foreground)!important; }
+.media-server-workspace.unified-server-root .library-shell-list { display:flex;flex-direction:column;gap:0; }
+.media-server-workspace.unified-server-root .library-card-list { display:flex!important;flex-direction:row!important;align-items:center;gap:16px;padding:16px!important;border-bottom:1px solid var(--border)!important;border-radius:0!important; }
+.media-server-workspace.unified-server-root .library-card-list .library-cover { width:92px!important;height:138px!important;aspect-ratio:2/3!important;flex-shrink:0;border-radius:8px; }
+.media-server-workspace.unified-server-root .library-card-list h4 { margin:0;font-size:14px; }
+.root-library-check { position:absolute;top:8px;right:8px;z-index:3; }
+@media(max-width:900px){.media-server-workspace.unified-server-root .library-shell-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+/* Unified category cards share the local media library's plain poster treatment.
+   This must win over PageMain's global glass-panel rules, regardless of CSS load order. */
+.media-server-workspace.unified-server-category .workspace-page,
+.media-server-workspace.unified-server-category .workspace-content {
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  background: transparent !important; backdrop-filter: none !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-card {
+  min-width: 0; padding: 0 !important; background: transparent !important;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-cover {
+  border: 0 !important; border-radius: 12px !important; box-shadow: none !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-card-grid { gap: 0 !important; }
+.media-server-workspace.unified-server-category .unified-listing .library-card-grid > h4 {
+  margin: 6px 0 3px !important; padding: 0 !important; font-size: 13px !important;
+  font-weight: 600 !important; line-height: 1.4; color: var(--foreground) !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-meta-line {
+  margin: 0 !important; padding: 0 !important; font-size: 12px !important;
+  color: var(--muted-text) !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .listing-overlay-badge { display: none !important; }
+
+ .media-server-workspace.unified-server-category .workspace-content { padding: 0 !important; }
+.media-server-workspace.unified-server-category .library-list-genres { display: flex; flex-wrap: wrap; gap: 6px; }
+.media-server-workspace.unified-server-category .library-list-genres span { padding: 2px 10px; border-radius: 12px; font-size: 12px; color: var(--foreground); background: var(--secondary); }
+
+/* List rows follow the media library, independent of the plain grid-card reset. */
+.media-server-workspace.unified-server-category .unified-listing.library-shell-list {
+  padding: 0 8px; gap: 0;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-card-list {
+  position: relative; flex-direction: row !important; align-items: center !important;
+  gap: 22px !important; padding: 12px 0 !important; transform: none !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-card-list + .library-card-list::before {
+  content: ''; position: absolute; top: 0; left: 120px; right: 0;
+  border-top: 1px solid var(--border);
+}
+.media-server-workspace.unified-server-category .unified-listing .library-card-list .library-cover {
+  width: 98px !important; min-width: 98px !important; height: 147px !important;
+  border-radius: 8px !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-list-body {
+  flex: 1; min-width: 0; max-width: none !important; gap: 4px !important; padding: 0 !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-list-body h4 {
+  font-size: 16px !important; font-weight: 600 !important; line-height: 1.4 !important;
+  color: var(--foreground) !important; -webkit-line-clamp: 1;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-list-meta {
+  gap: 20px !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-list-meta-chip {
+  min-height: 0 !important; padding: 0 !important; background: transparent !important;
+  border: 0 !important; border-radius: 0 !important; font-size: 13px !important;
+  font-weight: 400 !important; color: var(--muted-text) !important;
+}
+.media-server-workspace.unified-server-category .unified-listing .library-list-overview {
+  max-width: none !important; font-size: 13px !important; line-height: 1.4 !important;
+  color: var(--muted-text) !important; -webkit-line-clamp: 2 !important;
+}

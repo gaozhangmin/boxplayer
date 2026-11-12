@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "audit": "Electron uploadmem dispatch includes Guangya; Tauri text creation omitted it",
+  "upstreamFlow": "src/guangya/upload.ts:apiGuangyaUploadBuffer",
+  "target": "tauri-app/src/features/files/drive/electron/providers/guangyaTextFlow.ts",
+  "focusedTests": {
+    "files": 1,
+    "passed": 6
+  },
+  "typecheck": "passed",
+  "filesVerifier": {
+    "mappings": 207,
+    "exactTemplates": 23,
+    "assets": 2
+  },
+  "productionIntegration": false,
+  "nativeIo": "pending",
+  "capabilityEnabled": false,
+  "realAccounts": "deferred",
+  "fullSuiteRerun": false,
+  "bundleRebuilt": false,
+  "M5": "active",
+  "M6": "not started"
+}

@@ -1,0 +1,36 @@
+/* Original Electron styles scoped to the batch rename dialog. */
+.source-drive-dialog.renamemulti .hidetabs {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  background: transparent !important;
+}
+
+.source-drive-dialog.renamemulti .hidetabs > .ant-tabs-nav {
+  height: 0 !important;
+  display: none !important;
+}
+
+.source-drive-dialog.renamemulti .hidetabs .ant-tabs-content {
+  height: 100%;
+  background: transparent !important;
+}
+
+.source-drive-dialog.renamemulti .hidetabs > .arco-tabs-content {
+  padding-top: 0 !important;
+  padding-bottom: 1px !important;
+  height: 100%;
+  background: transparent !important;
+}
+
+.source-drive-dialog.renamemulti .hidetabs .arco-tabs-content-list,
+.source-drive-dialog.renamemulti .hidetabs .arco-tabs-pane {
+  height: 100%;
+  background: transparent !important;
+}
+
+.source-drive-dialog.renamemulti .hidetabs > .arco-tabs-nav {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}

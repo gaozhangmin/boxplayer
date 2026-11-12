@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-07",
+  "branch": "feat/tauri-migration",
+  "electronBaseline": "de03329",
+  "scope": [
+    "source editors",
+    "media server pages",
+    "Plex discovery and selection"
+  ],
+  "frontend": {
+    "testsPassed": 300,
+    "testFiles": 52,
+    "typecheck": "passed"
+  },
+  "native": {
+    "testsPassed": 109,
+    "ignored": 10,
+    "failed": 0,
+    "realAccountsExecuted": false
+  },
+  "browserPreview": {
+    "dataset": "synthetic only",
+    "pageErrors": 0,
+    "checked": [
+      "grid",
+      "list",
+      "source editor",
+      "endpoint manager and nested editor",
+      "Plex connect and resource choice",
+      "detail and version menu"
+    ],
+    "nativeAcceptance": false
+  },
+  "bundle": {
+    "path": "tauri-app/src-tauri/target/debug/bundle/macos/BoxPlayer Dev.app",
+    "status": "built",
+    "sizeMiB": 120.62,
+    "executables": [
+      {
+        "name": "boxplayer-tauri-dev",
+        "sha256": "e81ac7e30012cc169b29f04c96d4a1f2d555a6fcd9d771d9a9e599a7d118f1b5"
+      }
+    ]
+  },
+  "pending": [
+    "real Jellyfin, Emby and Plex account acceptance",
+    "native visual acceptance of new bundle",
+    "Windows, Linux and macOS x64 runtime checks"
+  ],
+  "electronUserDataChanged": false
+}

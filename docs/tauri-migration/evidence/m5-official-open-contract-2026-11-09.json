@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "sources": {
+    "moveCopy": "https://www.yuque.com/aliyundrive/zpfszx/gzeh9ecpxihziqrc",
+    "recycleDelete": "https://www.yuque.com/aliyundrive/zpfszx/get3mkr677pf10ws",
+    "list": "https://www.yuque.com/aliyundrive/zpfszx/zqkqp6"
+  },
+  "contract": {
+    "move": "same drive only",
+    "copy": "destination drive parameter documented",
+    "delete": "documented endpoint now integrated",
+    "recycleListRestoreEmpty": "not present in reviewed public chapter;not exposed",
+    "openListMax": 100
+  },
+  "frontend": {
+    "files": 243,
+    "passed": 2386
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "bundleMiB": 211.84,
+  "sha256": "4adbafc7a8abeaaeb3a08dba4cbcb5e432dbcf54eeb28b2d1e3a4a4511663e46",
+  "nativeRerun": false,
+  "bundleRestarted": false,
+  "realAccounts": "deferred",
+  "electronConcurrentDirty": [
+    "src/setting/index.vue"
+  ],
+  "M6": "not started"
+}

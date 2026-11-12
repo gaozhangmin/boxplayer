@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="光鸭云盘">
+  <rect width="64" height="64" rx="16" fill="#ffe14d"/>
+  <path fill="#fff7bd" d="M16 35c0-10 8-18 18-18h4c8 0 14 6 14 14s-6 14-14 14H22c-3 0-6-2-6-5v-5z"/>
+  <path fill="#ff9f1c" d="M44 31h12l-10 7z"/>
+  <circle cx="36" cy="28" r="3" fill="#1f2933"/>
+  <path fill="none" stroke="#1f2933" stroke-linecap="round" stroke-width="4" d="M15 44h28"/>
+</svg>

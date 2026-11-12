@@ -1,0 +1,10 @@
+import '@/style.css'
+import App from './App.vue'
+import {watch} from 'vue'
+import {useSettingsStore} from '@/stores/settings'
+import {setLocale} from '@/features/files/electron/i18n'
+import Arco from '@arco-design/web-vue'
+import '@arco-design/web-vue/dist/arco.css'
+import '@/features/files/electron/theme.css'
+import { mountApp } from '@/lib/bootstrap'
+mountApp(App,app=>{app.use(Arco);const settings=useSettingsStore();watch(()=>settings.value.language,value=>setLocale(value==='en'?'en-US':'zh-CN'),{immediate:true})})

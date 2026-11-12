@@ -1,0 +1,17 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "kind": "user-observed native acceptance",
+  "context": "Mac → testVideo; main window narrowed near minimum width",
+  "userReply": "两个窗口均完整可用",
+  "accepted": [
+    "属性：内容、底部按钮、关闭操作",
+    "更多 → 复制目录树：内容、底部按钮、关闭操作"
+  ],
+  "measuredWidth": null,
+  "runningExecutableSha256": "96d4d25796440df19038047fbe3ad7674c722c27e470c9a7779ebd1069e6df50",
+  "latestBundleRestarted": false,
+  "realAccounts": "deferred",
+  "M5": "active",
+  "M6": "not started"
+}

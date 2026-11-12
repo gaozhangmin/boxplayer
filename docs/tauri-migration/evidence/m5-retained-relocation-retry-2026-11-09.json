@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "frontend": {
+    "files": 240,
+    "passed": 2353
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "bundleMiB": 211.82,
+  "sha256": "6d2bc91789276a15f9f60b5afc952c9627ba29b8f13cdd4821310cdbaaae1ac4",
+  "nativeRerun": false,
+  "nativeSmokeBundle": "5c324eac4daca868c569e76efaa67aa63adbb11d1cd4b1a673e536769005d6f9",
+  "nativeSmoke": [
+    "21 entries",
+    "Cmd+A 21/21",
+    "cancel 0/21",
+    "Cmd+F DV 8/21",
+    "clear 21 entries"
+  ],
+  "geometryAccepted": false,
+  "dropdownAccepted": false,
+  "retryBundleRestarted": false,
+  "openContracts": "unresolved",
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

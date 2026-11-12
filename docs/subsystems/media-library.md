@@ -2,13 +2,13 @@
 
 路径按本仓库根目录解释。修改前核对当前源码和调用者；本文不宣称已完成运行验收。
 
-本文涉及的新 Tauri 源码仍属于本地未提交迁移工程；本次只提交规则和文档。独立克隆没有这些文件时，明确报告缺失，不用旧 Electron 根工程代替原生验收。
+本文涉及的 Tauri 迁移源码随 `codex/dev-tauri` 分支版本管理。原生验收使用 `tauri-app/`，不能用旧 Electron 根工程代替；源码已提交不代表目标平台已验收。
 
 ## 职责与源码
 
-- `tauri-app/src/features/library/scanScheduler.ts`（本地迁移源码，尚未随本次文档提交）：新 UI 扫描调度。
-- `tauri-app/src/features/files/folderFavorites.ts`（本地迁移源码，尚未随本次文档提交）：文件夹收藏适配。
-- `tauri-app/src-tauri/src/catalog_migration.rs`（本地迁移源码，尚未随本次文档提交）：迁移工程的目录数据兼容入口。
+- `tauri-app/src/features/library/scanScheduler.ts`（`codex/dev-tauri` 迁移源码）：新 UI 扫描调度。
+- `tauri-app/src/features/files/folderFavorites.ts`（`codex/dev-tauri` 迁移源码）：文件夹收藏适配。
+- `tauri-app/src-tauri/src/catalog_migration.rs`（`codex/dev-tauri` 迁移源码）：迁移工程的目录数据兼容入口。
 
 ## 运行路径与状态
 

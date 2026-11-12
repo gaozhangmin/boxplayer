@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "runningExecutableSha256": "112af093ade68a7505650b0b2a520f04cc4b464c9e8c9a30162e5e4c3d008276",
+  "restart": "native Quit; observed not running; launched exact bundle",
+  "observedNavigation": [
+    "Home",
+    "Files",
+    "Add source",
+    "Mac",
+    "testVideo"
+  ],
+  "toolObservation": "AX and screenshot remained on loading skeleton; not accepted as runtime failure or successful pixel evidence",
+  "userObservation": "列表正常显示且能操作",
+  "directoryRuntimeAcceptedBy": "user",
+  "readOnlyProcessSample": "/tmp/m5-latest-native-directory.sample.txt",
+  "capabilityParity": {
+    "providers": 15,
+    "operationsPerProvider": 11,
+    "passed": 15,
+    "file": "tauri-app/tests/file-provider-operation-parity.test.ts",
+    "scope": "declarations versus actual adapter support predicates, not remote effects"
+  },
+  "appCodeChanged": false,
+  "fullSuiteRepeated": false,
+  "realAccounts": "deferred",
+  "M5": "active",
+  "M6": "not started"
+}

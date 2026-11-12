@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "active",
+  "regression": "mouse-only row click left DOM focus outside source host; Enter not received",
+  "fix": "host click capture focuses row/selection keyboard region; preserves other controls",
+  "focused": 29,
+  "frontend": {
+    "files": 228,
+    "tests": 2228,
+    "status": "passed"
+  },
+  "typecheck": "passed in final build",
+  "sourceVerifier": [
+    200,
+    22,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "bundle": {
+    "size": "211.07MiB",
+    "sha256": "a8a5bffccae7545522e2d3a264f2dd529bbd3b61ffa54327659a146c5bb5594d",
+    "restarted": true,
+    "oldProcessObservedStopped": true
+  },
+  "runtime": [
+    "row selection focuses source host",
+    "Enter opens calibration4 entries",
+    "Backspace returns root21 entries",
+    "F5 retains list/no error",
+    "right-click Properties opens nested modal with actual metadata",
+    "Escape closes property layer only",
+    "Escape dismisses context menu and retains source",
+    "More submenu opens Copy directory tree",
+    "tree file count1 folder count0 and selected name shown",
+    "three tree dropdown choice sets match Electron"
+  ],
+  "treeOptions": {
+    "style": [
+      "Linux",
+      "Win10"
+    ],
+    "show": [
+      "文件",
+      "文件夹"
+    ],
+    "line": [
+      "├──",
+      "+---",
+      "路径"
+    ]
+  },
+  "precedingPackageShortcuts": {
+    "binaryPrefix": "8b5569",
+    "CmdQ": "starts range selection, app remains running",
+    "CmdH": "returns child→root, does not hide"
+  },
+  "clipboardOrFileWrite": false,
+  "realAccounts": "deferred",
+  "M6": "not started",
+  "leftOpen": "source manager Mac/testVideo0/21"
+}

@@ -1,0 +1,57 @@
+{
+  "checkpoint": "original-uploading-page",
+  "date": "2026-11-08",
+  "state": "M5 active; M6 not started",
+  "implementation": {
+    "source": "src/down/DownUploading.vue",
+    "template": "exact",
+    "styles": "original scoped styles",
+    "host": "UploadingTaskPane.vue",
+    "boundary": "taskPorts.ts; isolated event subscriptions, injected read/control interface, no production controller or engine",
+    "guards": [
+      "shared refresh generation per pane",
+      "late results ignored after close",
+      "unique positive visible IDs and bounded progress",
+      "duplicate commands suppressed",
+      "failed controls preserve rows and selection"
+    ]
+  },
+  "verification": {
+    "focused": {
+      "files": 2,
+      "tests": 10,
+      "passed": true
+    },
+    "fullBeforeFinalTwoGuardTests": {
+      "files": 217,
+      "tests": 2113,
+      "passed": true
+    },
+    "typecheck": "passed after final changes",
+    "sourceVerification": {
+      "mappings": 183,
+      "exactTemplates": 21,
+      "assets": 2
+    },
+    "libraryVerification": {
+      "mappings": 35,
+      "exactTemplates": 14,
+      "assets": 4
+    },
+    "viteProductionBuild": "passed; existing large-chunk warning"
+  },
+  "limitations": [
+    "Not connected to main navigation; task-list entry remains incomplete",
+    "Other three original task pages and controller boundaries pending",
+    "No new native bundle or GUI acceptance",
+    "Build does not prove this currently unreferenced page is in production entry chunks",
+    "Real accounts deferred; no native engine installed; no task persistence or execution"
+  ],
+  "electron": "Read-only; concurrent three dirty files preserved",
+  "logs": [
+    "/tmp/m5-uploading-page-tests.log",
+    "/tmp/m5-uploading-page-all.log",
+    "/tmp/m5-uploading-page-types.log",
+    "/tmp/m5-uploading-page-build.log"
+  ]
+}

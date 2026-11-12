@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-07",
+  "branch": "feat/tauri-migration",
+  "electronMainChanged": false,
+  "issues": [
+    "favorite Library shortcut index used generic cards",
+    "packaged OAuth registration empty in isolated worktree"
+  ],
+  "frontendTests": {
+    "passed": 305,
+    "files": 53,
+    "focusedPassed": 44,
+    "typecheck": "passed"
+  },
+  "bundle": {
+    "status": "built",
+    "path": "tauri-app/src-tauri/target/debug/bundle/macos/BoxPlayer Dev.app",
+    "sizeMiB": 120.62,
+    "registrationConfigured": 21,
+    "missingKeys": [],
+    "registrationVerifiedInExecutable": true,
+    "executableSha256": "9f428795ccbe53f7501c0f32149f100eb74159d8571a3ea05fa44b02d8c287ae"
+  },
+  "runtime": {
+    "newBundleStarted": false,
+    "reason": "Mac locked; existing app restart confirmation pending",
+    "realProviderLogin": "pending user validation"
+  }
+}

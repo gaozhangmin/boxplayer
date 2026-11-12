@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "runningBundle": "5c324eac4daca868c569e76efaa67aa63adbb11d1cd4b1a673e536769005d6f9",
+  "nativeAccepted": {
+    "CmdQ": "interval3/21",
+    "reverse": "18/21",
+    "cancel": "0/21",
+    "CmdH": "child4 to root21",
+    "Enter": "root folder to child4",
+    "Backspace": "source focus child4 to root21",
+    "Space": "focus filter,gray1/4",
+    "inputBackspace": "does not navigate"
+  },
+  "focusRecovery": "requires asynchronous frame;zero-delay not accepted",
+  "focusedTests": {
+    "files": 1,
+    "passed": 3
+  },
+  "typecheck": "passed",
+  "fullFrontendRerun": false,
+  "nativeRerun": false,
+  "build": false,
+  "incidentalPlayerOpen": "test calibration highlight sample;closed immediately;resume state may have been saved",
+  "finalUI": "Mac/testVideo21,filter empty,selection0,player closed",
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

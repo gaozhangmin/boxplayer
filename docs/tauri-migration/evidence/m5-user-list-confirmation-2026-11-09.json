@@ -1,0 +1,19 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "observer": "user",
+  "question": "Menu-fix package: background sampling waits opening testVideo while terminal reads immediately; actual browser state?",
+  "answer": "列表正常显示且能操作",
+  "acceptedScope": [
+    "local testVideo list displays",
+    "local list remains interactive"
+  ],
+  "notEstablished": [
+    "remote provider acceptance",
+    "full native geometry and menu matrix",
+    "M5 completion"
+  ],
+  "realAccounts": "deferred",
+  "M6": "not started",
+  "applicationCodeChanged": false
+}

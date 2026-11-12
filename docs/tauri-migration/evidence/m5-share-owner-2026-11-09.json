@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-09",
+  "M5": "active",
+  "focused": 66,
+  "fullFrontend": {
+    "files": 227,
+    "tests": 2211,
+    "status": "passed"
+  },
+  "sourceVerification": {
+    "files": [
+      200,
+      22,
+      2
+    ],
+    "library": [
+      35,
+      14,
+      4
+    ]
+  },
+  "typecheck": "passed within build",
+  "bundle": "macOS arm64 debug 211.07MiB built, not restarted",
+  "scopeCorrection": "feature-inventory section3.5 excludes local physical CRUD; prior local reconciliation completion demands superseded",
+  "actualChanges": [
+    "native share session public-owner guard",
+    "provider and mounted original share regressions"
+  ],
+  "realAccounts": "deferred",
+  "M6": "not started",
+  "electronMain": "untouched, three pre-existing dirty files preserved"
+}

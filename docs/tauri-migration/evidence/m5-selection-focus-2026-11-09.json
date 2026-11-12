@@ -1,0 +1,34 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "frontend": {
+    "files": 229,
+    "tests": 2243,
+    "passed": true
+  },
+  "managerCases": 28,
+  "typecheck": "passed in final build",
+  "bundle": {
+    "size": "211.07MiB",
+    "sha256": "013f4a4172dbae41d8933ad6171748e6cd565dac0551adac5ef3b004bf6b51af",
+    "restarted": true,
+    "oldProcessObservedStopped": true
+  },
+  "precedingNativeAcceptance": [
+    "single/Shift/Command counts 1/3/4",
+    "cancel0/21",
+    "unmatched direct filter0/0",
+    "input Cmd+A Backspace restores0/21"
+  ],
+  "finalNativeAcceptance": [
+    "testVideo21 entries load",
+    "coordinate row click focuses source host"
+  ],
+  "unaccepted": [
+    "AX cancel then Cmd+F did not type into filter",
+    "true-coordinate cancel attempts failed noWindowsAvailable twice",
+    "full M5 completion"
+  ],
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

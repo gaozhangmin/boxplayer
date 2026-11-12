@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-09",
+  "runtimePackage": "preceding211.05MiB still-running package, not latest move/share adapters",
+  "localSource": "testVideo",
+  "entries": 21,
+  "actualSortChoices": [
+    "size desc",
+    "size asc",
+    "updated_at asc",
+    "updated_at desc",
+    "name desc",
+    "name asc"
+  ],
+  "observed": {
+    "sizeDescMB": [
+      527.2,
+      351.5,
+      307.0
+    ],
+    "sizeAscStartsMB": 10.7,
+    "dateAsc": "Nov3 beforeNov6",
+    "dateDesc": "Nov6 beforeNov3",
+    "nameDescStarts": "1080p HEVC",
+    "nameAscStarts": "4K AV1",
+    "folderFirst": true
+  },
+  "layouts": [
+    "list",
+    "thumbnail3cols",
+    "bigimage2cols"
+  ],
+  "narrowWindow": "native Window Move&Resize Left, list and thumbnail screenshot inspected",
+  "restored": [
+    "list",
+    "name asc",
+    "previous window size"
+  ],
+  "leftOpen": "source manager Mac/testVideo",
+  "notAccepted": [
+    "independent840px logical measurement",
+    "full keyboard/nested/hover matrix",
+    "latest network adapters runtime",
+    "real accounts"
+  ],
+  "coordinateEvidence": {
+    "rawJPEG": [
+      2320,
+      1560
+    ],
+    "displayed": [
+      1903,
+      1280
+    ]
+  },
+  "errors": "noWindowsAvailable/-3812 recovered via getApp to existing process",
+  "filesOrAccountsModified": false
+}

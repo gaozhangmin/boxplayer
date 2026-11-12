@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "active",
+  "change": "preserve original row selection keyboard routing while leaving toolbar/favorite controls native",
+  "focused": 25,
+  "fullFrontend": {
+    "files": 228,
+    "tests": 2224,
+    "status": "passed"
+  },
+  "typecheck": "passed in final build after test-only type assertion",
+  "sourceVerifier": [
+    200,
+    22,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "bundle": {
+    "size": "211.07MiB",
+    "binarySha256": "8b55694377b2c06515659e04199cfa3af4c30df525a3147c34214826771a38ad",
+    "restarted": true,
+    "oldProcessObservedStopped": true
+  },
+  "finalPackageRuntime": [
+    "21 local entries",
+    "ArrowDown selects next50M row",
+    "Space focuses filter",
+    "Cmd+F focuses filter",
+    "F3 focuses filter and subsequent text filters",
+    "clear restores21/no selection",
+    "four original task tabs screenshot-verified",
+    "close task retains source manager"
+  ],
+  "earlierPackageSelection": [
+    "Cmd+A21/21",
+    "range3/21",
+    "reverse18/21",
+    "cancel0/21"
+  ],
+  "stillUnaccepted": [
+    "full shortcut matrix including Cmd+Q/H",
+    "independent840px measurement",
+    "full nested/hover/provider behavior",
+    "cross-drive identity reconciliation"
+  ],
+  "realAccounts": "deferred",
+  "M6": "not started",
+  "fileOrAccountMutation": false,
+  "leftOpen": "source manager Mac/testVideo"
+}

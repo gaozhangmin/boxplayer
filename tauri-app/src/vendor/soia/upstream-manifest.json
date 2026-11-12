@@ -1,0 +1,243 @@
+{
+  "source": "FengZeng/soia",
+  "commit": "baec808",
+  "license": "GPL-3.0-only",
+  "files": [
+    {
+      "file": "components/PlayerHeader.vue",
+      "sha256": "f394d13bafcbc6becc51ca968a11ca6c71b65d72e0c9e794c7e346d492b87746"
+    },
+    {
+      "file": "components/PlayerControls.vue",
+      "sha256": "5ed818560b4e747f3640464c0d5ab40fd7fdd0db22ec466662261a276f6426e9"
+    },
+    {
+      "file": "components/player-controls/LeftControls.vue",
+      "sha256": "05965a36f57fff2120f84b18d83f91bd74faf3218528d5da4930aa7e0d7bc0e3"
+    },
+    {
+      "file": "components/player-controls/RightControls.vue",
+      "sha256": "8f7cd5e3b2276ff18b79c3f4578e722b005c531632aee2c07997da24bc6c0601"
+    },
+    {
+      "file": "components/player-controls/SeekBar.vue",
+      "sha256": "c96ad001336b1907da1df84f61f9b3b9998be7e12f10209dd02d2ee062fc0922"
+    },
+    {
+      "file": "components/player-controls/ControlSlider.vue",
+      "sha256": "cedec98ef39b7191d182b9c922724c988eee8052ad1a8308c88272c7c2d752ee"
+    },
+    {
+      "file": "components/SideActionsNav.vue",
+      "sha256": "7faca3e6f0be71bdcfe736937693dcd917ef72679e8b205a8a47f398f3b6d3df"
+    },
+    {
+      "file": "components/ContextMenu.vue",
+      "sha256": "8c2b85c08b9bca895bd14310309c754bab053f7fc4c976b30daee6f908706bca"
+    },
+    {
+      "file": "components/CastDevicePopover.vue",
+      "sha256": "d15eadbb09e0d2748a7b1745604cf30b7d375b03193a64a7aeaa8a4753d745af"
+    },
+    {
+      "file": "types/media.ts",
+      "sha256": "f3bdd0819ceffbd8e46a361c4a937747cd875a6eb8fc87e251cc368cf1949f9c"
+    },
+    {
+      "file": "utils/trackDisplay.ts",
+      "sha256": "afd87942f22c9b9b1325b68362781c1f88b44d21096f168f97175fb2385aef93"
+    },
+    {
+      "file": "utils/getPathDisplayName.ts",
+      "sha256": "e4313926d766f2c91224da2dad61272b69d5232e3f93fe7f4274dc693e494334"
+    },
+    {
+      "file": "utils/playbackDisplay.ts",
+      "sha256": "511cf2f4b79e957b31fb1561455159bcf2d8e1ac51dc5806f683416e90585c18"
+    },
+    {
+      "file": "composables/useCasting.ts",
+      "sha256": "430fe20efa3b71bed0cc69b9023202b705cfce0e0035486844098d11f071f75e"
+    },
+    {
+      "file": "core-client/CastingClient.ts",
+      "sha256": "190576df31ee37ff4aefbf8c4b0e867813cbff81afb7f235cd7bdef7d24d3e27"
+    },
+    {
+      "file": "styles/player.css",
+      "sha256": "2a63ec5468ac993c9c57acd1945e92b4c6cf5437630c7e999e354b7737702520"
+    },
+    {
+      "file": "styles/app-shell.css",
+      "sha256": "4dcae55aca6cc308e0d46aeae5f87ff93e3a79e4f2a4197659c41b1f29155e42"
+    },
+    {
+      "file": "core-client/generated/BrowseNetworkConnectionDto.ts",
+      "sha256": "e7d59025cabe4d21961756bcf4486c8f4a8b8be40cc94b001d8640977465e3ff"
+    },
+    {
+      "file": "core-client/generated/CastCapabilitiesDto.ts",
+      "sha256": "886e7ea43be23e218ebd4189186d49b8322695fe278db4e22e8ca66cb1cd024e"
+    },
+    {
+      "file": "core-client/generated/CastDeviceDto.ts",
+      "sha256": "1e3b3fc4666c52c2f736a9f2989d8a333a10a05ee898bd89e1b7263507e12d7f"
+    },
+    {
+      "file": "core-client/generated/CastErrorCodeDto.ts",
+      "sha256": "d270f8f0b66c5987990a6b14c71120920fe22e725d5ce44840a6db46bc09d655"
+    },
+    {
+      "file": "core-client/generated/CastErrorDto.ts",
+      "sha256": "b79ce5e9fb463329e7d2d752a465f1745cc041f0eadd8a61f57b44e3afdaeb1e"
+    },
+    {
+      "file": "core-client/generated/CastPhaseDto.ts",
+      "sha256": "169cd6b6cec900dfd525969ddd9e5e4bdde4ea61766d125a8d0d0fbbacb125a3"
+    },
+    {
+      "file": "core-client/generated/CastProtocolDto.ts",
+      "sha256": "a4b3dab6b742478748381c5100f612bb810a24c8d13e12dcc9f50178a507331c"
+    },
+    {
+      "file": "core-client/generated/CastSnapshotDto.ts",
+      "sha256": "92a67a7731bf2c1b8dfeaddfe19ea6cccbb02b664817f91f197b37ecbc521550"
+    },
+    {
+      "file": "core-client/generated/CommandEnvelopeDto.ts",
+      "sha256": "3126f17c17adf8cb38114be84ab21080b8597e8713fb9c67245d0835b689b8a5"
+    },
+    {
+      "file": "core-client/generated/CommandResultDto.ts",
+      "sha256": "25896ef869d15a1352dc59666e9eedc002a0a3c130f1d25b0892c2d13a3e4c37"
+    },
+    {
+      "file": "core-client/generated/ContinuePlaylistSourceOperationDto.ts",
+      "sha256": "ee5fab2b5a47d616b9618121cbb71622d6f6b7bb4bbec08f12ef1cd68a65033d"
+    },
+    {
+      "file": "core-client/generated/CoreErrorDto.ts",
+      "sha256": "5001f3e1538ec49e25bd96ce6f712eb2d6a10e8f5740c2d446d6f0a4251c1b17"
+    },
+    {
+      "file": "core-client/generated/CreatePlaylistDto.ts",
+      "sha256": "ce19d96d57bd4681ac60ce70833a544a0b885ff5c8d4b7de424de657ce90e068"
+    },
+    {
+      "file": "core-client/generated/CreatePlaylistEntryDto.ts",
+      "sha256": "09271f1f92fac31bd11f26a3f07acd351dff63dc764e0346ee12ecc880993b29"
+    },
+    {
+      "file": "core-client/generated/DeletePlaylistDto.ts",
+      "sha256": "7102dfdada304188f6933317fd4c3f4b789c2eeffae5f0a1a2b76a60c54a4827"
+    },
+    {
+      "file": "core-client/generated/GetPlaylistEntriesPageDto.ts",
+      "sha256": "ed0a0f6fd74a60bf6db307451d193197c71d51014e0d489c9253760ace11337b"
+    },
+    {
+      "file": "core-client/generated/ImportPlaylistFromSourceDto.ts",
+      "sha256": "a19c44de61429d63a084c51ed694a22b6b4034d5826550fd0668a52c0f489baa"
+    },
+    {
+      "file": "core-client/generated/BoxPlayerDto.ts",
+      "sha256": "6884c2ae35b76e9479ef1b4ca4d99370459ba9064512b94614166051d4127ca0"
+    },
+    {
+      "file": "core-client/generated/NetworkBrowseEntryDto.ts",
+      "sha256": "baa80df267aa2ffda219496d6beb9efefa9a2f9f4c2cc24fbb78c7a720b59344"
+    },
+    {
+      "file": "core-client/generated/NetworkBrowseResultDto.ts",
+      "sha256": "e34490dc73abc5f1583602e65d458e443ded569fcb4f026b60f4b000658b01aa"
+    },
+    {
+      "file": "core-client/generated/NetworkConnectionSummaryDto.ts",
+      "sha256": "9e5b4fbff4d2515b3b0d845a1b07dd4f45614feeab588f565c9a06e4de5d5aaf"
+    },
+    {
+      "file": "core-client/generated/PlayPlaylistEntryDto.ts",
+      "sha256": "54d6f63d8b6c029c40fc1ffd6f8fd2e43f43056a245436d00ec6af7225216194"
+    },
+    {
+      "file": "core-client/generated/PlaybackCommandDto.ts",
+      "sha256": "01b7564eeec317eef2cc82fecbf825c54d9b220c4e5596594758f736109cfe7c"
+    },
+    {
+      "file": "core-client/generated/PlaybackSnapshotDto.ts",
+      "sha256": "4a69c41e82128187a84cf59be07e9a5e3f6110834c9f7db5648139f73cbfc2db"
+    },
+    {
+      "file": "core-client/generated/PlaylistDto.ts",
+      "sha256": "2fb8489e0aaed254ef4d1fef952460fa199b856c524aad60b755a7f619e65d6e"
+    },
+    {
+      "file": "core-client/generated/PlaylistEntriesPageDto.ts",
+      "sha256": "bb789d4b34784958007ecee2e2397c55e969e54e229c87d97dc77ee2c4f7f1ec"
+    },
+    {
+      "file": "core-client/generated/PlaylistEntryDto.ts",
+      "sha256": "e23b045966e90340872abb4de4004343c4ddfe7846ea219b43ba76c53115118b"
+    },
+    {
+      "file": "core-client/generated/PlaylistLoopModeDto.ts",
+      "sha256": "95355d136979291c1bd1161d57fc5bfcb7d8ee84a45f4be443f68ff7f97a258d"
+    },
+    {
+      "file": "core-client/generated/PlaylistMutationDto.ts",
+      "sha256": "0766bd79b92c6e1a42ec5ed0aa1d4699fe75aeca47e9d006eccf5eab4dc1cdd1"
+    },
+    {
+      "file": "core-client/generated/PlaylistMutationResultDto.ts",
+      "sha256": "6a6210b1d08f4df34395a7700d79205f932db6096519d18ccf8a239015c5b2dd"
+    },
+    {
+      "file": "core-client/generated/PlaylistSnapshotDto.ts",
+      "sha256": "b9038140555611e8f177c7bccc0ce03a9defa315621eb343e763253304320379"
+    },
+    {
+      "file": "core-client/generated/PlaylistSortModeDto.ts",
+      "sha256": "e7b99813fef8cd468d16337e3073fec664d4c70b8cae77b5c2a82a1f0196a985"
+    },
+    {
+      "file": "core-client/generated/PlaylistSourceClientActionDto.ts",
+      "sha256": "cc4756c57d0e7ffa93702cfd7aff35006d5b3115583c374b4469ff52bc242d3e"
+    },
+    {
+      "file": "core-client/generated/PlaylistSourceContinuationResultDto.ts",
+      "sha256": "f082b8e5a279f2c876884e7fa4e4a9b86df65202c081e8d0fff3d7b3c5a3a4c2"
+    },
+    {
+      "file": "core-client/generated/PlaylistSummaryDto.ts",
+      "sha256": "022f2b8c4f54b5dab6df81658b0187d9435226c7fc157afbaa49a0f549949cc8"
+    },
+    {
+      "file": "core-client/generated/PreparePlaylistSourceOperationDto.ts",
+      "sha256": "1c3c838cd37158bd20036ebecd0e00a2a34db4090477e0c71b6d1ac8c226f59f"
+    },
+    {
+      "file": "core-client/generated/PreparePlaylistSourceOperationResultDto.ts",
+      "sha256": "89c706cc6d06f540dca10ed8136713227d2eda4f6bfdc07b2817ab72b233ccba"
+    },
+    {
+      "file": "core-client/generated/ProtocolVersionDto.ts",
+      "sha256": "c71c5cbe0bbc691d611e10cea7a32afcd336c4f72ba1bc67e73ef1aed9ca9d1f"
+    },
+    {
+      "file": "core-client/generated/SaveNetworkConnectionDto.ts",
+      "sha256": "c963defd61db66ec36fc246c59242ed9c337911f39b537edd8b0a34d571f3682"
+    },
+    {
+      "file": "styles/app-theme.css",
+      "sha256": "5401abd63a227440c5c8b4f3b826b8802226c664ca890ecebdb491e9b83f5c27"
+    },
+    {
+      "file": "components/PlaylistDrawer.vue",
+      "sha256": "952c57aae94cb674aebef76fdf1630065742cdffff2699e9deddec08ff54918c"
+    },
+    {
+      "file": "types/playlist.ts",
+      "sha256": "0f4593620424e53b43db8b641f4ad990e2d5d45f3d97d2613f23d5ebaf7c74c0"
+    }
+  ]
+}

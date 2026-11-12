@@ -8,7 +8,7 @@
 
 ## 不可遗漏的约束
 
-- 新应用在 tauri-app/，根目录仍是 Electron；pnpm dev 浏览器预览不等于 pnpm tauri dev 原生运行。开发数据不得指向 Electron 用户目录；本地迁移源码未随本文档提交。
+- 新应用在 tauri-app/，根目录仍是 Electron；pnpm dev 浏览器预览不等于 pnpm tauri dev 原生运行。开发数据不得指向 Electron 用户目录；迁移源码在 codex/dev-tauri 分支维护。
 - AI 每次犯错都必须在修正后、结束当前任务前追加工作区根 LESSONS.md；包括用户指出、自行发现和重复发生的错误。记录事实、原因、修正、预防与证据；根文件缺失或不可写时暂存本仓库 [LESSONS.md](LESSONS.md)。
 - 保留其他任务的改动、暂存状态、账号、签名与数据；不把本文档整理扩展为业务发布授权。
 

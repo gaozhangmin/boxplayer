@@ -1,0 +1,67 @@
+{
+  "checkpoint": "original-uploaded-page",
+  "date": "2026-11-08",
+  "state": "M5 active; M6 not started",
+  "implementation": {
+    "sources": [
+      "src/down/DownUploaded.vue",
+      "src/down/UploadedStore.ts",
+      "src/utils/dbupload.ts (interfaces only)"
+    ],
+    "template": "exact",
+    "styles": "original",
+    "boundary": "uploadedTaskPorts.ts; injected record read/clear/open by record ID; no Node filesystem, Dexie or production engine",
+    "corrections": [
+      "numeric range sentinel -1",
+      "row button targets clicked record rather than unrelated selection",
+      "Meta mapped to Ctrl selection"
+    ]
+  },
+  "verification": {
+    "focused": {
+      "files": 1,
+      "tests": 7,
+      "passed": true
+    },
+    "full": {
+      "files": 218,
+      "tests": 2122,
+      "passed": true
+    },
+    "typecheck": "passed",
+    "viteBuild": "passed; existing chunk warning and reka-ui useId warning",
+    "sourceVerifier": {
+      "mappings": 186,
+      "exactTemplates": 22,
+      "assets": 2
+    },
+    "libraryVerifier": {
+      "mappings": 35,
+      "exactTemplates": 14,
+      "assets": 4
+    }
+  },
+  "limitations": [
+    "Task shell/main navigation not connected; page currently mounted by component tests only",
+    "Download-in-progress and completed-download pages remain pending",
+    "No native controller installed; local open/reveal/cloud location not accepted as real native operations",
+    "No new native bundle/native regression or GUI acceptance",
+    "Real accounts deferred; no M6 persistence or execution"
+  ],
+  "electron": {
+    "branch": "main",
+    "head": "cf3059e",
+    "write": "none",
+    "concurrentDirtyPreserved": [
+      "src/components/MediaLibrary.vue",
+      "src/utils/openfile.ts",
+      "src/views/MediaServerWorkspace.vue"
+    ]
+  },
+  "logs": [
+    "/tmp/m5-uploaded-page-tests.log",
+    "/tmp/m5-uploaded-page-all.log",
+    "/tmp/m5-uploaded-page-types.log",
+    "/tmp/m5-uploaded-page-build.log"
+  ]
+}

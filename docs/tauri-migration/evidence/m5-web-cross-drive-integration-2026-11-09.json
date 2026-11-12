@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "frontend": {
+    "files": 240,
+    "passed": 2351
+  },
+  "native": {
+    "passed": 213,
+    "ignored": 10
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "filesVerifier": [
+    206,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "bundleMiB": 211.82,
+  "sha256": "5c324eac4daca868c569e76efaa67aa63adbb11d1cd4b1a673e536769005d6f9",
+  "runtimeAccepted": false,
+  "webCrossDrive": "connected through original host and synchronization callback",
+  "openCrossDrive": "gated pending vendor contract",
+  "unknownSubmissionIntent": "in-memory only",
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

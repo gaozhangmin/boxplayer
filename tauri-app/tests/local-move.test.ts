@@ -1,0 +1,18 @@
+import {beforeEach,describe,it,expect,vi} from 'vitest'
+import {nativeCall} from '@/platform/native'
+import {recoverLocalOperations} from '@/features/files/localRecovery'
+import {moveLocalFile} from '@/features/files/drive/localRename'
+import {emptyFilePreferences} from '@/features/files/preferences'
+vi.mock('@/platform/native',()=>({nativeCall:vi.fn()}))
+vi.mock('@/features/files/localRecovery',()=>({recoverLocalOperations:vi.fn()}))
+const store={preferences:emptyFilePreferences()},entry={id:'job',sourceId:'source',from:'old/movie.mkv',to:'target/movie.mkv',directory:false,applied:true}
+beforeEach(()=>{vi.resetAllMocks();vi.mocked(recoverLocalOperations).mockResolvedValueOnce([]).mockResolvedValue([entry]);vi.mocked(nativeCall).mockResolvedValue({schemaVersion:1,sourceId:'source',from:entry.from,to:entry.to,directory:false,operationId:entry.id})})
+describe('local move with the shared journal and preference acknowledgement',()=>{
+ it('keeps the basename and sends a source-scoped parent instead of a rename name',async()=>{expect(await moveLocalFile(store,'source',entry.from,'target',false)).toEqual({path:entry.to,name:'movie.mkv'});expect(nativeCall).toHaveBeenCalledWith('local_file_move',{sourceId:'source',operation:{path:entry.from,parent:'target',preferences:store.preferences}})})
+ it('resumes an accepted move without repeating the filesystem operation',async()=>{vi.mocked(recoverLocalOperations).mockReset().mockResolvedValue([entry]);expect((await moveLocalFile(store,'source',entry.from,'target',false)).path).toBe(entry.to);expect(nativeCall).not.toHaveBeenCalled()})
+ it('accepts the root directory as an empty parent',async()=>{const to='movie.mkv';vi.mocked(recoverLocalOperations).mockReset().mockResolvedValueOnce([]).mockResolvedValue([{...entry,to}]);vi.mocked(nativeCall).mockResolvedValueOnce({schemaVersion:1,sourceId:'source',from:entry.from,to,directory:false,operationId:entry.id});expect((await moveLocalFile(store,'source',entry.from,'',false)).path).toBe(to)})
+ it('uses recovered source and parent paths when preceding directory operations changed them',async()=>{const source={...entry,id:'source-dir',from:'old',to:'new',directory:true},parent={...entry,id:'target-dir',from:'target',to:'destination',directory:true},move={...entry,from:'new/movie.mkv',to:'destination/movie.mkv'};vi.mocked(recoverLocalOperations).mockReset().mockResolvedValueOnce([source,parent]).mockResolvedValueOnce([move]);vi.mocked(nativeCall).mockResolvedValueOnce({schemaVersion:1,sourceId:'source',from:move.from,to:move.to,directory:false,operationId:move.id});expect((await moveLocalFile(store,'source',entry.from,'target',false)).path).toBe(move.to);expect((vi.mocked(nativeCall).mock.calls[0]![1]!.operation as any)).toMatchObject({path:move.from,parent:'destination'})})
+ it('only recovers a lost response when its move identity matches',async()=>{vi.mocked(nativeCall).mockRejectedValueOnce(Error('IPC lost'));expect((await moveLocalFile(store,'source',entry.from,'target',false)).path).toBe(entry.to)})
+ it.each(['/absolute','../escape','a//b','a/../b','a\\b',String.fromCharCode(0)])('rejects invalid destination parents before native mutation %s',async parent=>{await expect(moveLocalFile(store,'source',entry.from,parent,false)).rejects.toThrow('无效');expect(nativeCall).not.toHaveBeenCalled()})
+ it('keeps failed metadata acknowledgement explicit',async()=>{vi.mocked(recoverLocalOperations).mockReset().mockResolvedValueOnce([]).mockRejectedValueOnce(Error('Disk full'));await expect(moveLocalFile(store,'source',entry.from,'target',false)).rejects.toThrow('Disk full')})
+})

@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-08",
+  "scope": "New-package local source-browser runtime subset and narrow filename-column fix",
+  "app": "com.boxplayer.migration.dev",
+  "bundle": "/Users/yunqi/Downloads/BoxPlayer/boxplayer-tauri/tauri-app/src-tauri/target/debug/bundle/macos/BoxPlayer Dev.app",
+  "executableSha256": "cf65ac83298caeec3e0a611760c7d4556f7f0028d852205d8a531c758f2a0b0a",
+  "restart": "Quit through native app menu; observed isRunning=false before opening the explicit freshly built bundle path, for both runs",
+  "beforeCssFix": {
+    "directory": "Mac / testVideo, 21 items",
+    "rangeSelection": "Three-step range start 1/end 4 -> 4/21; invert -> 17/21; cancel -> 0/21",
+    "filter": "DV P5 -> 3 entries; cleared -> 21",
+    "layouts": "list/image/bigimage visually rendered; list restored",
+    "narrowObservation": "macOS Window > Move & Resize > Left; calibration folder date clipped while fixed minimum filename width consumed the row"
+  },
+  "change": {
+    "file": "tauri-app/src/features/files/drive/SourceDriveManager.vue",
+    "rule": ".source-drive-manager :deep(.filename){min-width:0}",
+    "boundary": "Native wrapper only; original template, fileitem.css and interaction logic retained"
+  },
+  "afterCssFix": {
+    "build": "passed; macOS arm64 debug app 210.55 MiB; typecheck included",
+    "runtime": "Fresh explicit-bundle restart; Mac/testVideo 21 entries; repeated same narrow-window flow",
+    "verified": "calibration folder date fully displays 2026/11/6; list controls visible",
+    "restored": "Window returned to previous size; list mode, blank filter, 0/21 selected"
+  },
+  "checks": {
+    "sourceVerifier": "179 /20 /2 passed",
+    "libraryVerifier": "35 /14 /4 passed",
+    "functionalBaseline": "214 files/2094 tests passed immediately before CSS-only change; not rerun for this one rule",
+    "nativeTests": "No Rust edits or rerun; earlier 168 passed/10 ignored is historical"
+  },
+  "limitations": [
+    "No exact runtime CSS-width measurement; source declares 840px responsive dialog",
+    "Pointer-coordinate click still returned noWindowsAvailable before the CSS fix; complete hover sort/nested menus not accepted",
+    "Properties was not activated successfully through the combined AX menu text; no native properties acceptance",
+    "Cloud provider adapters remain fixture-tested, not accepted through local browsing",
+    "Long filenames retain original two-line wrapping; full narrow text matrix not accepted",
+    "Transfer entries, Ali memory text and remaining M5 capability adapters incomplete"
+  ],
+  "preservation": "No source-file mutation, real-account action or player preview in this runtime phase; Electron main not written",
+  "goal": "active; real accounts deferred; M6 not started"
+}

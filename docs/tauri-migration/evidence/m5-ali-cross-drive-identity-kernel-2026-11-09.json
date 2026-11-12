@@ -1,0 +1,22 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "feature": "explicit full cross-drive identity map validation",
+  "focusedTests": 9,
+  "typecheck": "passed",
+  "wiredToProvider": false,
+  "writeGuardRemoved": false,
+  "proofLimit": "complete only relative to supplied snapshots; provider pagination/mapping provenance still required",
+  "remaining": [
+    "exhaustive before/after snapshot binding",
+    "provider receipt binding",
+    "catalog/groups/favorites remap",
+    "native atomic resume/preferences/catalog reconciliation",
+    "active playback and retries",
+    "original UI integration"
+  ],
+  "fullFrontendRerun": false,
+  "bundleRebuilt": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

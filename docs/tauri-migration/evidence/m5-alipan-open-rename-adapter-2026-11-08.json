@@ -1,0 +1,47 @@
+{
+  "date": "2026-11-08",
+  "scope": "M5 alipan-open rename native adaptation",
+  "originals": [
+    "Electron ApiRenameBatch declaration, batch body builder and inverted isDir mapping retained",
+    "Original RenameModal and batch command/templates retained"
+  ],
+  "reference": {
+    "local": "../XbyVideoHub/Packages/CloudServiceKit/Sources/AliyunDriveServiceProvider.swift: renameItem and attributesOfItem",
+    "refuseBodyPrimaryImplementation": "https://nightlies.apache.org/opendal/opendal-docs-release-v0.47.1/docs/rust/src/opendal/services/aliyun_drive/core.rs.html"
+  },
+  "flow": [
+    "Read original file via openFile/get and verify stable ID, actual drive, parent, original name/type and non-trash state",
+    "POST openFile/update with original desired name and check_name_mode=refuse",
+    "Read openFile/get and accept only matching name/ID/drive/parent/type"
+  ],
+  "boundary": [
+    "Open credentials never forwarded to web batch endpoint",
+    "Original web batch protocol unchanged",
+    "Caller generation, pane context and account identity checked before/after each request",
+    "Open host catalog transaction checks initiating identity",
+    "Only confirmed batch rows reported; manual title, catalog ID and progress preserved"
+  ],
+  "validation": {
+    "focusedFiles": 3,
+    "focusedTests": 32,
+    "newProtocolTests": 15,
+    "newOriginalComponentTests": 3,
+    "allFrontendFiles": 204,
+    "allFrontendTests": 1965,
+    "typecheck": "passed",
+    "macOSArm64DebugAppMiB": 210.55,
+    "sourceMappings": 173,
+    "exactFileTemplates": 20,
+    "libraryMappings": 35,
+    "exactLibraryTemplates": 14,
+    "nativeTests": "No Rust changes; not rerun. Prior 168 passed / 10 ignored."
+  },
+  "notVerified": [
+    "Real account/native IPC behavior",
+    "New binary runtime and nested/narrow rename dialogs",
+    "Persistent or unknown-result rename recovery across application restarts",
+    "Remaining open-channel relocation/trash/share/import and web text/cross-drive identity"
+  ],
+  "m5Status": "active",
+  "m6Started": false
+}

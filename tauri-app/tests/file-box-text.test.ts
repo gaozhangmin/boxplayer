@@ -1,0 +1,15 @@
+import {beforeEach,it,expect,vi} from 'vitest'
+import {createPinia,setActivePinia} from 'pinia'
+import {rawRequest,json} from '@/features/sources/transport'
+import {useFileSourcesStore} from '@/stores/fileSources'
+import {createRemoteText} from '@/features/files/drive/textCreation'
+vi.mock('@/features/sources/transport',()=>({rawRequest:vi.fn(),request:vi.fn(),json:vi.fn(),text:(data:{body:number[]})=>new TextDecoder().decode(new Uint8Array(data.body))}))
+const account={id:'fixture',providerId:'box' as const,name:'Fixture',baseUrl:'',authOrigins:['https://api.box.com']},content='中文🎬',name='电影.txt'
+const response=(data:unknown)=>({status:201,headers:{},body:Array.from(new TextEncoder().encode(JSON.stringify(data))),finalUrl:''})
+let detail:any,target:any
+beforeEach(()=>{vi.resetAllMocks();setActivePinia(createPinia());useFileSourcesStore().accounts=[account];target={id:'0',type:'folder'};detail={id:'123',type:'file',name,parent:{id:'0'},size:new TextEncoder().encode(content).length,item_status:'active',trashed_at:null};vi.mocked(json).mockImplementation(async(_account,_method,url)=>url.includes('/files/')?detail:target);vi.mocked(rawRequest).mockResolvedValue(response({entries:[{id:'123'}]}))})
+it('serializes the original Box FormData with the actual parent and UTF-8 content',async()=>{expect(await createRemoteText(account,'box_root',name,content)).toBe('success');const call=vi.mocked(rawRequest).mock.calls[0]!;expect(call.slice(0,3)).toEqual([account,'POST','https://upload.box.com/api/2.0/files/content']);expect(call[3]).toContain(JSON.stringify({name,parent:{id:'0'}}));expect(call[3]).toContain(content);expect(call[3]).toContain('name="attributes"');expect(call[3]).toContain('name="file"');expect(call[4]?.['Content-Type']).toContain('multipart/form-data; boundary=');expect(call[4]).not.toHaveProperty('Authorization')})
+it.each([{id:'999'},{type:'folder'},{name:'wrong'},{parent:{id:'9'}},{size:1},{trashed_at:'2026-11-08'},{item_status:'trashed'}])('rejects conflicting created metadata %j',async patch=>{detail={...detail,...patch};await expect(createRemoteText(account,'',name,content)).rejects.toThrow('未确认')})
+it('rejects Box conflicts without treating an error-body entry as a created file',async()=>{vi.mocked(rawRequest).mockResolvedValueOnce({...response({entries:[{id:'123'}],code:'item_name_in_use'}),status:409});await expect(createRemoteText(account,'',name,content)).rejects.toThrow('未确认文本创建')})
+it('requires a confirmed target before submitting a multipart body',async()=>{target.type='file';await expect(createRemoteText(account,'',name,content)).rejects.toThrow('目标');expect(rawRequest).not.toHaveBeenCalled()})
+it('rejects invalid target ids and removed accounts before submitting',async()=>{await expect(createRemoteText(account,'../bad',name,content)).rejects.toThrow('父目录');vi.mocked(json).mockImplementationOnce(async()=>{useFileSourcesStore().accounts=[];return target});await expect(createRemoteText(account,'',name,content)).rejects.toThrow('来源不匹配');expect(rawRequest).not.toHaveBeenCalled()})

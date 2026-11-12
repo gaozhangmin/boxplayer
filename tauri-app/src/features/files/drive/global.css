@@ -1,0 +1,467 @@
+/* Original Electron styles, scoped to the source browser. */
+.source-drive-manager .toppanbtn .arco-btn.danger:hover,
+.source-drive-manager .toppanbtn .arco-btn.danger:active,
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-btn.danger:hover,
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-btn.danger:active {
+    color: #fff !important;
+    background: rgba(255, 77, 79, 0.85) !important;
+    border-color: rgba(255, 77, 79, 0.2) !important;
+}
+
+.source-drive-manager #xbybody .toppanlist .arco-list,
+.source-drive-manager #xbybody .toppanlist .arco-list-content,
+.source-drive-manager #xbybody .toppanlist .arco-list-empty,
+.source-drive-manager #xbybody .toppanlist .arco-virtual-list,
+.source-drive-manager #xbybody .toppanlist .arco-virtual-list-container {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.source-drive-manager .toppanbtns {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    padding: 0;
+    max-width: 100%;
+    min-width: 440px;
+    user-select: none;
+    padding-left: 6px;
+}
+
+.source-drive-manager .toppanbtn {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 0;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    border-radius: 4px;
+    margin-right: 12px;
+    user-select: none;
+}
+
+.source-drive-manager .toppanbtn:last-child {
+    margin-right: 0;
+}
+
+.source-drive-manager .toppanbtn .arco-btn {
+    display: inline-flex;
+    align-items: center;
+    height: 26px !important;
+    min-height: 26px !important;
+    padding: 0px 6px !important;
+
+    font-size: 14px !important;
+    line-height: 18px !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    color: rgb(var(--primary-6));
+    border-color: rgba(var(--primary-6), 0.6) !important;
+    border-radius: 4px !important;
+}
+
+.source-drive-manager .toppanbtn .arco-btn.iconbtn > .arco-btn-icon {
+    padding-right: 4px;
+}
+
+.source-drive-manager .toppanbtn .arco-btn:hover,
+.source-drive-manager .toppanbtn .arco-btn:active {
+    background: rgba(var(--primary-6), 0.1) !important;
+}
+
+.source-drive-manager .toppanbtn .searchpan {
+    border: 1px solid rgb(var(--primary-6)) !important;
+    border-right: none !important;
+    border-radius: 4px !important;
+}
+
+.source-drive-manager .toppanbtn .searchpan .arco-btn.arco-input-search-btn {
+    border-radius: 4px !important;
+}
+
+.source-drive-manager .toppanbtn .arco-input-search .arco-input-wrapper {
+    background: var(--color-bg-2);
+    border: none !important;
+}
+
+.source-drive-manager .toppanbtn .arco-btn.arco-btn-primary {
+    border-radius: 0 !important;
+}
+
+.source-drive-manager .toppanbtn .arco-btn.arco-btn-primary:hover {
+    background: rgb(var(--primary-5)) !important;
+}
+
+.source-drive-manager .toppanbtn .arco-btn.arco-btn-primary:active {
+    background: rgb(var(--primary-7)) !important;
+}
+
+.source-drive-manager .toppanbtn > .arco-btn + .arco-btn {
+    border-left: 0 !important;
+}
+
+.source-drive-manager .toppanbtn > .arco-btn:not(:last-child) {
+    border-right: 0 !important;
+}
+
+.source-drive-manager .toppanbtn > .arco-btn:not(:first-child) {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+
+.source-drive-manager .toppanbtn > .arco-btn:not(:last-child) {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+.source-drive-manager .toppanbtn .iconfont {
+    font-size: 18px;
+    line-height: 24px;
+}
+
+.source-drive-manager .toppanbtn .arco-btn > span {
+    line-height: 24px;
+}
+
+.source-drive-manager .toppanbtn .arco-btn > .arco-btn-icon {
+    min-width: 18px;
+    margin-right: 0 !important;
+}
+
+.source-drive-manager .toppanbtn .arco-btn.arco-btn-dangerous:hover,
+.source-drive-manager .toppanbtn .arco-btn.arco-btn-dangerous:focus {
+    color: #fff !important;
+    border-color: rgb(255, 77, 79) !important;
+    background: rgb(255, 77, 79) !important;
+}
+
+.source-drive-manager .toppanbtn .arco-input-search {
+    width: 130px;
+    transition: width 0.3s;
+}
+
+@media only screen and (max-width: 859px) {
+}
+
+@media only screen and (min-width: 820px) {
+    .source-drive-manager .toppanbtn .arco-input-search {
+        width: 140px;
+    }
+}
+
+@media only screen and (min-width: 860px) {
+    .source-drive-manager .toppanbtn .arco-input-search {
+        width: 160px;
+    }
+}
+
+@media only screen and (min-width: 960px) {
+    .source-drive-manager .toppanbtn .arco-input-search {
+        width: 180px;
+    }
+
+    .source-drive-manager .toppanbtn .arco-input-search.arco-input-focus {
+        width: 200px;
+    }
+}
+
+@media only screen and (min-width: 1000px) {
+    .source-drive-manager .toppanbtn .arco-input-search.arco-input-focus {
+        width: 220px;
+    }
+}
+
+@media only screen and (min-width: 1200px) {
+    .source-drive-manager .toppanbtn .arco-input-search {
+        width: 200px;
+    }
+
+    .source-drive-manager .toppanbtn .arco-input-search.arco-input-focus {
+        width: 240px;
+    }
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-input-search .arco-input-wrapper {
+    background: rgba(255,255,255,.052) !important;
+    border: 1px solid rgba(255,255,255,.088) !important;
+    border-radius: 8px !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-input-search .arco-input-wrapper:hover {
+    border-color: rgba(0,245,212,.22) !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-input-search .arco-input-wrapper.arco-input-focus {
+    border-color: rgba(0,245,212,.30) !important;
+    box-shadow: 0 0 0 2px rgba(0,245,212,.08) !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-btn.arco-input-search-btn {
+    color: #07110f;
+    background: linear-gradient(135deg, var(--app-mineradio-accent, #00f5d4), var(--app-mineradio-champagne, #f4d28a)) !important;
+    border: 0 !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-btn:hover,
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-btn:active {
+    background: rgba(255,255,255,.072) !important;
+    box-shadow: inset 0 0 0 1px rgba(0,245,212,.18) !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-btn {
+    color: rgba(255,255,255,.82);
+    background: rgba(255,255,255,.052);
+    border: 1px solid rgba(255,255,255,.088);
+    border-color: rgba(255,255,255,.088) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.045) !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanbtn .arco-btn.arco-btn-primary {
+    color: #07110f;
+    background: linear-gradient(135deg, var(--app-mineradio-accent, #00f5d4), var(--app-mineradio-champagne, #f4d28a));
+    border: 0;
+    font-weight: 800;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanarea .cell {
+    color: rgba(255,255,255,.42);
+}
+
+.source-drive-manager .cell {
+    color: var(--color-text-3);
+    overflow: hidden;
+    text-align: center;
+    flex-grow: 0;
+    flex-shrink: 0;
+    display: inline-block;
+    line-height: 18px;
+    min-height: 18px;
+    padding: 0 4px;
+    justify-content: center;
+}
+
+.source-drive-manager .cell.tiquma {
+    width: 60px;
+    font-size: 12px;
+}
+
+.source-drive-manager .cell.filesize {
+    font-size: 16px;
+    width: 86px;
+    text-align: right;
+    flex-shrink: 0;
+    flex-grow: 0;
+    margin-right: 16px;
+}
+
+.source-drive-manager .cell.count {
+    width: 70px;
+    font-size: 12px;
+    line-height: 14px;
+    text-align: center;
+    word-wrap: break-word;
+    word-break: keep-all;
+}
+
+.source-drive-manager .cell.sharetime {
+    width: 80px;
+    font-size: 12px;
+    line-height: 14px;
+    text-align: right;
+    word-wrap: break-word;
+    word-break: keep-all;
+}
+
+.source-drive-manager .cell.sharetime.active {
+    color: rgb(217, 48, 37);
+}
+
+.source-drive-manager .cell.sharestate {
+    width: 60px;
+    font-size: 12px;
+    margin: 0 5px 0 5px;
+}
+
+.source-drive-manager .cell.sharestate.active {
+    color: rgb(var(--primary-6));
+}
+
+.source-drive-manager .cell.sharestate.forbidden {
+    color: rgb(217, 48, 37);
+}
+
+.source-drive-manager .cell.sharestate.deleted {
+    text-decoration: line-through;
+}
+
+.source-drive-manager .cell.p5 {
+    width: 5px;
+}
+
+.source-drive-manager .cell.pr {
+    width: 12px;
+}
+
+.source-drive-manager .toppanarea {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    height: 40px;
+    color: var(--color-text-3);
+    line-height: 38px;
+    border-top: 1px solid #e5e8ed99;
+    border-bottom: 1px solid #e5e8ed99;
+}
+
+body[arco-theme='dark'] .source-drive-manager .toppanarea {
+    border-top: 1px solid #e5e8ed22;
+    border-bottom: 1px solid #e5e8ed22;
+}
+
+.source-drive-manager .toppanarea > div {
+    display: flex;
+    align-items: center;
+    height: 38px;
+}
+
+.source-drive-manager .toppanarea .selectInfo {
+    height: 38px;
+    line-height: 38px;
+    font-size: 14px;
+    overflow: hidden;
+    white-space: nowrap;
+    word-break: keep-all;
+}
+
+.source-drive-manager .toppanarea .cell {
+    font-size: 12px;
+}
+
+.source-drive-manager .toppanarea .cell.active,
+.source-drive-manager .toppanarea .cell.active .iconxia {
+    color: rgb(var(--primary-6));
+}
+
+.source-drive-manager .toppanarea .cell.order {
+    cursor: pointer;
+}
+
+.source-drive-manager .toppanarea .cell.order:hover {
+    color: rgb(var(--primary-6));
+}
+
+
+.source-drive-manager .select,
+.source-drive-manager .select > button {
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0px !important;
+    color: rgb(var(--primary-6)) !important;
+    font-size: 14px;
+    line-height: 34px !important;
+    border: none !important;
+}
+
+.source-drive-manager .select:hover,
+.source-drive-manager .select:active,
+.source-drive-manager .select.active {
+    background: rgba(99, 125, 255, 0.1) !important;
+    color: rgb(var(--primary-6)) !important;
+}
+
+.source-drive-manager .select .iconfont {
+    font-size: 24px;
+    line-height: 34px;
+    color: rgb(var(--primary-6)) !important;
+}
+
+.source-drive-manager .select .iconfont.iconrpic {
+    opacity: 0.8;
+}
+
+/* ===== Mineradio App-wide UI System ===== */
+/* Token + utility layer shared across all top-tab pages.
+   Dark theme is the primary Mineradio look; light theme degrades to clean Arco tokens. */
+
+/* --- Glass panel utility --- */
+
+/* --- Search pill utility --- */
+
+/* --- Sidebar glass utility --- */
+
+/* --- Pill nav item utility --- */
+
+/* --- Accent button utility --- */
+
+/* --- Scan glass card utility --- */
+
+/* --- List row utility --- */
+
+/* --- Empty state utility --- */
+
+/* --- Eyebrow / accent label utility --- */
+
+/* --- Dropdown / popover glass utility --- */
+
+/* --- Legacy cloud-drive right-click menus --- */
+body[arco-theme='dark'] .source-drive-manager .rightmenu.arco-dropdown,
+body[arco-theme='dark'] .source-drive-manager .rightmenu .arco-dropdown {
+    min-width: 190px;
+    padding: 7px !important;
+    border-radius: 16px !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .rightmenu .arco-dropdown-option,
+body[arco-theme='dark'] .source-drive-manager .rightmenu.arco-dropdown .arco-dropdown-option {
+    width: 100% !important;
+    min-height: 34px;
+    margin: 1px 0 !important;
+    padding: 0 11px !important;
+    border-radius: 11px !important;
+    color: rgba(255,255,255,.76) !important;
+    font-size: 13px;
+}
+
+body[arco-theme='dark'] .source-drive-manager .rightmenu .arco-dropdown-option-icon,
+body[arco-theme='dark'] .source-drive-manager .rightmenu.arco-dropdown .arco-dropdown-option-icon {
+    color: var(--app-mineradio-accent);
+    opacity: .88 !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .rightmenu .arco-dropdown-option:hover,
+body[arco-theme='dark'] .source-drive-manager .rightmenu.arco-dropdown .arco-dropdown-option:hover {
+    color: #fff !important;
+    background: rgba(255,255,255,.078) !important;
+    box-shadow: inset 0 0 0 1px rgba(0,245,212,.18) !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .rightmenu .arco-dropdown-option.danger,
+body[arco-theme='dark'] .source-drive-manager .rightmenu.arco-dropdown .arco-dropdown-option.danger {
+    color: rgba(255,142,142,.92) !important;
+}
+
+body[arco-theme='dark'] .source-drive-manager .rightmenu .arco-dropdown-option.danger:hover,
+body[arco-theme='dark'] .source-drive-manager .rightmenu.arco-dropdown .arco-dropdown-option.danger:hover {
+    color: #fff !important;
+    background: rgba(255,77,79,.76) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 12px 28px rgba(255,77,79,.16) !important;
+}
+
+body .source-drive-manager:not([arco-theme='dark']) .rightmenu.arco-dropdown,
+body .source-drive-manager:not([arco-theme='dark']) .rightmenu .arco-dropdown {
+    padding: 6px !important;
+    border: 1px solid var(--color-border-2) !important;
+    border-radius: 14px !important;
+    background: var(--app-overlay-bg) !important;
+    box-shadow: 0 18px 46px rgba(15,23,42,.10) !important;
+}
+
+body .source-drive-manager:not([arco-theme='dark']) .rightmenu .arco-dropdown-option,
+body .source-drive-manager:not([arco-theme='dark']) .rightmenu.arco-dropdown .arco-dropdown-option {
+    width: 100% !important;
+    margin: 1px 0 !important;
+    border-radius: 10px !important;
+}
+
+/* --- Modal glass utility --- */

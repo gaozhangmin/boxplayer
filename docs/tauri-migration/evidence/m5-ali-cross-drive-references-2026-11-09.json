@@ -1,0 +1,26 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "feature": "detached complete cross-drive catalog/preferences reference drafts",
+  "focused": {
+    "files": 2,
+    "tests": 18,
+    "passed": true
+  },
+  "typecheck": "passed",
+  "implemented": [
+    "revalidated explicit identity map",
+    "canonical media ID and groups remap",
+    "original metadata source-scoped file references",
+    "folder favorites/display settings remap",
+    "collision rejection with input unchanged"
+  ],
+  "wiredToProvider": false,
+  "commitsNativeState": false,
+  "resumePositionsMigrated": false,
+  "writeGuardRemoved": false,
+  "fullFrontendRerun": false,
+  "bundleRebuilt": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

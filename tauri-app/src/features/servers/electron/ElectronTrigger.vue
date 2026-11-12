@@ -1,0 +1,10 @@
+<script setup lang="ts">
+import {nextTick,onMounted,onUnmounted,ref} from 'vue'
+const open=ref(false),root=ref<HTMLElement>(),panel=ref<HTMLElement>(),position=ref({left:'0px',top:'0px'})
+function close(){open.value=false;root.value?.querySelector<HTMLButtonElement>('button')?.focus()}
+async function toggle(){if(open.value){close();return}open.value=true;await nextTick();const box=root.value!.getBoundingClientRect(),height=panel.value?.getBoundingClientRect().height||0;position.value={left:Math.max(8,Math.min(box.right-205,window.innerWidth-213))+'px',top:Math.max(8,Math.min(box.bottom+4,window.innerHeight-height-8))+'px'};panel.value?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus()}
+function key(event:KeyboardEvent){if(!open.value)return;if(event.key==='Escape'){event.preventDefault();event.stopPropagation();close();return}if(['ArrowDown','ArrowUp','Home','End','Tab'].includes(event.key)){const items=[...panel.value!.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];if(!items.length)return;event.preventDefault();const index=items.indexOf(document.activeElement as HTMLButtonElement);items[event.key==='Home'?0:event.key==='End'?items.length-1:(index+(event.key==='ArrowUp'||event.shiftKey?-1:1)+items.length)%items.length]?.focus()}}
+onMounted(()=>document.addEventListener('keydown',key,true));onUnmounted(()=>document.removeEventListener('keydown',key,true))
+</script>
+<template><span ref="root" class="electron-trigger" @click.stop="toggle"><slot/></span><Teleport to="body"><div v-if="open" class="trigger-dismiss" @click.self="close"><div ref="panel" role="menu" class="trigger-popup" :style="position" @click="close"><slot name="content"/></div></div></Teleport></template>
+<style scoped>.electron-trigger{display:inline-flex}.trigger-dismiss{position:fixed;inset:0;z-index:2000}.trigger-popup{position:fixed;min-width:205px;border:1px solid var(--border);border-radius:12px;padding:5px;background:var(--background);box-shadow:0 8px 24px #0003}</style>

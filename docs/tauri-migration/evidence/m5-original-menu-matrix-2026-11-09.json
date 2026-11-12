@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "frontend": {
+    "files": 241,
+    "passed": 2361
+  },
+  "typecheck": "passed",
+  "filesVerifier": [
+    206,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "newInteractionCases": 8,
+  "nativeUserConfirmation": {
+    "sortHover": "accepted",
+    "selectedMoreHover": "accepted",
+    "optionsClickable": "accepted",
+    "quote": "两个菜单均正常展开并可点选",
+    "runningBundle": "5c324eac4daca868c569e76efaa67aa63adbb11d1cd4b1a673e536769005d6f9"
+  },
+  "applicationCodeChanged": false,
+  "nativeRerun": false,
+  "rebuilt": false,
+  "geometryAccepted": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

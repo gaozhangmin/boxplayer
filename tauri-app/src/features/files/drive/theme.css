@@ -1,0 +1,12 @@
+/* Bridge BoxPlayer's established green palette to the original Arco controls,
+   including dialogs teleported outside the source browser DOM subtree. */
+.source-drive-manager,.source-drive-dialog{
+ --primary-1:235,246,239;--primary-2:210,234,218;--primary-3:166,211,184;
+ --primary-4:121,186,149;--primary-5:78,155,114;--primary-6:40,123,78;
+ --primary-7:30,99,61;--primary-8:22,78,47;--primary-9:15,58,34;--primary-10:9,39,22;
+}
+.dark .source-drive-manager,.dark .source-drive-dialog{
+ --primary-1:9,39,22;--primary-2:15,58,34;--primary-3:22,78,47;
+ --primary-4:30,99,61;--primary-5:78,155,114;--primary-6:103,184,140;
+ --primary-7:121,186,149;--primary-8:166,211,184;--primary-9:210,234,218;--primary-10:235,246,239;
+}

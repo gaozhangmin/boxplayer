@@ -1,0 +1,45 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "wiredToUI": true,
+  "scope": "Ali web original automatic folder size estimates",
+  "originalSemantics": {
+    "warmupMs": 50000,
+    "backupCheckMs": 10000,
+    "resourceCheckMs": 15000,
+    "cacheAgeSeconds": 604800,
+    "directFileLimit": 100,
+    "exactRecursiveByteCount": false
+  },
+  "implemented": [
+    "account-bound directory index/direct reads",
+    "original cached tree sum",
+    "durable owner-drive cache with invalidation",
+    "lifecycle stop guards",
+    "original row size-sort refresh retaining selection"
+  ],
+  "frontend": {
+    "files": 234,
+    "tests": 2287,
+    "passed": true
+  },
+  "typecheck": "passed in final build",
+  "sourceVerifier": [
+    206,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "bundle": {
+    "size": "211.07MiB",
+    "sha256": "359597848f681a0be31658256461641f3866589cd1e48226e2eb24c03fe3cf3c",
+    "restarted": false
+  },
+  "nativeUnitRerun": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "complete within explicitly deferred-real-account scope",
+  "audit": "m5-acceptance-audit.md",
+  "frontend": {
+    "files": 246,
+    "passed": 2418,
+    "log": "/tmp/m5-final-current-frontend.log"
+  },
+  "native": {
+    "passed": 218,
+    "ignored": 10,
+    "log": "/tmp/m5-guangya-text-native-all-unrestricted.log"
+  },
+  "typecheck": "passed",
+  "build": {
+    "MiB": 212.0,
+    "sha256": "3a752e9ec769c39d8c3f05356d358c825c0f42c364ad196f95629c3eb3912503",
+    "restarted": true
+  },
+  "nativeSelectionToolbar": "full count and retained controls visible; view controls wrap",
+  "nativeContextMenu": "properties/more displayed; Escape closes/cancels",
+  "sourceVerifiers": {
+    "files": [
+      207,
+      23,
+      2
+    ],
+    "library": [
+      35,
+      14,
+      4
+    ]
+  },
+  "realAccounts": "deferred, not accepted",
+  "windowsLinuxRuntime": "not verified",
+  "electronMainWrites": false,
+  "committed": false,
+  "published": false,
+  "M6": "not started"
+}

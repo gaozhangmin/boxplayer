@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-08",
+  "scope": "Native virtual Ali drive-root metadata",
+  "behavior": [
+    "Refresh account drive-info and verify drive ownership",
+    "Never send virtual root to ordinary get or get_path",
+    "Canonical account-level root parent",
+    "Original web stats / complete Open recursive stats"
+  ],
+  "newTests": {
+    "protocol": 5,
+    "mounted": 2
+  },
+  "focused": {
+    "files": 2,
+    "tests": 40
+  },
+  "full": {
+    "files": 208,
+    "tests": 2027
+  },
+  "typecheck": "passed",
+  "sourceVerifier": "174 mappings /20 templates /2 assets",
+  "libraryVerifier": "35 /14 /4",
+  "macosArm64DebugAppMiB": 210.55,
+  "nativeTests": "Not rerun; no Rust edits",
+  "runtime": "Existing instance only; not new root build acceptance",
+  "runtimeEvidence": "m5-local-browser-runtime-2026-11-08.json",
+  "electronMain": {
+    "clean": true,
+    "head": "9d5f831",
+    "modified": false
+  },
+  "goal": "active; real accounts deferred; full native UI and remaining capabilities pending; stop before M6"
+}

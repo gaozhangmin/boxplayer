@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "native": {
+    "passed": 207,
+    "ignored": 10
+  },
+  "nativeFocused": 9,
+  "typecheck": "passed",
+  "build": "passed",
+  "bundleMiB": 211.44,
+  "sha256": "2aba5fcda69d10db070ee3658d7c4b64676214ac733220b2cd99efceaf864751",
+  "runtimeAccepted": false,
+  "publicCrossDriveEnabled": false,
+  "remaining": [
+    "accepted provider observation to native commit",
+    "active queue and snapshot rebinding",
+    "external subtitle cache coordination",
+    "conflict recovery UI",
+    "Open recycle contracts",
+    "native shortcut and menu geometry matrix"
+  ],
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

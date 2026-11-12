@@ -1,0 +1,17 @@
+import {beforeEach,describe,it,expect,vi} from 'vitest'
+import {createPinia,setActivePinia} from 'pinia'
+import {request} from '@/features/sources/transport'
+import {useFileSourcesStore} from '@/stores/fileSources'
+import {relocateRemoteFiles} from '@/features/files/drive/relocationMutations'
+vi.mock('@/features/sources/transport',()=>({request:vi.fn(),json:vi.fn(),text:(value:{body:number[]})=>new TextDecoder().decode(new Uint8Array(value.body))}))
+const account={id:'source',providerId:'115' as const,name:'Fixture',baseUrl:'',authOrigins:[]},file={file_id:'1234567890123456789',drive_id:'source',parent_file_id:'12',name:'Movie.mkv',isDir:false} as any,response=(data:unknown)=>({status:200,headers:{},body:Array.from(new TextEncoder().encode(JSON.stringify(data))),finalUrl:''})
+let detail:any,reply:any
+beforeEach(()=>{vi.resetAllMocks();setActivePinia(createPinia());useFileSourcesStore().accounts=[account];detail={file_id:'99',file_name:'Target',file_category:'0'};reply={code:0,state:true};vi.mocked(request).mockImplementation(async(_a,_m,url)=>response(url.includes('get_info')?{code:0,data:detail}:reply))})
+describe('original 115 move and copy native form requests',()=>{
+ it.each([false,true])('keeps original copy=%s request and exact root mapping',async copy=>{expect(await relocateRemoteFiles(account,[file],'drive115_root',copy,()=>true)).toMatchObject({success:[file.file_id],failures:[]});expect(vi.mocked(request).mock.calls[0]).toEqual([account,'POST','https://proapi.115.com/open/ufile/'+(copy?'copy':'move'),copy?'pid=0&file_id='+file.file_id+'&nodupli=0':'file_ids='+file.file_id+'&to_cid=0',{'Content-Type':'application/x-www-form-urlencoded'}])});
+ it('checks a nonroot destination is actually the selected folder before writing',async()=>{await relocateRemoteFiles(account,[file],'99',false,()=>true);expect(request).toHaveBeenCalledTimes(2);expect(vi.mocked(request).mock.calls[0]![2]).toContain('file_id=99');expect(vi.mocked(request).mock.calls[1]![3]).toBe('file_ids='+file.file_id+'&to_cid=99')});
+ it.each([{file_id:'88',file_name:'Target',file_category:'0'},{file_id:'99',file_name:'Target',file_category:'1'}])('rejects mismatched or nondirectory destinations %j',async value=>{detail=value;await expect(relocateRemoteFiles(account,[file],'99',false,()=>true)).rejects.toThrow();expect(request).toHaveBeenCalledTimes(1)});
+ it('retains partial success and does not turn provider rejection into moved items',async()=>{vi.mocked(request).mockImplementation(async(_a,_m,_url,body)=>response(body?.includes('file_ids=2&')?{code:403,message:'拒绝'}:reply));const result=await relocateRemoteFiles(account,[file,{...file,file_id:'2',name:'Second'}],'0',false,()=>true);expect(result.success).toEqual([file.file_id]);expect(result.failures).toHaveLength(1)});
+ it('stops if context changes while reading the destination',async()=>{let current=true;vi.mocked(request).mockImplementation(async()=>{current=false;return response({code:0,data:detail})});await expect(relocateRemoteFiles(account,[file],'99',false,()=>current)).rejects.toThrow('来源已切换');expect(request).toHaveBeenCalledTimes(1)});
+ it('rejects duplicate or foreign file selections before any writes',async()=>{await expect(relocateRemoteFiles(account,[file,file],'0',true,()=>true)).rejects.toThrow('选择');await expect(relocateRemoteFiles(account,[{...file,drive_id:'other'}],'0',false,()=>true)).rejects.toThrow('来源');expect(request).not.toHaveBeenCalled()});
+})

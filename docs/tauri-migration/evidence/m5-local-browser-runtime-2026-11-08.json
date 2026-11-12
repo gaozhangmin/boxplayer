@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-08",
+  "scope": "M5 local browser runtime subset",
+  "app": "com.boxplayer.migration.dev",
+  "runtimeCandidate": "Existing process launched from the 1908-test 123 batch-copy candidate; no intentional restart after later text/clear builds. On-disk bundle was subsequently rebuilt. These runtime checks do not prove later mutations.",
+  "source": "Mac / testVideo",
+  "initialItemCount": 21,
+  "observations": [
+    {
+      "requirement": 14,
+      "action": "list, image, bigimage",
+      "result": "Each layout visibly renders; list restored afterwards",
+      "status": "verified_subset"
+    },
+    {
+      "requirement": 104,
+      "action": "Cmd+A then cancel",
+      "result": "21/21 then 0/21",
+      "status": "verified_subset"
+    },
+    {
+      "requirement": 104,
+      "action": "Shift range using accessible checkbox controls",
+      "result": "3/21",
+      "status": "verified_subset"
+    },
+    {
+      "requirement": 104,
+      "action": "range-selection entry, start 1, end 5, invert, cancel",
+      "result": "5/21, 16/21, 0/21",
+      "status": "verified_subset"
+    },
+    {
+      "requirement": 16,
+      "action": "quick filter DV P5, unmatched string, clear",
+      "result": "21 -> 3 -> 0 with empty state -> 21",
+      "status": "verified_subset"
+    },
+    {
+      "requirement": 103,
+      "action": "enter calibration, parent back button",
+      "result": "4 entries with calibration breadcrumb, then testVideo 21 entries",
+      "status": "verified_subset"
+    },
+    {
+      "requirement": 99,
+      "action": "macOS Window > Move & Resize > Left; list and image layouts; Return to Previous Size",
+      "result": "Narrow layout rendered with accessible controls; original window size and list mode restored",
+      "status": "verified_subset"
+    }
+  ],
+  "activationFinding": "System Window > BoxPlayer Dev (makeKeyAndOrderFront) refreshed real screenshots; entering testVideo then returned 21 immediately. Earlier stale images/loading observations do not establish application deadlock.",
+  "limitations": [
+    "Hover sort menu not opened: native pointer clicks/scroll returned noWindowsAvailable while AX actions and keyboard worked. Original hover trigger retained.",
+    "No exact CSS geometry measurement; source width=840 is not a measured runtime width.",
+    "Narrow list wraps long filenames and truncates some visible date text; no claim of complete text or all nested-dialog acceptance.",
+    "Command/Control modifier clicks targeted checkboxes, so they do not independently prove original file-row modifier selection.",
+    "All providers, six sort orders, full shortcuts, hover previews, scroll/pagination and nested-modal matrix remain incomplete.",
+    "Double-click entry opened calibration and then a player preview window; that newly opened preview was closed. No player code changed.",
+    "No real-account mutation, no file mutation, no Electron main edits, no M6 engine."
+  ],
+  "userConfirmation": {
+    "date": "2026-11-08",
+    "prompt": "菜单修正版进入 testVideo 后，采样显示后台线程仍在等待打开目录，但终端读取同一目录立即完成。你实际看到什么状态？",
+    "answer": "列表正常显示且能操作",
+    "status": "user_confirmed_subset",
+    "boundary": "Confirms the visible directory list and interaction at the time of the question only. Does not identify the running binary as the latest on-disk build, prove every menu action, or diagnose sampled thread waits."
+  },
+  "followUpRootCheckpoint": {
+    "date": "2026-11-08",
+    "candidate": "Existing process; not restarted for metadata/root builds",
+    "observed": [
+      "System Window > BoxPlayer Dev restored actual screenshots",
+      "21 testVideo items; checkbox selected one",
+      "Right-click file text displayed the original Properties / More context menu in screenshot",
+      "Refresh restored the list at calibration and selection 0/21"
+    ],
+    "limitations": [
+      "Coordinate click still failed with noWindowsAvailable; hover sort and nested More not accepted",
+      "Context menu labels were only a combined AX text node",
+      "Down/Return navigated the underlying list and opened a new player preview instead of activating Properties; closed only that new preview",
+      "No successful Properties dialog activation in this runtime follow-up; no latest-build acceptance",
+      "No real provider account or user-file mutation; preview may have changed normal playback/history state"
+    ]
+  }
+}

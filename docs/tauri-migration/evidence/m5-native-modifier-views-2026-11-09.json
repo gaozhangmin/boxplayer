@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "testedRunningBuild": "112af093ade68a7505650b0b2a520f04cc4b464c9e8c9a30162e5e4c3d008276",
+  "source": "Mac/testVideo",
+  "entries": 21,
+  "selectionSequence": [
+    "single index1:1/21",
+    "Shift index3:3/21",
+    "Command index4:4/21",
+    "Command index4:3/21",
+    "view switches retain3/21",
+    "cancel:0/21"
+  ],
+  "viewSequence": [
+    "list",
+    "thumbnail",
+    "large",
+    "list"
+  ],
+  "thumbnailColumnsObserved": 3,
+  "discoveredIssue": "selection count text compressed in single-line toolbar",
+  "fix": "host scoped flex wrapping; original templates and controls unchanged",
+  "fixRuntimeVerified": false,
+  "realAccounts": "deferred",
+  "M6": "not started",
+  "fixFocusedTests": {
+    "files": 3,
+    "passed": 54
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "newExecutableSha256": "3a752e9ec769c39d8c3f05356d358c825c0f42c364ad196f95629c3eb3912503",
+  "newBundleRestarted": false
+}

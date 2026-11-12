@@ -1,0 +1,37 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "internal-foundation-only",
+  "focused": {
+    "files": 4,
+    "passed": 46
+  },
+  "frontend": {
+    "files": 238,
+    "passed": 2323
+  },
+  "typecheck": "passed",
+  "filesVerifier": [
+    206,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "publicCrossDriveEnabled": false,
+  "realAccounts": "deferred",
+  "nativeRerun": false,
+  "bundleRebuilt": false,
+  "userPreviewAcceptance": "calibration hover preview normally appears",
+  "remaining": [
+    "native accepted-operation binding",
+    "preference persistence and acknowledgement",
+    "active player queue and session identities",
+    "original picker and menu integration",
+    "Open recycle contracts",
+    "native shortcut and menu geometry matrix"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "frontend": {
+    "files": 243,
+    "passed": 2375
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "bundleMiB": 211.82,
+  "sha256": "96d4d25796440df19038047fbe3ad7674c722c27e470c9a7779ebd1069e6df50",
+  "nativeRerun": false,
+  "userProfileConflictInjected": false,
+  "nativeSmoke": [
+    "startup",
+    "home",
+    "files",
+    "add source",
+    "Mac/testVideo21entries"
+  ],
+  "syntheticAcceptance": [
+    "explicit approve/defer",
+    "verified backup before restore",
+    "edits during confirmation rejected",
+    "raw malformed state backup",
+    "repeated backups retained",
+    "Escape and mask do not approve"
+  ],
+  "backupLocation": "application WebView localStorage",
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

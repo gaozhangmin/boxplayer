@@ -1,0 +1,636 @@
+{
+  "sourceCommit": "de03329729ad06bd3c4a5ce8fcab6c2775a7ac10",
+  "sourceRepository": "boxplayer Electron main, read only",
+  "files": [
+    {
+      "source": "vendor/mediary-workflow/src/sqlite.ts",
+      "target": "native/boxplayer/upstream/sqlite.ts",
+      "sha256": "416026e7ca1d5862746356685a9b35f8387833bdad3dc298ed0259a2793d48d8",
+      "policy": "branding-only",
+      "targetSha256": "97c0d37f2ae19103fdc54aed7434622e659068b042996a857a0115e90f154761",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__sqlite.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/domain.ts",
+      "target": "native/boxplayer/upstream/domain.ts",
+      "sha256": "6a058ad6e49a7bad8a1b813fb22f947e79a5f180bdcd427be1f44c4771eb2cef",
+      "policy": "branding-only",
+      "targetSha256": "6a058ad6e49a7bad8a1b813fb22f947e79a5f180bdcd427be1f44c4771eb2cef",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__domain.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/dead-links.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/dead-links.ts",
+      "sha256": "c9402abc2e6b8b1ce70df472f161ef228353a1cb58fcb7d6c5006ecf73c1873f",
+      "policy": "branding-only",
+      "targetSha256": "c9402abc2e6b8b1ce70df472f161ef228353a1cb58fcb7d6c5006ecf73c1873f",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__dead-links.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/account-credentials.ts",
+      "target": "native/boxplayer/upstream/account-credentials.ts",
+      "sha256": "a36798f808014e98a14d6384139d12bc11c361a3888ac1468bc2d659b0381284",
+      "policy": "branding-only",
+      "targetSha256": "730e7572f54730bcdac29433c334e5ad43f184989d4c1fba0d0fbd154291fab4",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__account-credentials.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/workflow-scope.ts",
+      "target": "native/boxplayer/upstream/workflow-scope.ts",
+      "sha256": "7e6e2016ca7f239ef7a11bfcd71c566ea86c9c6d6873628cf8b72ba4cf790c5a",
+      "policy": "branding-only",
+      "targetSha256": "f58763573f5265f82a5c1b41638d3c55862ab332b8172ad5654c38f2602d218f",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__workflow-scope.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/storage-brands.ts",
+      "target": "native/boxplayer/upstream/storage-brands.ts",
+      "sha256": "a35ca52445aaa1be5e990181c16081837400658a319c578d7e23f6ae3914531c",
+      "policy": "branding-only",
+      "targetSha256": "a76fb57b6b5b567751c8d9bd21e4e9557b168365cb940411eeb9bd2f512b542e",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__storage-brands.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/guangya-client.ts",
+      "target": "native/boxplayer/upstream/guangya-client.ts",
+      "sha256": "3b5512bfe9994fb4e4099f0bcdf8eea4006574955a0bc8472a727a41fe6be59d",
+      "policy": "branding-only",
+      "targetSha256": "3b5512bfe9994fb4e4099f0bcdf8eea4006574955a0bc8472a727a41fe6be59d",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__guangya-client.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/pan115-cookie-client.ts",
+      "target": "native/boxplayer/upstream/pan115-cookie-client.ts",
+      "sha256": "a1b0449fd090bf5faa6cff7b769f816bb5c1eef34c2768b325de97535c6fc263",
+      "policy": "branding-only",
+      "targetSha256": "a467409ca748c4bc79934908f290d8538b9308f6ef44571aeb50dd0b1f55871b",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__pan115-cookie-client.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/pan115-lixian-cipher.ts",
+      "target": "native/boxplayer/upstream/pan115-lixian-cipher.ts",
+      "sha256": "c50fd5e0d955177383bd73810daa290c9dafacf653c29aea4723f3052ff6ca6c",
+      "policy": "branding-only",
+      "targetSha256": "c50fd5e0d955177383bd73810daa290c9dafacf653c29aea4723f3052ff6ca6c",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__pan115-lixian-cipher.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/storage-115-executor.ts",
+      "target": "native/boxplayer/upstream/storage-115-executor.ts",
+      "sha256": "960a1f4fe95598f65a526b047b890b4dbae675a07e4ee6db899e60126f240827",
+      "policy": "branding-only",
+      "targetSha256": "aafcadcea496b43a42e3a9a66f9b88b44e38584e89c24427b28b3d77e2a610a8",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__storage-115-executor.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/episode-code.ts",
+      "target": "native/boxplayer/upstream/episode-code.ts",
+      "sha256": "bbef5100d64a932a588052feb80281c179dbe54458e0bb903608ad0637f89ff9",
+      "policy": "branding-only",
+      "targetSha256": "bbef5100d64a932a588052feb80281c179dbe54458e0bb903608ad0637f89ff9",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__episode-code.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/ports.ts",
+      "target": "native/boxplayer/upstream/ports.ts",
+      "sha256": "58d49a69fcf5b63eadf46da85a328adfe9eb2f13494c23fe9c2421a4d354757a",
+      "policy": "branding-only",
+      "targetSha256": "58d49a69fcf5b63eadf46da85a328adfe9eb2f13494c23fe9c2421a4d354757a",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__ports.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/pan123-client.ts",
+      "target": "native/boxplayer/upstream/pan123-client.ts",
+      "sha256": "ffda40353c3b845111947840eb27ca2478202e9b768fb105f8260a9b8d0d8c4f",
+      "policy": "branding-only",
+      "targetSha256": "ffda40353c3b845111947840eb27ca2478202e9b768fb105f8260a9b8d0d8c4f",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__pan123-client.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/quark-cookie-client.ts",
+      "target": "native/boxplayer/upstream/quark-cookie-client.ts",
+      "sha256": "cb7078e29f933f5400fbd2a7ba3ced9a78e9a388003a80d9f7f33dc043e3efa1",
+      "policy": "branding-only",
+      "targetSha256": "cb7078e29f933f5400fbd2a7ba3ced9a78e9a388003a80d9f7f33dc043e3efa1",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__quark-cookie-client.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/tianyi-client.ts",
+      "target": "native/boxplayer/upstream/tianyi-client.ts",
+      "sha256": "8f76805c9ec277346d243eb06008b1ea0e15c1c01236e627e6af59045b591e10",
+      "policy": "branding-only",
+      "targetSha256": "8f76805c9ec277346d243eb06008b1ea0e15c1c01236e627e6af59045b591e10",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__tianyi-client.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/repository.ts",
+      "target": "native/boxplayer/upstream/repository.ts",
+      "sha256": "4c6668b13d7ad802150a0c44c767b0cb9405257c71f6aa08a6bf9c54d56d2d1e",
+      "policy": "branding-only",
+      "targetSha256": "4c6668b13d7ad802150a0c44c767b0cb9405257c71f6aa08a6bf9c54d56d2d1e",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__repository.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/commands.ts",
+      "target": "native/boxplayer/upstream/commands.ts",
+      "sha256": "339712f0e4da857cbc2dbe074689e619a09ea6af178da78ce15c6fc5f5cbafae",
+      "policy": "branding-only",
+      "targetSha256": "339712f0e4da857cbc2dbe074689e619a09ea6af178da78ce15c6fc5f5cbafae",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__commands.ts.source"
+    },
+    {
+      "source": "shared/types/mediaAcquisition.ts",
+      "target": "native/boxplayer/mediaAcquisition.ts",
+      "sha256": "12b2160f3e2190585598d5c13a343420ba7df312e6369f900e8ffdade0d89348",
+      "policy": "branding-only",
+      "targetSha256": "12b2160f3e2190585598d5c13a343420ba7df312e6369f900e8ffdade0d89348",
+      "snapshot": "native/boxplayer/source-audit/shared__types__mediaAcquisition.ts.source"
+    },
+    {
+      "source": "shared/types/mediary.ts",
+      "target": "native/boxplayer/boxplayer.ts",
+      "sha256": "e2ce09004524d69c8572036bd4bf15e3fc8a4246a5390dba09667bd2eca6cb29",
+      "policy": "branding-only",
+      "targetSha256": "cc5d8d517988e1b5ad373ef364193f2afb2f25aeda63e7a4064ae930395691d7",
+      "snapshot": "native/boxplayer/source-audit/shared__types__boxplayer.ts.source"
+    },
+    {
+      "source": "electron/main/mediary/MediaryService.ts",
+      "snapshot": "native/boxplayer/BoxPlayerService.source",
+      "target": "native/boxplayer/views.ts",
+      "sha256": "1b1c85427082c257a9fd9f9a381d886f451d7cb590035c0d74abb6add73a4312",
+      "policy": "extracted",
+      "sections": [
+        "cancelMediaryRun",
+        "endMediaryTracking",
+        "clearCompletedMediaryRuns",
+        "listMediaryRunViews through end of file"
+      ],
+      "changes": [
+        "Compatibility reexports; full original service now lives in service.ts"
+      ],
+      "targetSha256": "b40dc571c82955d57921af32e36569c8e2b8d65347d66d6a6a8322e4f45725d3"
+    },
+    {
+      "source": "electron/main/mediary/MediaryHost.ts",
+      "snapshot": "native/boxplayer/BoxPlayerHost.source",
+      "target": "native/boxplayer/host.ts",
+      "sha256": "e670553fc87f4685afe57da9a6f2c53fb7cb7731f83c9ad651a637c85a862c0d",
+      "policy": "extracted",
+      "sections": [
+        "driveTargetId/saveDriveTarget/getDriveTarget",
+        "sweepTimes",
+        "nextSweepAt/beijingDateTime"
+      ],
+      "changes": [
+        "Bun SQLite lifecycle and orphan recovery; no worker timer or execution claim until native execution adapters are wired"
+      ],
+      "targetSha256": "902bb1dc9b646a913690475ab23f48fd402a7c13c83efcf2beaa004f1fa9951f"
+    },
+    {
+      "source": "electron/main/mediary/driveClients.ts",
+      "snapshot": "native/boxplayer/driveClients.source",
+      "target": "native/boxplayer/driveIdentity.ts",
+      "sha256": "13e525ab213e24a925c1395c3fe3f0d4333cf10f767ff18b7c4fac4a86f84f0c",
+      "policy": "extracted",
+      "sections": [
+        "PROVIDER_ROOTS through providerFolderId"
+      ],
+      "changes": [
+        "Exclude CLI credential access and provider client factories"
+      ],
+      "targetSha256": "4097de580bad4871e51763cfe745b116425cf1f6a8a950fe2a01e7a14de31734"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/worker.ts",
+      "target": "native/boxplayer/upstream/worker.ts",
+      "sha256": "66ea52c17a13c4ee950c9be80a17fc73fce215cbabd5f9af6fe3856f4fa66a1f",
+      "targetSha256": "90d06dc3669b9e39488a2a85fb08ba0f688f42b66220e0f1add76710b1a79e45",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__worker.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/transient-error.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/transient-error.ts",
+      "sha256": "adbfc7a1dfbc2dc3b29b5bcb5a8a87418a0b14e2130763c73522518c9541f0b5",
+      "targetSha256": "adbfc7a1dfbc2dc3b29b5bcb5a8a87418a0b14e2130763c73522518c9541f0b5",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__transient-error.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/agent-error.ts",
+      "target": "native/boxplayer/upstream/agent-error.ts",
+      "sha256": "e17501336507e92e6edd78fdf133bc82cd655d34c16c832d4ba8715a27bf05f7",
+      "targetSha256": "e17501336507e92e6edd78fdf133bc82cd655d34c16c832d4ba8715a27bf05f7",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__agent-error.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/notification-report.ts",
+      "target": "native/boxplayer/upstream/notification-report.ts",
+      "sha256": "0cbb9194dcaa589fee845c0d58f7414807b0e05a6a57691a9ea8384e9b9c06e2",
+      "targetSha256": "0cbb9194dcaa589fee845c0d58f7414807b0e05a6a57691a9ea8384e9b9c06e2",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__notification-report.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/runner-v2.ts",
+      "target": "native/boxplayer/upstream/runner-v2.ts",
+      "sha256": "3a7a2ce0e68c007bf742d5b1788881c481ac114fb35488f952bedc323663ce35",
+      "targetSha256": "3a7a2ce0e68c007bf742d5b1788881c481ac114fb35488f952bedc323663ce35",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__runner-v2.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/run-tv-v2.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/run-tv-v2.ts",
+      "sha256": "87c8747e526dd6ef20a221cbb3e387f23edc804acec4bdbd0a22109d18d8a3bc",
+      "targetSha256": "87c8747e526dd6ef20a221cbb3e387f23edc804acec4bdbd0a22109d18d8a3bc",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__run-tv-v2.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/workflow-v2-bridge.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/workflow-v2-bridge.ts",
+      "sha256": "ce31b7d888469d53ce685d1ace19f9a729aa41c39103be0f576264c97b2a61dd",
+      "targetSha256": "ce31b7d888469d53ce685d1ace19f9a729aa41c39103be0f576264c97b2a61dd",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__workflow-v2-bridge.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/transfer-block.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/transfer-block.ts",
+      "sha256": "16e6dfc2f55d8b8be282a6ef4793de659556e8b017c60ab4fbf93819b6559a33",
+      "targetSha256": "16e6dfc2f55d8b8be282a6ef4793de659556e8b017c60ab4fbf93819b6559a33",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__transfer-block.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/workflow-v2.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/workflow-v2.ts",
+      "sha256": "0ca2595914860f277aff90735fe39589179974ff6705606394c159735d57dc41",
+      "targetSha256": "0ca2595914860f277aff90735fe39589179974ff6705606394c159735d57dc41",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__workflow-v2.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/directory-lifecycle.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/directory-lifecycle.ts",
+      "sha256": "2ffea3d1eeb643df67e349172d7bb74fd453c56db606a860400506499ceacf27",
+      "targetSha256": "2ffea3d1eeb643df67e349172d7bb74fd453c56db606a860400506499ceacf27",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__directory-lifecycle.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/landed-size.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/landed-size.ts",
+      "sha256": "309199f8995bfd7e70940de1059e6f0a198dcbf9ba6f6c9db9ee8c19b71136b1",
+      "targetSha256": "309199f8995bfd7e70940de1059e6f0a198dcbf9ba6f6c9db9ee8c19b71136b1",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__landed-size.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/activity.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/activity.ts",
+      "sha256": "fe20f19cd09ccc9c9c6e0ce96fee35751f479657716676ae6efb31326681a3ba",
+      "targetSha256": "fe20f19cd09ccc9c9c6e0ce96fee35751f479657716676ae6efb31326681a3ba",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__activity.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/orchestrator.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/orchestrator.ts",
+      "sha256": "cc25e1ceb807eb8db5104a8e400b71c5173db4bcd3fca39a8b3ecc6feb875a64",
+      "targetSha256": "8d11e06c5ff52cae33a25058dccadd89888f5d0010b696422ce22f13f4077b54",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__orchestrator.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/agent-loop.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/agent-loop.ts",
+      "sha256": "7cb1d01a6ff567630fddad9c94d7b461da43ff52d6265c30a920bbaed33acb6f",
+      "targetSha256": "387f457b80c9511116db4f6ee5f7116e98786008d9b784d5526897b8e7f2eab3",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__agent-loop.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/sandbox.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/sandbox.ts",
+      "sha256": "d3f570af9a14bbc3bb52e3b57fd3b06b052f00da1d3e84f9ea2cc4c959ea30a4",
+      "targetSha256": "d3f570af9a14bbc3bb52e3b57fd3b06b052f00da1d3e84f9ea2cc4c959ea30a4",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__sandbox.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/planning-search-gate.ts",
+      "target": "native/boxplayer/upstream/planning-search-gate.ts",
+      "sha256": "ae54457cd097e0ca5d54cc401823215f51e6a64057e9c98b308bab15fb52f066",
+      "targetSha256": "ae54457cd097e0ca5d54cc401823215f51e6a64057e9c98b308bab15fb52f066",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__planning-search-gate.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/subtitle-provider.ts",
+      "target": "native/boxplayer/upstream/subtitle-provider.ts",
+      "sha256": "c2661eaf45fb5c04729f9c76972c34335caadfb65126343ea84f2375a8a387d2",
+      "targetSha256": "c2661eaf45fb5c04729f9c76972c34335caadfb65126343ea84f2375a8a387d2",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__subtitle-provider.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/fake-provider.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/fake-provider.ts",
+      "sha256": "6ae8dc8d20891fd97b9af73a81f757e47000c98746b671b5590b4c86e13df55f",
+      "targetSha256": "6ae8dc8d20891fd97b9af73a81f757e47000c98746b671b5590b4c86e13df55f",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__fake-provider.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/storage-115-simulator.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/storage-115-simulator.ts",
+      "sha256": "4fc578785a531f9a473aa1d262e578d9e90cdafd38c815b93a8418c83f7b1871",
+      "targetSha256": "4fc578785a531f9a473aa1d262e578d9e90cdafd38c815b93a8418c83f7b1871",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__storage-115-simulator.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/search-profile.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/search-profile.ts",
+      "sha256": "4cf496292ac86d7e89070b4eb1d891ae7e7281f41a94a916dbc3470e6db97dfc",
+      "targetSha256": "4cf496292ac86d7e89070b4eb1d891ae7e7281f41a94a916dbc3470e6db97dfc",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__search-profile.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/skill.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/skill.ts",
+      "sha256": "21636134e1fe6ba93224f7ef4e0dd9328de92c5e12501f8e41194b5eb58bb919",
+      "targetSha256": "689b63f1df62accf31d128c0603697b00c50afb50045ff0f5c7f9074e1b42642",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__skill.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/agent-loop-guards.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/agent-loop-guards.ts",
+      "sha256": "511f4130bb5ec6b7d10e7a12cb026de9767a8f7d427e0aa4bb9d83176352df75",
+      "targetSha256": "c38b6b2df45b86b107df1442dc66aeea583c8591f8e74b890b17cc869a46074f",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__agent-loop-guards.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/repetition-stop.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/repetition-stop.ts",
+      "sha256": "25f974c6caa9f353b027c2351dddbd2515c70e09615496e93f7a7685b75ba6b4",
+      "targetSha256": "25f974c6caa9f353b027c2351dddbd2515c70e09615496e93f7a7685b75ba6b4",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__repetition-stop.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/candidate-registry.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/candidate-registry.ts",
+      "sha256": "2fe94881fb17519c725f999057757d9cd093015dad052f045fdf487dcc50c7bd",
+      "targetSha256": "2fe94881fb17519c725f999057757d9cd093015dad052f045fdf487dcc50c7bd",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__candidate-registry.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/real-provider-adapter.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/real-provider-adapter.ts",
+      "sha256": "9b53560f09d7c00648dd468bc8f42047ff2e9d387cf1a8b31839115651a5f05e",
+      "targetSha256": "9b53560f09d7c00648dd468bc8f42047ff2e9d387cf1a8b31839115651a5f05e",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__real-provider-adapter.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/real-storage-adapter.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/real-storage-adapter.ts",
+      "sha256": "44d07cda70207f6ae330f87eb53720ad8b8747c60fe619a533ec9202a957a6de",
+      "targetSha256": "44d07cda70207f6ae330f87eb53720ad8b8747c60fe619a533ec9202a957a6de",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__real-storage-adapter.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/pan123-storage-executor.ts",
+      "target": "native/boxplayer/upstream/pan123-storage-executor.ts",
+      "sha256": "19bf643b8805e95426da8eb8289afa793c2c948de7614aa4d5f443667cb7d293",
+      "targetSha256": "19bf643b8805e95426da8eb8289afa793c2c948de7614aa4d5f443667cb7d293",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__pan123-storage-executor.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/quark-storage-executor.ts",
+      "target": "native/boxplayer/upstream/quark-storage-executor.ts",
+      "sha256": "4b28317d3de4557780822599afe8ab6bd5ec803d0752ce1d30384f175df8c138",
+      "targetSha256": "4b28317d3de4557780822599afe8ab6bd5ec803d0752ce1d30384f175df8c138",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__quark-storage-executor.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/tianyi-storage-executor.ts",
+      "target": "native/boxplayer/upstream/tianyi-storage-executor.ts",
+      "sha256": "a43e8ba4460f3097afcd2990992eb64d343559515c09d3d338614557fdf88e48",
+      "targetSha256": "a43e8ba4460f3097afcd2990992eb64d343559515c09d3d338614557fdf88e48",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__tianyi-storage-executor.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/task-agents.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/task-agents.ts",
+      "sha256": "cbba0970f18613ca96a157956a4da3e2fe1d279e5283bb35de1114a7f8e1e563",
+      "targetSha256": "cbba0970f18613ca96a157956a4da3e2fe1d279e5283bb35de1114a7f8e1e563",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__task-agents.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/sync-need.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/sync-need.ts",
+      "sha256": "2f8f7ef0d05d812a57876009c6d1c2e443ffd11ec39b5b8e91f29f592319cc71",
+      "targetSha256": "2f8f7ef0d05d812a57876009c6d1c2e443ffd11ec39b5b8e91f29f592319cc71",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__sync-need.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/progress-sink.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/progress-sink.ts",
+      "sha256": "55a3d2ebb434628d96fd3744709c82f078c854fa37b017175a081fbd6fc451b4",
+      "targetSha256": "55a3d2ebb434628d96fd3744709c82f078c854fa37b017175a081fbd6fc451b4",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__progress-sink.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/acquisition-v2/agent-trace-sink.ts",
+      "target": "native/boxplayer/upstream/acquisition-v2/agent-trace-sink.ts",
+      "sha256": "272049ab5f67ffbe1afa63f3e486019aaf61e6e308a831abead127c8538360f8",
+      "targetSha256": "272049ab5f67ffbe1afa63f3e486019aaf61e6e308a831abead127c8538360f8",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__acquisition-v2__agent-trace-sink.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/movie-workflow-v2.ts",
+      "target": "native/boxplayer/upstream/movie-workflow-v2.ts",
+      "sha256": "23e216329c665d55b4796df0f04151583a76d732ce6f5947286bb30ac6bdab98",
+      "targetSha256": "23e216329c665d55b4796df0f04151583a76d732ce6f5947286bb30ac6bdab98",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__movie-workflow-v2.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/season-sync.ts",
+      "target": "native/boxplayer/upstream/season-sync.ts",
+      "sha256": "505e39dd17b49f20e5b8fea59a079644c56bbcc53c2ce0117173a454510f4d25",
+      "targetSha256": "505e39dd17b49f20e5b8fea59a079644c56bbcc53c2ce0117173a454510f4d25",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__season-sync.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/agent-model.ts",
+      "target": "native/boxplayer/upstream/agent-model.ts",
+      "sha256": "d8e82226827a1f6438af9922ac9079d1fd8bd794c1d826d909ef25d4001a22b1",
+      "targetSha256": "d8e82226827a1f6438af9922ac9079d1fd8bd794c1d826d909ef25d4001a22b1",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__agent-model.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/pansou-provider.ts",
+      "target": "native/boxplayer/upstream/pansou-provider.ts",
+      "sha256": "a0ff5d8d38e96951145b40dcb9b446dde92cdab30bcf5526d7789af68eaf8ad0",
+      "targetSha256": "2fd6daa4971a76f5a4a114329888a1a2dc7bc975fa060ebac7d5209afb6aca75",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__pansou-provider.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/tmdb-provider.ts",
+      "target": "native/boxplayer/upstream/tmdb-provider.ts",
+      "sha256": "bef28c35909f10552920f9f514d0f3237f9cc429b9ea2b97301fc298d577a1da",
+      "targetSha256": "bef28c35909f10552920f9f514d0f3237f9cc429b9ea2b97301fc298d577a1da",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__tmdb-provider.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/media-classification.ts",
+      "target": "native/boxplayer/upstream/media-classification.ts",
+      "sha256": "6d774729bd8040c05ceac60412d2c10452cacb5e2df50e11d026635161009f3c",
+      "targetSha256": "6d774729bd8040c05ceac60412d2c10452cacb5e2df50e11d026635161009f3c",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__media-classification.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/search-view.ts",
+      "target": "native/boxplayer/upstream/search-view.ts",
+      "sha256": "5aeae63c22b83fa2fa9bae6f94e7e8400399079f797895de02346bfa1e2a7b5a",
+      "targetSha256": "5aeae63c22b83fa2fa9bae6f94e7e8400399079f797895de02346bfa1e2a7b5a",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__search-view.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/storage-executor-factory.ts",
+      "target": "native/boxplayer/upstream/storage-executor-factory.ts",
+      "sha256": "cb3d61bcd5f1abe2b1680c56b1919a809da7c3c44f08602bf40b97a4d8afbede",
+      "targetSha256": "303e3f210070421a93b9509a635d9ba533ac32f542ff89d5ec028be825610298",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__storage-executor-factory.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/guangya-storage-executor.ts",
+      "target": "native/boxplayer/upstream/guangya-storage-executor.ts",
+      "sha256": "8200f3eccbd78f6e3ba908a423dccd9ced12a599f97a9f7f061a78d8640da3be",
+      "targetSha256": "8200f3eccbd78f6e3ba908a423dccd9ced12a599f97a9f7f061a78d8640da3be",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__guangya-storage-executor.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/pan115-storage-factory.ts",
+      "target": "native/boxplayer/upstream/pan115-storage-factory.ts",
+      "sha256": "c3520c12468dc8ea269c8eb9548f923f74301ea9a7f69687d3dd78c4855657da",
+      "targetSha256": "478e8a1eeda9d5c6f0436dc4cb052cb5fe6f66d7e952f1d034da070ca78d88f3",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__pan115-storage-factory.ts.source"
+    },
+    {
+      "source": "vendor/mediary-workflow/src/fakes.ts",
+      "target": "native/boxplayer/upstream/fakes.ts",
+      "sha256": "0242d4abfe45664027e8789b792662d820def258a3fa829daa8e2414cb481b01",
+      "targetSha256": "0242d4abfe45664027e8789b792662d820def258a3fa829daa8e2414cb481b01",
+      "policy": "branding-only",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__src__fakes.ts.source"
+    },
+    {
+      "source": "electron/main/mediary/BoxPlayerStorageExecutor.ts",
+      "target": "native/boxplayer/BoxPlayerStorageExecutor.ts",
+      "snapshot": "native/boxplayer/BoxPlayerStorageExecutor.source",
+      "sha256": "6def5dc6b4a38ea3eb95405a3f6a1cbfb2e41fcf5a2f5611bf96c57e467adb16",
+      "targetSha256": "b76f00b6ae28132da6e30796de83cc76c83409f8d421c951d380dca73bc00ee0",
+      "policy": "import-adapted",
+      "changes": [
+        "Relative native imports; transfer result types separated from credential/provider HTTP implementations"
+      ]
+    },
+    {
+      "source": "electron/main/mediary/resources.ts",
+      "snapshot": "native/boxplayer/source-audit/electron__main__boxplayer__resources.ts.source",
+      "target": "native/boxplayer/resources.ts",
+      "sha256": "06b0221fc2f343fc8f575516bf3de35d4f86bdb9ac63dfbca92db8836caff800",
+      "targetSha256": "11175cf8a756bb88d66d4bfa35c469b10b7f82b5744f94c2fb2d75744cdaecdf",
+      "policy": "native-adapted",
+      "changes": [
+        "Branding and local imports; native resource request port; optional private model object supplied by host, no renderer model secret RPC",
+        "Bun fetch type includes preconnect; preserve callable fetch behavior with attached preconnect"
+      ]
+    },
+    {
+      "source": "electron/main/mediary/storageExecutors.ts",
+      "snapshot": "native/boxplayer/source-audit/electron__main__boxplayer__storageExecutors.ts.source",
+      "target": "native/boxplayer/storagePolicy.ts",
+      "sha256": "be698082d2cdb150aa531316c6ff43cf072b3ed3829c8060f5b0d7ca16292390",
+      "targetSha256": "7ea288cfbc18beb90a62f1d76d447f844eb65eecf4580c0cc690ffe5665b8523",
+      "policy": "native-adapted",
+      "changes": [
+        "Original provider eligibility functions extracted; credentials/storage resolution supplied by private native port"
+      ]
+    },
+    {
+      "source": "electron/main/mediary/MediaryHost.ts",
+      "snapshot": "native/boxplayer/source-audit/electron__main__boxplayer__BoxPlayerHost.ts.source",
+      "target": "native/boxplayer/engine.ts",
+      "sha256": "e670553fc87f4685afe57da9a6f2c53fb7cb7731f83c9ad651a637c85a862c0d",
+      "targetSha256": "20b1a50d09409da498dfc9fb5594b64c5d4bd8e89334f177332637b578d0c2ba",
+      "policy": "native-adapted",
+      "changes": [
+        "Original queue drain, per-target context, patrol, sweep claim, quality/language and model logic; native lifecycle/database/events and dependency imports adapted; orphan recovery is done once by openHost"
+      ]
+    },
+    {
+      "source": "electron/main/mediary/MediaryService.ts",
+      "snapshot": "native/boxplayer/source-audit/electron__main__boxplayer__BoxPlayerService.ts.source",
+      "target": "native/boxplayer/service.ts",
+      "sha256": "1b1c85427082c257a9fd9f9a381d886f451d7cb590035c0d74abb6add73a4312",
+      "targetSha256": "32945fd2b578c81a94ef3a46bdf36fc359998a14250cc12ed5ec88377ddff903",
+      "policy": "native-adapted",
+      "changes": [
+        "Full original task service with relative imports and private native runtime ports; naming only in function bodies"
+      ]
+    },
+    {
+      "source": "electron/main/core/__tests__/mediaryStorageExecutor.test.ts",
+      "snapshot": "native/boxplayer/source-audit/electron__main__core____tests____boxplayerStorageExecutor.test.ts.source",
+      "target": "native/boxplayer/tests/BoxPlayerStorageExecutor.test.ts",
+      "sha256": "ad7fdb69ca88ced5b7d7b2ebba98b9ce6e16fb9404250fdac5c9ff54676fa674",
+      "targetSha256": "acfdff844330acfb914c55ad0b0e19f3d25b6055f2d902c3f52fc4f1c1b8c5f2",
+      "policy": "native-adapted",
+      "changes": [
+        "Original regression tests; Bun runner and relative imports; branding normalization"
+      ]
+    },
+    {
+      "source": "vendor/mediary-workflow/tests/worker.test.ts",
+      "snapshot": "native/boxplayer/source-audit/vendor__boxplayer-workflow__tests__worker.test.ts.source",
+      "target": "native/boxplayer/tests/worker.test.ts",
+      "sha256": "0cc50bf6f0789ac5e2229491c4dd22feb0f0e4d2a579428525b93bd192a84e53",
+      "targetSha256": "b4c8a9a627deed61f51315bc6773e2d894922e7bc471d3cf43e1d3de756cce15",
+      "policy": "test-adapted",
+      "changes": [
+        "Original worker regressions; Bun test runner and direct local module imports"
+      ]
+    }
+  ],
+  "status": "Original worker, Agent, search/metadata, protected storage and full task service integrated; private native runtime account/model binding pending"
+}

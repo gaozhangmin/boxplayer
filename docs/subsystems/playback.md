@@ -2,14 +2,14 @@
 
 路径按本仓库根目录解释。修改前核对当前源码和调用者；本文不宣称已完成运行验收。
 
-本文涉及的新 Tauri 源码仍属于本地未提交迁移工程；本次只提交规则和文档。独立克隆没有这些文件时，明确报告缺失，不用旧 Electron 根工程代替原生验收。
+本文涉及的 Tauri 迁移源码随 `codex/dev-tauri` 分支版本管理。原生验收使用 `tauri-app/`，不能用旧 Electron 根工程代替；源码已提交不代表目标平台已验收。
 
 ## 职责与源码
 
-- `tauri-app/src/features/player/usePlayer.ts`（本地迁移源码，尚未随本次文档提交）：播放器 UI 与会话适配。
-- `tauri-app/src-tauri/src/player/mod.rs`（本地迁移源码，尚未随本次文档提交）：原生播放实现。
-- `tauri-app/src-tauri/src/gateway.rs`（本地迁移源码，尚未随本次文档提交）：媒体请求网关。
-- `tauri-app/src-tauri/src/server_playback.rs`（本地迁移源码，尚未随本次文档提交）：媒体服务器播放。
+- `tauri-app/src/features/player/usePlayer.ts`（`codex/dev-tauri` 迁移源码）：播放器 UI 与会话适配。
+- `tauri-app/src-tauri/src/player/mod.rs`（`codex/dev-tauri` 迁移源码）：原生播放实现。
+- `tauri-app/src-tauri/src/gateway.rs`（`codex/dev-tauri` 迁移源码）：媒体请求网关。
+- `tauri-app/src-tauri/src/server_playback.rs`（`codex/dev-tauri` 迁移源码）：媒体服务器播放。
 
 ## 运行路径与状态
 

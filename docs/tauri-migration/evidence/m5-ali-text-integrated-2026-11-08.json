@@ -1,0 +1,74 @@
+{
+  "checkpoint": "ali-editor-text-integrated",
+  "date": "2026-11-08",
+  "state": "M5 active; M6 not started",
+  "implementation": {
+    "native": "ali_text.rs; ali_text_create/ali_text_cancel registered in lib.rs; original ali_text_protocol core",
+    "frontend": "aliText.ts via textCreation.ts and unchanged CreatNewFileModal; aliyun web memory-text capability enabled",
+    "scope": [
+      "main window only",
+      "public account metadata must match stored Aliyun web account",
+      "session prepared before credential fingerprint capture",
+      "fixed account-info/create/get/complete endpoints; API proof uses same vault authorization header as create",
+      "signed storage destinations validated and receive no account credentials",
+      "per-account single active editor mutation; bounded transient cancellation registry with early-cancel handling",
+      "cancel on dialog close/source transition/unmount/account identity replacement",
+      "credential/public identity rechecked at every native step; no continuation after a credential replacement",
+      "complete retries only original 400/429 case; no automatic create retry or delete/overwrite cleanup",
+      "native verifies final ID/drive/parent/name/type/size/SHA1 before DTO success; frontend validates receipt identity/byte length",
+      "no M6 general transfer executor/task persistence/background worker"
+    ]
+  },
+  "verification": {
+    "focusedFrontendBeforeAdditionalSourceSwitchCase": {
+      "files": 2,
+      "tests": 16,
+      "passed": true
+    },
+    "finalFullFrontend": {
+      "files": 222,
+      "tests": 2148,
+      "passed": true
+    },
+    "focusedNative": {
+      "tests": 28,
+      "passed": true
+    },
+    "finalFullNative": {
+      "passed": 196,
+      "ignored": 10,
+      "failed": 0
+    },
+    "build": "Final macOS arm64 debug app211.05MiB passed; includes final typecheck/Vite/native link/bundle",
+    "sourceVerifier": {
+      "mappings": 200,
+      "exactTemplates": 22,
+      "assets": 2
+    },
+    "libraryVerifier": {
+      "mappings": 35,
+      "exactTemplates": 14,
+      "assets": 4
+    }
+  },
+  "tests": "Synthetic original-dialog/refresh tests for resource and backup drives, failed-submit retry, malformed receipt, close/unmount/account replacement/source switch/virtual-root rejection; native registry/vault headers/origin/binding/private PUT/error projection plus protocol tests. No live accounts or user files.",
+  "reference": "Local Apple AliyunDriveServiceProvider.swift chunkUpload explicitly uses Content-Type empty for signed upload parts; no Apple changes.",
+  "limitations": [
+    "Real provider/session renewal/signed URL hosts and upload success remain deferred to real-account validation",
+    "New package not restarted and Ali text UI not native-runtime accepted this turn; prior running app is older task-workspace package",
+    "Credential/session changes during flow conservatively stop later steps; any server-side create/upload already sent may remain and requires refresh",
+    "No cross-process mutation resume or durable text-operation journal; do not equate cancellation with remote rollback",
+    "alipan-open not enabled by this web-only implementation; no fallback to web token",
+    "Other M5 provider operations and complete native UI gates remain incomplete",
+    "Windows/Linux native runtime later M9; other native app platforms not changed"
+  ],
+  "electron": "main read-only; unchanged concurrent dirty MediaLibrary.vue/openfile.ts/MediaServerWorkspace.vue preserved",
+  "logs": [
+    "/tmp/m5-ali-text-integrated-frontend.log",
+    "/tmp/m5-ali-text-integrated-all.log",
+    "/tmp/m5-ali-text-integrated-native.log",
+    "/tmp/m5-ali-text-integrated-native-all.log",
+    "/tmp/m5-ali-text-integrated-types.log",
+    "/tmp/m5-ali-text-integrated-build.log"
+  ]
+}

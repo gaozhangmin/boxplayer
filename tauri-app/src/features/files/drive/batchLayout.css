@@ -1,0 +1,4 @@
+/* Original Electron styles scoped to the batch rename dialog. */
+.source-drive-dialog.renamemulti .xbyright {
+    padding-left: 16px;
+}

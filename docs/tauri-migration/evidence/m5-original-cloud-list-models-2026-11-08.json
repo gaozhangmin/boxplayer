@@ -1,0 +1,45 @@
+{
+  "date": "2026-11-08",
+  "requirement": 14,
+  "problem": "Generic entries discarded original modification times/icons/thumbnails for four providers",
+  "providers": [
+    "onedrive",
+    "dropbox",
+    "box",
+    "google"
+  ],
+  "implementation": "Direct original mapper/helper/request-builder extraction; native source identity and transport only",
+  "focused": {
+    "files": 2,
+    "tests": 13,
+    "newMountedTests": 4,
+    "sortOrderChecks": 24
+  },
+  "full": {
+    "files": 209,
+    "tests": 2031
+  },
+  "typecheck": "passed",
+  "sourceVerifier": {
+    "files": 178,
+    "templates": 20,
+    "assets": 2
+  },
+  "libraryVerifier": "35 /14 /4",
+  "macosArm64DebugAppMiB": 210.55,
+  "native": "No Rust edits or native-test rerun",
+  "electronMain": {
+    "clean": true,
+    "head": "cf3059e",
+    "modifiedByThisTask": false,
+    "upstreamModelSources": "All four hashes unchanged since extraction"
+  },
+  "limitations": [
+    "Fixture responses and mounted UI only",
+    "No new-build runtime acceptance",
+    "Upload/download/task entry alignment still pending",
+    "Ali text creation still pending",
+    "Other list adapters and full native UI still need audit"
+  ],
+  "goal": "active; real accounts deferred; M6 not started"
+}

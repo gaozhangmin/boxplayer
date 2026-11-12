@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-08",
+  "requirements": [
+    99,
+    105
+  ],
+  "scope": "Original upload entry, original download confirmation and deferred execution boundary",
+  "upstreamFinding": "Current Electron modalUpload delegates directly to UploadingDAL; old UploadModal.vue is not in that active chain and was not reintroduced",
+  "originalSources": [
+    "src/pan/topbtns/topbtn.ts:handleUpload",
+    "src/pan/topbtns/DownloadModal.vue"
+  ],
+  "nativePicker": {
+    "command": "choose_transfer_paths",
+    "operations": [
+      "files",
+      "folders",
+      "destination"
+    ],
+    "access": "Main window only; read-only system selection; no byte transfers or task persistence"
+  },
+  "execution": "M6 registers a TransferEntryExecutor; absent executor warns that no task was created and returns false. No fake queued/running/success rows. Original download dialog stays open until an installed backend explicitly accepts.",
+  "coverage": [
+    "Original Cmd/Ctrl+U and Shift+U picker flow",
+    "Cancellation and late picker/account-replacement isolation",
+    "Original file/folder download confirmation and selected snapshot",
+    "Destination chooser close isolation",
+    "Duplicate submission guard",
+    "Box ZIP mode/capability forwarded without execution",
+    "Original read-only WebDAV still has no upload"
+  ],
+  "focused": {
+    "files": 2,
+    "tests": 30,
+    "newTests": 11
+  },
+  "fullFrontend": {
+    "files": 215,
+    "tests": 2105
+  },
+  "nativeTests": {
+    "passed": 168,
+    "ignored": 10,
+    "failed": 0,
+    "boundary": "Ignored vault/official QR/prepared mpv fixture cases remain ignored; no real-account operation"
+  },
+  "typecheck": "passed in final build",
+  "sourceVerifier": "181 mappings /20 exact templates /2 assets; download template differs only by declared modal-class scope",
+  "libraryVerifier": "35 /14 /4",
+  "macosArm64DebugAppMiB": 210.71,
+  "executableSha256": "f3dbd00d032c4f1a308f18b40d61cc7efe9fe4f4d93f6d84de226cfe945226a1",
+  "runtime": "Quit old app, observed isRunning=false, launched explicit latest bundle. Home/files/source modal and Mac/testVideo 21-entry browser visibly loaded. Left list mode, empty filter, 0/21 selected. No real cloud account or picker execution through real account.",
+  "electronMain": "Not written by this task; concurrent unrelated dirty work preserved",
+  "remaining": [
+    "Transfer task-list entry/presentation",
+    "Actual OS-picker flag parity and native cloud-entry dialogs with user accounts",
+    "Ali memory-text creation and remaining capability adapters",
+    "Full native 840px/narrow/hover/nested/keyboard acceptance"
+  ],
+  "goal": "active; real accounts deferred; M6 execution engine not started"
+}

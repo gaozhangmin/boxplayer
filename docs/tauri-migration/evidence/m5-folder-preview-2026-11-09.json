@@ -1,0 +1,35 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "implementation": "original FolderPreviewPopover exact template/styles and original cache wrapper; source host/native IO adapter",
+  "sourceCommit": "cf3059e3b89cd27eb1a3075a1f311d57c4b31688",
+  "frontend": {
+    "files": 229,
+    "tests": 2248,
+    "passed": true
+  },
+  "focusedCases": 39,
+  "sourceVerifier": [
+    202,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "bundle": {
+    "size": "211.07MiB",
+    "sha256": "8be657758393d777fd9a9fd41428514805deb7015ba02dc574586f2c410fb823",
+    "restarted": true,
+    "oldProcessObservedStopped": true
+  },
+  "userNativeConfirmation": {
+    "question": "Hover calibration for about half a second: does four-file preview appear?",
+    "answer": "正常弹出预览"
+  },
+  "nativeToolAcceptance": "Mac/testVideo21 entries loaded",
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

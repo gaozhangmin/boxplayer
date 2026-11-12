@@ -1,0 +1,29 @@
+/* Original Electron styles scoped to the batch rename dialog. */
+.source-drive-dialog.renamemulti .headswitch {
+  width: 100%;
+  height: 56px;
+  overflow: hidden;
+  text-align: center;
+  justify-content: center;
+  position: relative;
+  padding-top: 16px;
+  padding-bottom: 6px;
+  margin-left: -18px;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+
+.source-drive-dialog.renamemulti .headswitch .bghr {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 32px;
+  border-bottom: 1px solid var(--color-neutral-3);
+  z-index: -1;
+}
+
+.source-drive-dialog.renamemulti .headswitch .sw {
+  margin: 0 auto;
+  background: var(--color-bg-1);
+  width: fit-content;
+}

@@ -1,0 +1,1078 @@
+{
+  "date": "2026-11-06",
+  "hardware": {
+    "model": "Mac17,8",
+    "chip": "Apple M5 Pro",
+    "memory": "48 GB",
+    "graphics": [
+      {
+        "name": "Apple M5 Pro"
+      }
+    ]
+  },
+  "displayBefore": [
+    {
+      "edrCurrent": 1,
+      "edrPotential": 16,
+      "edrReference": 0,
+      "height": 967,
+      "name": "Built-in Retina Display",
+      "scale": 2,
+      "width": 1496
+    }
+  ],
+  "displayDuringPq": [
+    {
+      "edrCurrent": 1,
+      "edrPotential": 16,
+      "edrReference": 0,
+      "height": 967,
+      "name": "Built-in Retina Display",
+      "scale": 2,
+      "width": 1496
+    }
+  ],
+  "engine": "mpv v0.41.0",
+  "files": [
+    {
+      "name": "Test Jellyfin 1080p AV1 10bit 3M.mp4",
+      "bytes": 11215840,
+      "sha256": "a11793902fdc36012221b05b12ebb5b959fb75b3316bd2723f08b02a7e86f165",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 97,
+        "positionRange": [
+          1.1333333333333333,
+          29.933333333333334
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "bt.1886",
+        "sourceMatrix": "bt.709",
+        "outputTransfer": "bt.1886",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 17,
+        "positionRange": [
+          0.11666666666666667,
+          16.833333333333332
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "bt.1886",
+        "sourceMatrix": "bt.709",
+        "outputTransfer": "bt.1886",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 1080p AV1 HDR10 3M.mp4",
+      "bytes": 11211132,
+      "sha256": "468c03a1121da1baafd60b43d2eedad2617e0a821f0af98415a5518403e7c999",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.4166666666666667,
+          9.85
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          10.633333333333333,
+          19.2
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 5,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 1080p AVC 3M.mp4",
+      "bytes": 11302222,
+      "sha256": "30f19d65b19f606f5352deb956843692cb6cee9a5bcfb43fce549f94e3bd29ce",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 11,
+        "positionRange": [
+          0.15,
+          10.766666666666666
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "bt.1886",
+        "sourceMatrix": "bt.709",
+        "outputTransfer": "bt.1886",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          11.233333333333333,
+          19.616666666666667
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "bt.1886",
+        "sourceMatrix": "bt.709",
+        "outputTransfer": "bt.1886",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 7,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 1080p DV P5.mp4",
+      "bytes": 50039227,
+      "sha256": "c0dedeeef7d11c404955e126f9544318cdeb6eab62423528cfde9b567e8ca1a4",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 5, level: 5, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 0, compression: 0",
+      "baseline": {
+        "probes": 37,
+        "positionRange": [
+          6.25,
+          29.933333333333334
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 13,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 38,
+        "positionRange": [
+          0.5166666666666666,
+          29.933333333333334
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 4,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 1080p DV P8.1.mp4",
+      "bytes": 48198953,
+      "sha256": "266cda3ffbf46bb73daaf38716ed7dfb2b49e689ca5eb18c585426c1a57957d4",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 8, level: 5, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 1, compression: 0",
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.6666666666666666,
+          10.133333333333333
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          10.866666666666667,
+          19.25
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 1,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 1080p HEVC 10bit 3M.mp4",
+      "bytes": 11309002,
+      "sha256": "b4dc866907df217157c53288db95ff22e002ec3e24cd818de6616ff06a1d6cae",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.36666666666666664,
+          9.833333333333334
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "bt.1886",
+        "sourceMatrix": "bt.709",
+        "outputTransfer": "bt.1886",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 1,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          11.1,
+          19.466666666666665
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "bt.1886",
+        "sourceMatrix": "bt.709",
+        "outputTransfer": "bt.1886",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 1080p HEVC HDR10 3M.mp4",
+      "bytes": 11298717,
+      "sha256": "d43f639286308c5f90f79d7df93828e995a674e9bb6cf54653d146bc72d360e9",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 34,
+        "positionRange": [
+          0.23333333333333334,
+          29.933333333333334
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 40,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          0.7166666666666667,
+          9.066666666666666
+        ],
+        "dimensions": [
+          1920,
+          1080
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K AV1 HDR10 40M.mp4",
+      "bytes": 149579487,
+      "sha256": "b103cb6d6bd86750a7c8d79d1b8f1632618ba5c53a82a49d659f81f176f8b55a",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          8,
+          17.5
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 80,
+        "positionRange": [
+          18.95,
+          29.933333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 3,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K AV1 HDR10 50M.mp4",
+      "bytes": 186759686,
+      "sha256": "e2bb6bb295e3f94c05d5e68266c57fff16965e5fe7b779e09c97192e98e42d4e",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 11,
+        "positionRange": [
+          5,
+          15
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          15,
+          22.933333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K AV1 HDR10 60M.mp4",
+      "bytes": 224145679,
+      "sha256": "e2fc397ffae524b8cabf71ef7562909018b97b5bda58559e16f176ee12fb9e9b",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 33,
+        "positionRange": [
+          0.9333333333333333,
+          29.933333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          0.5,
+          8.9
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K AV1 HDR10 90M.mp4",
+      "bytes": 321920272,
+      "sha256": "8570045730d32148c472fd4b6a3749aa050a19243846ea9856d278a199921ef2",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.9333333333333333,
+          10.433333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          11.416666666666666,
+          19.833333333333332
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K DV P5.mp4",
+      "bytes": 165018119,
+      "sha256": "ce1a018a70419dab03aaf7dfa322d027877ac50a83c2d80a8f1e399da0c60d80",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 5, level: 9, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 0, compression: 0",
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.5833333333333334,
+          10.066666666666666
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 64,
+        "positionRange": [
+          11.5,
+          29.933333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K DV P8.1.mp4",
+      "bytes": 125145092,
+      "sha256": "91e20e16b1386cfd984e15404b43929e49f7558a7ea8420f085bbb8b84810695",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 8, level: 9, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 1, compression: 0",
+      "baseline": {
+        "probes": 41,
+        "positionRange": [
+          0.3,
+          29.933333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          0.48333333333333334,
+          8.966666666666667
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K DV P8.4.mp4",
+      "bytes": 191966718,
+      "sha256": "d557660d593a7c868ec3b7545cc51b6a875e243df127bb72d5db5e73d86bb978",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 8, level: 9, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 4, compression: 0",
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.3,
+          9.683333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 8,
+        "positionRange": [
+          11.266666666666666,
+          18.65
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 1,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K HEVC HDR10 100M.mp4",
+      "bytes": 368534564,
+      "sha256": "0a010dc70d9a5b5cfabf295a931dcf1b9522dd6e397c288fa75c94c8d3532b61",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          1.0833333333333333,
+          10.533333333333333
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          10.9,
+          19.35
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 4K HEVC HDR10 40M.mp4",
+      "bytes": 147413868,
+      "sha256": "da108da499153ae4816b6cd50296a6dc56996ae3d30a08c7a14a1108b25a4221",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 58,
+        "positionRange": [
+          0.85,
+          29.933333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 74,
+        "positionRange": [
+          0.9333333333333333,
+          29.933333333333334
+        ],
+        "dimensions": [
+          3840,
+          2160
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 24,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 8K DV P5.mp4",
+      "bytes": 253562147,
+      "sha256": "006932a99001e040e5ef10a18ad7ca208c876ff6494070c34c2a9390ab3560a8",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 5, level: 12, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 0, compression: 0",
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.31666666666666665,
+          9.95
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          10.466666666666667,
+          18.75
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 3,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 8K DV P8.1.mp4",
+      "bytes": 198258527,
+      "sha256": "9d6893b4e94e9ee5aa53bb923a2c56e76b38196a9e0d465dd0f5e4186d38562a",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 8, level: 12, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 1, compression: 0",
+      "baseline": {
+        "probes": 10,
+        "positionRange": [
+          0.31666666666666665,
+          9.816666666666666
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 8,
+        "positionRange": [
+          10.933333333333334,
+          18.35
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 24,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 8K DV P8.4.mp4",
+      "bytes": 290387527,
+      "sha256": "a538b6622c08dde3b04aac6ddb3c7f4196a353913edec660accdcccfbee0d51a",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": "DOVI configuration record: version: 1.0, profile: 8, level: 12, rpu flag: 1, el flag: 0, bl flag: 1, compatibility id: 4, compression: 0",
+      "baseline": {
+        "probes": 21,
+        "positionRange": [
+          0.15,
+          21.316666666666666
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 1,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 9,
+        "positionRange": [
+          21.316666666666666,
+          29.866666666666667
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "dolbyvision",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 1000.6065063476562,
+        "droppedFramesMax": 0,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    },
+    {
+      "name": "Test Jellyfin 8K HEVC HDR10 150M.mp4",
+      "bytes": 552819247,
+      "sha256": "b2c33a727f73fbcb9eb36e155322c823dc99699391d07dfbc44b62f66d61f650",
+      "firstFrameDecodeExit": 0,
+      "hasAudio": false,
+      "dovi": null,
+      "baseline": {
+        "probes": 16,
+        "positionRange": [
+          0.8833333333333333,
+          15.316666666666666
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "gamma2.2",
+        "outputPrimaries": "bt.709",
+        "outputPixelFormat": "bgr10a2",
+        "hint": "auto",
+        "outputPeakMetadata": 203,
+        "droppedFramesMax": 142,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      },
+      "fixed": {
+        "probes": 94,
+        "positionRange": [
+          16.166666666666668,
+          29.933333333333334
+        ],
+        "dimensions": [
+          7680,
+          4320
+        ],
+        "hwdec": "videotoolbox",
+        "sourceTransfer": "pq",
+        "sourceMatrix": "bt.2020-ncl",
+        "outputTransfer": "pq",
+        "outputPrimaries": "bt.2020",
+        "outputPixelFormat": "bgr10a2",
+        "hint": true,
+        "outputPeakMetadata": 10000,
+        "droppedFramesMax": 20,
+        "decoderDroppedFramesMax": 0,
+        "errors": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+/* Host theme bridge. Original Electron selectors and dimensions remain in upstream files. */
+:root{--color-text-1:var(--foreground);--color-text-2:var(--foreground);--color-text-3:var(--muted-text);--color-border-1:var(--border);--color-border-2:var(--border);--color-fill-1:var(--control-surface);--color-fill-2:var(--secondary);--color-fill-3:var(--muted);--color-fill-4:var(--muted);--color-bg-popup:var(--background);--app-overlay-bg:var(--background);--primary-6:45,125,82;--primary-5:61,143,98;--primary-7:32,105,66}
+.arco-modal,.arco-modal-wrapper,.arco-trigger-popup{color:var(--foreground)}
+.file-source-browser,.folder-browser,.share-browser,.file-source-layout,.source-form-surface{--color-text-1:var(--foreground);--color-text-3:var(--muted-text)}
+.file-source-art,.file-source-sidebar svg,.folder-browser-art,.local-file-art,.share-browser-files svg,.source-star,.source-download,.source-context-menu svg{color:var(--primary)!important}
+.file-source-add,.source-reorder-hint button,.file-source-selection-bar button svg{color:var(--primary)}
+.file-source-add{background:var(--primary)!important;color:white!important}
+.folder-browser-art input,.local-file-art input,.file-source-art input{accent-color:var(--primary)!important}
+
+.electron-files-window-bar{padding:0;height:56px;min-height:56px}.source-empty-state button{background:var(--primary)!important}.source-empty-mark{background:linear-gradient(135deg,var(--primary),#61b883)!important}.file-source-card.source-selected .file-source-art{background:color-mix(in srgb,var(--primary) 25%,var(--secondary))!important;outline-color:var(--primary)!important}.file-source-selection-bar .danger svg{color:#ff375f!important}
+
+/* Original Home/Library surfaces retain geometry; only the approved host accent changes. */
+.electron-library-sidebar .selected,.electron-library-sidebar button:hover{background:var(--muted)}
+.electron-library-sidebar svg,.category-art,.category-menu svg,.library-object-actions svg,.media-poster-menu svg,.home-management .reorder-handle svg{color:var(--primary)!important}
+.library-browser .category-art{background:var(--secondary);border-color:var(--border)}
+.video-workspace .source-shortcuts .row-heading button,.video-workspace .source-reorder-hint button{color:var(--primary)!important}
+.video-workspace .favorite-shortcut:not(.favorite-movies):not(.favorite-tv):not(.favorite-other):not(.favorite-folder):not(.favorite-server) .favorite-shortcut-art{background:linear-gradient(90deg,var(--primary),#61b883)}
+.home-management .confirm,.media-detail .play-button,.personal-rating__actions .arco-btn-primary{background:var(--primary)!important}
+.library-settings-option input{accent-color:var(--primary)}
+
+.media-detail .detail-more-action-item:disabled{opacity:.45;cursor:not-allowed}

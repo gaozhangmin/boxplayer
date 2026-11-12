@@ -1,0 +1,15 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/binaries/
+.local/
+*.log
+.DS_Store
+*.bun-build
+# Source helpers and integration notes are part of the migration checkout.
+!scripts/*.py
+!src/features/servers/INTEGRATION.md
+!src/features/trakt/INTEGRATION.md
+!THIRD_PARTY_NOTICES.md
+!/*.html

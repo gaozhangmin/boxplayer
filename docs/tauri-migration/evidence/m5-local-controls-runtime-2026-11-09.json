@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-09",
+  "package": "211.05 MiB prior checkpoint bundle, before original aggregate batch protocol migration",
+  "restart": {
+    "oldProcessObservedNotRunning": true,
+    "exactBundle": "tauri-app/src-tauri/target/debug/bundle/macos/BoxPlayer Dev.app"
+  },
+  "nativeObserved": [
+    "Home to Files to Add source to Mac to testVideo",
+    "21 list entries and screenshot",
+    "P5 quick filter: 3 matching files",
+    "filtered select all: 3/3",
+    "cancel selection: 0/3",
+    "sort popup text contains six name/time/size ascending/descending choices"
+  ],
+  "notAccepted": [
+    "actual sorting option selection",
+    "exact 840px independent measurement",
+    "narrow/multilayer/keyboard matrix",
+    "real cloud account operations",
+    "latest 211.07 MiB original batch protocol bundle runtime"
+  ],
+  "toolErrors": [
+    "sort action screenshot SCStream -3812 but subsequent AX showed popup",
+    "Escape SCStream -3811; subsequent AX showed source modal closed, not a proven menu-only dismissal"
+  ],
+  "userDataWrites": false,
+  "M5": "active",
+  "M6": "not started"
+}

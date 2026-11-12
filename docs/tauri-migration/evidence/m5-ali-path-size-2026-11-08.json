@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-08",
+  "scope": "Original web metadata path and folder statistics",
+  "originalMethods": [
+    "AliFile.ApiFileGetPathString",
+    "AliFile.ApiFileGetFolderSize"
+  ],
+  "channels": {
+    "aliyun": [
+      "adrive/v1/file/get_path",
+      "adrive/v1/file/get_folder_size_info"
+    ],
+    "alipan-open": "No fallback to web endpoints; recursive folder statistics retained"
+  },
+  "recycleProperties": "Not exposed by original TrashRightMenu/TrashTopbtn; not a required UI addition",
+  "focused": {
+    "files": 2,
+    "tests": 33
+  },
+  "fullSuite": {
+    "files": 208,
+    "tests": 2020
+  },
+  "typecheck": "passed",
+  "sourceVerifier": {
+    "files": 174,
+    "templates": 20,
+    "assets": 2
+  },
+  "libraryVerifier": {
+    "files": 35,
+    "templates": 14,
+    "assets": 4
+  },
+  "macosArm64DebugAppMiB": 210.55,
+  "native": "No Rust edits; tests not rerun",
+  "electronMain": "clean and read-only",
+  "limitations": [
+    "Fixture HTTP only",
+    "New bundle not restarted",
+    "Drive-root special metadata not verified",
+    "Complete native 840px/narrow/nested UI remains pending",
+    "Other outstanding M5 capabilities remain pending"
+  ],
+  "goal": "active; real accounts postponed; M6 not started"
+}

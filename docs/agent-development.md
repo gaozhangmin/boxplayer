@@ -2,15 +2,15 @@
 
 本文承接原 `AGENTS.md` 的完整相关段落。源码路径以仓库根目录解释；版本、旧机器路径及历史验证仅为当时记录，不能当成当前发行状态。
 
-新应用命令以本地 `tauri-app/package.json` 为准。以下旧 Electron 开发/IPC/E2E 条目仅适用于遗留 Electron 代码；新应用开发标识与数据目录必须独立。迁移源码未随本次文档提交。
+新应用命令以 `tauri-app/package.json` 为准。以下旧 Electron 开发/IPC/E2E 条目仅适用于遗留 Electron 代码；新应用开发标识与数据目录必须独立。迁移源码在 `codex/dev-tauri` 分支维护。
 
 ## Tauri 任务定位（取代下文旧 Electron 命令的默认适用范围）
 
-- 新应用在 `tauri-app/`；先读其 `tauri-app/README.md`（本地迁移文件）、`tauri-app/package.json`（本地迁移文件） 和 `docs/tauri-migration/progress.md`（本地迁移文件），再追踪实际原生入口。
+- 新应用在 `tauri-app/`；先读其 `tauri-app/README.md`、`tauri-app/package.json` 和 `docs/tauri-migration/progress.md`，再追踪实际原生入口。
 - checkout 根目录仍为 Electron 工程。下文 Electron 构建、IPC、测试与现有开发应用约束仅适用于旧 Electron 路径，不作为 Tauri 的启动或验收命令。
 - 在 `tauri-app/` 中，`pnpm dev` 是浏览器预览，`pnpm tauri dev` 是原生应用；二者验证范围不同。按变更选取 package 中的专项测试及 `src-tauri/Cargo.toml` 检查。
 - 保留独立开发标识与数据目录，不导入或覆盖 Electron 用户数据。迁移报告中的历史结论需核对当前提交，不据此宣称 Windows/Linux 已验收。
-- 此 checkout 中已有未跟踪迁移目录与其他修改，不自动 add、清理或提交这些内容。
+- 此 checkout 的迁移源码与文档已纳入版本管理；提交前检查实际 diff，不自动提交运行缓存、账号数据或其他任务的修改。
 
 ## 问题反馈默认检查所有平台
 

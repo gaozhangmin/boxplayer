@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "active",
+  "change": "original Ali web same-drive move retains verified receipts until catalog acknowledgement",
+  "focused": 24,
+  "frontend": {
+    "files": 228,
+    "tests": 2221,
+    "result": "passed"
+  },
+  "typecheck": "passed in final build",
+  "bundle": "211.07MiB macOS arm64 debug built, not restarted",
+  "protocolSource": "original batch method/builders unchanged",
+  "limitations": [
+    "foreground receipt only",
+    "cross-drive move still blocked",
+    "real accounts deferred",
+    "full native gates unfinished"
+  ],
+  "M6": "not started",
+  "electronMain": "untouched"
+}

@@ -1,0 +1,40 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "feature": "internal native catalog/resume/recovery transaction foundation",
+  "newNativeTests": 6,
+  "native": {
+    "passed": 202,
+    "ignored": 10,
+    "failed": 0,
+    "loopbackEscalationUsed": true
+  },
+  "frontend": {
+    "files": 236,
+    "tests": 2305,
+    "passed": true
+  },
+  "typecheck": "passed in build",
+  "sourceVerifier": [
+    206,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "bundle": {
+    "size": "211.08MiB",
+    "sha256": "d236fb24961c49c5119979e38d2f947b9ca360c7edd12fb290b14e572b9590fe",
+    "restarted": false
+  },
+  "atomicScope": "SQLite catalog + positions + aliases + durable receipt; WebView localStorage requires explicit ack",
+  "exposedIPC": false,
+  "wiredToProvider": false,
+  "activeQueueRebound": false,
+  "writeGuardRemoved": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

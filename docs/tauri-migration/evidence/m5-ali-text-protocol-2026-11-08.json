@@ -1,0 +1,50 @@
+{
+  "checkpoint": "ali-editor-text-native-protocol",
+  "date": "2026-11-08",
+  "state": "M5 active; M6 not started",
+  "sources": [
+    "src/aliapi/uploadmem.ts",
+    "src/aliapi/uploadhashpool.ts",
+    "src/aliapi/upload.ts"
+  ],
+  "implementation": {
+    "file": "tauri-app/src-tauri/src/ali_text_protocol.rs",
+    "scope": "Specific one-editor-document protocol only; no general transfer engine/task persistence/executor",
+    "ported": [
+      "native SHA1 and original token-byte/proof algorithm",
+      "original createWithFolders refuse body and 10MiB/8000-parts progression",
+      "create receipt and issued destination validation",
+      "complete body and exact file detail checks",
+      "drive membership/folder preflight and sequential create/PUT/complete/get workflow over native TextIo trait"
+    ],
+    "corrections": [
+      "Do not swallow PUT failure and continue complete",
+      "Empty content does not index nonexistent part zero",
+      "Large editor content sends all parts rather than entire buffer to first URL",
+      "Do not substring-rewrite arbitrary folder IDs containing root",
+      "No optimistic rapid success; verify id/drive/parent/type/name/size/SHA1",
+      "Conflicts never trigger overwrite/delete/retry; cancelled workflow stops later stages"
+    ]
+  },
+  "validation": {
+    "nativeFocused": {
+      "tests": 19,
+      "passed": true,
+      "filteredOut": 178
+    },
+    "proofOracle": "Node crypto executes original GetBuffHashProof algorithm using fixture tokens; ASCII/unicode fixtures match",
+    "mockIo": "Synthetic drive/folder/create/PUT/complete/detail protocol sequencing; no live HTTP, tokens or accounts"
+  },
+  "limitations": [
+    "TextIo has no production/native-vault HTTP implementation or registered renderer command",
+    "No cancellation registry/account-identity lifetime binding yet",
+    "Original text dialog is not wired to this module; supportsRemoteTextCreation still excludes aliyun",
+    "No native package build/runtime/real-account or full native suite this turn",
+    "No frontend test rerun; Vue/TS implementation unchanged aside from provenance manifest",
+    "Signed destination suffix allowlist requires later real-account validation; no credential forwarding implemented"
+  ],
+  "electron": "main read-only; concurrent three dirty files preserved",
+  "logs": [
+    "/tmp/m5-ali-text-protocol-native.log"
+  ]
+}

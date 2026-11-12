@@ -1,0 +1,36 @@
+{
+  "date": "2026-11-08",
+  "scope": "M5 original Ali metadata for web and Open accounts",
+  "source": "src/aliapi/file.ts:AliFile.ApiFileInfo",
+  "sourceMappings": 174,
+  "exactTemplates": 20,
+  "assets": 2,
+  "focused": {
+    "files": 3,
+    "tests": 25,
+    "newProtocolTests": 21,
+    "newMountedTests": 2
+  },
+  "fullSuite": {
+    "files": 208,
+    "tests": 2009,
+    "boundary": "One nested statistics test was added afterwards and passed the final focused run; not counted in this full run."
+  },
+  "typecheck": "passed in final build",
+  "macosArm64DebugAppMiB": 210.55,
+  "nativeTests": "not rerun; no Rust edits",
+  "electronMain": {
+    "head": "9d5f831",
+    "clean": true,
+    "modified": false
+  },
+  "runtime": "New bundle not restarted; fixture HTTP and mounted UI only",
+  "remaining": [
+    "Ali recycle metadata",
+    "Drive root metadata special semantics",
+    "Independent URLs that currently require provider headers",
+    "Complete native 840px and narrow nested UI matrix",
+    "Other outstanding M5 requirements"
+  ],
+  "goal": "active; real accounts postponed; stop before M6"
+}

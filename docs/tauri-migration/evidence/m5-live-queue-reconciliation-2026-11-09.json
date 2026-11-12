@@ -1,0 +1,18 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "native": {
+    "passed": 212,
+    "ignored": 10
+  },
+  "typecheck": "passed",
+  "build": "passed",
+  "bundleMiB": 211.6,
+  "sha256": "d86db173f18596532ebd85015d73b2a6500c4c66cb3945a37c7795d4d581f52f",
+  "runtimeAccepted": false,
+  "queueBinding": "remote_operation_ack waits for worker before durable acknowledgement",
+  "nativeCommitEntry": false,
+  "publicCrossDriveEnabled": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

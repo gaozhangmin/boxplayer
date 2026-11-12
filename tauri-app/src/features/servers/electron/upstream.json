@@ -1,0 +1,71 @@
+{
+  "sourceRepository": "boxplayer Electron main",
+  "sourceCommit": "de03329",
+  "files": [
+    {
+      "path": "views/MediaServerWorkspace.vue",
+      "sha256": "71ef9194ac5b32bd075f8efcaeb05e52b11a846002678872446df222118734c7"
+    },
+    {
+      "path": "components/MediaPosterMenu.vue",
+      "sha256": "93b0cf1128bab3830a2e47b11057540c3b8a56f389e4ba1d16500d09e634712f"
+    },
+    {
+      "path": "utils/mediaPosterMenu.ts",
+      "sha256": "9a31a0f7bfd0d35674fc254d20df9a92acddc816ac5d257ff77daa294a6c1a7b"
+    },
+    {
+      "path": "components/MediaCollectionPicker.vue",
+      "sha256": "2149b5500de8e5e86a70912ba1ccb2f25c75dac36edc3cf65d1b808498281bf5"
+    },
+    {
+      "path": "components/MediaPersonalRatingModal.vue",
+      "sha256": "df4181d465aebdad822bfb9dca0982dd9694354e8322df0c8617f0f530b9f8bf"
+    },
+    {
+      "path": "components/MediaShareModal.vue",
+      "sha256": "1ccc917c92aa135d8c5abf4ae17c7aeb789ed0af8641fe3eec011091a1dcd76c"
+    },
+    {
+      "path": "components/MediaSourceRatings.vue",
+      "sha256": "83d9e72dc9d904b6c3b72128eff37ab36efed6722dc1ead1b4f1bda22931f2d7"
+    },
+    {
+      "path": "components/media-server/PlexResourcesModal.vue",
+      "sha256": "82da2d8ed0174dff8e42fc0a7ffa71d9468c787515b23b453d32d4e098f056dc"
+    },
+    {
+      "path": "components/media-server/MediaServerEndpointsModal.vue",
+      "sha256": "24ac0cbc02d426c80bb58185fd492e53be98eb2d23502ef548147b9db61b72a3"
+    },
+    {
+      "path": "components/media-server/home/MediaServerPosterRow.vue",
+      "sha256": "c0c9f0964dc9f3644132e9e4a48b9d283bc2c6823fe40d0c311de5c0f080c3a3"
+    },
+    {
+      "path": "components/media-server/home/MediaServerResumeRow.vue",
+      "sha256": "e4d33bdba9c6dc00f0ebf7d6902ae25c9d44dd0782dcaa2721cda0b3fce8da2f"
+    },
+    {
+      "path": "components/media-server/home/MediaServerStatsRow.vue",
+      "sha256": "98ea5c7ac067104cf7d419b26b779dff3b681dd31bb19600ec115569ac554bac"
+    },
+    {
+      "path": "media-server/plexAuth.ts",
+      "sha256": "560e46c759f72cfd80a115b014d311ceb43f267f4c4ec0958eaf5a55f2948748"
+    },
+    {
+      "path": "utils/mediaServerEndpoints.ts",
+      "sha256": "4a0b76e368559d3e48a15ee6dd22a58784ae8737c2ba2856e66c32dba687da18"
+    }
+  ],
+  "adaptations": [
+    "ServerListing and ServerDetail reuse Electron DOM and workspace styles with Tauri data/action adapters",
+    "Arco modal and trigger surfaces use ElectronModal and ElectronTrigger; keyboard and close semantics remain functional",
+    "Server artwork is fetched by account-bound native gateway and rendered from Blob URLs",
+    "Theme selectors map to html.dark and semantic color tokens; accent remains green",
+    "Plex tokens and resource connection details stay native; renderer receives an expiring session and public resource selection metadata",
+    "Plex connection verification happens before account storage; custom names and partial failures follow Electron behavior",
+    "Playback and file downloads preserve selected media source IDs; batch download destination is provided by native directory picker"
+  ]
+}

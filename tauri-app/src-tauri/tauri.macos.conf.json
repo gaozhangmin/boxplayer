@@ -1,0 +1,22 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "BoxPlayer Dev",
+        "width": 1160,
+        "height": 780,
+        "minWidth": 760,
+        "minHeight": 540,
+        "visible": false,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
+      }
+    ]
+  },
+  "bundle": {
+    "resources": {
+      "../.local/runtime/macos/": "runtime/"
+    }
+  }
+}

@@ -1,0 +1,68 @@
+[package]
+name = "boxplayer-tauri-dev"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-only"
+rust-version = "1.85"
+
+[lib]
+name = "boxplayer_tauri_dev"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+serde_json = "1"
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+hyper-util = { version = "0.1", features = ["client-proxy", "client-proxy-system"] }
+smb2 = "=0.37.0"
+nfs3_client = { version = "=0.9.1", features = ["tokio"] }
+suppaftp = { version = "8", features = ["tokio"] }
+tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
+tauri-plugin-log = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-deep-link = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+thiserror = "2"
+
+tempfile = "3"
+
+libloading = "0.8"
+libc = "0.2"
+rusqlite = { version = "0.37", features = ["bundled"] }
+sha2 = "0.10"
+md-5 = "0.10.6"
+chrono = "0.4.45"
+regex = "1.13.1"
+base64 = "0.22"
+ring = "0.17"
+k256 = { version = "0.13", features = ["ecdsa"] }
+reqwest_cookie_store = "0.9"
+cookie_store = { version = "0.22", features = ["serde_json"] }
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream", "socks", "json", "cookies"] }
+tokio = { version = "1", features = ["net", "time", "sync", "rt", "rt-multi-thread", "macros", "process", "io-util"] }
+tokio-util = "0.7"
+axum = "0.8"
+futures-util = "0.3"
+url = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+keyring = { version = "3.6.3", features = ["windows-native"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+system-configuration = "0.7"
+keyring = { version = "3.6.3", features = ["apple-native"] }
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = ["NSView", "NSWindow", "NSResponder", "NSColor"] }
+
+[dev-dependencies]
+nfs3_server = { version = "=0.11.1", features = ["memfs"] }

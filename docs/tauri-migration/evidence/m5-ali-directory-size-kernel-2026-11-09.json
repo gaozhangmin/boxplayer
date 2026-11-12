@@ -1,0 +1,31 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "component": "original AliDirFileList.ApiDirFileSize read kernel",
+  "wiredToUI": false,
+  "focusedTests": 13,
+  "typecheck": "passed",
+  "sourceVerifier": [
+    203,
+    23,
+    2
+  ],
+  "originalSemantics": {
+    "directFilesOnly": true,
+    "limit": 100,
+    "order": "size DESC",
+    "followsNextMarker": false,
+    "aggregateViaDirectoryIndex": "pending"
+  },
+  "nativeAdapter": [
+    "owner/pane/lifetime binding",
+    "web channel only",
+    "confirmed-response guard prevents swallowed error from becoming zero",
+    "safe integer/count/cursor validation",
+    "exposes truncated first-page flag"
+  ],
+  "fullFrontendRerun": false,
+  "bundleRebuilt": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

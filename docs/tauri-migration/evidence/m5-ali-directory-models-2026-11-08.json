@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-08",
+  "requirements": [
+    14,
+    111
+  ],
+  "scope": "Original Ali web/Open ordinary directory models",
+  "originalMapper": "AliDirFileList.getFileInfo (already extracted and verified)",
+  "newTests": {
+    "protocol": 19,
+    "mounted": 4,
+    "sortOrderChecks": 12
+  },
+  "focused": {
+    "files": 3,
+    "tests": 26
+  },
+  "full": {
+    "files": 211,
+    "tests": 2054
+  },
+  "typecheck": "passed",
+  "sourceVerifier": "178 /20 /2",
+  "libraryVerifier": "35 /14 /4",
+  "macosArm64DebugAppMiB": 210.55,
+  "native": "No Rust edits; native tests not rerun",
+  "electronMain": "Not modified by this task; concurrent unrelated dirty MediaLibrary.vue and MediaServerWorkspace.vue preserved",
+  "limitations": [
+    "No new-build runtime acceptance",
+    "Real accounts deferred",
+    "Image/document authenticated thumbnails and Open thumbnails not covered",
+    "Remaining provider/file-management/transfer-entry/UI matrix still pending"
+  ],
+  "goal": "active; stop before M6"
+}

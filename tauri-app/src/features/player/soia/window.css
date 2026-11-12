@@ -1,0 +1,7 @@
+/* Window wrapper only. Player controls use upstream soia CSS and browser defaults;
+   never import the main app's Tailwind preflight or global button/input reset. */
+.app-frame { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.preview-banner, .error-banner { padding: 7px 18px; font-size: 12px; text-align: center; }
+.preview-banner { background: #f6e4b7; color: #68451b; }
+.error-banner { background: #ffdedb; color: #852626; }
+.soia-empty { --primary: #276749; --primary-foreground: #fff; }

@@ -1,0 +1,75 @@
+/* Original Electron task layout/sidebar rules, scoped to native task workspace. */
+.transfer-workspace .hidetabs {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  background: transparent !important;
+}
+
+.transfer-workspace .hidetabs > .ant-tabs-nav {
+  height: 0 !important;
+  display: none !important;
+}
+
+.transfer-workspace .hidetabs .ant-tabs-content {
+  height: 100%;
+  background: transparent !important;
+}
+
+.transfer-workspace .hidetabs > .arco-tabs-content {
+  padding-top: 0 !important;
+  padding-bottom: 1px !important;
+  height: 100%;
+  background: transparent !important;
+}
+
+.transfer-workspace .hidetabs .arco-tabs-content-list,
+.transfer-workspace .hidetabs .arco-tabs-pane {
+  height: 100%;
+  background: transparent !important;
+}
+
+.transfer-workspace .hidetabs > .arco-tabs-nav {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+.transfer-workspace .single-boundary-sidebar > .single-boundary-sidebar-menu {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.transfer-workspace .single-boundary-sidebar > .single-boundary-sidebar-menu .arco-menu-inner {
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.transfer-workspace .single-boundary-sidebar .single-boundary-sidebar-menu .arco-menu-item {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.transfer-workspace .single-boundary-sidebar .single-boundary-sidebar-menu .arco-menu-item:hover {
+  border: 0 !important;
+  background: rgba(255,255,255,.055) !important;
+  box-shadow: none !important;
+}
+
+.transfer-workspace .single-boundary-sidebar .single-boundary-sidebar-menu .arco-menu-selected {
+  border-color: transparent !important;
+  background: rgba(0,245,212,.090) !important;
+  box-shadow: none !important;
+}
+
+.transfer-workspace .single-boundary-sidebar .single-boundary-sidebar-menu .arco-menu-item::before,
+.transfer-workspace .single-boundary-sidebar .single-boundary-sidebar-menu .arco-menu-item::after {
+  display: none !important;
+}

@@ -1,0 +1,20 @@
+{
+  "milestone": "M5",
+  "status": "active",
+  "feature": "exhaustive source-bound move snapshots and observed descendant ID pairing",
+  "focused": {
+    "files": 3,
+    "tests": 28,
+    "passed": true
+  },
+  "newTests": 10,
+  "typecheck": "passed",
+  "providerWrites": false,
+  "rootPairsBoundToAcceptedReceipt": false,
+  "writeGuardRemoved": false,
+  "descendantPolicy": "only observed matching IDs; no filename/content heuristic for changed IDs",
+  "fullFrontendRerun": false,
+  "bundleRebuilt": false,
+  "realAccounts": "deferred",
+  "M6": "not started"
+}

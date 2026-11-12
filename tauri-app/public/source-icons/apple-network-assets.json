@@ -1,0 +1,30 @@
+{
+  "description": "Unmodified iOS asset copies requested for Tauri network sources",
+  "assets": [
+    {
+      "source": "XbyVideoHub/BoxPlayer/Resources/Assets.xcassets/icon_alist.imageset/alist.svg",
+      "target": "public/source-icons/alist.svg",
+      "sha256": "1e999861f7eb17b364033e13744f5d67d3c9714c55c73339eac423d77505c2ac"
+    },
+    {
+      "source": "XbyVideoHub/BoxPlayer/Resources/Assets.xcassets/icon_webdav.imageset/network-share.png",
+      "target": "public/source-icons/webdav.png",
+      "sha256": "c370a3105c276e2fb622e4f9f34196f130c253c26b42260bd254d19659e33aee"
+    },
+    {
+      "source": "XbyVideoHub/BoxPlayer/Resources/Assets.xcassets/icon_smb.imageset/network-share.png",
+      "target": "public/source-icons/smb.png",
+      "sha256": "c0cfb1b046c9fe341d8902dbe2c34baca1e1a48162f5a7d2119fe4f1bebe6bdd"
+    },
+    {
+      "source": "XbyVideoHub/BoxPlayer/Resources/Assets.xcassets/icon_nfs.imageset/network-share.png",
+      "target": "public/source-icons/nfs.png",
+      "sha256": "b960a432d85eb2ecb5c96e276ab1bb2c339ede6f90eb5a2402293ed58e1c6cbf"
+    },
+    {
+      "source": "XbyVideoHub/BoxPlayer/Resources/Assets.xcassets/icon_ftp.imageset/icon_ftp.svg",
+      "target": "public/source-icons/ftp.svg",
+      "sha256": "55bd02d6a7992330ad9303d3d1e90af717b8e3a0bd3ecb216d084fdeef82ae80"
+    }
+  ]
+}

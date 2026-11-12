@@ -1,0 +1,24 @@
+import {beforeEach,describe,it,expect,vi} from 'vitest'
+import {createPinia} from 'pinia'
+import {mount,flushPromises,DOMWrapper} from '@vue/test-utils'
+import {defineComponent,h} from 'vue'
+import SourceDriveManager from '@/features/files/drive/SourceDriveManager.vue'
+import {message} from '@/features/files/drive/ports'
+import {getDrivePane} from '@/features/files/drive/ports'
+import {useFileSourcesStore} from '@/stores/fileSources'
+import {driver} from '@/features/sources/drivers'
+import {request} from '@/features/sources/transport'
+vi.mock('@/features/sources/drivers',()=>({driver:vi.fn(),playSource:vi.fn()}))
+vi.mock('@/features/sources/transport',()=>({json:vi.fn(),request:vi.fn(),text:(response:{body:number[]})=>new TextDecoder().decode(new Uint8Array(response.body)),playable:(name:string)=>name.endsWith('.mkv')}))
+vi.mock('@/platform/native',()=>({nativeCall:vi.fn(),asAppError:(cause:unknown)=>({message:cause instanceof Error?cause.message:String(cause)}),isNative:()=>false}))
+const list=defineComponent({props:['data'],setup(props,{slots,expose}){expose({scrollIntoView:vi.fn()});return()=>h('div',(props.data||[]).map((item:unknown,index:number)=>slots.item?.({item,index})))}})
+const account={id:'source',providerId:'115' as const,name:'Fixture',baseUrl:'',authOrigins:[]},id='1234567890123456789',response=(data:unknown)=>({status:200,headers:{},body:Array.from(new TextEncoder().encode(JSON.stringify(data))),finalUrl:''})
+let folder=false,info:any;const copy=vi.fn()
+beforeEach(()=>{vi.resetAllMocks();folder=false;info={file_id:id,file_name:'Actual.mkv',file_category:'1',size_byte:4096,sha1:'fixture-sha1',pick_code:'fixture-private-pick',paths:[{file_id:'12',file_name:'Movies'}],ptime:1700000000};vi.stubGlobal('localStorage',{getItem:()=>null,setItem:()=>{}});vi.stubGlobal('ResizeObserver',class{observe(){}disconnect(){}});Object.defineProperty(navigator,'clipboard',{configurable:true,value:{writeText:copy}});copy.mockResolvedValue(undefined);vi.mocked(driver).mockReturnValue({list:vi.fn().mockImplementation(async()=>({entries:[{id,name:folder?'Folder':'Old.mkv',isDirectory:folder,size:1,playable:!folder}]})),resolve:vi.fn()});vi.mocked(request).mockImplementation(async()=>response({code:0,data:info}))})
+async function browser(){const pinia=createPinia();useFileSourcesStore(pinia).accounts=[account];const wrapper=mount(SourceDriveManager,{props:{sourceId:account.id,name:account.name},global:{plugins:[pinia],stubs:{AList:list}},attachTo:document.body});await flushPromises();await wrapper.get('.fileitem').trigger('click');return {wrapper,pinia}}
+const body=()=>new DOMWrapper(document.body)
+describe('115 metadata in original properties modal',()=>{
+ it('displays actual fields and copies original JSON without account material',async()=>{const {wrapper}=await browser();try{await getDrivePane().action('properties',[]);await flushPromises();const modal=body().get('.source-drive-dialog.shuxingmodal');expect(modal.text()).toContain('/Movies');const values=modal.findAll('input').map(input=>(input.element as HTMLInputElement).value);expect(values).toContain('4.00KB');expect(values).toContain('fixture-sha1');await modal.findAll('button').find(button=>button.text()==='复制JSON')!.trigger('click');await flushPromises();expect(JSON.parse(copy.mock.calls.at(-1)![0])).toMatchObject({file_id:id,name:'Actual.mkv',size:4096,content_hash:'fixture-sha1'});expect(copy.mock.calls.at(-1)![0]).not.toContain('Authorization');expect(copy.mock.calls.at(-1)![0]).not.toContain('fixture-private-pick')}finally{wrapper.unmount()}});
+ it('displays server folder counters using the original modal field',async()=>{folder=true;info={...info,file_category:'0',file_name:'Folder',folder_count:2,count:3,size_byte:500};const {wrapper}=await browser();try{await getDrivePane().action('properties',[]);await flushPromises();const values=body().get('.source-drive-dialog.shuxingmodal').findAll('input').map(input=>(input.element as HTMLInputElement).value);expect(values.some(value=>value.includes('子文件：3个')&&value.includes('子文件夹：2个'))).toBe(true)}finally{wrapper.unmount()}});
+ it('does not populate another modal or show stale errors after source switching',async()=>{const {wrapper,pinia}=await browser();let done!:(value:any)=>void;vi.mocked(request).mockImplementationOnce(()=>new Promise(resolve=>done=resolve));const error=vi.spyOn(message,'error').mockImplementation(()=>undefined as any);try{await getDrivePane().action('properties',[]);await vi.waitFor(()=>expect(request).toHaveBeenCalledOnce());useFileSourcesStore(pinia).accounts.push({...account,id:'other'});await wrapper.setProps({sourceId:'other'});await flushPromises();done(response({code:0,data:{...info,file_id:'2'}}));await flushPromises();expect(body().find('.source-drive-dialog.shuxingmodal').exists()).toBe(false);expect(error).not.toHaveBeenCalled()}finally{error.mockRestore();wrapper.unmount()}});
+})

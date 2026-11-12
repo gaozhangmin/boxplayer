@@ -1,0 +1,42 @@
+/* Original Electron MyModal common declarations; source-dialog selector scope only. */
+
+.source-drive-dialog .arco-modal-body {
+  padding: 24px 16px 16px 16px;
+}
+
+.source-drive-dialog .modaltitle .titletips {
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 25px;
+  color: rgb(var(--primary-6));
+}
+
+.source-drive-dialog .modaltitle .onerowtitle {
+  font-size: 16px;
+  line-height: 25px;
+  flex-grow: 1;
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 32px;
+}
+
+.source-drive-dialog .modalfoot {
+  display: flex;
+  align-items: center;
+}
+
+.source-drive-dialog .modalfoot .tips {
+  font-size: 14px;
+  line-height: 25px;
+  color: var(--color-text-2);
+}
+
+.source-drive-dialog .modalfoot button:not(:last-of-type) {
+  margin-right: 12px;
+}
+
+.source-drive-dialog .modalbody .arco-form-item-label-col {
+  padding-right: 4px;
+}

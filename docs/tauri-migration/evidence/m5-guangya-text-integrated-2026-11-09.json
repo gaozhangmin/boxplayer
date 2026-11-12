@@ -1,0 +1,58 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "productionIntegration": true,
+  "capabilityEnabled": true,
+  "originalAlgorithm": "apiGuangyaUploadBuffer",
+  "nativeCommands": [
+    "guangya_text_begin",
+    "guangya_text_step",
+    "guangya_text_close"
+  ],
+  "frontend": {
+    "files": 245,
+    "passed": 2403
+  },
+  "native": {
+    "passed": 218,
+    "ignored": 10,
+    "initialSandboxSocketFailures": 18,
+    "unrestrictedRerun": "passed"
+  },
+  "newCases": {
+    "originalFlow": 6,
+    "adapter": 10,
+    "originalDialog": 1,
+    "native": 5
+  },
+  "typecheck": "passed",
+  "build": {
+    "passed": true,
+    "MiB": 212.0,
+    "sha256": "112af093ade68a7505650b0b2a520f04cc4b464c9e8c9a30162e5e4c3d008276",
+    "restarted": false
+  },
+  "filesVerifier": [
+    207,
+    23,
+    2
+  ],
+  "libraryVerifier": [
+    35,
+    14,
+    4
+  ],
+  "upstreamAudit": {
+    "textProviders": "actual six dispatch branches match",
+    "shareCreateProviders": "actual nine dispatch branches match",
+    "shareImportProviders": "Ali web plus Quark/Guangya/PikPak match"
+  },
+  "electronWrites": false,
+  "preservedConcurrentChanges": [
+    "src/setting/index.vue",
+    ".github/workflows/discord-release.yml"
+  ],
+  "realAccounts": "deferred",
+  "M5": "active",
+  "M6": "not started"
+}

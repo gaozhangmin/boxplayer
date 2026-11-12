@@ -1,0 +1,1687 @@
+{
+  "sourceCommit": "de03329729ad06bd3c4a5ce8fcab6c2775a7ac10",
+  "sourceRepository": "boxplayer Electron main, read only",
+  "files": [
+    {
+      "source": "src/components/UnifiedLibraryBrowser.vue",
+      "target": "src/features/library/electron/UnifiedLibraryBrowser.vue",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__UnifiedLibraryBrowser.vue.source",
+      "sha256": "fab5894d796f8f4f7df255aacd7545bfc874648f3ebff45d8376feefe4bea337",
+      "targetSha256": "383d8f4753671ff7f2f210bac8253f57a8a42cfe24245e2cbd3e3731f75a1c64",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/HomeShelfViewport.vue",
+      "target": "src/features/library/electron/HomeShelfViewport.vue",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__HomeShelfViewport.vue.source",
+      "sha256": "8b156eb5bc7a9ab5bad73c0ae00ee5009a4fe02b121a1c7a990f0a3539288495",
+      "targetSha256": "8b156eb5bc7a9ab5bad73c0ae00ee5009a4fe02b121a1c7a990f0a3539288495",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/UnifiedHomeManagement.vue",
+      "target": "src/features/library/electron/UnifiedHomeManagement.vue",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ],
+        [
+          "'../utils/categoryPlacement'",
+          "'../categoryPlacement'"
+        ],
+        [
+          "'../utils/unifiedHomeManagement'",
+          "'../unifiedHomeManagement'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__UnifiedHomeManagement.vue.source",
+      "sha256": "c4d6f3948e46369efa6f6337644e0d1b79c7620734749e01775eb22b0e4e7d24",
+      "targetSha256": "b889c28040770596432673e64e9b38e9514e39331954f5a856e5457244ae9ea8",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/MediaPosterMenu.vue",
+      "target": "src/features/library/electron/MediaPosterMenu.vue",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ],
+        [
+          "'../utils/mediaPosterMenu'",
+          "'./mediaPosterMenu'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__MediaPosterMenu.vue.source",
+      "sha256": "93b0cf1128bab3830a2e47b11057540c3b8a56f389e4ba1d16500d09e634712f",
+      "targetSha256": "829bfe75994a5cf535fb604342b8827e4bebfc725aada080cb099db04dc39925",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/TraktAvatar.vue",
+      "target": "src/features/library/electron/TraktAvatar.vue",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__TraktAvatar.vue.source",
+      "sha256": "45e86aff02c5b93619e7adfc3d5485d9d0cfaf57dab1d4c81eaebecda614c7db",
+      "targetSha256": "eb9674350ecda9a429c95c5886fd5bd304c1dff48867efd5238a9b8ebe794d66",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/utils/unifiedLibraryCategories.ts",
+      "target": "src/features/library/electron/unifiedLibraryCategories.ts",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ],
+        [
+          "'./categoryPlacement'",
+          "'../categoryPlacement'"
+        ],
+        [
+          "'./tmdb'",
+          "'@/features/files/adapters/tmdb'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__unifiedLibraryCategories.ts.source",
+      "sha256": "bd17a61c8a2f65a3a34474c98e02d9ff32ae2384b1f906fdc3111cd2ddf5c456",
+      "targetSha256": "c5fb1957be53f2754b53857fd99f9fe96c67adee6242f11c3a67de000478729d"
+    },
+    {
+      "source": "src/utils/unifiedMediaScope.ts",
+      "target": "src/features/library/electron/unifiedMediaScope.ts",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__unifiedMediaScope.ts.source",
+      "sha256": "be5b564c55514d85aa5948566324ed669a2596087efdbb84508a578d826710d6",
+      "targetSha256": "f027f03f20ebd8cf9a679bd9d003ca4cb843b9af5d51288e85ad620f96be5170"
+    },
+    {
+      "source": "src/utils/libraryObjectCover.ts",
+      "target": "src/features/library/electron/libraryObjectCover.ts",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__libraryObjectCover.ts.source",
+      "sha256": "f4d67ebb051108bbcb6a83ca40a4af0f5a18de0e9a96002934ac22c2a28abdb7",
+      "targetSha256": "17607aefd7547e833256b1839779d69fa979bd6edbb8a08be2c2f5170a5d0eb0"
+    },
+    {
+      "source": "src/utils/libraryCategoryIcon.ts",
+      "target": "src/features/library/electron/libraryCategoryIcon.ts",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__libraryCategoryIcon.ts.source",
+      "sha256": "80743c6f654cf53ce38d7c0badd73d949e682045d0428207d9bf262c3f213280",
+      "targetSha256": "80743c6f654cf53ce38d7c0badd73d949e682045d0428207d9bf262c3f213280"
+    },
+    {
+      "source": "src/utils/mediaBrowseSort.ts",
+      "target": "src/features/library/electron/mediaBrowseSort.ts",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__mediaBrowseSort.ts.source",
+      "sha256": "3399836895ac0aba0cb734c42c22f2a955e7c9f185f8002edefa208600d41c4f",
+      "targetSha256": "3399836895ac0aba0cb734c42c22f2a955e7c9f185f8002edefa208600d41c4f"
+    },
+    {
+      "source": "src/utils/mediaPosterMenu.ts",
+      "target": "src/features/library/electron/mediaPosterMenu.ts",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__mediaPosterMenu.ts.source",
+      "sha256": "9a31a0f7bfd0d35674fc254d20df9a92acddc816ac5d257ff77daa294a6c1a7b",
+      "targetSha256": "9a31a0f7bfd0d35674fc254d20df9a92acddc816ac5d257ff77daa294a6c1a7b"
+    },
+    {
+      "source": "src/utils/seriesVersionPreferences.ts",
+      "target": "src/features/library/electron/seriesVersionPreferences.ts",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__seriesVersionPreferences.ts.source",
+      "sha256": "de3636955467efc22cb87e3a6f09a1bc7877260a6fc68433020f52f584bc67b2",
+      "targetSha256": "72f6d358d587e66f276a60e10d4cebb945a8463c9ca5203d77ab8529366b0f4a"
+    },
+    {
+      "source": "src/components/LibraryObjectActions.vue",
+      "target": "src/features/library/electron/LibraryObjectActions.vue",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ],
+        [
+          "'../store/categoryPlacement'",
+          "'@/stores/categoryPlacement'"
+        ],
+        [
+          "'../utils/categoryPlacement'",
+          "'../categoryPlacement'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__LibraryObjectActions.vue.source",
+      "sha256": "321f3b4faa4b50adf85ca5f973b1229276b592bb03e05e95d9e943ddb0cf4a7d",
+      "targetSha256": "4012439f83b3abbc14e424f7a212d192ec9db57b6455d4ae2a21e9adee2dba21",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/UnifiedMediaRow.vue",
+      "target": "src/features/library/electron/UnifiedMediaRow.vue",
+      "changes": [
+        [
+          "'../i18n'",
+          "'@/features/files/electron/i18n'"
+        ],
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../types/unifiedMediaLibrary'",
+          "'./types'"
+        ],
+        [
+          "'../utils/libraryCategoryIcon'",
+          "'./libraryCategoryIcon'"
+        ],
+        [
+          "'../utils/unifiedLibraryCategories'",
+          "'./unifiedLibraryCategories'"
+        ],
+        [
+          "'../utils/mediaBrowseSort'",
+          "'./mediaBrowseSort'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/unifiedMediaScope'",
+          "'./unifiedMediaScope'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/unifiedHomePreferences'",
+          "'@/stores/unifiedHomePreferences'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/libraryObjectCover'",
+          "'./libraryObjectCover'"
+        ],
+        [
+          "'./LibraryObjectActions.vue'",
+          "'./LibraryObjectActions.vue'"
+        ],
+        [
+          "'./MediaLoadingIndicator.vue'",
+          "'@/features/files/electron/MediaLoadingIndicator.vue'"
+        ],
+        [
+          "'../utils/virtualCardRange'",
+          "'./virtualCardRange'"
+        ],
+        [
+          "'../utils/mediaArtwork'",
+          "'./mediaArtwork'"
+        ],
+        [
+          "'../utils/categoryBannerTheme'",
+          "'./categoryBannerTheme'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__UnifiedMediaRow.vue.source",
+      "sha256": "0ba59da821ae89ad9f2819f060c7a6094308a8b409485391999b7a865859b8bf",
+      "targetSha256": "061fa2484f85c09c5581bf4a5d30488bd2bf1e0e6520f64d8940c4ae6c1539e3",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/utils/detailResume.ts",
+      "target": "src/features/library/electron/detailResume.ts",
+      "changes": [
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/mediaArtwork'",
+          "'./mediaArtwork'"
+        ],
+        [
+          "'../utils/detailResume'",
+          "'./detailResume'"
+        ],
+        [
+          "'../utils/detailCollections'",
+          "'./detailCollections'"
+        ],
+        [
+          "'./MediaCollectionPicker.vue'",
+          "'@/features/files/electron/MediaCollectionPicker.vue'"
+        ],
+        [
+          "'./MediaMetadataEditorModal.vue'",
+          "'@/features/files/electron/MediaMetadataEditorModal.vue'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/tmdb'",
+          "'@/features/files/adapters/tmdb'"
+        ],
+        [
+          "'../utils/message'",
+          "'@/features/files/adapters/sourceServices'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/customSeries'"
+        ],
+        [
+          "'../utils/continueWatchingAction'",
+          "'../adapters/continueWatching'"
+        ],
+        [
+          "'../utils/mediaPersonalRating'",
+          "'@/features/files/adapters/personalRating'"
+        ],
+        [
+          "'../utils/mediaShare'",
+          "'@/features/files/adapters/share'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__detailResume.ts.source",
+      "sha256": "9b246c1f65d7681913e366a47f3cb0b0dcc6c24b64f65c8230f470d68eb8a77b",
+      "targetSha256": "9b246c1f65d7681913e366a47f3cb0b0dcc6c24b64f65c8230f470d68eb8a77b"
+    },
+    {
+      "source": "src/utils/detailCollections.ts",
+      "target": "src/features/library/electron/detailCollections.ts",
+      "changes": [
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/mediaArtwork'",
+          "'./mediaArtwork'"
+        ],
+        [
+          "'../utils/detailResume'",
+          "'./detailResume'"
+        ],
+        [
+          "'../utils/detailCollections'",
+          "'./detailCollections'"
+        ],
+        [
+          "'./MediaCollectionPicker.vue'",
+          "'@/features/files/electron/MediaCollectionPicker.vue'"
+        ],
+        [
+          "'./MediaMetadataEditorModal.vue'",
+          "'@/features/files/electron/MediaMetadataEditorModal.vue'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/tmdb'",
+          "'@/features/files/adapters/tmdb'"
+        ],
+        [
+          "'../utils/message'",
+          "'@/features/files/adapters/sourceServices'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/customSeries'"
+        ],
+        [
+          "'../utils/continueWatchingAction'",
+          "'../adapters/continueWatching'"
+        ],
+        [
+          "'../utils/mediaPersonalRating'",
+          "'@/features/files/adapters/personalRating'"
+        ],
+        [
+          "'../utils/mediaShare'",
+          "'@/features/files/adapters/share'"
+        ],
+        [
+          "'./detailResume'",
+          "'./detailResume'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__detailCollections.ts.source",
+      "sha256": "9e5dd2332f912cfe8dd910bdb6aa0640ede52d47e45b51020dc6bc4e07f2edeb",
+      "targetSha256": "8bfde77df2248b497ea5b3d7244194661901d4438f959f87867f82065a884eb3"
+    },
+    {
+      "source": "src/components/CustomSeriesDetailRail.vue",
+      "target": "src/features/library/electron/CustomSeriesDetailRail.vue",
+      "changes": [
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/mediaArtwork'",
+          "'./mediaArtwork'"
+        ],
+        [
+          "'../utils/detailResume'",
+          "'./detailResume'"
+        ],
+        [
+          "'../utils/detailCollections'",
+          "'./detailCollections'"
+        ],
+        [
+          "'./MediaCollectionPicker.vue'",
+          "'@/features/files/electron/MediaCollectionPicker.vue'"
+        ],
+        [
+          "'./MediaMetadataEditorModal.vue'",
+          "'@/features/files/electron/MediaMetadataEditorModal.vue'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/tmdb'",
+          "'@/features/files/adapters/tmdb'"
+        ],
+        [
+          "'../utils/message'",
+          "'@/features/files/adapters/sourceServices'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/customSeries'"
+        ],
+        [
+          "'../utils/continueWatchingAction'",
+          "'../adapters/continueWatching'"
+        ],
+        [
+          "'../utils/mediaPersonalRating'",
+          "'@/features/files/adapters/personalRating'"
+        ],
+        [
+          "'../utils/mediaShare'",
+          "'@/features/files/adapters/share'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__CustomSeriesDetailRail.vue.source",
+      "sha256": "3f27bc729a4e284134187e8a0e917cc3a2dd99110c0c29a0802a367372437c4c",
+      "targetSha256": "d0e4c09292f41ff89ddab66b70124daf53c9b7c603ffcf60152c143486859e8e",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/MediaSourceRatings.vue",
+      "target": "src/features/library/electron/MediaSourceRatings.vue",
+      "changes": [
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/mediaArtwork'",
+          "'./mediaArtwork'"
+        ],
+        [
+          "'../utils/detailResume'",
+          "'./detailResume'"
+        ],
+        [
+          "'../utils/detailCollections'",
+          "'./detailCollections'"
+        ],
+        [
+          "'./MediaCollectionPicker.vue'",
+          "'@/features/files/electron/MediaCollectionPicker.vue'"
+        ],
+        [
+          "'./MediaMetadataEditorModal.vue'",
+          "'@/features/files/electron/MediaMetadataEditorModal.vue'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/tmdb'",
+          "'@/features/files/adapters/tmdb'"
+        ],
+        [
+          "'../utils/message'",
+          "'@/features/files/adapters/sourceServices'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/customSeries'"
+        ],
+        [
+          "'../utils/continueWatchingAction'",
+          "'../adapters/continueWatching'"
+        ],
+        [
+          "'../utils/mediaPersonalRating'",
+          "'@/features/files/adapters/personalRating'"
+        ],
+        [
+          "'../utils/mediaShare'",
+          "'@/features/files/adapters/share'"
+        ],
+        [
+          "'../assets/media-server/tmdb_vertical_logo.svg'",
+          "'./tmdb_vertical_logo.svg'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__MediaSourceRatings.vue.source",
+      "sha256": "83d9e72dc9d904b6c3b72128eff37ab36efed6722dc1ead1b4f1bda22931f2d7",
+      "targetSha256": "a887c4c17a88f4e0e3a4f4cb51eccde17b9eb1ac7b4ebb7e77c33d9204aefa1a",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/MediaDetail.vue",
+      "target": "src/features/library/electron/MediaDetail.vue",
+      "changes": [
+        [
+          "'../types/media'",
+          "'@/features/files/electron/mediaTypes'"
+        ],
+        [
+          "'../utils/seriesVersionPreferences'",
+          "'./seriesVersionPreferences'"
+        ],
+        [
+          "'../utils/mediaArtwork'",
+          "'./mediaArtwork'"
+        ],
+        [
+          "'../utils/detailResume'",
+          "'./detailResume'"
+        ],
+        [
+          "'../utils/detailCollections'",
+          "'./detailCollections'"
+        ],
+        [
+          "'./MediaCollectionPicker.vue'",
+          "'@/features/files/electron/MediaCollectionPicker.vue'"
+        ],
+        [
+          "'./MediaMetadataEditorModal.vue'",
+          "'@/features/files/electron/MediaMetadataEditorModal.vue'"
+        ],
+        [
+          "'../utils/localWatchedState'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../store/medialibrary'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/db'",
+          "'../adapters/libraryData'"
+        ],
+        [
+          "'../utils/tmdb'",
+          "'@/features/files/adapters/tmdb'"
+        ],
+        [
+          "'../utils/message'",
+          "'@/features/files/adapters/sourceServices'"
+        ],
+        [
+          "'../utils/customMediaSeries'",
+          "'../adapters/customSeries'"
+        ],
+        [
+          "'../utils/continueWatchingAction'",
+          "'../adapters/continueWatching'"
+        ],
+        [
+          "'../utils/mediaPersonalRating'",
+          "'@/features/files/adapters/personalRating'"
+        ],
+        [
+          "'../utils/mediaShare'",
+          "'@/features/files/adapters/share'"
+        ],
+        [
+          "import { useSettingStore, useUserStore } from '../store'",
+          "import {useSettingStore,useUserStore} from '../adapters/detailNative'"
+        ],
+        [
+          "import type { MediaServerMediaInfoCard } from '../types/mediaServerContent'",
+          "import type {MediaServerMediaInfoCard} from '@/features/servers/electron/types'"
+        ],
+        [
+          "import type { IAliGetFileModel } from '../aliapi/alimodels'",
+          "import type {IAliGetFileModel,IPageVideoPlaylistEntry} from '../adapters/detailNative'"
+        ],
+        [
+          "import type { IPageVideoPlaylistEntry } from '../store/appstore'",
+          ""
+        ],
+        [
+          "import DownDAL from '../down/DownDAL'",
+          "import DownDAL from '../adapters/detailNative'"
+        ],
+        [
+          "import { menuOpenFile } from '../utils/openfile'",
+          "import {menuOpenFile} from '../adapters/detailNative'"
+        ],
+        [
+          "import path from 'path'",
+          "import {path} from '../adapters/detailNative'"
+        ],
+        [
+          "import { getLocalVideoProgress } from '../utils/videoProgress'",
+          "import {getLocalVideoProgress} from '../adapters/detailNative'"
+        ],
+        [
+          "import { mediaFileSummary } from '../media-server/mediaSummary'",
+          "import {mediaFileSummary} from './mediaSummary'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__MediaDetail.vue.source",
+      "sha256": "85cb8cd45aba6b35ad5cdfd9c572f9364c70a3f07068fc04cea31c257edae1a1",
+      "targetSha256": "78d4fef8c3ac3932e31490626a80f2dbf8e25ad004da95cacf85ef1c3415bc6e",
+      "templatePolicy": "native-detail",
+      "nativeExceptions": [
+        "Original acquisition/tracking entries retained but disabled: Electron boxplayer backend has not been migrated; no fake endpoint or success state introduced",
+        "Remove upstream temporary five-episode generation and fixed 24min/1080P/SDR labels; show real source fields",
+        "Native download destination selection and opaque file identity"
+      ]
+    },
+    {
+      "source": "src/media-server/mediaSummary.ts",
+      "target": "src/features/library/electron/mediaSummary.ts",
+      "changes": [
+        [
+          "'../types/mediaServerContent'",
+          "'@/features/servers/electron/types'"
+        ]
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__media-server__mediaSummary.ts.source",
+      "sha256": "385dc96d43243b02a321c8bb8a0c39e78bbe3b7f5240240f8a95516c8cda2c63",
+      "targetSha256": "35ca1b5a21d47d70c5e011dcc00e539a08898879a00ab2dbd2d9bd5e7be079f4"
+    },
+    {
+      "source": "src/utils/mediaCoverage.ts",
+      "target": "src/features/library/electron/mediaCoverage.ts",
+      "changes": [
+        "Type import path only"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__mediaCoverage.ts.source",
+      "sha256": "bc889a333303065a0bb9fea9fc46c532ec84a1c5440597fbaa1b8b44c4b225ee",
+      "targetSha256": "91d1ac06fb4f16c8fd290ac2a61e209c333c97c73780a4298da5f1b9484ff104"
+    },
+    {
+      "source": "src/components/TraktAccountModal.vue",
+      "target": "src/features/library/electron/TraktAccountModal.vue",
+      "changes": [
+        "Native imports and persistence/auth boundary"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__TraktAccountModal.vue.source",
+      "sha256": "0ad56789f9bc4641b82cd029dbcd7648e8f94e6e5c42e3467b7303567b81d144",
+      "targetSha256": "8dc8715bc4fec8185a19ea76671f2955107be87772be97802fe441dbda17f5da",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/CustomMediaSeriesModal.vue",
+      "target": "src/features/library/electron/CustomMediaSeriesModal.vue",
+      "changes": [
+        "Native imports and persistence/auth boundary"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__CustomMediaSeriesModal.vue.source",
+      "sha256": "2df41fc4308e08814eb7c335cf4cbb6c7af3f255ab183f3e7dd04dc9e2b2b2a9",
+      "targetSha256": "67f2c38fb599367a915a5969bc9e30a6c0a5aeb05becf1593ff3d5ca31b436bb",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/WatchedIndicator.vue",
+      "target": "src/features/library/electron/WatchedIndicator.vue",
+      "changes": [
+        "Native imports and persistence/auth boundary"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__WatchedIndicator.vue.source",
+      "sha256": "5d035e27d0746f4c8f3c62dcb1098ac9e233ba8e2454df073368146b8803c814",
+      "targetSha256": "b09c2f4d615e17c2b2bea312fb50a99cfbf96749348012f584414d5a35d47aba",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/PosterRatingBadge.vue",
+      "target": "src/features/library/electron/PosterRatingBadge.vue",
+      "changes": [
+        "Native imports and persistence/auth boundary"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__PosterRatingBadge.vue.source",
+      "sha256": "a7d61983c31d228eada5f741568eca8fd66e5c82ac55431c86131b57cdfeb6f4",
+      "targetSha256": "8aed7cf6dd4178e5264a67a40e9d5a941fade45d998a525c6bc40dd8c3d6f51e",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/components/MediaPosterPlaceholder.vue",
+      "target": "src/features/library/electron/MediaPosterPlaceholder.vue",
+      "changes": [
+        "Native imports and persistence/auth boundary"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__components__MediaPosterPlaceholder.vue.source",
+      "sha256": "f12d1f7efa94dde352c4bce972788111a59a0c6903dedf6b7de4ca9452b5fe7c",
+      "targetSha256": "2ef7ecb49d2a717210b3b90166481ff8d02acbb601872f2cc543814a44a79845",
+      "templatePolicy": "exact"
+    },
+    {
+      "source": "src/types/mediaServerContent.ts",
+      "target": "src/features/library/electron/mediaServerContent.ts",
+      "changes": [],
+      "snapshot": "src/vendor/electron-library/upstream/src__types__mediaServerContent.ts.source",
+      "sha256": "b00fca678efaef7e2490c03565ad217d22e91529d80fc5d0b10a1208dfe4ba4a",
+      "targetSha256": "b00fca678efaef7e2490c03565ad217d22e91529d80fc5d0b10a1208dfe4ba4a"
+    },
+    {
+      "source": "src/types/mediaServer.ts",
+      "target": "src/features/library/electron/mediaServer.ts",
+      "changes": [],
+      "snapshot": "src/vendor/electron-library/upstream/src__types__mediaServer.ts.source",
+      "sha256": "c3083b78bf3f0dacb12db817f4466d65a9eb19f93cda48ed8f9dca9b26e882f8",
+      "targetSha256": "c3083b78bf3f0dacb12db817f4466d65a9eb19f93cda48ed8f9dca9b26e882f8"
+    },
+    {
+      "source": "src/views/UnifiedMediaLibraryView.vue",
+      "target": "src/features/library/LibraryWorkspace.vue",
+      "changes": [
+        "Original Home/favorites/settings/toolbar/modal/reorder regions extracted from mixed video/music/books/files entry point; native routes, storage and data projection",
+        "Public TMDB artwork URLs route through native mscache adapter; original Home and toolbar templates unchanged"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__views__UnifiedMediaLibraryView.vue.source",
+      "sha256": "d5b484d45b5ac356387e8b611d9b6ff6f775ebb11c68c604491edd97407a3d7b",
+      "targetSha256": "0cd507e15366b386116a5cb12f6248d74f7d01b41d607a3a5759d78a9afb9d7e"
+    },
+    {
+      "source": "src/views/UnifiedMediaLibraryView.vue",
+      "target": "src/features/files/MainSidebarNav.vue",
+      "changes": [
+        "Original Home/Library sidebar subtrees and homeNavigationIcon; native group identity, routes and excluded music/books",
+        "Preserve Home origin for all Home sidebar routes, including independently placed category children; Library clicks retain Library origin"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__views__UnifiedMediaLibraryView.vue.source",
+      "sha256": "d5b484d45b5ac356387e8b611d9b6ff6f775ebb11c68c604491edd97407a3d7b",
+      "targetSha256": "9e83b51f1e55e706107add2b33fa79d3f3f252d00f5e3ad30cc07cd73efb4de3"
+    },
+    {
+      "source": "src/views/UnifiedMediaLibraryView.vue",
+      "target": "src/features/library/electron/LibraryHeader.vue",
+      "changes": [
+        "Common original header fragment; native title, home/back visibility and toolbar slot"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__views__UnifiedMediaLibraryView.vue.source",
+      "sha256": "d5b484d45b5ac356387e8b611d9b6ff6f775ebb11c68c604491edd97407a3d7b",
+      "targetSha256": "1284790a1dcf964a24bdded8affdd5feadfb9a10b0805648a632564af612dfad"
+    },
+    {
+      "source": "src/types/unifiedMediaLibrary.ts",
+      "target": "src/features/library/electron/types.ts",
+      "changes": [
+        "Native import paths and stable file references where required"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__types__unifiedMediaLibrary.ts.source",
+      "sha256": "e8391c0bef4ed9313b473f663b6e9393ede6a0084a138125b154796c05c130e4",
+      "targetSha256": "692c2c4150aeee39b793e791bdd2ad828527a28792c7cc309c7be8bcf4becb42"
+    },
+    {
+      "source": "src/utils/virtualCardRange.ts",
+      "target": "src/features/library/electron/virtualCardRange.ts",
+      "changes": [
+        "Native import paths and stable file references where required"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__virtualCardRange.ts.source",
+      "sha256": "c062c876b4bbc9669b1b2095e27140bb1a6579540ce40d7c26874f32b95eb6f9",
+      "targetSha256": "c062c876b4bbc9669b1b2095e27140bb1a6579540ce40d7c26874f32b95eb6f9"
+    },
+    {
+      "source": "src/utils/categoryBannerTheme.ts",
+      "target": "src/features/library/electron/categoryBannerTheme.ts",
+      "changes": [
+        "Native import paths and stable file references where required"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__categoryBannerTheme.ts.source",
+      "sha256": "dcc7fd61ccd458c67787151f738b0bd56328aba864e95d245f5e75c7706f1fbe",
+      "targetSha256": "dcc7fd61ccd458c67787151f738b0bd56328aba864e95d245f5e75c7706f1fbe"
+    },
+    {
+      "source": "src/utils/mediaArtwork.ts",
+      "target": "src/features/library/electron/mediaArtwork.ts",
+      "changes": [
+        "Native import paths and stable file references where required"
+      ],
+      "snapshot": "src/vendor/electron-library/upstream/src__utils__mediaArtwork.ts.source",
+      "sha256": "e1f53538f27af41af6190e7bf875db9bd1d9da0d9dd303b6e87d68ebc5ae3ee5",
+      "targetSha256": "e1f53538f27af41af6190e7bf875db9bd1d9da0d9dd303b6e87d68ebc5ae3ee5"
+    }
+  ],
+  "assets": [
+    {
+      "source": "src/assets/media/trakt-avatar-placeholder.png",
+      "target": "src/features/library/electron/trakt-avatar-placeholder.png",
+      "sha256": "9297aa9eb0d089565a1caef45233a5db56786f60e0cb6725208f90cd824ad1eb"
+    },
+    {
+      "source": "src/assets/media/resume-placeholder.png",
+      "target": "src/features/library/electron/resume-placeholder.png",
+      "sha256": "fcf0d65fc38555e01220282a378c5646c696766b89edae85e25822f5fbfcdd46"
+    },
+    {
+      "source": "src/assets/media/poster-placeholder-film.svg",
+      "target": "src/features/library/electron/poster-placeholder-film.svg",
+      "sha256": "0ee434c3ba1ca31bdf4035ecc809bcac2d5ac8f41bb964044a5b3f8e966bbeef"
+    },
+    {
+      "source": "src/assets/media-server/tmdb_vertical_logo.svg",
+      "target": "src/features/library/electron/tmdb_vertical_logo.svg",
+      "sha256": "7b2b8250ddbcdc9a0583e8167f57dbb6d85abe4febfa7d850c85344b4b0fb652"
+    }
+  ],
+  "scope": [
+    "Video Home and Library",
+    "Music/books separate",
+    "Player unchanged"
+  ],
+  "nativeAdapters": "src/features/library/adapters",
+  "approvedTheme": "Green accent and Star for favorite folders"
+}

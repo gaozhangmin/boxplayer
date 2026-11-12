@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-09",
+  "milestone": "M5",
+  "status": "active",
+  "originalDeclarations": [
+    "Cloud123RenameResult",
+    "apiCloud123RenameBatch"
+  ],
+  "protocol": "original aggregate POST renameList preserved",
+  "frontend": {
+    "files": 227,
+    "tests": 2195,
+    "result": "passed"
+  },
+  "typecheck": "passed",
+  "filesProvenance": [
+    200,
+    22,
+    2
+  ],
+  "libraryProvenance": [
+    35,
+    14,
+    4
+  ],
+  "bundle": "211.07 MiB macOS arm64 debug built",
+  "latestBundleRuntime": "not restarted",
+  "realAccounts": "deferred",
+  "M6": "not started",
+  "limits": [
+    "foreground retry only, no durable journal",
+    "full native UI matrix incomplete",
+    "other M5 provider and local reconciliation gaps remain"
+  ]
+}

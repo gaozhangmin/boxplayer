@@ -1,0 +1,562 @@
+{
+  "native": {
+    "Test Jellyfin 1080p AVC 3M.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 1.0,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceSRGB",
+              "hasEDRMetadata": false,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": false
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 1080p DV P5.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 1.0,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 1080p DV P8.1.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 1.0,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 1080p HEVC 10bit 3M.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 7.370083332061768,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceSRGB",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": false
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 1080p HEVC HDR10 3M.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 7.370083332061768,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 4K DV P8.4.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 7.370083332061768,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        },
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            1496.0,
+            939.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 4K DV P5.mp4": {
+      "edrCurrentMin": 7.370083332061768,
+      "edrCurrentMax": 7.370083332061768,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 4K AV1 HDR10 60M.mp4": {
+      "edrCurrentMin": 7.370083332061768,
+      "edrCurrentMax": 7.370083332061768,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 4K AV1 HDR10 50M.mp4": {
+      "edrCurrentMin": 7.370083332061768,
+      "edrCurrentMax": 7.370083332061768,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    }
+  },
+  "after-cleanup": {
+    "Test Jellyfin 1080p DV P8.1.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 1.0,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 1080p HEVC 10bit 3M.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 1.0,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceSRGB",
+              "hasEDRMetadata": false,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": false
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    },
+    "Test Jellyfin 1080p HEVC HDR10 3M.mp4": {
+      "edrCurrentMin": 1.0,
+      "edrCurrentMax": 1.0,
+      "states": [
+        {
+          "metalLayers": [
+            {
+              "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+              "hasEDRMetadata": true,
+              "layerClass": "swift.MetalLayer",
+              "pixelFormat": 94,
+              "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+              "wantsEDR": true
+            }
+          ],
+          "viewSize": [
+            960.0,
+            600.0
+          ]
+        }
+      ]
+    }
+  },
+  "chartManifest": {
+    "standard": "BT.2100 PQ / ST 2084",
+    "purpose": "Nominal signal patterns, not a calibrated display measurement",
+    "charts": [
+      {
+        "file": "BoxPlayer HDR highlight steps.mkv",
+        "hdr": true,
+        "codec": "FFV1 lossless",
+        "pixelFormat": "yuv420p10le",
+        "durationSeconds": 10,
+        "patches": [
+          {
+            "signalValue": 100,
+            "y10": 509,
+            "sampleXY": [
+              180,
+              525
+            ]
+          },
+          {
+            "signalValue": 203,
+            "y10": 573,
+            "sampleXY": [
+              489,
+              525
+            ]
+          },
+          {
+            "signalValue": 400,
+            "y10": 636,
+            "sampleXY": [
+              798,
+              525
+            ]
+          },
+          {
+            "signalValue": 600,
+            "y10": 674,
+            "sampleXY": [
+              1107,
+              525
+            ]
+          },
+          {
+            "signalValue": 1000,
+            "y10": 723,
+            "sampleXY": [
+              1416,
+              525
+            ]
+          },
+          {
+            "signalValue": 1600,
+            "y10": 768,
+            "sampleXY": [
+              1725,
+              525
+            ]
+          }
+        ],
+        "decodedCenterCodesVerified": true
+      },
+      {
+        "file": "BoxPlayer HDR near black.mkv",
+        "hdr": true,
+        "codec": "FFV1 lossless",
+        "pixelFormat": "yuv420p10le",
+        "durationSeconds": 10,
+        "patches": [
+          {
+            "signalValue": 0,
+            "y10": 64,
+            "sampleXY": [
+              142,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.005,
+            "y10": 77,
+            "sampleXY": [
+              374,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.01,
+            "y10": 83,
+            "sampleXY": [
+              606,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.05,
+            "y10": 104,
+            "sampleXY": [
+              838,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.1,
+            "y10": 119,
+            "sampleXY": [
+              1070,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.5,
+            "y10": 167,
+            "sampleXY": [
+              1302,
+              525
+            ]
+          },
+          {
+            "signalValue": 1,
+            "y10": 195,
+            "sampleXY": [
+              1534,
+              525
+            ]
+          },
+          {
+            "signalValue": 5,
+            "y10": 281,
+            "sampleXY": [
+              1766,
+              525
+            ]
+          }
+        ],
+        "decodedCenterCodesVerified": true
+      },
+      {
+        "file": "BoxPlayer SDR gray steps.mkv",
+        "hdr": false,
+        "codec": "FFV1 lossless",
+        "pixelFormat": "yuv420p10le",
+        "durationSeconds": 10,
+        "patches": [
+          {
+            "signalValue": 0,
+            "y10": 64,
+            "sampleXY": [
+              129,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.01,
+            "y10": 73,
+            "sampleXY": [
+              335,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.02,
+            "y10": 82,
+            "sampleXY": [
+              541,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.05,
+            "y10": 108,
+            "sampleXY": [
+              747,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.1,
+            "y10": 152,
+            "sampleXY": [
+              953,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.25,
+            "y10": 283,
+            "sampleXY": [
+              1159,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.5,
+            "y10": 502,
+            "sampleXY": [
+              1365,
+              525
+            ]
+          },
+          {
+            "signalValue": 0.75,
+            "y10": 721,
+            "sampleXY": [
+              1571,
+              525
+            ]
+          },
+          {
+            "signalValue": 1,
+            "y10": 940,
+            "sampleXY": [
+              1777,
+              525
+            ]
+          }
+        ],
+        "decodedCenterCodesVerified": true
+      }
+    ]
+  },
+  "correctedHighlightChart": {
+    "samples": 36,
+    "first": {
+      "kind": "native-surface",
+      "metalLayers": [
+        {
+          "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+          "hasEDRMetadata": false,
+          "layerClass": "swift.MetalLayer",
+          "pixelFormat": 94,
+          "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+          "wantsEDR": false
+        }
+      ],
+      "screen": {
+        "edrCurrent": 1.0,
+        "edrPotential": 16.0,
+        "edrReference": 0.0,
+        "scale": 2.0
+      },
+      "sourceSession": "fc806050-0367-4601-83a6-5dfa4d1fe045",
+      "title": "BoxPlayer HDR highlight steps.mkv",
+      "unixMs": 1793953660651,
+      "viewSize": [
+        960.0,
+        600.0
+      ]
+    },
+    "last": {
+      "kind": "native-surface",
+      "metalLayers": [
+        {
+          "colorSpace": "kCGColorSpaceITUR_2100_PQ",
+          "hasEDRMetadata": true,
+          "layerClass": "swift.MetalLayer",
+          "pixelFormat": 94,
+          "viewPath": "/wry::wkwebview::class::wry_web_view_parent::WryWebViewParent0.57.1/swift.View",
+          "wantsEDR": true
+        }
+      ],
+      "screen": {
+        "edrCurrent": 7.8921027183532715,
+        "edrPotential": 16.0,
+        "edrReference": 0.0,
+        "scale": 2.0
+      },
+      "sourceSession": "fc806050-0367-4601-83a6-5dfa4d1fe045",
+      "title": "BoxPlayer HDR highlight steps.mkv",
+      "unixMs": 1793953697489,
+      "viewSize": [
+        1496.0,
+        939.0
+      ]
+    },
+    "edrCurrentMax": 7.8921027183532715
+  }
+}

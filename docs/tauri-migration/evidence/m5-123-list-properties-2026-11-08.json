@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-08",
+  "requirements": [
+    14,
+    109
+  ],
+  "scope": "Original 123 list and properties",
+  "originalDeclarations": [
+    "mapCloud123FileToAliModel",
+    "mapCloud123InfoToAliModel",
+    "pickCloud123Thumbnail"
+  ],
+  "originalDetail": "apiCloud123FileDetail, previously extracted",
+  "newTests": {
+    "listProtocol": 20,
+    "propertiesProtocol": 16,
+    "mounted": 4
+  },
+  "focused": {
+    "files": 4,
+    "tests": 49
+  },
+  "full": {
+    "files": 214,
+    "tests": 2094
+  },
+  "typecheck": "passed",
+  "sourceVerifier": "179 /20 /2",
+  "libraryVerifier": "35 /14 /4",
+  "macosArm64DebugAppMiB": 210.55,
+  "native": "No Rust edits; native tests not rerun",
+  "electronMain": {
+    "branch": "main",
+    "head": "cf3059e",
+    "modifiedByThisTask": false,
+    "concurrentDirtyFiles": [
+      "src/components/MediaLibrary.vue",
+      "src/utils/openfile.ts",
+      "src/views/MediaServerWorkspace.vue"
+    ]
+  },
+  "limitations": [
+    "Fixture HTTP and mounted UI only",
+    "No new-build runtime acceptance",
+    "Original 123 folder unknown counts are retained, not replaced with invented recursive totals",
+    "Transfer entries, Ali memory text, remaining capabilities and full native UI pending"
+  ],
+  "goal": "active; real accounts deferred; M6 not started"
+}

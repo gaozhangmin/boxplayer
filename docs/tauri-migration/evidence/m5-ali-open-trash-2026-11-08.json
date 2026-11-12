@@ -1,0 +1,64 @@
+{
+  "checkpoint": "ali-open-trash-command",
+  "date": "2026-11-08",
+  "state": "M5 active; M6 not started",
+  "implementation": {
+    "source": "Original ApiTrashBatch/ApiBatchMaker/ApiBatchSuccess declarations; only account guard adapted; original Delete keyboard/menu workflow retained",
+    "reference": "Local XbyVideoHub/Packages/CloudServiceKit/Sources/AliyunDriveServiceProvider.swift trashItem uses openFile/recyclebin/trash",
+    "protocol": "Open get preflight -> recyclebin/trash -> optional original Open async_task/get polling -> verified trashed detail or explicit scoped404 file-not-found",
+    "scope": [
+      "preflight known ID/drive/parent/name/type",
+      "all raw batch rows validated before any request",
+      "strict account/window/context/caller lifecycle checks",
+      "Open endpoints only; share token rejected; no web fallback",
+      "ambiguous submission retained; retries do not POST again",
+      "accepted task retries confirm same task only",
+      "known explicit quota/auth rejection permits user retry after preflight, not automatic resubmission",
+      "completed receipts retained until guarded catalog acknowledgement",
+      "catalog failure preserves row and selection; retry only commits catalog",
+      "web same-ID account replacement checked; pending web receipts cannot be reused under a different public owner"
+    ]
+  },
+  "verification": {
+    "focused": {
+      "files": 3,
+      "tests": 35,
+      "passed": true
+    },
+    "fullFrontend": {
+      "files": 224,
+      "tests": 2169,
+      "passed": true
+    },
+    "typecheck": "passed, including final package beforeBuild",
+    "sourceVerifier": {
+      "mappings": 200,
+      "exactTemplates": 22,
+      "assets": 2
+    },
+    "libraryVerifier": {
+      "mappings": 35,
+      "exactTemplates": 14,
+      "assets": 4
+    },
+    "macOSArm64DebugPackage": "211.05MiB passed",
+    "runtime": "Quit existing via native menu; observed isRunning=false; started exact final bundle path; verified Home -> Files -> Add source opens. Left source manager open; no login or remote operations."
+  },
+  "testNote": "One initial folder fixture changed a variable but not pane.file mock; corrected both to describe same selected folder. Final focused/full results above. All HTTP/catalog data are synthetic.",
+  "limitations": [
+    "Open trash list/restore/purge/empty remain unimplemented; no authoritative Open contract established this turn, no claim vendor lacks them",
+    "404 postcondition corroborates accepted endpoint removal from normal-file lookup; actual trash recoverability not verified",
+    "Other provider response codes, actual permissions, native HTTP/account flow and real Open calls deferred",
+    "Foreground receipts do not survive process restart; closed/changed contexts and unknown remote outcomes are not durable reconciliation",
+    "No Rust implementation edits/native tests rerun this turn; previous196 passed/10 ignored remains historical baseline",
+    "Complete M5 provider operations/native hover/menu/keyboard/geometry matrix still pending; no goal completion",
+    "External search results did not establish an authoritative Open recycle list/restore contract; PDS documentation was not treated as Alipan Open documentation"
+  ],
+  "electron": "main read-only; same three concurrent dirty files preserved",
+  "logs": [
+    "/tmp/m5-open-trash-tests.log",
+    "/tmp/m5-open-trash-all.log",
+    "/tmp/m5-open-trash-types.log",
+    "/tmp/m5-open-trash-build.log"
+  ]
+}
