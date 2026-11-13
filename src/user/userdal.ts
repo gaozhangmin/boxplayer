@@ -586,20 +586,21 @@ export default class UserDAL {
     const time = Date.now() - expiresIn
     const refreshProviderInfo = async () => {
       const quotaApplied = await applyProviderQuota(token)
-      if (quotaApplied !== undefined) return
+      if (quotaApplied !== undefined) return quotaApplied
       const accountInfoRefreshed = await refreshProviderAccountInfo(token)
-      if (accountInfoRefreshed !== undefined) return
-      if (isNonAliyunProvider(token)) return
+      if (accountInfoRefreshed !== undefined) return accountInfoRefreshed
+      if (isNonAliyunProvider(token)) return true
       await Promise.all([
         AliUser.ApiUserInfo(token),
         AliUser.ApiUserPic(token),
         AliUser.ApiUserVip(token)
       ])
+      return true
     }
     if (!force || time / 1000 < 600) {
-      await refreshProviderInfo()
+      const refreshed = await refreshProviderInfo()
       UserDAL.SaveUserToken(token)
-      return true
+      return refreshed
     }
     if (!token.user_id) return false
     const providerToken = await ensureProviderAccessToken(token, true)
@@ -618,10 +619,10 @@ export default class UserDAL {
       await AliUser.ApiSessionRefreshAccount(token, true)
       await AliUser.OpenApiTokenRefreshAccount(token, true)
     }
-    await refreshProviderInfo()
+    const refreshed = await refreshProviderInfo()
     useUserStore().userLogin(token.user_id)
     UserDAL.SaveUserToken(token)
-    return true
+    return refreshed
   }
 
   static async UserAutoSign(token: ITokenInfo) {

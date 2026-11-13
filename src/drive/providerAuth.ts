@@ -11,7 +11,7 @@ import { applyGuangyaQuota } from '../guangya/auth'
 import { refreshQuarkAccountInfo } from '../quark/auth'
 import { refreshCloud189Token } from '../cloud189/auth'
 import { applyCloud189Quota } from '../cloud189/quota'
-import { applyQuarkQuota } from '../quark/quota'
+import { refreshQuarkProfileAndQuota } from '../quark/quota'
 import { resolveDriveProvider } from '../utils/driveProvider'
 
 /** Refreshes standard OAuth providers. Undefined means the provider has custom session semantics. */
@@ -99,12 +99,7 @@ export const refreshProviderAccountInfo = async (token: ITokenInfo): Promise<boo
     case 'baidu': return await refreshBaiduUserInfo(token)
     case '115': return await refreshDrive115UserInfo(token)
     case 'quark':
-      try {
-        Object.assign(token, await refreshQuarkAccountInfo(token))
-        return await applyQuarkQuota(token)
-      } catch {
-        return false
-      }
+      return await refreshQuarkProfileAndQuota(token)
     case '139':
       token.default_drive_id = token.default_drive_id || 'cloud139'
       return true

@@ -1,6 +1,23 @@
 import type { ITokenInfo } from '../user/userstore'
 import { applyQuotaValues } from '../drive/providerQuota'
-import { quarkAuthHeaders, syncQuarkCookiesToElectron } from './auth'
+import { quarkAuthHeaders, syncQuarkCookiesToElectron, refreshQuarkAccountInfo } from './auth'
+
+/** Profile failures must not prevent the independent drive-capacity request. */
+export const refreshQuarkProfileAndQuota = async (token: ITokenInfo): Promise<boolean> => {
+  const quotaToken = { ...token }
+  const [profile, quota] = await Promise.allSettled([
+    refreshQuarkAccountInfo(token),
+    applyQuarkQuota(quotaToken)
+  ])
+  if (profile.status === 'fulfilled') Object.assign(token, profile.value)
+  if (quota.status !== 'fulfilled' || !quota.value) return false
+  // Merge quota last so a slower identity response cannot reset fresh capacity.
+  token.total_size = quotaToken.total_size
+  token.used_size = quotaToken.used_size
+  token.free_size = quotaToken.free_size
+  token.spaceinfo = quotaToken.spaceinfo
+  return true
+}
 
 export const applyQuarkQuota = async (token: ITokenInfo): Promise<boolean> => {
   if (!token.access_token) return false

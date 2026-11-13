@@ -306,6 +306,7 @@ export const createQuarkTokenFromCookies = async (cookieString: string): Promise
   await syncQuarkCookiesToElectron(cookieString)
   const resp = await fetch(ACCOUNT_INFO_URL, {
     headers: quarkAuthHeaders(cookieString),
+    signal: AbortSignal.timeout(15000),
     credentials: 'include'
   })
   const data = await resp.json().catch(() => undefined)

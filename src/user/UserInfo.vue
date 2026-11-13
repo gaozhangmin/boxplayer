@@ -179,14 +179,17 @@ const getUserName = computed(() => {
   }
 })
 
+// UserTokenMap is not reactive. The refreshed account list is, so capacity must
+// follow its current-account record rather than a cached Pinia token getter.
+const activeAccountToken = computed(() => userListState.value.find(token => token.user_id === userStore.user_id) || userStore.GetUserToken)
 const baiduQuotaText = computed(() => {
-  const token = userStore.GetUserToken
+  const token = activeAccountToken.value
   if (!isBaiduUser(userStore.user_id || token)) return ''
   const free = typeof token.free_size === 'number' ? humanSize(token.free_size) : ''
   const expire = token.space_expire ? '是' : '否'
   return `可用 ${free} · 7天内到期 ${expire}`
 })
-const storageText = computed(() => userStore.GetUserToken.spaceinfo || '容量信息暂不可用')
+const storageText = computed(() => activeAccountToken.value.spaceinfo || '容量信息暂不可用')
 
 const activeProviderMeta = computed(() => getDriveProviderMeta(userStore.GetUserToken.tokenfrom))
 const activeProviderIcon = computed(() => activeProviderMeta.value.icon)
