@@ -100,6 +100,9 @@ export default class TreeStore {
       let item: DirData
       for (let i = 0, maxi = children.length; i < maxi; i++) {
         item = children[i]
+        // Empty IDs are not directories. Older provider caches can contain an
+        // empty placeholder; keep the stored cache intact but exclude it from the graph.
+        if (!item.file_id) continue
         OneDriver.DirMap.set(item.file_id, item)
         OneDriver.DirFileSizeMap[item.file_id] = sizeMap[item.file_id] || 0
         OneDriver.DirFileSizeTimeMap[item.file_id] = sizeTimeMap[item.file_id] || 0
@@ -207,7 +210,10 @@ export default class TreeStore {
 
 
     let dirID = oneDir.dirID
+    const parents = new Set<string>()
     while (true) {
+      if (parents.has(dirID)) throw new Error('Cyclic directory parent chain')
+      parents.add(dirID)
       driverData.DirTotalSizeMap[dirID] = TotalSize(dirID, driverData.DirTotalSizeMap, driverData.DirFileSizeMap, driverData.DirChildrenMap)
       const tdir = driverData.DirMap.get(dirID)
       if (tdir && !tdir.parent_file_id.includes('root') && tdir.parent_file_id != '') {
@@ -630,7 +636,11 @@ export default class TreeStore {
     if (!driverData) return dirPath
     const dirMap = driverData.DirMap
     const driveType = GetDriveType(usePanTreeStore().user_id, drive_id)
-    while (true) {
+    const visited = new Set<string>()
+    // Empty parent is the root terminator, even if an old cache has a key "".
+    while (file_id) {
+      if (visited.has(file_id)) throw new Error('Cyclic directory parent chain')
+      visited.add(file_id)
       const dir = dirMap.get(file_id)
       if (!dir) break
       if (dir.parent_file_id === 'root') dir.parent_file_id = driveType.key
@@ -765,12 +775,15 @@ function _RefreshAllDirTotalSizeFunc(drive_id: string): void {
 
 function TotalSize(file_id: string, DirTotalSizeMap: { [key: string]: number }, DirFileSizeMap: {
   [key: string]: number
-}, DirChildrenMap: Map<string, DirData[]>): number {
+}, DirChildrenMap: Map<string, DirData[]>, active = new Set<string>()): number {
+  if (active.has(file_id)) throw new Error('Cyclic directory child graph')
+  active.add(file_id)
   const dirChildrenList = DirChildrenMap.get(file_id) || []
   let size = DirFileSizeMap[file_id] || 0
   for (let i = 0, maxi = dirChildrenList.length; i < maxi; i++) {
-    size += TotalSize(dirChildrenList[i].file_id, DirTotalSizeMap, DirFileSizeMap, DirChildrenMap)
+    size += TotalSize(dirChildrenList[i].file_id, DirTotalSizeMap, DirFileSizeMap, DirChildrenMap, active)
   }
+  active.delete(file_id)
   DirTotalSizeMap[file_id] = size
   return size
 }
