@@ -236,6 +236,10 @@ export const refreshCloud189Token = async (token: ITokenInfo): Promise<ITokenInf
     if (!sessionResp.ok || Number(session?.res_code || 0) !== 0 || !session?.sessionKey || !session?.sessionSecret) return null
     const refreshed = normalizeCloud189Token({ ...data, ...session, refreshToken: data.refreshToken || token.refresh_token })
     // Refresh must keep the stored account identity and user customizations.
-    return { ...token, ...refreshed, user_id: token.user_id, user_name: token.user_name || refreshed.user_name, name: token.name || refreshed.name, avatar: token.avatar || refreshed.avatar }
+    return {
+      ...token, ...refreshed, user_id: token.user_id, user_name: token.user_name || refreshed.user_name,
+      name: token.name || refreshed.name, avatar: token.avatar || refreshed.avatar,
+      total_size: token.total_size, used_size: token.used_size, free_size: token.free_size, spaceinfo: token.spaceinfo
+    }
   })
 }

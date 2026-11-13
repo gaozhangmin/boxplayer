@@ -16,6 +16,8 @@
 
 官网账号、网盘账号和订阅权限分开追踪。fetchBoxPlayerSubscription 的 invalid_auth_token 分支有会话重试逻辑；改 token 优先级时同时核对 AI、订阅与购买入口，不能只改登录按钮。
 
+网盘容量独立于身份与会话刷新：夸克读取 `/1/clouddrive/member` 的 `total_capacity/use_capacity`，天翼通过当前账号签名请求 `portal/getUserSizeInfo.action` 的 `cloudCapacityInfo`（个人空间）。缺失、无效或失败的容量响应保留上次值并返回失败，身份/会话刷新不得把容量重置为零；不把家庭容量混入个人账号汇总。
+
 ## 验证与维护
 
 先读 [开发与执行约束](../agent-development.md) 和 [代码标准](../code-standards.md)。验证按本次用户要求及平台限制执行；未运行的测试、构建和真实设备检查要明确标注。契约改变时同步本文，并核对旧调用者。

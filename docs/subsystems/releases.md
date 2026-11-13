@@ -8,6 +8,8 @@
 
 Manual trigger only (`workflow_dispatch`) via `.github/workflows/release.yml`. Builds on `windows-latest` + `ubuntu-latest`, publishes draft GitHub Release. No automatic CI on push/PR.
 
+签名凭据按目标隔离：既有 `CSC_LINK/CSC_KEY_PASSWORD` 只传入 macOS runner，Windows 只读取其独立 `WIN_CSC_LINK/WIN_CSC_KEY_PASSWORD`。不能把 Apple 证书用于生成 Windows 发布者信息，也不能通过关闭更新器签名验证修补错误的旧安装包。源码隔离不代表已获得可信的 Windows 签名证书；实际证书与 Windows 二进制验签仍是交付检查项。旧安装包内的错误发布者元数据需要受信任的新安装包替换，不能声称修改 CI 就修好了已安装客户端。
+
 ### Release publication authorization
 
 - On 2026-11-04, the user explicitly authorized automatic public GitHub Releases after the fix is confirmed and relevant tests pass, including the daily BoxPlayer inspection automation. No additional per-release publication confirmation is required within that scope.

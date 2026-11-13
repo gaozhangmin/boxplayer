@@ -418,8 +418,12 @@ jobs:
           BOXPLAYER_SITE_URL: ${{ secrets.BOXPLAYER_SITE_URL }}
           POSTHOG_PROJECT_API_KEY: ${{ secrets.POSTHOG_PROJECT_API_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # The shared CSC certificate is an Apple identity. Never let Windows
+          # fall back to it when computing the installer publisher.
+          CSC_LINK: ${{ matrix.os == 'macos-15' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-15' && secrets.CSC_KEY_PASSWORD || '' }}
+          WIN_CSC_LINK: ${{ matrix.os == 'windows-latest' && secrets.WIN_CSC_LINK || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ matrix.os == 'windows-latest' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

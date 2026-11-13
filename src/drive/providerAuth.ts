@@ -10,6 +10,8 @@ import { applyGoogleQuota, refreshGoogleAccessToken } from '../google/auth'
 import { applyGuangyaQuota } from '../guangya/auth'
 import { refreshQuarkAccountInfo } from '../quark/auth'
 import { refreshCloud189Token } from '../cloud189/auth'
+import { applyCloud189Quota } from '../cloud189/quota'
+import { applyQuarkQuota } from '../quark/quota'
 import { resolveDriveProvider } from '../utils/driveProvider'
 
 /** Refreshes standard OAuth providers. Undefined means the provider has custom session semantics. */
@@ -99,7 +101,7 @@ export const refreshProviderAccountInfo = async (token: ITokenInfo): Promise<boo
     case 'quark':
       try {
         Object.assign(token, await refreshQuarkAccountInfo(token))
-        return true
+        return await applyQuarkQuota(token)
       } catch {
         return false
       }
@@ -108,7 +110,7 @@ export const refreshProviderAccountInfo = async (token: ITokenInfo): Promise<boo
       return true
     case '189':
       token.default_drive_id = token.default_drive_id || 'cloud189'
-      return true
+      return await applyCloud189Quota(token)
     default: return undefined
   }
 }

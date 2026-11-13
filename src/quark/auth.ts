@@ -320,6 +320,11 @@ export const refreshQuarkAccountInfo = async (token: ITokenInfo): Promise<IToken
   return {
     ...token,
     ...refreshed,
+    // /account/info is identity metadata. Capacity comes from /clouddrive/member.
+    total_size: token.total_size,
+    used_size: token.used_size,
+    free_size: token.free_size,
+    spaceinfo: token.spaceinfo,
     user_id: token.user_id || refreshed.user_id,
     access_token: token.access_token,
     default_drive_id: token.default_drive_id || refreshed.default_drive_id || 'quark'

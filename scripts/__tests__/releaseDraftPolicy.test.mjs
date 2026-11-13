@@ -13,6 +13,15 @@ describe('human-owned release publication', () => {
   })
 
   const workflow = readFileSync(resolve('.github/workflows/release.yml'), 'utf8')
+  it('keeps Apple signing credentials out of Windows publisher metadata', () => {
+    const packaging = workflow.slice(workflow.indexOf('\n  release:'), workflow.indexOf('\n  finalize-release:'))
+    expect(packaging).toContain("CSC_LINK: ${{ matrix.os == 'macos-15' && secrets.CSC_LINK || '' }}")
+    expect(packaging).toContain("CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-15' && secrets.CSC_KEY_PASSWORD || '' }}")
+    expect(packaging).toContain("WIN_CSC_LINK: ${{ matrix.os == 'windows-latest' && secrets.WIN_CSC_LINK || '' }}")
+    expect(packaging).not.toContain('CSC_LINK: ${{ secrets.CSC_LINK }}')
+    const builder = JSON.parse(readFileSync(resolve('electron-builder.json'), 'utf8'))
+    expect(builder.win.verifyUpdateCodeSignature).not.toBe(false)
+  })
   it('keeps packaging and the final release update in draft state', () => {
     const builder = JSON.parse(readFileSync(resolve('electron-builder.json'), 'utf8'))
     for (const target of builder.publish) expect(target.releaseType).toBe('draft')

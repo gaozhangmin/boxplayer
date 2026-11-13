@@ -100,11 +100,13 @@ describe('createQuarkTokenFromCookies', () => {
       tokenfrom: 'quark',
       user_id: 'quark_existing-id',
       access_token: '__uid=new-provider-id; __kps=kps1; __pus=pus1',
-      default_drive_id: 'quark'
+      default_drive_id: 'quark',
+      total_size: 1000, used_size: 200, free_size: 800, spaceinfo: 'previous'
     } as any)
 
     expect(token.user_id).toBe('quark_existing-id')
     expect(token.nick_name).toBe('更新后的昵称')
+    expect(token).toMatchObject({ total_size: 1000, used_size: 200, free_size: 800, spaceinfo: 'previous' })
   })
 })
 

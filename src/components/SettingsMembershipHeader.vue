@@ -93,11 +93,12 @@ onUnmounted(stopQr)
 </style>
 
 <style scoped>
-.bp-banner-shell{margin-top:18px;padding:16px 20px;border-radius:16px;overflow:hidden;background:linear-gradient(110deg,#15803d 0%,#16a34a 55%,#22c55e 100%);color:#fff;box-sizing:border-box}
-.bp-settings-header{padding:0 110px 4px 0}.bp-settings-header h1{color:#fff;font-size:22px}
+.bp-banner-shell{margin-top:18px;padding:16px 20px;border:1px solid var(--color-border-2);border-radius:16px;overflow:hidden;background:var(--color-bg-2);color:var(--color-text-1);box-sizing:border-box}
+.bp-settings-header{padding:0 110px 4px 0}.bp-settings-header h1{color:var(--color-text-1);font-size:22px}
 .bp-settings-actions{right:20px;top:14px;gap:10px}.bp-settings-actions button{width:38px;height:38px}
-.bp-upgrade-banner{background:transparent;min-height:56px;padding:4px 0 8px;border-radius:0}.bp-upgrade-banner:before{display:none}
-.bp-banner-shell :deep(.settings-app-actions){display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:10px 0 0!important;padding:10px 0 0!important;border-top:1px solid #ffffff40;border-bottom:0!important;background:transparent!important}
-.bp-banner-shell :deep(.settings-app-version){color:#fff!important;margin-right:auto!important}
-.bp-banner-shell :deep(.settings-app-actions .arco-btn){color:#fff!important;background:#ffffff20!important;border-color:#ffffff60!important}
+.bp-settings-actions button{color:var(--color-text-1);background:var(--color-fill-2);border-color:var(--color-border-2)}.bp-settings-actions button:hover{background:var(--color-fill-3)}.bp-settings-actions button:focus-visible{outline-color:rgb(var(--primary-6))}
+.bp-upgrade-banner{background:transparent;color:var(--color-text-1);min-height:56px;padding:4px 0 8px;border-radius:0}.bp-upgrade-banner:before{display:none}
+.bp-banner-shell :deep(.settings-app-actions){display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:10px 0 0!important;padding:10px 0 0!important;border-top:1px solid var(--color-border-2);border-bottom:0!important;background:transparent!important}
+.bp-banner-shell :deep(.settings-app-version){color:var(--color-text-2)!important;margin-right:auto!important}
+.bp-banner-shell :deep(.settings-app-actions .arco-btn){color:var(--color-text-1)!important;background:var(--color-fill-2)!important;border-color:var(--color-border-2)!important}
 </style>
