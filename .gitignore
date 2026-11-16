@@ -91,6 +91,7 @@ electron/**/*.d.ts.map
 !docs/releases/
 !docs/releases/v*.md
 *.html
+!/desktop-lyrics.html
 *.mp4
 !e2e/assets/mpv-sample.mp4
 *.mov
