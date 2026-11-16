@@ -393,7 +393,13 @@ function handleWinCmd(win: BrowserWindow) {
   hasWindowCommandHandler = true
   ipcMain.on('WebToWindow', (event, data) => {
     const currentWin = BrowserWindow.fromWebContents(event.sender) || win
-    if (data.cmd && data.cmd === 'close') {
+    if (data.cmd === 'move' && Number.isFinite(data.dx) && Number.isFinite(data.dy)) {
+      if (currentWin && !currentWin.isDestroyed()) {
+        const [x, y] = currentWin.getPosition()
+        currentWin.setPosition(Math.round(x + Math.max(-1000, Math.min(1000, data.dx))),
+          Math.round(y + Math.max(-1000, Math.min(1000, data.dy))))
+      }
+    } else if (data.cmd && data.cmd === 'close') {
       event.returnValue = 'close'
       if (currentWin && !currentWin.isDestroyed()) currentWin.close()
     } else if (data.cmd && data.cmd === 'minsize') {

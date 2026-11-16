@@ -1,6 +1,7 @@
 <script setup lang='ts'>
+import { scheduleLocalTrackHeads } from '../utils/musicHeadMetadata'
 import MediaEmptyFolder from '../components/MediaEmptyFolder.vue'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { CSSProperties } from 'vue'
 import { ArrowLeft, ListMusic, Mic2, Disc3, Folder, Heart, Music, Play, User, RefreshCw, Search, Sparkles, Radio } from 'lucide-vue-next'
 import { useAppStore } from '../store'
@@ -8,7 +9,7 @@ import useMusicLibraryStore, { type MusicSubTab } from '../store/musiclibrary'
 import { IMusicTrack } from '../types/music'
 import { IPageMusic, IPageMusicTrack } from '../store/appstore'
 import MusicScanner from '../utils/musicScanner'
-import { enrichMusicLibrary } from '../utils/musicEnrichment'
+import { enrichMusicLibrary, stopMusicEnrichment } from '../utils/musicEnrichment'
 import message from '../utils/message'
 import TrialBanner from '../components/radio/TrialBanner.vue'
 import PodcastPanel, { type ExternalPodcastFeed } from '../components/radio/PodcastPanel.vue'
@@ -148,17 +149,20 @@ function formatTime(ts: number): string {
 
 function trackToPlaylist(t: IMusicTrack): IPageMusicTrack {
   return {
+    library_track_id: t.id,
     user_id: t.user_id,
     drive_id: t.drive_id,
     file_id: t.file_id,
+    local_url: t.local_url,
     parent_file_id: t.parent_file_id,
     file_name: t.file_name,
     ext: t.ext,
     size: t.size,
     category: t.category,
     icon: '',
-    thumbnail: t.thumbnail,
+    thumbnail: t.cover_url || t.thumbnail,
     description: t.description,
+    title: t.title, artist: t.artist, album: t.album, lyric_text: t.lyric_text, metadata_source: t.metadata_source,
     duration_ms: t.duration_ms,
     encType: t.encType,
     password: ''
@@ -171,7 +175,7 @@ function mediaServerTrackToPlaylist(track: MediaServerMusicTrack): IPageMusicTra
     drive_id: `media-server:${track.serverId}`,
     file_id: track.id,
     parent_file_id: track.serverId,
-    file_name: track.title,
+    file_name: track.title, title: track.title, artist: track.artist, album: track.album,
     category: 'audio',
     icon: '',
     thumbnail: track.thumbnail,
@@ -284,7 +288,7 @@ function importLocalSongs() {
   input.type = 'file'
   input.accept = 'audio/*,.mp3,.flac,.wav,.m4a,.aac,.ogg,.opus'
   input.multiple = true
-  input.onchange = () => {
+  input.onchange = async () => {
     const files = Array.from(input.files || []).filter((file) => file.type.startsWith('audio/') || /\.(mp3|flac|wav|m4a|aac|ogg|opus)$/i.test(file.name))
     if (!files.length) {
       message.warning(tt('music.selectAudioFiles'))
@@ -308,6 +312,8 @@ function importLocalSongs() {
     }))
     message.success(tt('music.importLocalSuccess', { count: tracks.length }))
     playPageTracks(tracks)
+    scheduleLocalTrackHeads(musicPlayerStore.pendingLoad?.playlist || tracks)
+
   }
   input.click()
 }
@@ -633,7 +639,7 @@ const COVER_DEBUG_LIMIT = 20
 
 function coverSource(t?: IMusicTrack): string {
   if (!t) return ''
-  return t.cover_url || t.thumbnail || ''
+  return [t.cover_url, t.thumbnail].find(url => url && (url !== t.artwork_failed_url || Date.now() - (t.artwork_failed_at || 0) >= 300000)) || ''
 }
 
 function coverSourceType(t?: IMusicTrack): 'cover_url' | 'thumbnail' | 'empty' {
@@ -653,19 +659,27 @@ function debugCoverLoad(t: IMusicTrack, area: string, event: Event) {
   const style = window.getComputedStyle(img)
 }
 
+const failedCoverTimes = new Map<string, number>()
 function debugCoverError(t: IMusicTrack, area: string, event: Event) {
-  
+  const url = t.cover_url || t.thumbnail || ''
+  const key = `${t.id}:${url}`
+  if (!url || Date.now() - (failedCoverTimes.get(key) || 0) < 60000) return
+  failedCoverTimes.set(key, Date.now())
+  console.warn('[MusicArtwork] load failed', { area })
+  void musicStore.updateTrackEnrichment(t.id, { cover_url: '', thumbnail: '', artwork_failed_url: url, artwork_failed_at: Date.now(), metadata_retry_at: Date.now() + 60000 })
 }
 
+let musicPageDisposed = false
+onUnmounted(() => { musicPageDisposed = true; if (enrichTimer) window.clearTimeout(enrichTimer); stopMusicEnrichment() })
 let enrichTimer: number | undefined
 let enrichLoopActive = false
 async function runEnrichLoop() {
   if (enrichLoopActive) return
   enrichLoopActive = true
   try {
-    while (musicStore.totalCount > 0) {
+    while (!musicPageDisposed && musicStore.totalCount > 0) {
       const got = await enrichMusicLibrary(40)
-      if (got <= 0) break
+      if (got <= 0) { scheduleEnrich(60000); break }
       await new Promise((r) => setTimeout(r, 1500))
     }
   } catch { /* ignore */ }
@@ -674,6 +688,7 @@ async function runEnrichLoop() {
   }
 }
 function scheduleEnrich(delayMs: number = 600) {
+  if (musicPageDisposed) return
   if (enrichTimer) {
     window.clearTimeout(enrichTimer)
   }

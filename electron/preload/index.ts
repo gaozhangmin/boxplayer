@@ -527,3 +527,6 @@ ipcRenderer.on('webview-redirect', (e, webContentsId, url) => {
 
 window.AutoUpdateDownload = () => ipcRenderer.invoke('AutoUpdate:Download')
 window.AutoUpdateAcknowledge = () => ipcRenderer.invoke('AutoUpdate:Acknowledge')
+
+window.WebReadMusicHead = (input) => ipcRenderer.invoke('MusicHead:read', input)
+window.WebReadMusicLocal = (input) => ipcRenderer.invoke('MusicLocal:read', input)

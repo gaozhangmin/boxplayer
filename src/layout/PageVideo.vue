@@ -2681,6 +2681,10 @@ const getVideoInfo = async (art: Artplayer) => {
   if (pageVideo.drive_id === 'local') {
     const urlModule = window.require?.('url')
     const filePath = pageVideo.file_id || (pageVideo as any).file_path || ''
+    if (!filePath) {
+      art.notice.show = t('video.localVideoPathEmpty')
+      return
+    }
     if (filePath) {
       const fileUrl = urlModule?.pathToFileURL ? urlModule.pathToFileURL(filePath).href : `file://${encodeURI(filePath)}`
       setArtVideoUrl(art, fileUrl)

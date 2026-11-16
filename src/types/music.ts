@@ -1,4 +1,5 @@
 export interface IMusicTrack {
+  local_url?: string
   id: string
   source_id?: string
   source_ids?: string[]
@@ -14,6 +15,17 @@ export interface IMusicTrack {
   thumbnail?: string
   description?: string
   encType?: string
+  metadata_retry_at?: number
+  artwork_failed_at?: number
+  artwork_failed_url?: string
+  local_tag_version?: number
+  head_tag_version?: number
+  artists?: string[]
+  album_artists?: string[]
+  isrc?: string[]
+  replaygain_track?: number
+  replaygain_album?: number
+  lyric_text?: string
   artist?: string
   title?: string
   album?: string

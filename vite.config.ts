@@ -28,6 +28,7 @@ export default defineConfig(({ command, isPreview }) => {
 
   const isBuild = command === 'build'
   return {
+    base: './',
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version)
     },
@@ -38,6 +39,10 @@ export default defineConfig(({ command, isPreview }) => {
       // on CSS attached to a lazy-loaded Vue chunk.
       cssCodeSplit: false,
       rollupOptions: {
+        input: {
+          index: path.resolve(__dirname, 'index.html'),
+          desktopLyrics: path.resolve(__dirname, 'desktop-lyrics.html')
+        },
         output: {
           chunkFileNames: '[name].js',
           entryFileNames: '[name].js',

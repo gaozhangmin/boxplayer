@@ -557,12 +557,18 @@ const createMediaInfoCardsForSource = (source?: MediaServerMediaSource): MediaSe
   return cards
 }
 
+const sourceFilePath = (item: MediaServerBaseItem, source?: MediaServerMediaSource): string | undefined => {
+  if (source?.Path?.trim()) return source.Path
+  if ((item.MediaSources?.length || 0) <= 1 && ['Movie', 'Episode', 'Video', 'MusicVideo'].includes(item.Type || '') && item.Path?.trim()) return item.Path
+  return undefined
+}
+
 const createSourceOptions = (item: MediaServerBaseItem): MediaServerSourceOption[] => {
   return (item.MediaSources || []).map((source, index) => ({
     id: source.Id || `${item.Id || 'item'}:${index}`,
     title: source.Name || source.Path?.split('/').filter(Boolean).pop() || `版本 ${index + 1}`,
-    fileLabel: source.Path?.split('/').filter(Boolean).pop() || source.Name,
-    filePath: source.Path,
+    fileLabel: sourceFilePath(item, source)?.split(/[\\/]/).filter(Boolean).pop() || source.Name,
+    filePath: sourceFilePath(item, source),
     fileSubLabel: formatSize(source.Size),
     mediaInfoCards: createMediaInfoCardsForSource(source)
   }))
@@ -606,8 +612,8 @@ const mapItemDetail = (config: MediaServerConfig, item: MediaServerBaseItem): Me
   externalLinks: createExternalLinks(item),
   mediaInfoCards: createMediaInfoCardsForSource(item.MediaSources?.[0]),
   sourceOptions: createSourceOptions(item),
-  fileLabel: item.MediaSources?.[0]?.Path?.split('/').filter(Boolean).pop() || item.MediaSources?.[0]?.Name,
-  filePath: item.MediaSources?.[0]?.Path,
+  fileLabel: sourceFilePath(item, item.MediaSources?.[0])?.split(/[\\/]/).filter(Boolean).pop() || item.MediaSources?.[0]?.Name,
+  filePath: sourceFilePath(item, item.MediaSources?.[0]),
   fileSubLabel: [formatDateLabel(item.PremiereDate), formatSize(item.MediaSources?.[0]?.Size)].filter(Boolean).join('  '),
   playbackPositionTicks: item.UserData?.PlaybackPositionTicks,
   chapters: createChapters(item)
@@ -920,7 +926,7 @@ export const getMediaServerItemDetail = async (
   ensureServerContext(config)
   const payload = await mediaServerFetch<MediaServerBaseItem>(
     config,
-    `/Users/${config.userId}/Items/${itemId}?EnableUserData=true&Fields=Overview,Taglines,Genres,Studios,People,ProviderIds,ExternalUrls,PrimaryImageAspectRatio,MediaSources,MediaStreams,ProductionLocations,DateCreated,Chapters,CommunityRating,CriticRating`
+    `/Users/${config.userId}/Items/${itemId}?EnableUserData=true&Fields=Path,Overview,Taglines,Genres,Studios,People,ProviderIds,ExternalUrls,PrimaryImageAspectRatio,MediaSources,MediaStreams,ProductionLocations,DateCreated,Chapters,CommunityRating,CriticRating`
   )
   return mapItemDetail(config, payload)
 }

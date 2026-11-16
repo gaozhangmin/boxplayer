@@ -5,6 +5,7 @@ import useMusicLibraryStore from '../store/musiclibrary'
 import useMusicPlayerStore, { type MusicPlayerState } from '../store/musicplayerstore'
 import message from '../utils/message'
 import { TestAlt, TestKey, TestShift } from '../utils/keyboardhelper'
+import { enrichPlayingTrack } from '../utils/musicHeadMetadata'
 import { getRawUrl } from '../utils/proxyhelper'
 import UserDAL from '../user/userdal'
 import useMediaServerRegistryStore from '../store/mediaServerRegistry'
@@ -16,6 +17,9 @@ import { shouldHandleMusicPlayerDblClick } from '../utils/pageMusicEvents'
 import { loadMusicTrackList, musicTrackKey, saveMusicTrackList } from '../utils/musicPlayerStorage'
 import { RotateCcw } from 'lucide-vue-next'
 import MusicImmersiveStage from './music/MusicImmersiveStage.vue'
+import MusicFlowingLyrics from './music/MusicFlowingLyrics.vue'
+import { provideMusicDownloads } from '../utils/useMusicDownloads'
+import { DEFAULT_FLOWING_COLORS, type FlowingColors } from '../utils/radio/FlowingLyrics'
 import MusicBottomConsole from './music/MusicBottomConsole.vue'
 import MusicMiniQueue from './music/MusicMiniQueue.vue'
 import { fadeTo } from '../module/audioplayer/index'
@@ -214,7 +218,8 @@ const onKeyDown = (e: KeyboardEvent) => {
     hotkeyCaptureId.value = ''
     return
   }
-  if (el?.nodeName === 'INPUT' || el?.nodeName === 'TEXTAREA') return
+  if (e.key === 'Escape' && flowingLyricsVisible.value) { e.preventDefault(); e.stopPropagation(); if (showFxPanel.value) showFxPanel.value = false; else showLyrics.value = false; return }
+  if (el?.nodeName === 'INPUT' || el?.nodeName === 'TEXTAREA' || el?.nodeName === 'SELECT') return
   if (handleCustomHotkey(e)) return
   keyboardStore.KeyDown(e)
 }
@@ -283,6 +288,11 @@ function toggleQueueRepeat() {
 }
 
 const showLyrics = ref(false)
+const lyricPresentation = ref<'standard' | 'flowing'>(loadJson<string>('pm.lyricPresentation', 'standard') === 'flowing' ? 'flowing' : 'standard')
+const flowingColors = ref<FlowingColors>({ ...DEFAULT_FLOWING_COLORS, ...loadJson('pm.flowingColors', {}) })
+const flowingLyricsVisible = computed(() => showLyrics.value && lyricPresentation.value === 'flowing')
+watch(lyricPresentation, value => saveJson('pm.lyricPresentation', value))
+watch(flowingColors, value => saveJson('pm.flowingColors', value), { deep: true })
 const showPanel = ref(false)
 const showQueue = ref(false)
 const playerRoot = shallowRef<HTMLElement | null>(null)
@@ -306,6 +316,7 @@ const hotkeyCaptureId = ref('')
 const globalHotkeysEnabled = ref(false)
 const globalHotkeyStatus = ref('')
 const showSplash = ref(false)
+provideMusicDownloads()
 const desktopLyricsOn = ref(false)
 const lyricTimeOffsetSec = ref(0)
 const desktopLyricsClickThrough = ref(false)
@@ -664,6 +675,8 @@ function toggleImmersiveMode() {
 function syncDesktopLyricsWindow() {
   if (!desktopLyricsOn.value) return
   window.WebSendLyric?.({
+    presentation: lyricPresentation.value,
+    flowingColors: { ...flowingColors.value },
     text: desktopLyricText.value,
     next: desktopLyricNext.value,
     title: title.value || curTrack.value?.file_name || '',
@@ -849,10 +862,10 @@ async function applyCustomLyric(text: string, persist = true) {
   customLyricAppliedKey = key
   meta.value = {
     ...(meta.value || {
-      title: stripExt(track.file_name || ''),
-      artist: '',
-      album: '',
-      cover: '',
+      title: track.title || stripExt(track.file_name || ''),
+      artist: track.artist || '',
+      album: track.album || '',
+      cover: track.thumbnail || '',
       lrc: '',
       lines: []
     }),
@@ -867,7 +880,7 @@ async function applyCustomLyric(text: string, persist = true) {
         album: meta.value?.album || '',
         durationSec: dur.value || undefined
       },
-      lyricProvider: 'musicsdk',
+      lyricProvider: 'boxplayer-api',
       lrcLength: text.length,
       parsedLineCount: lines.length,
       lyricLineSource,
@@ -967,7 +980,7 @@ function formatLyricDebugTitle(data: MusicMetadata | null) {
   const debug = data?.debug
   if (!debug) return ''
   const lines = [
-    `Lyric API: musicsdk (NetEase wy -> Kugou kg)`,
+    `Lyric API: BoxPlayer shared music service`,
     `Metadata sources: ${(data?.metadataSources || []).join(', ') || 'filename'}`,
     `Query: ${debug.query.artist ? `${debug.query.artist} - ` : ''}${debug.query.title}`,
     `File: ${debug.query.filename}`,
@@ -1006,6 +1019,8 @@ async function resolveUrl(idx: number) {
   const track = playlist.value[idx]
   if (!track) return { url: '', headers: {} }
   if (track.local_url) return { url: track.local_url, headers: {} }
+  // Missing/expired local locators must never fall through to a cloud account.
+  if (track.user_id === 'local' || track.drive_id === 'local') throw new Error(t('music.getUrlFailed'))
   if (track.media_server_id && track.media_server_item_id) {
     mediaServerRegistry.ensureLoaded()
     const config = mediaServerRegistry.servers.find((server) => server.id === track.media_server_id)
@@ -1023,7 +1038,7 @@ async function resolveUrl(idx: number) {
   return { url: d.url || '', headers: d.headers || {} }
 }
 
-async function loadIdx(idx: number, auto = true) {
+async function loadIdx(idx: number, auto = true, enrichHead = true) {
   cancelMusicTransition()
   if (!playlist.value.length) return
   void mpvMusicControl('pause')
@@ -1069,6 +1084,7 @@ async function loadIdx(idx: number, auto = true) {
     await mpvMusicControl(auto ? 'play' : 'pause')
     if (musicDisposed || generation !== musicLoadGeneration) return
     playing.value = auto
+    if (auto && enrichHead) enrichPlayingTrack(playlist.value[idx], { url, headers })
     if (!musicPollingStarted) { musicPollingStarted = true; void pollMusicStatus() }
   } catch (e: any) {
     if (musicDisposed || generation !== musicLoadGeneration) return
@@ -1096,12 +1112,12 @@ async function loadMeta() {
     return
   }
   const duration = Number.isFinite(effectiveDur.value) && effectiveDur.value > 0 ? Math.round(effectiveDur.value) : 0
-  const queryKey = `${musicTrackKey(t)}|${duration}`
+  const queryKey = `${musicTrackKey(t)}|${duration}|${t.title || ''}|${t.artist || ''}|${t.album || ''}|${t.thumbnail || ''}|${t.lyric_text || ''}`
   if (queryKey === lastMetaQueryKey && meta.value) return
   lastMetaQueryKey = queryKey
   metaLoad.value = true
   try {
-    const d = await fetchMusicMetadata({ filename: t.file_name, durationSec: duration || undefined })
+    const d = await fetchMusicMetadata({ filename: t.file_name, durationSec: duration || undefined, titleHint: t.title, artistHint: t.artist, albumHint: t.album, coverHint: t.thumbnail, lyricHint: t.lyric_text, preserveHints: t.metadata_source === 'embedded' || !!t.media_server_id, sourceHint: t.media_server_id ? 'server' : t.metadata_source })
     if (tok !== metaTok) return
     meta.value = d
   } catch {
@@ -1130,12 +1146,12 @@ function playPrev() {
 async function playNext(auto = false) {
   if (!playlist.value.length) return
   const owner = musicSessionId, key = currentKey.value
-  if (mode.value === 'loop-one' && auto) return loadIdx(curIdx.value, true)
+  if (mode.value === 'loop-one' && auto) return loadIdx(curIdx.value, true, !auto)
   if (auto && automaticContinuation.value && curIdx.value === playlist.value.length - 1) {
     try { await appendContinuation() } catch { /* Retain the selected repeat policy when the library is unavailable. */ }
     if (musicDisposed || owner !== musicSessionId || key !== currentKey.value) return
   }
-  if (mode.value === 'shuffle') return loadIdx(pickShuffle(), true)
+  if (mode.value === 'shuffle') return loadIdx(pickShuffle(), true, !auto)
   let n = curIdx.value + 1
   if (n >= playlist.value.length) {
     if (mode.value === 'list' && auto) {
@@ -1144,7 +1160,7 @@ async function playNext(auto = false) {
     }
     n = 0
   }
-  loadIdx(n, true)
+  loadIdx(n, true, !auto)
 }
 function pickShuffle() {
   if (playlist.value.length <= 1) return 0
@@ -1479,6 +1495,7 @@ onMounted(() => {
   loadPageMusic(d)
 })
 
+watch(() => [curTrack.value?.title, curTrack.value?.artist, curTrack.value?.album, curTrack.value?.thumbnail, curTrack.value?.lyric_text], () => { if (curTrack.value && !customLyricAppliedKey) void loadMeta() })
 watch(curTrack, (t) => { if (t && !props.sidePanel) document.title = t.file_name })
 watch(() => [appStore.appTab, appStore.mediaLibrarySection], () => {
   if (props.sidePanel && (appStore.appTab !== 'media' || appStore.mediaLibrarySection !== 'music')) showQueue.value = false
@@ -1519,7 +1536,7 @@ watch(desktopLyricsOn, (v) => {
     window.WebCloseLyric?.()
   }
 })
-watch([desktopLyricText, desktopLyricNext, title, artist, playing, desktopLyricFontSize, desktopLyricPrimaryColor, desktopLyricSecondaryColor, desktopLyricOpacity, desktopLyricY, desktopLyricBgOpacity, desktopLyricShake, desktopLyricFontFamily, desktopLyricHighlightFollow, visualFx], syncDesktopLyricsWindow, { deep: true })
+watch([lyricPresentation, flowingColors, desktopLyricText, desktopLyricNext, title, artist, playing, desktopLyricFontSize, desktopLyricPrimaryColor, desktopLyricSecondaryColor, desktopLyricOpacity, desktopLyricY, desktopLyricBgOpacity, desktopLyricShake, desktopLyricFontFamily, desktopLyricHighlightFollow, visualFx], syncDesktopLyricsWindow, { deep: true })
 watch([desktopLyricsClickThrough, desktopLyricsLocked, desktopLyricFps], syncDesktopLyricsWindow)
 watch(desktopLyricFontSize, (v) => saveJson('pm.desktopLyricFontSize', v))
 watch(desktopLyricFps, (v) => saveJson('pm.desktopLyricFps', v))
@@ -1597,7 +1614,15 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
       <button class="win-dot min" @click.stop="handleMin"></button>
       <button class="win-dot max" @click.stop="handleMax"></button>
     </div>
+    <MusicFlowingLyrics
+      v-if="flowingLyricsVisible"
+      :text="lyricLines[activeLine]?.text || lyricLines[0]?.text || title"
+      :playing="playing" :colors="flowingColors"
+      @exit="showLyrics = false" @standard="lyricPresentation = 'standard'" @settings="markControlsVisible(); showFxPanel = true"
+    />
     <MusicImmersiveStage
+      v-else
+      :key="visualFx.playerInterface"
       :active-line="activeLine"
       :artist="artist"
       :cover-url="coverUrl"
@@ -1664,6 +1689,7 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
         </button>
       </div>
       <div class="music-fx-presets">
+        <button class="music-fx-preset" :aria-pressed="visualFx.playerInterface === 'fresh'" @click="visualFx = { ...visualFx, playerInterface: 'fresh' }">{{ t('music.cleanPlaybackInterface') }}</button>
         <button v-for="preset in MUSIC_FX_PRESETS" :key="preset.id" class="music-fx-preset" @click="applyFxPreset(preset.config)">{{ preset.name }}</button>
       </div>
       <div class="music-fx-user-slots">
@@ -1859,6 +1885,18 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
       </div>
       <div class="music-fx-subnote">{{ visualFx.liveBackgroundKeep ? t('music.liveBackgroundKeepOn') : t('music.backgroundAutoRelease') }}</div>
       <div class="music-fx-section">{{ t('music.lyricAppearance') }}</div>
+      <label class="music-fx-slider">
+        <span>{{ t('music.lyricMode') }}</span>
+        <select v-model="lyricPresentation">
+          <option value="standard">{{ t('music.standardLyrics') }}</option>
+          <option value="flowing">{{ t('music.flowingLyrics') }}</option>
+        </select>
+      </label>
+      <div class="music-fx-color-row">
+        <label><span>{{ t('music.flowingText') }}</span><input v-model="flowingColors.text" type="color" /></label>
+        <label><span>{{ t('music.flowingLight') }}</span><input v-model="flowingColors.light" type="color" /></label>
+        <label><span>{{ t('music.flowingBackground') }}</span><input v-model="flowingColors.background" type="color" /></label>
+      </div>
       <div class="music-fx-subsection">{{ t('music.lyricSource') }}</div>
       <div class="music-fx-seg">
         <button :class="{ on: visualFx.lyricSourceMode === 'original' }" @click="visualFx.lyricSourceMode = 'original'">{{ t('music.originalLyric') }}</button>
@@ -2043,6 +2081,7 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
     </Teleport>
 
     <MusicBottomConsole
+      v-if="!flowingLyricsVisible"
       :album="album"
       :artist="artist"
       :cover-url="coverUrl"
@@ -2063,6 +2102,7 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
       :playing="playing"
       :progress-percent="progPct"
       :show-lyrics="showLyrics"
+      :download-track="curTrack || undefined"
       :show-fx-panel="showFxPanel"
       :show-panel="showPanel"
       :title="title"
@@ -2233,6 +2273,8 @@ defineExpose({ togglePlay, playPrev, playNext, seekRel })
 </template>
 
 <style scoped lang="less">
+.music-fx-preset[aria-pressed="true"] { border-color:#9db8cf; background:#9db8cf22; }
+
 .mineradio-player {
   position: relative;
   width: 100%;

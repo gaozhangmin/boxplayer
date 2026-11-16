@@ -194,6 +194,7 @@ const useMusicLibraryStore = defineStore('musiclibrary', () => {
             user_id: f.user_id || '',
             drive_id: f.drive_id || '',
             file_id: f.file_id || '',
+            local_url: f.local_url,
             parent_file_id: f.parent_file_id || '',
             file_name: f.file_name || '',
             ext: f.ext || '',
@@ -362,11 +363,28 @@ const useMusicLibraryStore = defineStore('musiclibrary', () => {
     return removed
   }
 
-  async function updateTrackEnrichment(id: string, patch: Partial<IMusicTrack>) {
+  const enrichmentWrites = new Map<string, Promise<boolean>>()
+  function updateTrackEnrichment(id: string, patch: Partial<IMusicTrack>): Promise<boolean> {
+    const job = (enrichmentWrites.get(id) || Promise.resolve(false)).catch(() => false)
+      .then(() => updateTrackEnrichmentNow(id, patch))
+      .finally(() => { if (enrichmentWrites.get(id) === job) enrichmentWrites.delete(id) })
+    enrichmentWrites.set(id, job)
+    return job
+  }
+  async function updateTrackEnrichmentNow(id: string, patch: Partial<IMusicTrack>) {
     const idx = tracks.value.findIndex((t) => t.id === id)
     const existing = idx >= 0 ? tracks.value[idx] : await DB.getMusicTrackById(id)
     if (!existing) return false
+    if (patch.artwork_failed_url && patch.cover_url === '' && ![existing.cover_url, existing.thumbnail].includes(patch.artwork_failed_url)) return false
+    if (existing.metadata_source === 'manual' && patch.metadata_source !== 'manual') return false
     const merged = mergeMusicEnrichment(existing, patch)
+    if (existing.metadata_source === 'embedded' && patch.metadata_source !== 'embedded') {
+      for (const key of ['title', 'artist', 'artists', 'album', 'album_artist', 'album_artists', 'genre', 'track_number', 'disc_number', 'release_date', 'lyric_text', 'musicbrainz_recording_id', 'musicbrainz_release_id', 'isrc', 'replaygain_track', 'replaygain_album'] as const) {
+        if (existing[key] !== undefined && existing[key] !== '') Object.assign(merged, { [key]: existing[key] })
+      }
+      merged.metadata_source = 'embedded'; merged.head_tag_version = existing.head_tag_version
+      if (existing.artwork_origin === 'embedded' && patch.artwork_failed_url !== existing.cover_url) { merged.cover_url = existing.cover_url; merged.artwork_origin = 'embedded' }
+    }
     await DB.saveMusicTracks([merged])
     if (idx >= 0) {
       tracks.value = [

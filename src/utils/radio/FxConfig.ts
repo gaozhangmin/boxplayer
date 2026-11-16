@@ -7,6 +7,7 @@ export type LyricFontFamily = 'system' | 'serif' | 'gothic' | 'mono'
 
 export interface MusicFxConfig {
   version: 1
+  playerInterface: 'particleStage' | 'fresh'
   intensity: number
   depth: number
   scatter: number
@@ -77,6 +78,7 @@ export interface MusicFxConfig {
 
 export const DEFAULT_MUSIC_FX: MusicFxConfig = {
   version: 1,
+  playerInterface: 'particleStage',
   intensity: 0.85,
   depth: 1,
   scatter: 0,
@@ -225,6 +227,7 @@ export function normalizeMusicFxConfig(value: unknown): MusicFxConfig {
   const raw = (value && typeof value === 'object') ? value as Partial<MusicFxConfig> : {}
   return {
     version: 1,
+    playerInterface: raw.playerInterface === 'fresh' ? 'fresh' : 'particleStage',
     intensity: numberIn(raw.intensity, 0.2, 1.6, DEFAULT_MUSIC_FX.intensity),
     depth: numberIn(raw.depth, 0.2, 1.8, DEFAULT_MUSIC_FX.depth),
     scatter: numberIn(raw.scatter, 0, 1.2, DEFAULT_MUSIC_FX.scatter),

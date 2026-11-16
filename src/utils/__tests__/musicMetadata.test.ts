@@ -1,180 +1,57 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+const post = vi.hoisted(() => vi.fn())
+vi.mock('axios', () => ({ default: { post } }))
+vi.mock('../../config', () => ({ default: { BOXPLAYER_API_URL: 'https://api.example' } }))
+vi.mock('../debuglog', () => ({ default: { mSaveWarning: vi.fn() } }))
+import { clearMusicMetaCache, fetchMusicMetadata, guessArtistTitle, parseLrc } from '../musicMetadata'
 
-const axiosGet = vi.hoisted(() => vi.fn())
-
-vi.mock('axios', () => ({
-  default: {
-    get: axiosGet
-  }
-}))
-
-function defaultAxiosGet(url: string) {
-      if (String(url).includes('itunes.apple.com')) {
-    return Promise.resolve({
-          data: {
-            results: [
-              {
-                trackName: 'Song',
-                artistName: 'Artist',
-                collectionName: 'Album',
-                artworkUrl100: 'https://img.example/100x100bb.jpg'
-              }
-            ]
-          }
-    })
-      }
-  return Promise.resolve({ data: {} })
-}
-
-vi.mock('../debuglog', () => ({
-  default: {
-    mSaveWarning: vi.fn(),
-    mSaveInfo: vi.fn()
-  }
-}))
-
-const musicsdkMock = vi.hoisted(() => {
-  const fetchLyricDetailed = vi.fn(async () => ({
-    lyric: { lyric: '[00:01.00]hello\n[00:03.00]world' },
-    debug: {
-      query: { name: 'Song', singer: 'Artist' },
-      matched: { source: 'wy', name: 'Song', singer: 'Artist', songmid: 1 },
-      steps: [{ source: 'wy', status: 'ok', message: 'ok', lyricLength: 31 }],
-      finalStatus: 'ok'
-    }
-  }))
-  const fetchCover = vi.fn(async () => null)
-  return {
-    fetchLyricDetailed,
-    fetchCover,
-    module: () => ({
-      fetchLyricDetailed,
-      fetchCover
-    })
-  }
-})
-
-vi.mock('../module/musicsdk/index', musicsdkMock.module)
-vi.mock('../../module/musicsdk/index', musicsdkMock.module)
-vi.mock('/Users/gaozhangmin/aliyunpan/src/module/musicsdk/index.ts', musicsdkMock.module)
-
-describe('musicMetadata', () => {
-  beforeEach(async () => {
-    axiosGet.mockReset()
-    axiosGet.mockImplementation(defaultAxiosGet)
-    musicsdkMock.fetchLyricDetailed.mockReset()
-    musicsdkMock.fetchLyricDetailed.mockResolvedValue({
-      lyric: { lyric: '[00:01.00]hello\n[00:03.00]world' },
-      debug: {
-        query: { name: 'Song', singer: 'Artist' },
-        matched: { source: 'wy', name: 'Song', singer: 'Artist', songmid: 1 },
-        steps: [{ source: 'wy', status: 'ok', message: 'ok', lyricLength: 31 }],
-        finalStatus: 'ok'
-      }
-    })
-    const mod = await import('../musicMetadata')
-    mod.clearMusicMetaCache()
+describe('shared music metadata', () => {
+  beforeEach(() => {
+    clearMusicMetaCache(); post.mockReset()
+    post.mockImplementation(async (url: string) => ({ data: url.endsWith('/lyrics')
+      ? { lyrics: '[00:01.00]hello\n[00:03.00]world', provider: 'lrclib' }
+      : { matches: [{ id: 'playback', title: 'Song', artist: 'Artist', album: 'Album', artworkURL: 'https://img/cover.jpg', provider: 'qq', confidence: 1 }], retryableFailureIDs: [] } }))
   })
-
-  it('parses Kugou KRC millisecond timestamps returned by the SDK', async () => {
-    const { parseLrc } = await import('../musicMetadata')
-
-    expect(parseLrc('[1234,2800]hello<200,300>world\n[4567,1200]next')).toEqual([
-      { time: 1.234, text: 'helloworld' },
-      { time: 4.567, text: 'next' }
-    ])
+  it('uses only the shared API for catalog and lyrics', async () => {
+    const meta = await fetchMusicMetadata({ filename: 'Artist - Song.mp3', durationSec: 256 })
+    expect(meta).toMatchObject({ title: 'Song', artist: 'Artist', album: 'Album', cover: 'https://img/cover.jpg' })
+    expect(meta.lines.map(line => line.text)).toEqual(['hello', 'world'])
+    expect(post.mock.calls.map(call => call[0])).toEqual(['https://api.example/api/music/metadata', 'https://api.example/api/music/lyrics'])
+    expect(post.mock.calls[1][1]).toMatchObject({ durationSec: 256 })
   })
-
-  it('strips track numbers before splitting artist and title', async () => {
-    const { guessArtistTitle } = await import('../musicMetadata')
-
+  it('retains embedded tags and lyrics over online fields', async () => {
+    const meta = await fetchMusicMetadata({ filename: 'bad.mp3', titleHint: 'Local', artistHint: 'Singer', albumHint: 'Local Album', coverHint: 'data:image/png;base64,AA==', lyricHint: '[00:01]local lyric', preserveHints: true })
+    expect(meta).toMatchObject({ title: 'Local', artist: 'Singer', album: 'Local Album', lrc: '[00:01]local lyric', cover: 'data:image/png;base64,AA==' })
+    expect(post).toHaveBeenCalledTimes(1)
+  })
+  it('does not search a title without a reliable artist', async () => {
+    expect(await fetchMusicMetadata({ filename: 'Song.mp3' })).toMatchObject({ title: 'Song', artist: '', cover: '' })
+    expect(post).not.toHaveBeenCalled()
+  })
+  it('skips lyrics during background metadata enrichment', async () => {
+    expect((await fetchMusicMetadata({ filename: 'Artist - Song.mp3', includeLyrics: false })).lines).toEqual([])
+    expect(post).toHaveBeenCalledTimes(1)
+  })
+  it('keeps upstream failures retryable for background jobs', async () => {
+    post.mockResolvedValueOnce({ data: { matches: [], retryableFailureIDs: ['playback'] } })
+    await expect(fetchMusicMetadata({ filename: 'Artist - Song.mp3', includeLyrics: false })).rejects.toMatchObject({ name: 'MusicMetadataTransientError' })
+  })
+  it('does not accept a low confidence response', async () => {
+    post.mockResolvedValueOnce({ data: { matches: [{ id: 'playback', title: 'Wrong', artist: 'Wrong', confidence: 0.5 }], retryableFailureIDs: [] } })
+    expect(await fetchMusicMetadata({ filename: 'Artist - Song.mp3', includeLyrics: false })).toMatchObject({ title: 'Song', artist: 'Artist', cover: '' })
+  })
+  it('separates cache entries by album', async () => {
+    await fetchMusicMetadata({ filename: 'Artist - Song.mp3', albumHint: 'First', includeLyrics: false })
+    await fetchMusicMetadata({ filename: 'Artist - Song.mp3', albumHint: 'Second', includeLyrics: false })
+    expect(post).toHaveBeenCalledTimes(2)
+  })
+  it('parses KRC timestamps and global offsets', () => {
+    expect(parseLrc('[1234,2800]hello<200,300>world\n[4567,1200]next')).toEqual([{ time: 1.234, text: 'helloworld' }, { time: 4.567, text: 'next' }])
+    expect(parseLrc('[offset:1500]\n[00:01.00]hello')).toEqual([{ time: 2.5, text: 'hello' }])
+  })
+  it('displays plain lyrics and strips filename track numbers', () => {
+    expect(parseLrc('one\ntwo\nthree', 90)).toEqual([{ time: 0, text: 'one' }, { time: 30, text: 'two' }, { time: 60, text: 'three' }])
     expect(guessArtistTitle('03. 周杰倫 - 星晴.flac')).toEqual({ artist: '周杰倫', title: '星晴' })
-    expect(guessArtistTitle('12 周杰倫 - 七里香.mp3')).toEqual({ artist: '周杰倫', title: '七里香' })
-  })
-
-  it('applies global LRC offset to timed lyrics', async () => {
-    const { parseLrc } = await import('../musicMetadata')
-
-    expect(parseLrc('[offset:1500]\n[00:01.00]hello\n[00:03.00]world')).toEqual([
-      { time: 2.5, text: 'hello' },
-      { time: 4.5, text: 'world' }
-    ])
-  })
-
-  it('keeps plain lyrics visible when the lyric source has no timeline', async () => {
-    musicsdkMock.fetchLyricDetailed.mockResolvedValue({
-      lyric: { lyric: '第一句歌词\n第二句歌词' },
-      debug: {
-        query: { name: 'Song', singer: 'Artist' },
-        matched: { source: 'wy', name: 'Song', singer: 'Artist', songmid: 1 },
-        steps: [{ source: 'wy', status: 'ok', message: 'ok', lyricLength: 11 }],
-        finalStatus: 'ok'
-      }
-    })
-    const { fetchMusicMetadata } = await import('../musicMetadata')
-
-    const meta = await fetchMusicMetadata({ filename: 'Artist - Song.mp3' })
-
-    expect(meta.lines.map((line) => line.text)).toEqual(['第一句歌词', '第二句歌词'])
-    expect(meta.debug?.reason).toBe('歌词接口返回纯文本，已按行展示 2 行')
-  })
-
-  it('spreads plain lyrics across the known track duration', async () => {
-    const { parseLrc } = await import('../musicMetadata')
-
-    expect(parseLrc('第一句歌词\n第二句歌词\n第三句歌词', 90)).toEqual([
-      { time: 0, text: '第一句歌词' },
-      { time: 30, text: '第二句歌词' },
-      { time: 60, text: '第三句歌词' }
-    ])
-  })
-
-  it('records metadata source steps without turning external metadata into playable music', async () => {
-    const { fetchMusicMetadata } = await import('../musicMetadata')
-
-    const meta = await fetchMusicMetadata({ filename: 'Artist - Song.mp3' })
-
-    expect(meta.metadataSources).toEqual(expect.arrayContaining(['filename', 'itunes:cover', 'musicsdk:lyrics']))
-    expect(meta.cover).toBe('https://img.example/600x600bb.jpg')
-    expect(meta).toMatchObject({ title: 'Song', artist: 'Artist', album: 'Album' })
-    expect(meta.lines.map((line) => line.text)).toEqual(['hello', 'world'])
-  })
-
-  it('skips lyric providers during background library cover enrichment', async () => {
-    const { fetchMusicMetadata } = await import('../musicMetadata')
-
-    const meta = await fetchMusicMetadata({ filename: 'Artist - Background Song.mp3', includeLyrics: false })
-
-    expect(musicsdkMock.fetchLyricDetailed).not.toHaveBeenCalled()
-    expect(meta.lines).toEqual([])
-  })
-
-  it('rejects an iTunes candidate when the title and artist do not match', async () => {
-    axiosGet.mockResolvedValueOnce({
-      data: {
-        results: [{ trackName: 'Completely Different', artistName: 'Wrong Artist', collectionName: 'Wrong Album', artworkUrl100: 'https://img.example/wrong.jpg' }]
-      }
-    })
-    const { fetchMusicMetadata } = await import('../musicMetadata')
-
-    const meta = await fetchMusicMetadata({ filename: 'Artist - Song.mp3', includeLyrics: false })
-
-    expect(meta).toMatchObject({ title: 'Song', artist: 'Artist', album: '', cover: '' })
-    expect(meta.metadataSources).not.toContain('itunes:metadata')
-  })
-
-  it('surfaces a transient iTunes failure during background enrichment', async () => {
-    axiosGet.mockRejectedValueOnce({ response: { status: 429 }, message: 'Too Many Requests' })
-    const { fetchMusicMetadata } = await import('../musicMetadata')
-
-    await expect(fetchMusicMetadata({ filename: 'Artist - Rate Limited Song.mp3', includeLyrics: false })).rejects.toMatchObject({ name: 'MusicMetadataTransientError' })
-  })
-
-  it('passes local track duration to lyric matching', async () => {
-    const { fetchMusicMetadata } = await import('../musicMetadata')
-
-    await fetchMusicMetadata({ filename: '03. Artist - Song.mp3', durationSec: 256 })
-
-    expect(musicsdkMock.fetchLyricDetailed).toHaveBeenCalledWith({ name: 'Song', singer: 'Artist', interval: '04:16' })
+    expect(guessArtistTitle('周杰伦 - 晴天 (Live).flac')).toEqual({ artist: '周杰伦', title: '晴天 (Live)' })
   })
 })

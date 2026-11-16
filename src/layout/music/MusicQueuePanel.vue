@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import MusicDownloadBadge from './MusicDownloadBadge.vue'
 import { Shuffle, Repeat, Repeat1, Infinity, Blend, Clock, Heart, ListMusic, Music, SkipForward, Trash2, X } from 'lucide-vue-next'
 import type { IPageMusicTrack } from '../../store/appstore'
 import { musicTrackKey } from '../../utils/musicPlayerStorage'
@@ -100,6 +101,7 @@ function stripExt(name: string) {
           <span class="music-queue-title">{{ stripExt(row.track.file_name || '') }}</span>
           <span class="music-queue-sub">{{ row.track.ext ? String(row.track.ext).replace(/^\./, '').toUpperCase() : tt('music.cloudMusic') }}</span>
         </span>
+        <MusicDownloadBadge :track="row.track" />
         <button v-if="panelTab === 'queue'" class="music-queue-action qi-act" :title="tt('music.playNext')" @click.stop="emit('next-play', row.sourceIndex)"><SkipForward :size="13" /></button>
         <button v-if="panelTab === 'queue'" class="music-queue-action qi-act" :title="tt('music.removeFromQueue')" @click.stop="emit('remove-queue', row.sourceIndex)"><Trash2 :size="13" /></button>
         <button v-else-if="panelTab === 'fav'" class="music-queue-action qi-act liked" :title="tt('music.removeFavorite')" @click.stop="emit('remove-fav', row.track)"><X :size="13" /></button>

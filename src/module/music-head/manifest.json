@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "parser": "music-metadata@12.5.0",
+  "maxHeadBytes": 1048576,
+  "sha256": "a586d44c1fdb58cdee8bafe727f9c6ffc6dd1adf4eea456a7b7935eae9b50d67"
+}

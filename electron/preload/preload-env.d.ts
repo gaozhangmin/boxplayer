@@ -12,6 +12,8 @@ declare interface Window {
   WebStartupLock: (action: 'status' | 'unlock' | 'save' | 'disable' | 'system-unlock' | 'system-setting', current?: string, next?: string | boolean) => Promise<{ ok?: boolean; enabled?: boolean; locked?: boolean; systemUnlockAvailable?: boolean; systemUnlockEnabled?: boolean }>
   WebIsE2E: boolean
   WebE2EAllowTransfers: boolean
+  WebReadMusicLocal?: (input: { url: string; offset?: number; length?: number; version?: string }) => Promise<{ size: number; version: string; base64?: string }>
+    WebReadMusicHead?: (input: { url: string; headers?: Record<string, string> }) => Promise<{ base64?: string; error?: boolean; status?: number; retryAfter?: string }>
   WebGetPathForFile: (file: File) => string
   WinMsg: any
   WebToElectron: any

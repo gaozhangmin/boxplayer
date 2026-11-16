@@ -10,7 +10,7 @@ vi.mock('../debuglog', () => ({ default: { mSaveWarning: vi.fn() } }))
 import { enrichMusicLibrary } from '../musicEnrichment'
 const track = (patch: Partial<IMusicTrack> = {}) => ({ id: '1', file_name: '01.可爱女人.flac', parent_path: '/周杰伦无损音乐集合/2000.11.07 - Jay', ...patch } as IMusicTrack)
 
-describe('Apple v13 music catalogue contract', () => {
+describe('Shared music catalogue contract', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.all.mockResolvedValue([]); mocks.post.mockResolvedValue({ data: { matches: [], retryableFailureIDs: [] } }) })
   it('derives artist and album from ancestor folders without treating a date as an artist', () => {
     expect(musicCatalogHints(track())).toMatchObject({ title: '可爱女人', artist: '周杰伦', album: 'Jay', trackNumber: 1 })
@@ -38,10 +38,23 @@ describe('Apple v13 music catalogue contract', () => {
     expect(mocks.post.mock.calls[0][1].tracks[0]).toMatchObject({ id: '0', artist: '周杰伦', album: 'Jay', trackNumber: 1 })
     expect(mocks.post.mock.calls[0][2]).toEqual({ timeout: 45000 })
   })
+  it('persists the first API batch while the next batch is still pending', async () => {
+    mocks.candidates.mockResolvedValue(Array.from({ length: 13 }, (_, i) => track({ id: String(i), file_name: `${i + 1}.歌曲${i}.flac` })))
+    let release!: (response: unknown) => void
+    mocks.post.mockResolvedValueOnce({ data: { matches: [], retryableFailureIDs: [] } })
+      .mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+    const running = enrichMusicLibrary()
+    try {
+      await vi.waitFor(() => expect(mocks.post).toHaveBeenCalledTimes(2))
+      expect(mocks.update).toHaveBeenCalledTimes(11)
+    } finally { release({ data: { matches: [], retryableFailureIDs: [] } }) }
+    expect(await running).toBe(13)
+    expect(mocks.update).toHaveBeenCalledTimes(13)
+  })
   it('stamps transport failures so store notifications cannot create a retry loop', async () => {
     mocks.candidates.mockResolvedValue([track()]); mocks.post.mockRejectedValue(new Error('timeout'))
     expect(await enrichMusicLibrary()).toBe(1)
-    expect(mocks.update).toHaveBeenCalledWith('1', expect.objectContaining({ metadata_version: 13, enriched_at: expect.any(Number) }))
+    expect(mocks.update).toHaveBeenCalledWith('1', expect.objectContaining({ metadata_version: MUSIC_METADATA_VERSION, enriched_at: expect.any(Number) }))
   })
   it('does not query an ambiguous title-only singleton', async () => {
     mocks.candidates.mockResolvedValue([track({ parent_path: '/音乐' })])
@@ -54,4 +67,29 @@ describe('Apple v13 music catalogue contract', () => {
     await enrichMusicLibrary()
     expect(mocks.update).toHaveBeenCalledWith('1', expect.objectContaining({ album: 'Jay', release_date: '2000', cover_url: 'https://cover.example/a.jpg', metadata_provider: 'itunes' }))
   })
+})
+
+it('retries a transient catalog failure in a minute rather than a day', async () => {
+  mocks.candidates.mockResolvedValue([track()])
+  mocks.post.mockResolvedValue({ data: { matches: [], retryableFailureIDs: ['0'] }, headers: { 'retry-after': '120' } })
+  const before = Date.now()
+  await enrichMusicLibrary()
+  const patch = mocks.update.mock.calls.at(-1)![1]
+  expect(patch.metadata_retry_at).toBeGreaterThanOrEqual(before + 120000)
+  expect(shouldEnrichMusic({ ...track(), ...patch }, before + 1000)).toBe(false)
+  expect(shouldEnrichMusic({ ...track(), ...patch }, before + 121000)).toBe(true)
+})
+
+it('catalogue scraping finishes with API requests only and never reads audio bytes', async () => {
+  vi.clearAllMocks()
+  const read = vi.fn()
+  vi.stubGlobal('window', { WebReadMusicHead: read })
+  mocks.candidates.mockResolvedValue([track({ artist: '周杰伦', title: '可爱女人' })])
+  mocks.all.mockResolvedValue([])
+  mocks.post.mockResolvedValue({ data: { matches: [], retryableFailureIDs: [] } })
+  try {
+    expect(await enrichMusicLibrary()).toBe(1)
+    expect(mocks.post).toHaveBeenCalledTimes(1)
+    expect(read).not.toHaveBeenCalled()
+  } finally { vi.unstubAllGlobals() }
 })

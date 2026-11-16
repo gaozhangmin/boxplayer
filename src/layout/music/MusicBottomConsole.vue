@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import MusicDownloadBadge from './MusicDownloadBadge.vue'
+import type { DownloadTrack } from '../../utils/musicDownloadStatus'
 import { computed, ref } from 'vue'
 import { FileText, Heart, List, LoaderCircle, Pause, Play, Repeat, Repeat1, Shuffle, SkipBack, SkipForward, SlidersHorizontal, Volume2, VolumeX } from 'lucide-vue-next'
 import SoundEffectBtn from '../../components/SoundEffectBtn.vue'
@@ -20,6 +22,7 @@ const props = defineProps<{
   errMsg: string
   showLyrics: boolean
   showPanel: boolean
+  downloadTrack?: DownloadTrack
   showFxPanel: boolean
   isFav: boolean
   muted: boolean
@@ -132,7 +135,8 @@ const qualityOptions = [
 
       <div class="control-cluster modes">
         <SoundEffectBtn class="sound-effect-btn" />
-        <button id="visual-console-btn" :class="['ctrl-btn', showFxPanel ? 'active' : '']" :title="tt('music.visualConsole')" @click="emit('toggle-fx')">
+        <button id="visual-console-btn" style="position:relative" :class="['ctrl-btn', showFxPanel ? 'active' : '']" :title="tt('music.visualConsole')" @click="emit('toggle-fx')">
+          <MusicDownloadBadge :track="downloadTrack" ring />
           <SlidersHorizontal :size="21" :stroke-width="1.85" />
         </button>
         <button id="mini-queue-btn" :class="['ctrl-btn', showPanel ? 'active' : '']" :title="tt('music.playlist')" @click="emit('toggle-panel')">

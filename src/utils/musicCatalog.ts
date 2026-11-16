@@ -1,7 +1,7 @@
 import type { IMusicTrack } from '../types/music'
 
 // Shared contract with Apple MusicLibraryMetadataScraper and Android MusicMetadataScraper.
-export const MUSIC_METADATA_VERSION = 13
+export const MUSIC_METADATA_VERSION = 14
 const DAY = 24 * 60 * 60 * 1000
 const date = /^\s*\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}\s*$/
 const release = /^\s*\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}\s*[-–—]\s*(.+)$/
@@ -22,8 +22,8 @@ export function musicCatalogHints(track: IMusicTrack) {
     const parts = title.split(/ - | – |—| -|- /)
     if (parts.length > 1) { artist = parts.shift()!.trim(); title = parts.join(' - ') }
   }
-  title = title.replace(/[([（【][^\])）】]*(?:official|mv|hd|hq|hi[- ]?res|lossless|live|remix|remaster(?:ed)?|version|edit|cover|instrumental|karaoke|mono|stereo|flac|wav|m4a|aac|mp3|伴奏|纯音乐|高清|无损|完整版|现场|重制)[^\])）】]*[\])）】]/gi, ' ')
-    .replace(/\s*-\s*(official|mv|hd|hq|lossless|live|remix|cover|伴奏|纯音乐|高清|无损|完整版|live现场)\s*$/i, '')
+  title = title.replace(/[([（【][^\])）】]*(?:official|mv|hd|hq|hi[- ]?res|lossless|flac|wav|m4a|aac|mp3|高清|无损|完整版)[^\])）】]*[\])）】]/gi, ' ')
+    .replace(/\s*-\s*(official|mv|hd|hq|lossless|高清|无损|完整版)\s*$/i, '')
     .replace(/[_.]+/g, ' ').replace(/\s+/g, ' ').trim()
   const filenameArtist = artist
   const folders = (track.parent_path || '').replace(/\\/g, '/').split('/').filter(Boolean)
@@ -55,6 +55,8 @@ export function musicCatalogHints(track: IMusicTrack) {
 export function shouldEnrichMusic(track: IMusicTrack, now = Date.now()) {
   const title = (track.title || musicCatalogHints(track).title).trim()
   if (title.length < 2 || /^\d+$/.test(title) || track.metadata_source === 'manual') return false
+  if (track.metadata_retry_at && now < track.metadata_retry_at) return false
+  if (track.metadata_retry_at && now >= track.metadata_retry_at) return true
   const incomplete = !track.cover_url || !(track.artist || track.album_artist) || !track.album || !track.release_date?.trim()
   if (track.metadata_source === 'embedded' && !incomplete) return false
   return track.metadata_version !== MUSIC_METADATA_VERSION || !track.enriched_at || now - track.enriched_at >= (incomplete ? DAY : 7 * DAY)
@@ -81,7 +83,7 @@ export function applyMusicCatalogMatch(track: IMusicTrack, match?: MusicCatalogM
   }
   if (track.metadata_source !== 'embedded') { patch.metadata_source = 'online'; patch.metadata_provider = match.provider }
   const cover = match.artworkURL || match.artworkUrl || match.artwork_url
-  if (cover && track.artwork_origin !== 'embedded') { patch.cover_url = cover; patch.artwork_origin = 'online' }
+  if (cover && (cover !== track.artwork_failed_url || Date.now() - (track.artwork_failed_at || 0) >= 300000) && track.artwork_origin !== 'embedded') { patch.cover_url = cover; patch.artwork_origin = 'online' }
   if (match.musicBrainzRecordingID) patch.musicbrainz_recording_id = match.musicBrainzRecordingID
   if (match.musicBrainzReleaseID) patch.musicbrainz_release_id = match.musicBrainzReleaseID
   return patch

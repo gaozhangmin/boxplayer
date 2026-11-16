@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { X, Shuffle, Repeat, Repeat1, Infinity, Blend } from 'lucide-vue-next'
+import MusicDownloadBadge from './MusicDownloadBadge.vue'
 import type { IPageMusicTrack } from '../../store/appstore'
 import { t as tt } from '../../i18n'
 
@@ -48,6 +49,7 @@ const emit = defineEmits<{
       >
         <span class="mini-queue-idx">{{ index + 1 }}</span>
         <span class="mini-queue-name">{{ track.file_name }}</span>
+        <MusicDownloadBadge :track="track" />
         <button class="mini-queue-rm" @click.stop="emit('remove', index)" :title="tt('music.remove')">×</button>
       </div>
       <div v-if="!tracks.length" class="mini-queue-empty">{{ tt('music.queueEmpty') }}</div>

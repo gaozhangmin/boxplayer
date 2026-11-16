@@ -18,6 +18,7 @@ import { embeddedMpvBridge } from '../mpv/embeddedMpvBridge'
 import { registerSeekThumbnailIpc } from '../mpv/seekThumbnail'
 import { registerLocalVideoPreviewIpc } from '../mpv/localVideoPreview'
 import { registerMusicAudioIpc } from '../mpv/musicAudioBridge'
+import { registerMusicHeadIpc } from '../musicHeadReader'
 import {
   getBookMeta,
   isBookIndexed,
@@ -238,6 +239,7 @@ export default class ipcEvent {
   private static handleMpvEmbedded() {
     ipcMain.handle('MpvEmbedded:getCapability', async () => embeddedMpvBridge.getCapability())
     registerMusicAudioIpc()
+    registerMusicHeadIpc()
     registerSeekThumbnailIpc()
     registerLocalVideoPreviewIpc()
     ipcMain.handle('MpvEmbedded:load', async (event, data) => embeddedMpvBridge.load(data || {}, event.sender))
@@ -1008,9 +1010,15 @@ export default class ipcEvent {
   }
 
   private static lyricWin: BrowserWindow | null = null
+  private static latestLyricData: Record<string, unknown> | null = null
   private static globalHotkeyAccelerators: string[] = []
 
   private static handleWebOpenLyric() {
+    ipcMain.on('WebLyricReady', (event) => {
+      if (ipcEvent.lyricWin?.webContents === event.sender && ipcEvent.latestLyricData) {
+        ipcEvent.sendLyricSnapshot(ipcEvent.latestLyricData)
+      }
+    })
     ipcMain.on('WebOpenLyric', () => {
       if (ipcEvent.lyricWin && !ipcEvent.lyricWin.isDestroyed()) {
         ipcEvent.lyricWin.show()
@@ -1039,7 +1047,7 @@ export default class ipcEvent {
       win.removeMenu()
       win.setAlwaysOnTop(true, 'screen-saver')
       if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) win.loadURL(process.env.VITE_DEV_SERVER_URL + '/desktop-lyrics.html')
-      else win.loadFile(getStaticPath('desktop-lyrics.html'))
+      else win.loadFile(getAsarPath('dist/desktop-lyrics.html'))
       win.on('ready-to-show', () => win.show())
       win.on('closed', () => {
         ipcEvent.lyricWin = null
@@ -1050,10 +1058,16 @@ export default class ipcEvent {
 
   private static handleWebSendLyric() {
     ipcMain.on('WebSendLyric', (_event, data) => {
+      ipcEvent.latestLyricData = data
+      ipcEvent.sendLyricSnapshot(data)
+    })
+  }
+
+  private static sendLyricSnapshot(data: Record<string, unknown>) {
       if (!ipcEvent.lyricWin || ipcEvent.lyricWin.isDestroyed()) return
       if (data?.clickThrough !== undefined) ipcEvent.lyricWin.setIgnoreMouseEvents(!!data.clickThrough, { forward: true })
       ipcEvent.lyricWin.webContents.send('lyricData', data)
-    })
+      ipcEvent.lyricWin.webContents.send('lyricConfig', { ...data, isLocked: !!data.locked })
   }
 
   private static handleWebCloseLyric() {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch, shallowRef } from 'vue'
-import { FileText } from 'lucide-vue-next'
+import { FileText, Music2 } from 'lucide-vue-next'
 import * as THREE from 'three'
 import { RealtimeBeatEngine, type RealtimeBeatState } from '../../utils/radio'
 import { BloomEffect } from '../../utils/radio/BloomEffect'
@@ -62,6 +62,7 @@ const props = defineProps<{
   customBackgroundUrl?: string
   customBackgroundType?: 'image' | 'video'
   visualFx?: {
+    playerInterface?: 'particleStage' | 'fresh'
     intensity: number
     depth: number
     scatter: number
@@ -191,6 +192,22 @@ let lastOfflineHitIndex = -1
 let coverLoadToken = 0
 let lastStageLyricKey = ''
 let lastScrolledLyric = -1
+const selectedLyric = ref(-1)
+let lyricBrowseUntil = 0
+let lyricBrowseTimer = 0
+let lyricSelectionTimer = 0
+function browseLyrics() {
+  lyricBrowseUntil = Date.now() + 6000
+  window.clearTimeout(lyricBrowseTimer)
+  lyricBrowseTimer = window.setTimeout(() => scrollActiveLine(true), 6100)
+}
+function selectLyric(index: number, time: number) {
+  selectedLyric.value = index
+  window.clearTimeout(lyricSelectionTimer)
+  lyricSelectionTimer = window.setTimeout(() => { selectedLyric.value = -1 }, 1500)
+  browseLyrics()
+  emit('seek-lyric', time)
+}
 let shelfDetailLyricMix = 0
 let dotTexture: THREE.CanvasTexture | null = null
 let skullAssetLoaded = false
@@ -213,6 +230,7 @@ const stageStyle = computed(() => {
   }
 })
 const fx = computed(() => ({
+  playerInterface: props.visualFx?.playerInterface ?? 'particleStage',
   intensity: props.visualFx?.intensity ?? 0.92,
   depth: props.visualFx?.depth ?? 1,
   scatter: props.visualFx?.scatter ?? 0.32,
@@ -1053,6 +1071,8 @@ function handlePointerLeave() {
 }
 
 function handlePointerDown(e: PointerEvent) {
+  if (fx.value.playerInterface === 'fresh') return
+  if ((e.target as HTMLElement | null)?.closest?.('.music-lyric-stage')) return
   updatePointerFromEvent(e)
   const pointerInfo = shelfPointerFromEvent(e)
   if (pointerInfo && shelfContentCloseFromPointer(pointerInfo) && shelfMgr.closeContent()) {
@@ -1121,6 +1141,8 @@ function isShelfContentWheelZone(pointerInfo: NonNullable<ReturnType<typeof shel
 }
 
 function handleWheel(e: WheelEvent) {
+  if (fx.value.playerInterface === 'fresh') return
+  if ((e.target as HTMLElement | null)?.closest?.('.music-lyric-stage')) return
   const p = shelfPointerFromEvent(e)
   if (p && isShelfContentWheelZone(p)) {
     e.preventDefault()
@@ -1149,6 +1171,7 @@ function isTypingTarget(target: EventTarget | null) {
 }
 
 function handleShelfKeydown(e: KeyboardEvent) {
+  if (fx.value.playerInterface === 'fresh') return
   if (isTypingTarget(e.target) || fx.value.shelfMode === 'off') return
   if (e.code === 'Escape' && shelfMgr.hasOpenContent()) {
     e.preventDefault()
@@ -1177,17 +1200,17 @@ function revealShelfDetail(expanded: boolean) {
 
 function scrollActiveLine(force = false) {
   const el = lyricRef.value
-  if (!el || props.activeLine < 0) return
+  if (!el || props.activeLine < 0 || Date.now() < lyricBrowseUntil) return
   if (!force && lastScrolledLyric === props.activeLine) return
   const target = el.querySelector<HTMLElement>(`[data-li="${props.activeLine}"]`)
   if (!target) return
   lastScrolledLyric = props.activeLine
-  el.scrollTo({ top: Math.max(0, target.offsetTop - el.clientHeight / 2 + target.clientHeight / 2), behavior: force ? 'auto' : 'smooth' })
+  el.scrollTo({ top: Math.max(0, target.offsetTop - el.clientHeight / 2 + target.clientHeight / 2), behavior: force || reducedMotion ? 'auto' : 'smooth' })
 }
 
 onMounted(() => {
   reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false
-  initScene()
+  if (fx.value.playerInterface !== 'fresh') initScene()
   const parent = canvasRef.value?.parentElement
   if (parent) {
     resizeObserver = new ResizeObserver(() => resizeScene())
@@ -1226,6 +1249,8 @@ watch(() => fx.value.coverResolution, () => {
 })
 
 onBeforeUnmount(() => {
+  window.clearTimeout(lyricBrowseTimer)
+  window.clearTimeout(lyricSelectionTimer)
   window.removeEventListener('resize', resizeScene)
   window.removeEventListener('pointerup', handlePointerUp)
   window.removeEventListener('keydown', handleShelfKeydown, true)
@@ -1244,7 +1269,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div :class="['music-stage', `shelf-${fx.shelfMode}`, shelfContentVisible ? 'shelf-detail-active' : '']">
+  <div :class="['music-stage', `shelf-${fx.shelfMode}`, shelfContentVisible ? 'shelf-detail-active' : '', fx.playerInterface === 'fresh' ? 'clean-player' : '']">
     <div class="music-stage-bg" :style="[stageStyle, { opacity: fx.backgroundOpacity, filter: stageBgFilter }]"></div>
     <video
       v-if="customBackgroundType === 'video' && customBackgroundUrl"
@@ -1257,7 +1282,7 @@ onBeforeUnmount(() => {
       muted
       playsinline
     ></video>
-    <canvas ref="canvasRef" class="music-stage-canvas"></canvas>
+    <canvas v-show="fx.playerInterface !== 'fresh'" ref="canvasRef" class="music-stage-canvas"></canvas>
     <div class="music-stage-vignette"></div>
     <div v-if="shelfCueVisible" class="music-shelf-cue" aria-hidden="true">
       <i></i>
@@ -1272,6 +1297,8 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-show="!showLyrics" class="music-cover-wrap">
+      <img v-if="fx.playerInterface === 'fresh' && coverUrl" class="music-clean-cover" :src="coverUrl" :alt="title" />
+      <div v-else-if="fx.playerInterface === 'fresh'" class="music-clean-cover music-clean-placeholder"><Music2 :size="64" aria-hidden="true" /></div>
       <div class="music-stage-copy">
         <div class="music-stage-title">{{ title || tt('music.notPlaying') }}</div>
         <div class="music-stage-artist">{{ artist || tt('music.unknownArtist') }}</div>
@@ -1284,14 +1311,14 @@ onBeforeUnmount(() => {
         <span>{{ tt('music.noLyricsFound') }}</span>
         <small v-if="lyricDebugText" :title="lyricDebugTitle">{{ lyricDebugText }}</small>
       </div>
-      <div v-else ref="lyricRef" class="music-lyric-scroll">
+      <div v-else ref="lyricRef" class="music-lyric-scroll" @wheel.passive="browseLyrics" @touchmove.passive="browseLyrics" @keydown="browseLyrics">
         <div class="music-lyric-spacer"></div>
         <button
           v-for="(line, i) in lyricLines"
           :key="`${line.time}-${i}`"
           :data-li="i"
-          :class="['music-lyric-line', i === activeLine ? 'active' : '', i < activeLine ? 'past' : '']"
-          @click="emit('seek-lyric', line.time)"
+          :class="['music-lyric-line', i === activeLine ? 'active' : '', i < activeLine ? 'past' : '', i === selectedLyric ? 'selected' : '']"
+          @click="selectLyric(i, line.time)"
         >
           {{ line.text }}
         </button>
@@ -1302,6 +1329,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="less">
+.clean-player .music-cover-wrap { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:24px; }
+.music-clean-cover { width:min(42vmin,400px); height:min(42vmin,400px); object-fit:contain; border-radius:16px; box-shadow:0 24px 70px #0005; flex-shrink:0; }
+.music-clean-placeholder { display:grid; place-items:center; background:#252936; color:#c1d4e5; }
+.clean-player .music-stage-copy { position:static; transform:none; left:auto; top:auto; width:min(520px,100%); }
+
 .music-stage {
   position: relative;
   height: 100%;
@@ -1561,9 +1593,10 @@ onBeforeUnmount(() => {
   display: block;
   width: 100%;
   border: 0;
+  border-radius: 16px;
   background: transparent;
-  color: var(--music-lyric-idle, rgba(255,255,255,.26));
-  padding: 12px 0;
+  color: var(--music-lyric-idle, rgba(255,255,255,.55));
+  padding: 16px 18px;
   font: inherit;
   font-family: var(--music-lyric-font, inherit);
   font-size: calc(clamp(24px, 3.8vw, 56px) * var(--music-lyric-size, 1));
@@ -1572,25 +1605,24 @@ onBeforeUnmount(() => {
   line-height: var(--music-lyric-line-height, 1.18);
   text-align: center;
   cursor: pointer;
-  text-shadow: 0 10px 36px rgba(0,0,0,.45);
-  transition: color .25s, transform .25s, filter .25s;
-}
-.music-lyric-line:hover {
-  color: var(--music-lyric-hover, rgba(255,255,255,.72));
+  filter: blur(1.3px);
+  transition: color .2s, background .2s, filter .2s;
 }
 .music-lyric-line.active {
   color: var(--music-lyric-active, #fff9e8);
-  transform: scale(1.035);
-  text-shadow: 0 0 18px color-mix(in srgb, var(--music-lyric-active, #fff9e8) 30%, transparent), 0 0 42px color-mix(in srgb, var(--music-lyric-glow, #00f5d4) 26%, transparent), 0 16px 44px rgba(0,0,0,.62);
-  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--music-lyric-glow, #00f5d4) 34%, transparent));
-}
-.music-lyric-stage.lyric-glow-off .music-lyric-line,
-.music-lyric-stage.lyric-glow-off .music-lyric-line.active {
-  text-shadow: 0 10px 30px rgba(0,0,0,.42);
   filter: none;
 }
-.music-lyric-line.past {
-  color: var(--music-lyric-past, rgba(255,255,255,.14));
+.music-lyric-line:hover,
+.music-lyric-line:focus-visible,
+.music-lyric-line.selected,
+.music-lyric-line:active {
+  background: rgba(255,255,255,.14);
+  color: var(--music-lyric-active, #fff9e8);
+  filter: none;
+}
+.music-lyric-line:focus-visible {
+  outline: 2px solid rgba(255,255,255,.65);
+  outline-offset: -2px;
 }
 @media (prefers-reduced-motion: reduce) {
   .music-stage-canvas {

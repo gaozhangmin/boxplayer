@@ -14,6 +14,8 @@ declare global {
     WebE2ESeedCloudAccounts?: (accounts: unknown[], defaultUserId: string) => Promise<void>
     WebRelaunchAria: () => Promise<number>
     platform: string
+    WebReadMusicLocal?: (input: { url: string; offset?: number; length?: number; version?: string }) => Promise<{ size: number; version: string; base64?: string }>
+    WebReadMusicHead?: (input: { url: string; headers?: Record<string, string> }) => Promise<{ base64?: string; error?: boolean; status?: number; retryAfter?: string }>
     WebGetPathForFile: (file: File) => string
     WinMsg: any
     postdataFunc: any

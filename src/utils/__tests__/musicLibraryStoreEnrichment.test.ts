@@ -95,4 +95,11 @@ describe('music library persisted enrichment', () => {
     expect(store.byArtist.map((group) => group.artist)).toEqual(['Artist A', 'Artist B'])
     expect(store.byAlbum.map((group) => group.album)).toEqual(['Album A', 'Album B'])
   })
+  it('late online results do not overwrite tags written by the background head parser', async () => {
+    db.getMusicTrackById.mockResolvedValue({ id:'race', title:'Embedded', artist:'Local Artist', metadata_source:'embedded', head_tag_version:1, cover_url:'data:image/png;base64,AA==', artwork_origin:'embedded', scanned_at:1 })
+    const { default: useMusicLibraryStore } = await import('../../store/musiclibrary')
+    await useMusicLibraryStore().updateTrackEnrichment('race', { title:'Online',artist:'Online Artist',metadata_source:'online',cover_url:'https://img/online' })
+    expect(db.saveMusicTracks).toHaveBeenCalledWith([expect.objectContaining({ title:'Embedded',artist:'Local Artist',metadata_source:'embedded',head_tag_version:1,cover_url:'data:image/png;base64,AA==' })])
+  })
+
 })

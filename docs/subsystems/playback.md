@@ -46,3 +46,18 @@ Subtitle rules:
 - The subtitle proxy must identify the account with `user_id` and the provider with `drive_id`; do not use a global/current-account token when an account-specific token is available.
 - Video streams remain direct URLs unless encryption requires the proxy. DLNA behavior is separate and must not be changed as part of subtitle or direct-play fixes.
 - Any provider download-header change requires regression coverage for both the video/download URL contract and same-directory subtitle loading.
+
+## 2026-11-13 桌面音乐歌词行效果（本地源码）
+
+`src/layout/music/MusicImmersiveStage.vue` 保留播放器/歌词面板布局；歌词使用原字号缩放配置与粗体层级，非当前行轻模糊，当前行清晰，点击/悬停/键盘焦点显示半透明圆角底。点击高亮持续 1.5 秒并复用既有 seek 事件。滚轮/触摸/键盘浏览暂停自动居中 6 秒，再恢复跟随；退出组件清理定时器。歌词区域的指针/滚轮不触发背后唱片架操作。未对桌面应用手机式底部自动隐藏，未改独立悬浮歌词窗口的布局或 IPC。
+
+仅 Vue SFC script/template 解析与差异检查通过；未启动应用或进行视觉/E2E 验收。保留其他任务的 PageMusic、媒体识别与扫描修改。
+
+
+## 2026-11-16 清爽界面统一并入视觉选项
+
+“清爽播放界面”是现有视觉场景/预设组选项的第一张卡片，不再提供独立的粒子/清爽二选一菜单。选择清爽切换到普通封面；选择任一现有粒子场景/预设切回粒子播放器。清爽与粒子场景选中状态互斥，清爽不覆盖上次粒子场景和手调参数；性能档位继续独立。
+
+Apple iOS/iPadOS/tvOS 复用 MusicParticleSceneControls；macOS 在控制台常用预设中提供同一入口并保存模式/撤销状态。Android Phone/Pad/TV 复用 MusicReferenceSettings.particleScenes；手机存档同时保存界面模式，TV 移除旧 showInterfaceChoices 子页。原有 GPU 场景编号不变，清爽不是新的 shader 编号。
+
+Electron 与 Tauri 的现有视觉选项中同样新增清爽卡片；配置保存 playerInterface，旧配置缺少字段仍按粒子界面读取。清爽显示原生图片和标题，保留 DOM 歌词列表，停止创建 WebGL renderer；切回任一原有预设恢复粒子。DIY 简化/完整配置面板开关不是播放器界面切换，继续保留。

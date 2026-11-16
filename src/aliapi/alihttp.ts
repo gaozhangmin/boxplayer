@@ -1,3 +1,4 @@
+import { musicHeadQueue, retryAfterMs } from '../utils/musicAccountQueue'
 import { ITokenInfo } from '../user/userstore'
 import UserDAL from '../user/userdal'
 import { AxiosResponse } from 'axios'
@@ -77,6 +78,7 @@ export default class AliHttp {
       const errorMessage = error.display_message || error.message || ''
       if (error.response) {
         let { code, status, config, data = undefined, headers = undefined } = error.response
+        if (status === 429 && token?.user_id) musicHeadQueue.cool(token.user_id, retryAfterMs(headers?.['retry-after'] || headers?.['Retry-After']))
         if (code == 'ERR_NETWORK' || (status == 0 && !headers)) {
           DebugLog.mSaveWarning('HttpError0 message=' + errorMessage)
           return { code: 600, header: '', body: 'NetError 网络无法连接' } as IUrlRespData

@@ -1,0 +1,7 @@
+{
+  "name": "@boxplayer/audio-metadata-core", "version": "1.0.0", "private": true, "type": "module",
+  "packageManager": "pnpm@10.32.1", "license": "MIT",
+  "scripts": { "build": "node build.mjs", "test": "node --test test.mjs", "sync": "node sync.mjs", "check": "node sync.mjs --check" },
+  "dependencies": { "music-metadata": "12.5.0", "strtok3": "10.7.0", "buffer": "6.0.3", "text-encoding": "0.7.0" },
+  "devDependencies": { "esbuild": "0.21.5" }
+}
