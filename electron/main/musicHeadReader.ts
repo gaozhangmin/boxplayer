@@ -36,4 +36,3 @@ export async function readLocalMusicChunk(input: {url: string; offset?: number; 
 }
 
 export function registerMusicHeadIpc() { ipcMain.handle('MusicLocal:read', (_event, input) => readLocalMusicChunk(input)); ipcMain.handle('MusicHead:read', async (_event, input) => { try { return { base64: await readMusicHead(input) } } catch (error: any) { return { error: true, status: error.status, retryAfter: error.retryAfter } } }) }
-
