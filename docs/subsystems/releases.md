@@ -6,7 +6,9 @@
 
 ## CI
 
-Manual trigger only (`workflow_dispatch`) via `.github/workflows/release.yml`. Builds on `windows-latest` + `ubuntu-latest`, publishes draft GitHub Release. No automatic CI on push/PR.
+Manual trigger only (`workflow_dispatch`) via `.github/workflows/release.yml`. Builds on `windows-latest` + `ubuntu-latest`, publishes draft GitHub Release.
+
+真实网盘播放验证保留阿里云盘、百度网盘、Dropbox、OneDrive、Google Drive 和独立的 Emby 验证。按用户 2026-11-17 要求，夸克从 CI 播放矩阵排除；默认值及手动输入均不得重新启用。此范围调整不移除客户端夸克能力，也不将此前播放超时归因为已证实的 token 过期。 No automatic CI on push/PR.
 
 签名凭据按目标隔离：既有 `CSC_LINK/CSC_KEY_PASSWORD` 只传入 macOS runner，Windows 只读取其独立 `WIN_CSC_LINK/WIN_CSC_KEY_PASSWORD`。不能把 Apple 证书用于生成 Windows 发布者信息，也不能通过关闭更新器签名验证修补错误的旧安装包。源码隔离不代表已获得可信的 Windows 签名证书；实际证书与 Windows 二进制验签仍是交付检查项。旧安装包内的错误发布者元数据需要受信任的新安装包替换，不能声称修改 CI 就修好了已安装客户端。
 

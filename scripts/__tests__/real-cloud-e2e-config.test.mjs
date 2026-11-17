@@ -29,7 +29,7 @@ describe('real cloud E2E configuration', () => {
     const targets = accounts.map(account => ({ provider: account.provider, path: ['Existing fixtures'], fileName: 'sample.mkv' }))
     const base = {
       BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts }),
-      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun,quark',
+      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun',
       BOXPLAYER_E2E_TARGETS_JSON: JSON.stringify(targets)
     }
     const original = loadRealCloudE2EConfig(base)
@@ -87,16 +87,16 @@ describe('real cloud E2E configuration', () => {
   it('fails closed when a release-required account is missing', () => {
     expect(() => loadRealCloudE2EConfig({
       BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts: [cliAccount('aliyun')] }),
-      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun,quark'
-    })).toThrow('缺少 CI 测试账号: quark')
+      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun,google'
+    })).toThrow('缺少 CI 测试账号: google')
   })
 
-  it('excludes 123, 115, Tianyi 189, Box, Guangya, PikPak and China Mobile from every real-cloud test target', () => {
+  it('excludes 123, 115, Tianyi 189, Box, Guangya, PikPak, China Mobile and Quark from every real-cloud test target', () => {
     const accounts = ALL_REAL_CLOUD_PROVIDERS.map(cliAccount)
     const config = loadRealCloudE2EConfig({
       BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify({ accounts })
     })
-    expect(EXCLUDED_REAL_CLOUD_PROVIDERS).toEqual(['115', '189', 'box', 'guangya', 'pikpak', '139', 'cloud123'])
+    expect(EXCLUDED_REAL_CLOUD_PROVIDERS).toEqual(['115', '189', 'box', 'guangya', 'pikpak', '139', 'cloud123', 'quark'])
     expect(config.requiredProviders).toEqual(REAL_CLOUD_PROVIDERS)
     expect(config.targets.map(target => target.provider)).toEqual(REAL_CLOUD_PROVIDERS)
   })
