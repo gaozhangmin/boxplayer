@@ -1,3 +1,4 @@
+import { MediaServerAuthenticationError } from './base'
 import type { MediaServerAdapter, MediaServerSignInInput, MediaServerSignInResult } from './base'
 import { generateDeviceId, normalizeServerBaseUrl } from './base'
 
@@ -57,7 +58,7 @@ export const jellyfinAdapter: MediaServerAdapter = {
       })
     })
     if (!response.ok) {
-      throw new Error(`Jellyfin 登录失败 (${response.status})`)
+      throw new MediaServerAuthenticationError(response.status, `Jellyfin 登录失败 (${response.status})`)
     }
     const payload = await response.json() as JellyfinAuthResponse
     return parseAuthResponse(payload, deviceId, normalizedBaseUrl)

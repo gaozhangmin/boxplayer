@@ -343,6 +343,7 @@ import embyIcon from '../../assets/media-server/emby.svg'
 import plexIcon from '../../assets/media-server/plex.svg'
 import AddMediaServerModal from './AddMediaServerModal.vue'
 import PlexResourcesModal from './PlexResourcesModal.vue'
+import { isMediaServerAuthenticationRejected } from '../../media-server/adapters/base'
 import { fetchMediaServerLoginProfile, signInMediaServer } from '../../media-server/auth'
 import { createPlexServerConfigs, signInPlex, verifyPlexServerConfig } from '../../media-server/plexAuth'
 import { t } from '../../i18n'
@@ -755,15 +756,18 @@ const runBackgroundServerLogin = async (serverId: string, payload: {
   nameCustomized?: boolean
 }) => {
   if (payload.type === 'plex' || !payload.username?.trim() || !payload.password?.trim()) return
+  const original = registry.servers.find((item) => item.id === serverId)
+  const unchanged = () => registry.servers.find((item) => item.id === serverId) === original
   try {
     const authResult = await signInMediaServer(payload)
     const current = registry.servers.find((item) => item.id === serverId)
-    if (!current) return
+    if (!current || !unchanged()) return
     const profile = await fetchMediaServerLoginProfile({
       type: payload.type,
       baseUrl: authResult.normalizedBaseUrl,
       accessToken: authResult.accessToken
     })
+    if (!unchanged()) return
     registry.updateServer(serverId, {
       baseUrl: authResult.normalizedBaseUrl,
       accessToken: authResult.accessToken,
@@ -778,6 +782,7 @@ const runBackgroundServerLogin = async (serverId: string, payload: {
     })
   } catch (error) {
     console.error('媒体服务器静默登录失败:', error)
+    if (!unchanged() || !isMediaServerAuthenticationRejected(error)) return
     registry.updateServer(serverId, {
       loginStatus: 'failed',
       lastLoginCheckedAt: Date.now()

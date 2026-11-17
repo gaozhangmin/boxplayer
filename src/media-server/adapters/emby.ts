@@ -1,3 +1,4 @@
+import { MediaServerAuthenticationError } from './base'
 import type { MediaServerAdapter, MediaServerSignInInput, MediaServerSignInResult } from './base'
 import { generateDeviceId, normalizeServerBaseUrl } from './base'
 
@@ -45,7 +46,7 @@ export const embyAdapter: MediaServerAdapter = {
       })
     })
     if (!response.ok) {
-      throw new Error(`Emby 登录失败 (${response.status})`)
+      throw new MediaServerAuthenticationError(response.status, `Emby 登录失败 (${response.status})`)
     }
     const payload = await response.json() as EmbyAuthResponse
     const accessToken = payload.AccessToken || payload.accessToken || ''

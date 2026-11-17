@@ -39,3 +39,10 @@ export const normalizeServerBaseUrl = (baseUrl: string) => {
 
 export const generateDeviceId = () => `media-server-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
+
+export class MediaServerAuthenticationError extends Error {
+  constructor(readonly status: number, message: string) { super(message) }
+}
+
+export const isMediaServerAuthenticationRejected = (error: unknown): boolean =>
+  error instanceof MediaServerAuthenticationError && [401, 403].includes(error.status)
