@@ -61,6 +61,9 @@ jobs:
           pnpm exec electron-rebuild -f -w better-sqlite3
           pnpm --dir native/boxplayer-mpv-texture install --ignore-workspace --no-frozen-lockfile --ignore-scripts
 
+      - name: Verify Windows ASAR download dependency checks
+        run: pnpm exec vitest run scripts/__tests__/packagedDownloadRuntime.test.mjs
+
       - name: Verify MPV playback header and proxy contracts
         run: |
           pnpm exec vitest run `
@@ -177,9 +180,6 @@ jobs:
           # search/upload/download/file-mutation API suite in this release gate.
           BOXPLAYER_MPV_REQUIRE_E2E: '1'
         run: pnpm exec playwright test e2e/realCloudProviders.spec.ts e2e/realMediaServerMpv.spec.ts --workers=1
-
-      - name: Verify Windows ASAR download dependency checks
-        run: pnpm exec vitest run scripts/__tests__/packagedDownloadRuntime.test.mjs
 
       - name: Verify the unpacked Electron package contains the complete bundle
         run: |
