@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import SourceFormSurface from './SourceFormSurface.vue'
 import {t} from './i18n'
 import {useNativeLogin} from '../adapters/nativeLogin'
@@ -42,7 +43,7 @@ const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLogi
           <div id='logindiv'>
             <div class='logincontent'>
             <div id="loginframediv" class="loginframe">
-              <a-spin class="loading" :size="32" v-if='loginLoading' :tip="t('common.loading')" />
+              <ContentLoading v-if="loginLoading" class="loading" :size="32" />
               
               <div v-if="loginCur===1" class="browser-login-hint"><p>请在阿里云盘登录窗口完成第一次扫码或账号登录，随后在此处进行第二次扫码授权。</p><a-alert v-if="loginStatus==='error'" type="error">{{qrCodeStatusTips}}</a-alert><a-button :loading="loginLoading" @click="handleRefreshQrCodeUrl">重新打开登录窗口</a-button></div>
               <div class="qrcodeframe" v-if="loginCur === 2 && !loginLoading">
@@ -82,7 +83,7 @@ const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLogi
         <div id='logindiv'>
           <div class='logincontent'>
             <div id="loginframediv" class="loginframe">
-              <a-spin class="loading" :size="32" v-if='loginLoading' :tip="t('common.loading')" />
+              <ContentLoading v-if="loginLoading" class="loading" :size="32" />
               <div class="qrcodeframe" v-if="!loginLoading">
                 <a-image
                   width='250'
@@ -122,7 +123,7 @@ const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLogi
         <div id='logindiv'>
           <div class='logincontent'>
             <div id="loginframediv" class="loginframe">
-              <a-spin class="loading" :size="32" v-if='loginLoading' :tip="t('common.loading')" />
+              <ContentLoading v-if="loginLoading" class="loading" :size="32" />
               <div class="qrcodeframe" v-if="!loginLoading">
                 <div class="cloud189-qrcode-wrap">
                   <img :src="qrCodeUrl" width="250" height="250" alt="登录二维码"/>
@@ -181,7 +182,7 @@ const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLogi
       <div v-else-if="loginProvider === 'quark'">
         <div id='logindiv'>
           <div class='logincontent quark-logincontent'>
-            <a-spin class="loading" :size="32" v-if='loginLoading' :tip="t('common.loading')" />
+            <ContentLoading v-if="loginLoading" class="loading" :size="32" />
             <div class="qrcodeframe" v-if="!loginLoading">
               <a-image
                 width='250'

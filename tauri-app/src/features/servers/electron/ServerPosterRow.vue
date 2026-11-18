@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import {computed} from 'vue'
 import ServerArtwork from '../ServerArtwork.vue'
 import MediaPosterPlaceholder from '../../library/electron/MediaPosterPlaceholder.vue'
@@ -14,7 +15,7 @@ const resolveHeading=(item:ServerItem)=>item.name
 const resolveSubtitle=(item:ServerItem)=>item.year
 const resolveOverlay=(item:ServerItem)=>item.childCount?String(item.childCount):''
 </script>
-<template><div class="home-section"><div class="home-section-header"><h4>{{title}}</h4><button v-if="more&&items.length" class="see-all-button" @click="emit('more')">查看全部</button><span v-else-if="loading">正在加载…</span></div><p v-if="error" role="alert">{{error}}<button @click="emit('retry')">重试</button></p><div class="poster-row"><template v-for="item in items" :key="item.id">        <button
+<template><div class="home-section"><div class="home-section-header"><h4>{{title}}</h4><button v-if="more&&items.length" class="see-all-button" @click="emit('more')">查看全部</button></div><ContentLoading v-if="loading"/><p v-if="error" role="alert">{{error}}<button @click="emit('retry')">重试</button></p><div class="poster-row"><template v-for="item in items" :key="item.id">        <button
           class="poster-tile"
           :class="posterTileClass"
           @click="emit('select',item)" @contextmenu.prevent="emit('context',$event,item)"

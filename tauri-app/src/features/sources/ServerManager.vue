@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui'
 import { X } from 'lucide-vue-next'
@@ -38,7 +39,7 @@ function close() { if (!busy.value) emit('close') }
   <template v-else>
    <Button v-if="owner.providerId!=='plex'" variant="outline" :disabled="busy" @click="profileMode=true">播放设置与码率测试</Button>
    <Button v-if="target?.playable" variant="outline" :disabled="busy" @click="speedMode=true;error=''">文件码率测试</Button>
-   <h3>播放列表</h3><p v-if="(busy||loading)&&!playlists.length" role="status">正在连接…</p>
+   <h3>播放列表</h3><ContentLoading v-if="(busy||loading)&&!playlists.length" label="正在连接"/>
    <div class="playlist-list"><button v-for="list in playlists" :key="list.id" type="button" :disabled="busy" :aria-pressed="selected?.id===list.id" @click="choose(list)"><strong>{{ list.title }}</strong><span>{{ list.count }} 项</span></button><p v-if="!playlists.length&&!busy&&!loading&&!error">暂无播放列表</p></div>
    <div v-if="selected" class="server-actions"><Button variant="outline" :disabled="busy" @click="emit('openPlaylist',selected.id)">打开播放列表</Button><Button v-if="target?.playable" :disabled="busy||membership===undefined" @click="toggle">{{ membership ? '从播放列表移除' : '加入播放列表' }}</Button><Button variant="ghost" :disabled="busy" @click="deletion={kind:'playlist',id:selected.id,title:selected.title}">删除播放列表…</Button></div>
    <form v-if="target?.playable" class="playlist-create" @submit.prevent="create"><label>新播放列表<input v-model="title" :disabled="busy" required autocomplete="off" /></label><Button :disabled="busy||!title.trim()">创建并加入</Button></form>

@@ -1,4 +1,5 @@
 <script setup lang='ts'>
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { ref } from 'vue'
 import IconFont from '@/features/files/electron/IconFont.vue'
 import { IAliGetFileModel } from './electron/aliapi/alimodels'
@@ -163,7 +164,7 @@ defineExpose({ open, leave, cancel })
       <span class='folderPreviewName'>{{ folderName }}</span>
     </div>
     <div class='folderPreviewBody'>
-      <div v-if='loading' class='folderPreviewState'>加载中…</div>
+      <ContentLoading v-if="loading" :size="24"/>
       <div v-else-if='!items.length' class='folderPreviewState'>空文件夹</div>
       <div v-else class='folderPreviewGrid'>
         <div v-for='f in items' :key='f.file_id' class='folderPreviewCell' :title='f.name'>

@@ -2,11 +2,11 @@
 import { t } from './i18n'
 const loadingRing='/images/loading-ring.png'
 
-withDefaults(defineProps<{ size?: number }>(), { size: 128 })
+withDefaults(defineProps<{ size?: number; label?: string }>(), { size: 128 })
 </script>
 
 <template>
-  <span class="media-loading-indicator" role="status" :aria-label="t('common.loading')" :style="{ width: `${size}px`, height: `${size}px` }">
+  <span class="media-loading-indicator" role="status" :aria-label="label || t('common.loading')" :style="{ width: `${size}px`, height: `${size}px` }">
     <img :src="loadingRing" alt="" aria-hidden="true" draggable="false" />
   </span>
 </template>

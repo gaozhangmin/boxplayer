@@ -3,6 +3,7 @@ const serverRootCache = new Map<string, ServerItem[]>()
 </script>
 
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import {Grid2X2,List,ArrowUp,ArrowDown,MoreHorizontal,ChevronDown,Check,SquareCheck,ListFilter,Play,Repeat,Shuffle,Star} from 'lucide-vue-next'
 import ServerPlaylistPicker from './ServerPlaylistPicker.vue'
 import ElectronModal from '@/components/dialog/ElectronModal.vue'
@@ -244,6 +245,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
   </div>
   <p v-else-if="error" role="alert">{{ error }} <button :disabled="loading" @click="load()">重试</button></p>
   <p v-if="status" role="status">{{ status }}</p>
+  <ContentLoading v-if="loading" class="server-load-indicator" />
   <div v-if="route.kind === 'home'" class="server-home">
     <nav class="workspace-tabs"><button :class="{active:route.kind==='home'}" @click="navigate({kind:'home',title:account.name})">主屏幕</button><button @click="navigate({kind:'search',title:'搜索',query:''})">搜索</button><button @click="navigate({kind:'root',title:'媒体库'})">媒体库</button></nav>
     <section v-if="preferences.favorites.some(f => !f.hiddenOnHome)"><h2>收藏夹</h2><div class="category-grid"><article v-for="favorite in preferences.favorites.filter(f => !f.hiddenOnHome)" :key="favorite.key"><button @click="navigate(favorite.content ? { ...favorite.route, kind: 'detail' } : favorite.route)" @contextmenu.prevent="openMenu(favorite.route, undefined, favorite)"><span v-if="favorite.cover" class="favorite-art"><ServerArtwork :account="account" :path="favorite.cover" :alt="favorite.title" /></span>{{ favorite.title }}</button><button :aria-label="favorite.title + '菜单'" @click="openMenu(favorite.route, undefined, favorite)">⋯</button></article></div></section>
@@ -263,7 +265,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
     <p v-if="!loading && !error && nextOffset === undefined && ['root', 'category', 'children', 'search'].includes(route.kind) && (route.facet && !route.value ? !facets.length : !items.length)" class="server-empty" role="status">
       {{ route.kind === 'root' ? '此服务器暂无可浏览的媒体库' : route.kind === 'search' && route.query?.trim() ? '未找到匹配的媒体' : '暂无媒体内容' }}
     </p>
-  </template><p v-if="loading" role="status">正在加载…</p>
+  </template>
   <AnchoredMenu v-if="menu" :x="menuAnchor.x" :y="menuAnchor.y" :label="menu.target.title+'菜单'" @close="menu=undefined">
     <template v-if="menu.target.kind === 'root'"><button role="menuitem" @click="selecting = !selecting; selected = []; menu = undefined">{{ selecting ? '完成选择' : '选择' }}</button><button role="menuitem" @click="options.sort = 'title'; options.descending = !options.descending; menu = undefined; load()">排序方式: 名称</button><button role="menuitem" :disabled="!selecting" @click="favoriteSelectedLibraries(); menu = undefined">添加到收藏夹</button><button role="menuitem" disabled>启用密码锁</button></template>
     <template v-else-if="menu.toolbar&&!menu.item"><button role="menuitem" disabled><SquareCheck :size="14"/>选择</button><button role="menuitem" @click="cycleToolbarSort"><ListFilter :size="14"/>排序方式: {{{title:'片名',addedAt:'添加日期',premiereDate:'上映日期'}[toolbarBrowseSort]}}</button><button v-for="id in ['play','loop','shuffle']" :key="id" role="menuitem" disabled><component :is="id==='play'?Play:id==='loop'?Repeat:Shuffle" :size="14"/>{{{play:'播放',loop:'循环播放',shuffle:'随机播放'}[id]}}</button><template v-if="menu.favorite"><button role="menuitem" @click="mutateFavorite(menu!.favorite!)">从收藏夹中移除</button><button role="menuitem" @click="prompt={kind:'rename',route:menu!.target,favorite:menu!.favorite,value:menu!.favorite!.title};menu=undefined">重命名收藏夹</button><button role="menuitem" @click="safely(async()=>mutateFavorite(menu!.favorite!,{hiddenOnHome:!menu!.favorite!.hiddenOnHome}))">{{menu.favorite.hiddenOnHome?'在主屏幕显示':'在主屏幕隐藏'}}</button><button role="menuitem" @click="openCover(menu.favorite)">选择封面</button></template><button v-else role="menuitem" @click="askFavorite(menu!.target)"><Star :size="14"/>添加到收藏夹</button></template>
@@ -280,6 +282,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
 </template>
 
 <style scoped>
+.server-load-indicator.content-loading{position:sticky;top:calc(50vh - 54px);height:0;min-height:0;overflow:visible;z-index:2;pointer-events:none}
 .server-load-error{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:14px 18px;border:1px solid var(--border);border-radius:16px;background:var(--secondary)}
 .server-load-error span{min-width:0;overflow-wrap:anywhere}
 .server-load-error .server-load-retry{flex-shrink:0;min-height:36px;padding:6px 14px;border:0;border-radius:8px;background:var(--primary);color:var(--primary-foreground);font-weight:600}

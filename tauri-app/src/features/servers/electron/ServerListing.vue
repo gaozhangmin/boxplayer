@@ -17,7 +17,12 @@ const getListingYearLabel=(item:ServerItem)=>item.year
 const getListingOverlay=(item:ServerItem)=>item.childCount?String(item.childCount):''
 const getListingOverview=(item:ServerItem)=>item.overview
 function listingArtwork(item: ServerItem) {
-  return props.root ? item.imagePath || item.backdropPath : props.landscape ? item.backdropPath || item.imagePath : item.imagePath
+  if (props.root) {
+    return item.imagePath || item.backdropPath || (props.account.providerId === 'plex'
+      ? undefined
+      : `Items/${encodeURIComponent(item.id)}/Images/Primary?maxWidth=1200`)
+  }
+  return props.landscape ? item.backdropPath || item.imagePath : item.imagePath
 }
 function getListingMetaItems(item:ServerItem){return [item.rating?'★ '+item.rating.toFixed(1):'',item.duration?Math.max(1,Math.round(item.duration/60))+'分钟':'',item.year,item.sortValues?.officialRating,item.height?item.height+'p':''].filter(Boolean)}
 </script>

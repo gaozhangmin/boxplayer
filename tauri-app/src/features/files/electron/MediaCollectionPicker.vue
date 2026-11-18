@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { Plus, Pencil, Circle, CircleCheck, Trash2 } from 'lucide-vue-next'
 import { t } from './i18n'
 
@@ -43,7 +44,7 @@ defineEmits<{
         </div>
         <p v-if="!rows.length" class="collection-hint">暂无{{ heading }}，请先创建一个</p>
       </div>
-      <p v-if="error" role="alert">{{ error }}</p><a-spin v-if="busy" />
+      <p v-if="error" role="alert">{{ error }}</p><ContentLoading v-if="busy" />
     </div>
   </a-modal>
   <a-modal :visible="visible && editing !== null" :width="360" :z-index="3100" :footer="false" :title="`${editing ? '重命名' : '新建'}${heading}`" :mask-closable="!busy" :esc-to-close="!busy" @cancel="!busy && $emit('cancelName')">

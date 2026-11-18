@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import {computed,onMounted,onUnmounted,ref,watch} from 'vue'
 import type {Account} from '../sources/contracts'
 import {browseServer,categories,collectPlayable,setWatched,type BrowseRoute,type ServerItem} from './workspace'
@@ -87,7 +88,7 @@ onUnmounted(()=>{generation++;window.removeEventListener('storage',refresh);wind
 </script>
 <template>
  <div class="server-home-sections" :aria-busy="busy"><p v-if="error" role="alert">{{error}}</p><div v-if="deleting" class="server-prompt-mask"><form role="dialog" aria-label="删除服务器媒体" @submit.prevent="removeItem"><h3>删除 {{deleting.item.name}}？</h3><p>此操作会请求媒体服务器删除媒体文件。</p><button :disabled="busy" type="submit">确认删除</button><button :disabled="busy" type="button" @click="deleting=undefined">取消</button></form></div><SourceCardMenu v-if="sourceContext" :source-id="sourceContext.id" :x="sourceContext.x" :y="sourceContext.y" @close="sourceContext=undefined" @reorder="reordering=true;sourceContext=undefined" @reauthorize="sourceManager=true;sourceContext=undefined"/><SourceManager v-if="sourceManager" @close="sourceManager=false" @saved="sources.refresh();sourceManager=false"/><ServerRating v-if="ratingItem" :account-id="ratingAccount" :item="ratingItem" @close="ratingItem=undefined"/><ServerShare v-if="shareItem" :item="shareItem" @close="shareItem=undefined"/><WorkspaceContextMenu v-if="context" :x="context.x" :y="context.y" :entries="menuEntries" label="服务器分类菜单" @action="action" @close="context=undefined"/><div v-if="prompt" class="server-prompt-mask"><form role="dialog" @submit.prevent="savePrompt"><h3>{{prompt.kind==='add'?'添加到收藏夹':prompt.kind==='rename'?'重命名收藏夹':'选择封面'}}</h3><input v-model="prompt.value" :aria-label="prompt.kind!=='cover'?'名称':'服务器封面路径'"/><button type="submit">保存</button><button type="button" @click="prompt=undefined">取消</button></form></div>
-  <p v-if="loading&&accounts.length" role="status">正在读取服务器…</p>
+  <ContentLoading v-if="loading&&accounts.length" label="正在读取服务器"/>
   <template v-for="server in orderedServers" :key="server.account.id">
    <section v-if="manager" class="server-home-manager"><h3>{{server.account.name}}</h3><p v-if="server.error" role="alert">{{server.error}} <button @click="load">重试</button></p><label v-for="choice in choices(server)" :key="choice.key"><input type="checkbox" :checked="server.preferences.home.includes(choice.key)" @change="toggle(server,choice.key,($event.target as HTMLInputElement).checked)"/><span>{{choice.title}}</span><button aria-label="上移" @click.prevent="move(server,choice.key,-1)">↑</button><button aria-label="下移" @click.prevent="move(server,choice.key,1)">↓</button></label></section>
    <template v-else>

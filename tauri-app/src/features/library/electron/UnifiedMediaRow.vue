@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { generalPreferences } from './seriesVersionPreferences'
 import MediaPosterPlaceholder from './MediaPosterPlaceholder.vue'
 import PosterRatingBadge from './PosterRatingBadge.vue'
@@ -90,7 +91,7 @@ const failedImages = ref(new Set<string>())
       <button v-if="row.retry && (row.error || row.loading)" :disabled="row.loading" :aria-label="t('common.retry')" @click="row.retry"><RefreshCw :size="24" :class="{ 'shelf-refreshing': row.loading }" /></button>
       <button v-else @click="row.more">{{ t('mediaServer.seeAllPlain') }}</button>
     </div>
-    <div v-if="row.loading && !itemCount" role="status" class="shelf-status"><a-spin /> {{ t('common.loading') }}</div>
+    <ContentLoading v-if="row.loading && !itemCount" class="shelf-status" />
     <div v-else-if="row.error && !itemCount" role="status" class="shelf-status shelf-error"><Ban :size="48" aria-hidden="true" /><strong>{{ t('mediaServer.sectionLoadFailed') }}</strong><span>{{ row.error }}</span></div>
     <div v-else-if="!itemCount" role="status" class="shelf-status">{{ t('libraryBrowse.empty') }}</div>
     <div ref="cardsElement" class="horizontal-row">

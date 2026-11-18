@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { Plus, Pencil, Circle, CircleCheck, Trash2 } from 'lucide-vue-next'
 import ElectronModal from '@/components/dialog/ElectronModal.vue'
 const t=(key:string)=>key==='common.confirm'?'确定':'取消'
@@ -44,7 +45,7 @@ defineEmits<{
         </div>
         <p v-if="!rows.length" class="collection-hint">暂无{{ heading }}，请先创建一个</p>
       </div>
-      <p v-if="error" role="alert">{{ error }}</p><span v-if="busy" role="status">正在加载…</span>
+      <p v-if="error" role="alert">{{ error }}</p><ContentLoading v-if="busy"/>
     </div>
   </ElectronModal>
   <ElectronModal v-if="visible && editing !== null" :title="`${editing ? '重命名' : '新建'}${heading}`" :width="360" :busy="busy" @close="$emit('cancelName')">

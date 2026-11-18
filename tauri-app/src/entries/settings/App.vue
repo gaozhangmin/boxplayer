@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { computed, onMounted, ref } from 'vue'
 import { FolderOpen, SlidersHorizontal, AppWindow, Globe, Database, HardDrive, ArrowLeft, ChevronsLeft, ChevronsRight, Monitor, Sun, Moon, ChevronRight, ChevronDown } from 'lucide-vue-next'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -41,7 +42,7 @@ onMounted(async () => { if (isNative()) { try { info.value = await runtimeInfo()
       <main class="settings-pane">
         <WindowBar :controls="true" class="settings-pane-title"><component :is="activePanel.icon" :size="21"/><h1>{{t(activePanel.label)}}</h1></WindowBar>
         <div class="settings-scroll"><div class="settings-body">
-          <p v-if="!settings.ready">{{ t('settingsLoading') }}</p>
+          <ContentLoading v-if="!settings.ready" :label="t('settingsLoading')" />
           <fieldset :disabled="settings.preview || !settings.ready || settings.saving">
             <template v-if="selectedPanel==='general'">
               <section class="settings-section"><h2>{{t('appearance')}}</h2><div class="settings-card">

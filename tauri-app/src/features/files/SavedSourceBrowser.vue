@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { ArrowLeft, Folder, File, Film, Star, Download, RefreshCw } from 'lucide-vue-next'
 import { nativeCall, asAppError } from '@/platform/native'
@@ -49,7 +50,7 @@ const rootRow=computed<Row>(()=>({id:'',path:'',name:'所有文件夹',isDirecto
 <template>
  <section class="saved-browser" aria-label="已保存来源文件浏览">
   <div class="saved-browser-toolbar"><button v-if="history.length" aria-label="返回上一级" :disabled="loading" @click="back"><ArrowLeft :size="18"/></button><span>{{history.at(-1)?.name||'所有文件'}}</span><button aria-label="刷新文件列表" :disabled="loading" @click="load()"><RefreshCw :size="17"/></button></div>
-  <p v-if="error" role="alert">{{error}}</p><p v-if="loading" role="status">正在加载文件…</p>
+  <p v-if="error" role="alert">{{error}}</p><ContentLoading v-if="loading" label="正在加载文件"/>
   <div v-if="!atDevice&&!path&&!loading" class="compact-row"><button class="compact-main" @click="load()"><Folder :size="21"/><span>所有文件夹</span></button><button :disabled="busy||server" :aria-label="isFavorite(rootRow)?'取消收藏 所有文件夹':'收藏 所有文件夹'" @click="requestFavorite(rootRow)"><Star :size="19" :fill="isFavorite(rootRow)||server?'currentColor':'none'"/></button></div>
   <div v-for="row in rows" :key="row.id" class="compact-row"><button class="compact-main" :disabled="!row.isDirectory&&!row.playable" @click="open(row)"><component :is="row.isDirectory?Folder:row.playable?Film:File" :size="21"/><span><strong>{{row.name}}</strong><small v-if="description(row)">{{description(row)}}</small></span></button><button v-if="row.isDirectory" :disabled="busy" :aria-label="(isFavorite(row)?'取消收藏 ':'收藏 ')+row.name" @click="requestFavorite(row)"><Star :size="19" :fill="isFavorite(row)?'currentColor':'none'"/></button><button v-else-if="row.playable" :disabled="local||!!downloading" :aria-label="'下载 '+row.name" @click="download(row)"><Download :size="19"/></button></div>
   <button v-if="cursor" :disabled="loading" @click="load(cursor)">加载更多</button><div v-if="!rows.length&&!loading&&!error" class="saved-empty"><strong>空文件夹</strong><p>这儿什么都没有。</p></div>

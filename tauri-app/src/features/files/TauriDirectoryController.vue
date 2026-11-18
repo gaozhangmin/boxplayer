@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import MediaMetadataEditorModal from './electron/MediaMetadataEditorModal.vue'
 import MediaPersonalRatingModal from './electron/MediaPersonalRatingModal.vue'
 import MediaShareModal from './electron/MediaShareModal.vue'
@@ -139,7 +140,7 @@ function size(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3
   <section class="files-browser" :aria-label="t('files')">
     <Teleport v-if="toolbarReady" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><FilesFolderToolbar :mode="gridView?'grid':'list'" :descending="sources.preferences.descending" :selection="selection" @mode="gridView=$event==='grid'" @direction="sources.preferences.descending=!sources.preferences.descending" @selection="selection=!selection;selected=[]" @play="playFolder" @remove="currentFolderAction('removeFavoriteFolder')" @rename="currentFolderAction('renameCollection')"/></Teleport>
     <div v-if="selection" class="poster-selection-bar"><span>已选择 {{selected.length}} 项</span><button @click="selection=false;selected=[]">取消</button></div><p v-if="error" role="alert">{{error}}</p>
-    <p v-if="loading" role="status">{{ t('loadingFiles') }}</p>
+    <ContentLoading v-if="loading" :label="t('loadingFiles')" />
     <MediaEmptyFolder v-else-if="!browserFiles.length"/><MediaPanRight v-else :files="browserFiles" :media="browserMedia" :posters="browserPosters" :selected="browserSelected" :favorite-ids="browserFavorites" :favorite-browse="!!currentBookmark||canBrowse" :browse-mode="gridView?'grid':'list'" :browse-selection="selection" :descending="sources.preferences.descending" @enter-folder="openBrowserFile" @open-file="openBrowserFile" @open-media="item=>catalog.play(item)" @select="selectBrowserFiles" @file-action="browserAction"/>
     <NativeFilesDialogs :ports="filePorts"/><MediaCollectionPicker :visible="!!assignment" :heading="assignment?.kind==='series'?'系列':'播放列表'" item-title="添加到集合" :rows="collectionRows" :editing="collectionEditing" v-model:name="collectionName" :renamable="false" :removable="false" @toggle="toggleCollection" @create="collectionEditing='new'" @cancel-name="collectionEditing=null" @confirm-name="createCollection" @done="saveAssignmentSelection(true)" @close="assignment=undefined"/><MediaMetadataEditorModal :visible="!!editingMetadata" :item="metadataTarget" @close="editingMetadata=undefined" @save="saveMetadata"/><MediaPersonalRatingModal/><MediaShareModal/>  </section>
 </template>

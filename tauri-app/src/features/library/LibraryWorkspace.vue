@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import {cachedArtwork} from './artworkCache'
 import {computed,onMounted,onUnmounted,ref,watch,toRaw,nextTick} from 'vue'
 import {Film,Folder,Play,Library,Star,Eye,EyeOff,Grid2X2,List,RefreshCw,MoreHorizontal,ChevronLeft,ChevronDown,ArrowDown,ArrowUp,Search,Plus,X} from 'lucide-vue-next'
@@ -465,7 +466,7 @@ function finishFavoritePointer(event: PointerEvent) {
             </template>
 </template></a-dropdown></div></Teleport>
   <a-modal v-model:visible="showHomeManagement" modal-class="unified-home-management-modal" :width="660" :footer="false" :closable="false" :hide-title="true" unmount-on-close :body-style="{padding:'0'}"><HomeManagement :items="managedRoutes" :groups="managementGroups" :settings="managementSettings" :placement-state="id=>placement.state(categoryRouteForHomeId(id))" @save="saveHomeSettings" @reset="placement.restoreOrder" @rename="placement.renameHome" @remove-placement="id=>placement.change(categoryRouteForHomeId(id),'remove')" @close="showHomeManagement=false"/></a-modal>
-  <p v-if="statisticsLoading" role="status">正在读取服务器统计…</p><p v-for="stat in serverStatistics.filter(stat=>stat.error)" :key="stat.id" role="alert">{{stat.error}}（统计未完整汇总）<button @click="loadStatistics">重试统计</button></p><p v-if="error||catalog.error" role="alert">{{error||catalog.error}}</p>
+  <ContentLoading v-if="statisticsLoading" label="正在读取服务器统计"/><p v-for="stat in serverStatistics.filter(stat=>stat.error)" :key="stat.id" role="alert">{{stat.error}}（统计未完整汇总）<button @click="loadStatistics">重试统计</button></p><p v-if="error||catalog.error" role="alert">{{error||catalog.error}}</p>
   <div v-if="catalog.scanning" class="scan-status" role="status">正在扫描 {{sourceName(catalog.scanSource)}} · {{catalog.scanCount}} 个视频 <Button variant="ghost" @click="catalog.cancelScan">停止</Button></div>
 <div v-if="route==='search'&&!toolbarTarget" class="scope" aria-label="搜索范围"><button :aria-pressed="!localOnly" @click="localOnly=false">媒体库</button><button :aria-pressed="localOnly" @click="localOnly=true">本地文件</button><button v-for="server in sources.accounts.filter(a=>['jellyfin','emby','plex'].includes(a.providerId))" :key="server.id" @click="emit('server',server.id,{kind:'search',query:query||'',title:query||'搜索'})">{{server.name}}</button></div>
   <MediaDetail v-if="current" :media-item="originalItem(current,currentFiles)" :active-playlist-name="route.startsWith('playlist/')?decode(route.slice(9)):undefined" :playlist-items="rows.map(item=>originalItem(item))" @back="detail=undefined" @metadata-updated="()=>catalog.load()" @open-playlist-item="item=>{const native=nativeItem(item);if(native)detail=native.id}" @tag-click="detailTag" @ai-rescrape="item=>{const native=nativeItem(item);if(native)edit(native)}"/>
