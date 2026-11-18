@@ -30,11 +30,13 @@ jobs:
           TAG_NAME: ${{ inputs.tag }}
         shell: bash
         run: |
-          release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG_NAME}" --jq .id)"
+          # The by-tag REST endpoint may return 404 for an existing draft.
+          # List releases with write credentials, then publish the exact draft by ID.
+          release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate --slurp | python3 -c 'import json, os, sys; matches = [r for page in json.load(sys.stdin) for r in page if r["tag_name"] == os.environ["TAG_NAME"]]; assert len(matches) == 1, "Expected exactly one release"; print(matches[0]["id"])')"
           was_public="$(gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}" --jq '(.draft == false and .prerelease == false)')"
           gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
-            -f prerelease=false \
-            -f draft=false \
+            -F prerelease=false \
+            -F draft=false \
             -f make_latest=true
 
           if [[ "${was_public}" != "true" ]]; then
