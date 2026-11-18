@@ -1,3 +1,4 @@
+import MediaDetailPage from '@/components/media-detail/MediaDetailPage.vue'
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest'
 import {mount,flushPromises,DOMWrapper} from '@vue/test-utils'
 import {reactive} from 'vue'
@@ -28,6 +29,18 @@ function menuButton(label:string){const button=[...document.querySelectorAll<HTM
 beforeEach(()=>{for(const w of wrappers)w.unmount();wrappers=[];document.body.innerHTML='';localStorage.clear();generalPreferences.fileManagement=true;seriesPreferences.mergeVersions=true;seriesPreferences.defaultVersion='auto';seriesPreferences.playbackVersion='auto';seriesPreferences.showMovies=false;seriesPreferences.useCustom=true;seriesPreferences.useTMDB=true;setActivePinia(createPinia());fixture.browse.mockReset();fixture.list.mockReset();fixture.native.mockReset();fixture.native.mockImplementation(async command=>command==='trakt_status'?{connected:false,settings:{enabled:true,range:-1}}:undefined);const data=reactive({revision:1,items:[item('One'),item('Two')],playlists:{Mix:['One']} as Record<string,string[]>,series:{Saga:['Two']} as Record<string,string[]>});useFileSourcesStore().accounts.push({id:'cloud',providerId:'webdav',name:'Cloud',baseUrl:'https://example.org',authOrigins:[]});fixture.catalog=reactive({data,get items(){return data.items},dailyRanking:[],load:vi.fn(),loadRanking:vi.fn(),cancelScan:vi.fn(),play:vi.fn(),playMany:vi.fn(),patch:vi.fn(async(id:string,patch:Partial<VideoItem>)=>{Object.assign(data.items.find(i=>i.id===id)!,patch);data.revision++}),update:vi.fn(async(action:any)=>{action(data);data.revision++}),scan:vi.fn(),remove:vi.fn()})})
 afterEach(()=>{for(const w of wrappers)w.unmount();wrappers=[]})
 describe('workspace targeted actions',()=>{
+ it('opens scraped movies in the shared detail page and returns to the library',async()=>{
+   const wrapper=page('movies/all')
+   await flushPromises()
+   await wrapper.get('.media-card').trigger('click')
+   await vi.waitFor(()=>expect(wrapper.findComponent(MediaDetailPage).exists()).toBe(true))
+   const detail=wrapper.getComponent(MediaDetailPage)
+   expect(detail.get('.detail-header').text()).toBe('One')
+   expect(detail.get('.detail-file-name').text()).toBe('One.mkv')
+   await detail.get('.detail-back').trigger('click')
+   expect(wrapper.findComponent(MediaDetailPage).exists()).toBe(false)
+ })
+
  it('opens the poster menu without selecting or navigating, and loops only its files',async()=>{const wrapper=page('movies/all');await flushPromises();await wrapper.find('.media-card').trigger('contextmenu',{clientX:40,clientY:40});await flushPromises();expect(wrapper.find('.selection-bar').exists()).toBe(false);expect(wrapper.emitted('navigate')).toBeUndefined();menuButton('循环播放');await flushPromises();expect(fixture.catalog.playMany).toHaveBeenCalledWith([fixture.catalog.items[0]],'loop')})
  it('cancels delayed navigation on double click and opens the original poster menu without playback',async()=>{vi.useFakeTimers();const wrapper=page('recent');await flushPromises();const card=wrapper.find('.media-card');await card.trigger('click');await card.trigger('dblclick');await vi.advanceTimersByTimeAsync(350);expect(wrapper.find('.media-detail').exists()).toBe(false);expect(document.querySelector('[role=menu],.media-poster-menu')).not.toBeNull();expect(fixture.catalog.playMany).not.toHaveBeenCalled();vi.useRealTimers()})
  it('sorts favorite display without changing stored manual order and restores it for reordering',async()=>{const sources=useFileSourcesStore();sources.preferences.favorites.push({id:'z',sourceId:'cloud',path:'z',name:'Zulu',local:false},{id:'a',sourceId:'cloud',path:'a',name:'Alpha',local:false});const placement=usePlacement();await placement.reorderFavorites(['source:folder:z','source:folder:a']);const target=document.createElement('div');target.id='favorite-toolbar';document.body.append(target);const wrapper=page('favorites','#favorite-toolbar');await flushPromises();const before=wrapper.findAll('.favorite-shortcut').map(card=>card.text());await new DOMWrapper(target.querySelector('[aria-label="媒体管理"]')!).trigger('click');await flushPromises();menuButton('排序方式: 片名');await flushPromises();expect(wrapper.findAll('.favorite-shortcut').findIndex(card=>card.text()==='Alpha')).toBeLessThan(wrapper.findAll('.favorite-shortcut').findIndex(card=>card.text()==='Zulu'));await new DOMWrapper(target.querySelector('[aria-label="媒体管理"]')!).trigger('click');await flushPromises();menuButton('重新排序');await flushPromises();expect(wrapper.findAll('.favorite-shortcut').map(card=>card.text())).toEqual(before);expect(localStorage.getItem('boxplayer:favorite-cards-sort-title')).toBe('false')})

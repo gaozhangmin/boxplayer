@@ -240,13 +240,13 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
     <button class="round-button more-button" aria-label="更多媒体操作" @click="openMenu(route,undefined,undefined,true)"><MoreHorizontal :size="18"/><ChevronDown :size="10"/></button>
     </template>
   </div></Teleport>
-  <h1 v-if="!toolbarTarget">{{ title }}</h1>
+  <h1 v-if="!toolbarTarget && !detailActive">{{ title }}</h1>
   <div v-if="pageLoadFailed" class="server-load-error" role="alert">
     <span>{{ error }}</span>
     <button type="button" class="server-load-retry" :disabled="loading" @click="load()">重试</button>
   </div>
   <p v-else-if="error" role="alert">{{ error }} <button :disabled="loading" @click="load()">重试</button></p>
-  <p v-if="status" role="status">{{ status }}</p>
+  <p v-if="status && route.kind !== 'detail'" role="status">{{ status }}</p>
   <ContentLoading v-if="loading && !detailActive" class="server-load-indicator" />
   <div v-if="route.kind === 'home'" class="server-home">
     <nav class="workspace-tabs"><button :class="{active:route.kind==='home'}" @click="navigate({kind:'home',title:account.name})">主屏幕</button><button @click="navigate({kind:'search',title:'搜索',query:''})">搜索</button><button @click="navigate({kind:'root',title:'媒体库'})">媒体库</button></nav>
@@ -254,7 +254,18 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
     <template v-for="row in homeRows" :key="row.key"><ServerResumeRow v-if="row.key==='resume'" :title="row.title" :account="account" :items="row.items" @play="item=>play(itemRoute(item),'play',item)" @context="(event,item)=>{captureMenu(event);openMenu(itemRoute(item),item)}"/><ServerPosterRow v-else :title="row.title" :items="row.items" :account="account" :landscape="!preferences.portrait||row.key==='resume'" :error="row.error" more @select="select" @more="navigate(row.route)" @retry="load()" @context="(event,item)=>{captureMenu(event);openMenu(itemRoute(item),item)}"/></template>
     <ServerStatsRow v-if="homeStatistics" :statistics="homeStatistics"/>
   </div>
-  <template v-else-if="route.kind==='detail'&&detail"><ServerDetail :item="detail" :account="account" :children="detailChildren" :episodes="seasonEpisodes" :selected-season-id="selectedSeasonId" :similar="similar" :busy="working" :menu-entries="detailMenuEntries" @back="goBack" @play="item=>play(itemRoute(item),'play',item)" @action="detailAction" @select="select" @person="openPerson" @season="loadSeason" @facet="(facet,value)=>navigate({kind:'category',category:'all',id:route.libraryId,libraryId:route.libraryId,facet,value,title:value})"/><button v-if="childrenOffset!=null" :disabled="loading" @click="moreDetailChildren">加载更多剧集</button><p v-if="detailError" role="alert">{{detailError}}<button @click="load()">重试</button></p></template>
+  <ServerDetail v-else-if="route.kind === 'detail' && detail"
+    :item="detail" :account="account" :children="detailChildren" :episodes="seasonEpisodes"
+    :selected-season-id="selectedSeasonId" :similar="similar" :busy="working" :menu-entries="detailMenuEntries"
+    @back="goBack" @play="item => play(itemRoute(item), 'play', item)" @action="detailAction"
+    @select="select" @person="openPerson" @season="loadSeason"
+    @facet="(facet, value) => navigate({ kind: 'category', category: 'all', id: route.libraryId, libraryId: route.libraryId, facet, value, title: value })">
+    <section v-if="childrenOffset != null || detailError || status" class="tags-section">
+      <button v-if="childrenOffset != null" :disabled="loading" @click="moreDetailChildren">加载更多剧集</button>
+      <p v-if="detailError" role="alert">{{ detailError }} <button @click="load()">重试</button></p>
+      <p v-if="status" role="status">{{ status }}</p>
+    </section>
+  </ServerDetail>
   <template v-else>
     <ServerPersonPage v-if="route.kind==='person'&&detail" :person="detail" :account="account" :items="visibleItems" @back="goBack" @select="select" @favorite="updateItem(detail,'favorite')" @more="openPersonSection"/><p v-if="route.kind==='person'&&detailError" role="alert">{{detailError}}</p>
     <div v-if="route.facet && !route.value" class="category-grid"><div v-for="group in facets" :key="group.value"><button @click="navigate({ ...route, value: group.value, title: group.label })" @contextmenu.prevent="openMenu({ ...route, value: group.value, title: group.label })">{{ group.label }} <span v-if="group.count != null">({{ group.count }})</span></button><button :aria-label="group.value + '菜单'" @click="openMenu({ ...route, value: group.value, title: group.label })">⋯</button></div></div>
@@ -285,6 +296,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
 
 <style scoped>
 .server-workspace.server-workspace-detail{padding:0}
+.server-workspace-detail:has(> .media-detail){height:100%}
 .server-load-indicator.content-loading{position:sticky;top:calc(50vh - 54px);height:0;min-height:0;overflow:visible;z-index:2;pointer-events:none}
 .server-load-error{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:14px 18px;border:1px solid var(--border);border-radius:16px;background:var(--secondary)}
 .server-load-error span{min-width:0;overflow-wrap:anywhere}

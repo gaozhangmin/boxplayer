@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {computed,ref,watch} from 'vue'
+import MediaDetailPage from '@/components/media-detail/MediaDetailPage.vue'
+import MediaDetailInfo from '@/components/media-detail/MediaDetailInfo.vue'
 import {nativeCall} from '@/platform/native'
 import WatchedIndicator from '../../library/electron/WatchedIndicator.vue'
 import PosterRatingBadge from '../../library/electron/PosterRatingBadge.vue'
@@ -7,10 +9,8 @@ import ElectronModal from '@/components/dialog/ElectronModal.vue'
 import {ListPlus,Ellipsis,ChevronDown,Eye,EyeOff,Star,Heart,Download,Play} from 'lucide-vue-next'
 import ServerArtwork from '../ServerArtwork.vue'
 import MediaPosterMenu from './MediaPosterMenu.vue'
-import MediaSourceRatings from './MediaSourceRatings.vue'
-import IconFont from './IconFont.vue'
+import MediaSourceRatings from '../../library/electron/MediaSourceRatings.vue'
 import ElectronTrigger from './ElectronTrigger.vue'
-import ServerListing from './ServerListing.vue'
 import type {ServerItem,ServerPerson} from '../workspace'
 import type {Account} from '../../sources/contracts'
 import {setServerPlaybackSource,getServerPlaybackSource} from '../../sources/serverVersions'
@@ -22,10 +22,10 @@ const selectedEpisode=ref<ServerItem>(),selectedVersion=ref('')
 const versions=computed(()=>displayed.value.versions||[])
 const selectedSourceOption=computed(()=>versions.value.find(v=>v.id===selectedVersion.value)||versions.value[0])
 function selectVersion(id:string){selectedVersion.value=id;setServerPlaybackSource(props.account.id,displayed.value.id,id)}
-watch(()=>props.item.id,()=>{selectedEpisode.value=undefined;selectedVersion.value=''})
-const displayed=computed(()=>selectedEpisode.value||props.item),currentDetail=computed(()=>props.item),detailDisplayedItem=displayed
+
+const displayed=computed(()=>selectedEpisode.value||props.item)
 const detailBackdropUrl=computed(()=>props.item.backdropPath),detailLogoUrl=computed(()=>props.item.logoPath)
-const currentBackLabel='返回',detailIsWatched=computed(()=>displayed.value.watched),detailIsFavorite=computed(()=>displayed.value.favorite)
+const detailIsWatched=computed(()=>displayed.value.watched),detailIsFavorite=computed(()=>displayed.value.favorite)
 const playable=computed(()=>displayed.value.playable||props.children.some(i=>i.playable)||props.children.some(i=>['season','show','series'].includes(i.kind)))
 const detailPlayResume=computed(()=>displayed.value.progress?{percent:displayed.value.progress}:undefined)
 const detailPlayLabel=computed(()=>detailPlayResume.value?'继续播放':'播放')
@@ -38,143 +38,231 @@ const episodeItems=computed(()=>[...(props.episodes||props.children.filter(item=
 function primaryArtwork(id:string) {
   return props.account.providerId === 'plex' ? undefined : `Items/${encodeURIComponent(id)}/Images/Primary?maxWidth=400`
 }
-watch(episodeItems,episodes=>{if(episodes.length)selectedEpisode.value=episodes.find(item=>item.id===selectedEpisode.value?.id)||episodes[0]},{immediate:true})
+watch([() => props.item.id, episodeItems], ([id, episodes], previous) => {
+  const existing = previous?.[0] === id ? selectedEpisode.value?.id : undefined
+  selectedEpisode.value = episodes.find(item => item.id === existing) || episodes[0]
+}, { immediate: true })
 watch(()=>[displayed.value.id,versions.value] as const,()=>{const existing=getServerPlaybackSource(props.account.id,displayed.value.id);selectedVersion.value=versions.value.find(v=>v.id===existing)?.id||versions.value[0]?.id||'';setServerPlaybackSource(props.account.id,displayed.value.id,selectedVersion.value)},{immediate:true})
 const linkError=ref('')
 async function openLink(url:string){try{await nativeCall('open_media_link',{url})}catch(cause){linkError.value=(cause as Error).message}}
-function handleBack(){emit('back')}
-function t(key:string){return {'mediaServer.noOverview':'暂无简介','mediaServer.current':'当前'}[key]||key}
 </script>
-<template><div class="media-server-workspace server-detail-surface"><div class="workspace-page workspace-page-detail"><div class="workspace-content workspace-content-detail"><div class="detail-page">              <div class="detail-shell">
-                <div class="detail-backdrop-stage">
-                  <ServerArtwork v-if="detailBackdropUrl"
-                    class="detail-backdrop-image"
-                    :account="account" :path="detailBackdropUrl"
-                    :alt="currentDetail.name"
-                  >
-                    <template #fallback><div class="detail-backdrop-fallback" aria-hidden="true" /></template>
-                  </ServerArtwork>
-                  <div v-else class="detail-backdrop-fallback" />
-                  <div class="detail-backdrop-mask" />
-                  <div class="detail-backdrop-bottom-haze" />
 
-                  <div class="detail-top-back">
-                    <button type="button" class="detail-back-button" @click="handleBack">
-                      <IconFont name="iconarrow-left-2-icon" />
-                      <span>{{ currentBackLabel }}</span>
-                    </button>
-                    <div class="detail-top-actions">
-                      <button type="button" class="detail-top-icon-action" title="播放列表" @click="emit('action','playlist',displayed)"><ListPlus :size="20" /></button>
-                      <ElectronTrigger trigger="click" position="br">
-                        <button type="button" class="detail-top-icon-action" title="更多操作"><Ellipsis :size="20" /><ChevronDown :size="12" /></button>
-                        <template #content><MediaPosterMenu server detail :tv="['series','show','season'].includes(displayed.kind)" :watched="displayed.watched" :favorite="displayed.favorite" @action="emit('action',$event,displayed)"/></template>
-                      </ElectronTrigger>
-                    </div>
-                  </div>
+<template>
+  <MediaDetailPage :item-key="item.id" :title="item.name" :play-label="detailPlayLabel"
+    :progress="detailPlayResume?.percent" :play-disabled="busy || !playable"
+    :has-version="versions.length > 1" @back="emit('back')" @play="emit('play', displayed)">
+    <template #header-actions>
+      <button type="button" class="action-button" title="播放列表" @click="emit('action','playlist',displayed)">
+        <ListPlus :size="20" />
+      </button>
+      <ElectronTrigger>
+        <button type="button" class="action-button" title="更多操作">
+          <Ellipsis :size="20" />
+          <ChevronDown :size="12" />
+        </button>
+        <template #content>
+          <MediaPosterMenu server detail :tv="['series','show','season'].includes(displayed.kind)" :watched="displayed.watched" :favorite="displayed.favorite" @action="emit('action',$event,displayed)"/>
+        </template>
+      </ElectronTrigger>
+    </template>
 
-                  <div class="detail-hero-copy">
-                    <div class="detail-overlay-grid">
-                      <div class="detail-hero-controls">
-                        <div v-if="detailLogoUrl" class="detail-title-block detail-title-block-brand">
-                          <ServerArtwork :account="account"
-                            class="detail-hero-logo"
-                            :path="detailLogoUrl"
-                            :alt="currentDetail.name"
-                          >
-                            <template #fallback><h1 class="detail-hero-title">{{ currentDetail.name }}</h1></template>
-                          </ServerArtwork>
-                        </div>
-                        <div v-else class="detail-title-block">
-                          <h1 class="detail-hero-title">{{ currentDetail.name }}</h1>
-                        </div>
+    <template v-if="detailBackdropUrl" #backdrop>
+      <ServerArtwork :account="account" :path="detailBackdropUrl" alt="" class="hero-backdrop">
+        <template #fallback>
+          <span aria-hidden="true" />
+        </template>
+      </ServerArtwork>
+    </template>
 
-                        <div class="detail-actions-column">
-                          <div class="detail-play-row" :class="{ 'has-version': versions.length>1 }">
-                            <button :disabled="busy||!playable" class="detail-primary-play" :class="{ 'has-resume': detailPlayResume }" @click="emit('play',displayed)">
-                              <span v-if="detailPlayResume" class="detail-play-progress" aria-hidden="true" :style="{ width: `${detailPlayResume.percent}%` }"></span>
-                              <span class="detail-play-label">{{ detailPlayLabel }}</span>
-                            </button>
-                            <ElectronTrigger v-if="versions.length>1"><button class="detail-play-version-trigger" title="选择视频版本"><ChevronDown :size="20"/></button><template #content><div class="detail-version-menu"><button v-for="source in versions" :key="source.id" class="detail-version-option" :class="{active:selectedSourceOption?.id===source.id}" @click="selectVersion(source.id)"><div class="detail-version-main"><span>{{source.title}}</span><small>{{source.fileLabel}}</small></div><span v-if="selectedSourceOption?.id===source.id" class="detail-version-check">当前</span></button></div></template></ElectronTrigger>
-                          </div>
-                          <div class="detail-icon-actions">
-                            <button
-                              class="detail-square-action"
-                              :class="{ active: detailIsWatched }"
-                              :title="detailIsWatched ? '标记未观看' : '标记已观看'"
-                              @click="emit('action','watched',displayed)"
-                            >
-                              <component :is="detailIsWatched ? EyeOff : Eye" :size="20" />
-                            </button>
-                            <ElectronTrigger v-if="['show','series','season'].includes(item.kind)"><button class="detail-square-action" title="下载"><Download :size="20"/></button><template #content><div class="detail-version-menu"><button class="detail-version-option" :disabled="!displayed.playable" @click="emit('action','download',displayed)">下载当前集</button><button class="detail-version-option" @click="emit('action','download-season',displayed)">{{item.kind==='season'?'下载本季':'下载当前季'}}</button><button v-if="item.kind!=='season'" class="detail-version-option" @click="emit('action','download-series',displayed)">下载整部剧集</button></div></template></ElectronTrigger><button v-else class="detail-square-action" title="下载" :disabled="!displayed.playable" @click="emit('action','download',displayed)"><Download :size="20"/></button>
-                            <button
-                              class="detail-square-action"
-                              :disabled="['season','playlist'].includes(displayed.kind)"
-                              title="评分"
-                              @click="emit('action','rating',displayed)"
-                            ><Star :size="20" /></button>
-                            <button
-                              class="detail-square-action"
-                              :class="{ active: detailIsFavorite }"
-                              :title="detailIsFavorite ? '取消收藏' : '收藏'"
-                              @click="emit('action','favorite',displayed)"
-                            >
-                              <Heart :size="20" :fill="detailIsFavorite ? 'currentColor' : 'none'" />
-                            </button>
-                            <button class="detail-square-action" title="播放列表" @click="emit('action','playlist',displayed)"><ListPlus :size="20" /></button>
-                          </div>
-                        </div>
-                      </div>
+    <template #summary>
+      <ServerArtwork v-if="detailLogoUrl" :account="account" :path="detailLogoUrl" :alt="item.name" class="hero-logo">
+        <template #fallback>
+          <h1 class="hero-title">{{ item.name }}</h1>
+        </template>
+      </ServerArtwork>
+      <h1 v-else class="hero-title">{{ item.name }}</h1>
+      <div v-if="detailEpisodeHeading" class="hero-episode-title">{{ detailEpisodeHeading }} · {{ displayed.name }}</div>
+      <div class="hero-meta-secondary">
+        <span v-if="detailTechnicalLine">{{ detailTechnicalLine }}</span>
+        <span v-for="badge in detailMetaBadges" :key="badge" class="content-certification">{{ badge }}</span>
+        <span v-if="detailGenreLine">{{ detailGenreLine }}</span>
+      </div>
+      <p v-if="!generalPreferences.hideSpoilers && currentOverviewText" class="hero-overview" :title="currentOverviewText">
+        {{ currentOverviewText }}
+      </p>
+      <div class="hero-meta">
+        <MediaSourceRatings :rating="displayed.rating" :critic-rating="displayed.criticRating" :is-movie="item.kind === 'movie'" />
+      </div>
+    </template>
 
-                      <div class="detail-hero-main">
-                        <div class="detail-synopsis-column">
-                          <div class="detail-episode-heading">
-                            <span v-if="detailEpisodeHeading">{{ detailEpisodeHeading }} · </span>{{ detailDisplayedItem.name || currentDetail.name }}
-                          </div>
-                          <div class="detail-facts-line">
-                            <span v-if="detailTechnicalLine">{{ detailTechnicalLine }}</span>
-                            <span v-for="badge in detailMetaBadges" :key="badge" class="detail-meta-badge">{{ badge }}</span>
-                            <span v-if="detailGenreLine">{{ detailGenreLine }}</span>
-                          </div>
-                          <div v-if="!generalPreferences.hideSpoilers" class="detail-overview-block" :class="{ 'is-empty': !currentOverviewText }">
-                            <p
-                              class="detail-overview"
-                              :class="{ 'is-empty': !currentOverviewText }"
-                              :title="currentOverviewText || t('mediaServer.noOverview')"
-                            >
-                              {{ currentOverviewText || t('mediaServer.noOverview') }}
-                            </p>
-                          </div>
-                          <MediaSourceRatings
-                            class="detail-score-row"
-                            :is-movie="currentDetail?.kind === 'movie'"
-                            :rating="detailDisplayedItem.rating"
-                            :critic-rating="detailDisplayedItem.criticRating"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+    <template #versions>
+      <ElectronTrigger v-if="versions.length>1">
+        <button class="version-button" title="选择视频版本">
+          <ChevronDown :size="20"/>
+        </button>
+        <template #content>
+          <div class="server-detail-menu">
+            <button v-for="source in versions" :key="source.id" class="detail-version-option" :class="{active:selectedSourceOption?.id===source.id}" @click="selectVersion(source.id)">
+              <div class="detail-version-main">
+                <span>{{source.title}}</span>
+                <small>{{source.fileLabel}}</small>
+              </div>
+              <span v-if="selectedSourceOption?.id===source.id" class="detail-version-check">当前</span>
+            </button>
+          </div>
+        </template>
+      </ElectronTrigger>
+    </template>
+    <template #actions>
+      <div class="action-buttons">
+        <button
+          class="action-button"
+          :class="{ active: detailIsWatched }"
+          :title="detailIsWatched ? '标记未观看' : '标记已观看'"
+          @click="emit('action','watched',displayed)"
+          >
+          <component :is="detailIsWatched ? EyeOff : Eye" :size="20" />
+        </button>
+        <ElectronTrigger v-if="['show','series','season'].includes(item.kind)">
+          <button class="action-button" title="下载">
+            <Download :size="20"/>
+          </button>
+          <template #content>
+            <div class="server-detail-menu">
+              <button class="detail-version-option" :disabled="!displayed.playable" @click="emit('action','download',displayed)">下载当前集</button>
+              <button class="detail-version-option" @click="emit('action','download-season',displayed)">{{item.kind==='season'?'下载本季':'下载当前季'}}</button>
+              <button v-if="item.kind!=='season'" class="detail-version-option" @click="emit('action','download-series',displayed)">下载整部剧集</button>
+            </div>
+          </template>
+        </ElectronTrigger>
+        <button v-else class="action-button" title="下载" :disabled="!displayed.playable" @click="emit('action','download',displayed)">
+          <Download :size="20"/>
+        </button>
+        <button
+          class="action-button"
+          :disabled="['season','playlist'].includes(displayed.kind)"
+          title="评分"
+          @click="emit('action','rating',displayed)"
+          >
+          <Star :size="20" />
+        </button>
+        <button
+          class="action-button"
+          :class="{ active: detailIsFavorite }"
+          :title="detailIsFavorite ? '取消收藏' : '收藏'"
+          @click="emit('action','favorite',displayed)"
+          >
+          <Heart :size="20" :fill="detailIsFavorite ? 'currentColor' : 'none'" />
+        </button>
+        <button class="action-button" title="播放列表" @click="emit('action','playlist',displayed)">
+          <ListPlus :size="20" />
+        </button>
+      </div>
+    </template>
 
-<div class="detail-lower-content">
-<section v-if="children.length||episodeItems.length" class="detail-section detail-section-episodes"><div class="detail-season-picker"><button v-for="season in children.filter(item=>item.kind==='season')" :key="season.id" class="detail-chip-button" :class="{active:selectedSeasonId===season.id}" @click="emit('season',season)">{{season.name}}</button></div><div class="detail-episodes-rail"><div v-for="(episode,index) in episodeItems" :key="episode.id" class="detail-episode-card" :class="{selected:selectedEpisode?.id===episode.id}" role="button" tabindex="0" @click="selectedEpisode=episode" @keydown.enter="selectedEpisode=episode" @contextmenu.prevent="emit('action','menu',episode)"><div class="detail-episode-cover media-image-frame"><ServerArtwork :account="account" :path="episode.backdropPath||episode.imagePath||primaryArtwork(episode.id)" :alt="episode.name"/><button type="button" class="detail-episode-play-overlay" :aria-label="'播放 '+episode.name" @click.stop="emit('play',episode)"><Play :size="20" fill="currentColor"/></button><div v-if="episode.progress" class="detail-episode-progress"><div class="detail-episode-progress-bar" :style="{width:Math.min(100,episode.progress)+'%'}"/></div></div><div class="detail-episode-caption"><span class="detail-episode-index">{{index+1}}.</span><span class="detail-episode-kicker">{{episode.season!=null?'S'+episode.season:''}}{{episode.episode!=null?' E'+episode.episode:''}}</span><span class="detail-episode-title">{{episode.name}}</span></div></div></div></section>
-<section v-if="item.people?.length" class="detail-section detail-section-people"><div class="detail-section-header"><h4>演职员</h4></div><div class="people-rail detail-people-rail"><button v-for="person in item.people" :key="person.id+person.role" class="person-card person-card-rail person-card-button" @click="emit('person',person)"><div class="person-avatar media-image-frame"><ServerArtwork :account="account" :path="person.imagePath||primaryArtwork(person.id)" :alt="person.name"/></div><div class="person-name">{{person.name}}</div><div class="person-role">{{person.role}}</div></button></div></section>
-<section v-if="similar.length" class="detail-section detail-section-similar"><div class="detail-section-header"><h4>推荐</h4></div><div class="detail-recommendation-rail"><button v-for="item in similar" :key="item.id" class="detail-recommendation-card" @click="emit('select',item)"><div class="detail-recommendation-poster media-image-frame"><ServerArtwork :account="account" :path="item.imagePath" :alt="item.name"/><WatchedIndicator corner :watched="item.watched"/><PosterRatingBadge :rating="item.rating" :is-movie="item.kind==='movie'"/></div><div class="detail-recommendation-title">{{item.name}}</div></button></div></section>
-<section v-if="item.genres.length||item.studios.length" class="detail-section detail-section-genres"><div class="detail-chip-row"><button v-for="genre in item.genres" :key="genre" class="detail-chip-button" @click="emit('facet','genre',genre)">{{genre}}</button><button v-for="studio in item.studios" :key="studio" class="detail-chip-button" @click="emit('facet','studio',studio)">{{studio}}</button></div></section>
-<section v-if="displayed.externalLinks?.length" class="detail-section detail-section-links"><div class="detail-section-header"><h4>链接</h4></div><div class="detail-chip-row"><a v-for="link in displayed.externalLinks" :key="link.url" class="detail-chip-link" :href="link.url" @click.prevent="openLink(link.url)"><span class="detail-link-glyph">↗</span>{{link.title}}</a></div><p v-if="linkError" role="alert">{{linkError}}</p></section>
-<section v-if="selectedSourceOption" class="detail-section detail-section-media"><div class="detail-section-header"><h4>媒体</h4></div><div class="detail-file-bar"><div class="detail-file-source">在 {{account.name}} 上</div><div v-if="selectedSourceOption.filePath" class="detail-file-path">路径：{{selectedSourceOption.filePath}}</div><div class="detail-file-name">{{selectedSourceOption.fileLabel}}</div></div><div class="detail-media-card-rail"><div v-for="card in selectedSourceOption.mediaInfoCards" :key="card.id" class="detail-media-card" role="button" tabindex="0" @click="mediaInfo=card" @keydown.enter="mediaInfo=card"><div class="detail-media-card-title"><span class="detail-media-kind-badge">{{card.kind==='video'?'影':card.kind==='audio'?'声':'字'}}</span>{{card.title}}</div><div class="detail-media-card-body"><div v-for="row in card.rows" :key="row.label" class="detail-media-row"><span>{{row.label}}</span><strong>{{row.value}}</strong></div></div></div></div></section></div></div></div></div></div></div><ElectronModal v-if="mediaInfo" title="媒体元数据" :width="920" @close="mediaInfo=undefined"><div class="detail-media-modal-panel"><h3>{{mediaInfo.title}}</h3><div v-for="row in mediaInfo.rows" :key="row.label" class="detail-media-row"><span>{{row.label}}</span><strong>{{row.value}}</strong></div></div></ElectronModal></template>
-<style scoped src="./workspace.css"></style><style src="./workspace-overrides.css"></style>
-<style scoped>.detail-menu-action{display:block;width:100%;padding:7px 12px;text-align:left}.detail-menu-action:hover{background:var(--secondary)}.detail-cast-avatar{width:120px;height:160px;overflow:hidden;border-radius:12px}.detail-primary-play:disabled{opacity:.5}</style>
-<style scoped>.media-server-workspace .detail-primary-play{background:var(--primary)!important;border-color:var(--primary)!important;box-shadow:none!important}.detail-hero-logo{object-fit:contain}</style>
-<style scoped>
-.server-detail-surface,
-.server-detail-surface .workspace-page-detail,
-.server-detail-surface .workspace-content-detail { height: auto; overflow: visible; }
-.server-detail-surface .detail-episode-title,
-.server-detail-surface .detail-media-card-title,
-.server-detail-surface .detail-media-row strong { color: var(--detail-copy); }
-.server-detail-surface .detail-episode-kicker,
-.server-detail-surface .detail-file-source,
-.server-detail-surface .detail-media-row span { color: var(--detail-copy-muted); }
-.server-detail-surface :deep(.server-art-fallback) { background: var(--detail-surface-soft); color: var(--detail-copy-muted); }
+    <section v-if="children.length||episodeItems.length" class="episodes-section">
+      <div class="season-tabs">
+        <button v-for="season in children.filter(item=>item.kind==='season')" :key="season.id" class="tag-item clickable" :aria-pressed="selectedSeasonId === season.id" @click="emit('season',season)">{{season.name}}</button>
+      </div>
+      <div class="episodes-grid">
+        <div v-for="episode in episodeItems" :key="episode.id" class="episode-card" :class="{active:selectedEpisode?.id===episode.id}" role="button" tabindex="0" @click="selectedEpisode=episode" @keydown.enter="selectedEpisode=episode" @contextmenu.prevent="emit('action','menu',episode)">
+          <div class="episode-thumbnail">
+            <ServerArtwork :account="account" :path="episode.backdropPath||episode.imagePath||primaryArtwork(episode.id)" :alt="episode.name"/>
+            <button type="button" class="episode-play-overlay" :aria-label="'播放 '+episode.name" @click.stop="emit('play',episode)">
+              <Play :size="20" fill="currentColor"/>
+            </button>
+            <progress v-if="episode.progress" class="detail-episode-progress" :value="episode.progress" max="100" aria-label="播放进度" />
+          </div>
+          <div class="episode-info">
+            <div class="episode-title">{{ episode.episode != null ? `E${episode.episode} · ` : '' }}{{ episode.name }}</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section v-if="item.people?.length" class="cast-section">
+      <div class="section-header">
+        <h3>演职员</h3>
+      </div>
+      <div class="cast-list">
+        <button v-for="person in item.people" :key="person.id+person.role" class="cast-card" @click="emit('person',person)">
+          <div class="cast-avatar">
+            <ServerArtwork :account="account" :path="person.imagePath||primaryArtwork(person.id)" :alt="person.name"/>
+          </div>
+          <div class="cast-name">{{person.name}}</div>
+          <div class="cast-role">{{person.role}}</div>
+        </button>
+      </div>
+    </section>
+    <section v-if="similar.length" class="episodes-section collection-section">
+      <div class="section-header">
+        <h3>推荐</h3>
+      </div>
+      <div class="episodes-grid collection-poster-rail">
+        <button v-for="item in similar" :key="item.id" class="episode-card collection-poster-card" @click="emit('select',item)">
+          <div class="episode-thumbnail">
+            <ServerArtwork :account="account" :path="item.imagePath" :alt="item.name"/>
+            <WatchedIndicator corner :watched="item.watched"/>
+            <PosterRatingBadge :rating="item.rating" :is-movie="item.kind==='movie'"/>
+          </div>
+          <div class="episode-info episode-title">{{item.name}}</div>
+        </button>
+      </div>
+    </section>
+    <section v-if="item.genres.length||item.studios.length" class="tags-section">
+      <div class="tag-list">
+        <button v-for="genre in item.genres" :key="genre" class="tag-item clickable" @click="emit('facet','genre',genre)">{{genre}}</button>
+        <button v-for="studio in item.studios" :key="studio" class="tag-item clickable" @click="emit('facet','studio',studio)">{{studio}}</button>
+      </div>
+    </section>
+    <section v-if="displayed.externalLinks?.length" class="tags-section">
+      <div class="section-header">
+        <h3>链接</h3>
+      </div>
+      <div class="tag-list">
+        <a v-for="link in displayed.externalLinks" :key="link.url" class="tag-item clickable" :href="link.url" @click.prevent="openLink(link.url)">
+          <span class="detail-link-glyph">↗</span>{{link.title}}</a>
+      </div>
+      <p v-if="linkError" role="alert">{{linkError}}</p>
+    </section>
+    <MediaDetailInfo v-if="selectedSourceOption" :cards="selectedSourceOption.mediaInfoCards"
+      :file="{ source: account.name, path: selectedSourceOption.filePath, name: selectedSourceOption.fileLabel }"
+      interactive @inspect="mediaInfo = $event" />
+    <slot />
+
+    <template #dialogs>
+      <ElectronModal v-if="mediaInfo" title="媒体元数据" :width="920" @close="mediaInfo=undefined">
+        <div class="detail-media-modal-panel">
+          <h3>{{mediaInfo.title}}</h3>
+          <div v-for="row in mediaInfo.rows" :key="row.label" class="server-inspection-row">
+            <span>{{row.label}}</span>
+            <strong>{{row.value}}</strong>
+          </div>
+        </div>
+      </ElectronModal>
+    </template>
+  </MediaDetailPage>
+</template>
+
+<style>
+.server-detail-menu {
+  display: grid;
+  padding: 6px;
+}
+.server-detail-menu button {
+  padding: 8px 12px;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+.server-detail-menu button:hover:not(:disabled) { background: var(--secondary); }
+.server-detail-menu button:disabled { opacity: .45; }
+.server-detail-menu .detail-version-main { display: grid; gap: 2px; }
+.server-inspection-row {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 3fr;
+  gap: 12px;
+  margin: 8px 0;
+}
 </style>

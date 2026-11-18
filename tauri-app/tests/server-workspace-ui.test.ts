@@ -1,3 +1,4 @@
+import MediaDetailPage from '@/components/media-detail/MediaDetailPage.vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
@@ -138,9 +139,9 @@ it('series and seasons open detail synopses and episode panels, then expose exac
  vi.mocked(browseServer).mockImplementation(async (_account,route) => ({items:route.id==='show'?[season]:route.id==='season'?[episode]:[show]}))
  vi.mocked(serverDetail).mockImplementation(async (_account,id) => id==='show'?show:id==='season'?season:episode)
  const wrapper=mount(ServerWorkspace,{props:{account,initialRoute:{kind:'category',category:'shows',id:'library',libraryId:'library',title:'TV'}},global:{stubs}});await flushPromises()
- await wrapper.get('.library-card').trigger('click');await flushPromises();expect(wrapper.get('.detail-hero-title').text()).toBe('Show');expect(wrapper.text()).toContain('Episode synopsis');expect(wrapper.text()).toContain('Season 1');expect(wrapper.text()).toContain('演职员')
- await wrapper.get('.person-card-button').trigger('click');await flushPromises();expect(vi.mocked(browseServer).mock.calls.at(-1)?.[1]).toMatchObject({personId:'actor',id:'library',category:'all'})
- ;(wrapper.vm as unknown as {navigate:(route:unknown)=>void}).navigate({kind:'detail',id:'season',title:'Season 1',libraryId:'library'});await flushPromises();expect(wrapper.get('.detail-hero-title').text()).toBe('Season 1');expect(wrapper.text()).toContain('Episode synopsis');expect(wrapper.text()).toContain('Episode 1');expect(wrapper.get('[title="评分"]').attributes('disabled')).toBeUndefined();wrapper.unmount()
+ await wrapper.get('.library-card').trigger('click');await flushPromises();expect(wrapper.getComponent(MediaDetailPage).get('.hero-title').text()).toBe('Show');expect(wrapper.text()).toContain('Episode synopsis');expect(wrapper.text()).toContain('Season 1');expect(wrapper.text()).toContain('演职员');expect(wrapper.getComponent(MediaDetailPage).get('.detail-header').text()).toBe('Show')
+ await wrapper.get('.cast-card').trigger('click');await flushPromises();expect(vi.mocked(browseServer).mock.calls.at(-1)?.[1]).toMatchObject({personId:'actor',id:'library',category:'all'})
+ ;(wrapper.vm as unknown as {navigate:(route:unknown)=>void}).navigate({kind:'detail',id:'season',title:'Season 1',libraryId:'library'});await flushPromises();expect(wrapper.getComponent(MediaDetailPage).get('.hero-title').text()).toBe('Season 1');expect(wrapper.text()).toContain('Episode synopsis');expect(wrapper.text()).toContain('Episode 1');expect(wrapper.get('[title="评分"]').attributes('disabled')).toBeUndefined();wrapper.unmount()
 })
 it('server facet index opens exact child route within the same library', async () => {
  vi.mocked(serverFacets).mockResolvedValue([{value:'科幻',label:'科幻',count:3}])
