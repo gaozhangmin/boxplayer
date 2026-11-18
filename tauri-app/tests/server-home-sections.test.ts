@@ -54,3 +54,31 @@ it('opens a series shelf card in the same detail route as server browsing',async
  await vi.waitFor(()=>expect(wrapper.emitted('navigate')?.at(-1)).toEqual([account.id,{kind:'detail',id:'series',title:'A series'}]))
  wrapper.unmount()
 })
+
+it('keeps failed server requests in shelves with a retry instead of a top-level alert', async () => {
+ localStorage.setItem(preferenceKey(account.id), JSON.stringify({version:1,home:['latest'],favorites:[]}))
+ const browse = vi.mocked(browseServer)
+ browse.mockRejectedValueOnce(new Error('root timeout')).mockRejectedValueOnce(new Error('shelf timeout'))
+ const wrapper = mount(ServerHomeSections, {props:{accounts:[account],hideFavorites:true},global:{
+  plugins:[createPinia()],stubs:{HomeShelfViewport:{template:'<div><slot/></div>'}}
+ }})
+ await flushPromises()
+ expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+ expect(wrapper.text()).not.toContain('root timeout')
+ expect(wrapper.get('.shelf-error').text()).toContain('shelf timeout')
+ await wrapper.get('button[aria-label="重试"]').trigger('click')
+ await flushPromises()
+ expect(browse).toHaveBeenCalledTimes(4)
+ wrapper.unmount()
+})
+
+it('shows a server-specific retry shelf if discovery fails without any failed content shelves', async () => {
+ vi.mocked(browseServer).mockRejectedValueOnce(new Error('discovery timeout'))
+ const wrapper = mount(ServerHomeSections,{props:{accounts:[account],hideFavorites:true},global:{plugins:[createPinia()]}})
+ await flushPromises()
+ expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+ expect(wrapper.get('.shelf-error').text()).toContain('discovery timeout')
+ expect(wrapper.text()).toContain(account.name)
+ expect(wrapper.find('button[aria-label="重试"]').exists()).toBe(true)
+ wrapper.unmount()
+})
