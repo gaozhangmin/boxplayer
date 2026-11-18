@@ -1,6 +1,54 @@
 use super::*;
 use axum::{response::IntoResponse, Json};
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+#[tokio::test]
+async fn emby_user_agent_is_applied_to_matching_hops_without_leaking_on_redirect() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let location = format!("http://unrelated.test:{}/final", address.port());
+    let router = Router::new()
+        .route("/initial", get(move |headers: HeaderMap| {
+            let location = location.clone();
+            async move {
+                assert_eq!(headers["user-agent"], "SenPlayer");
+                assert_eq!(headers.get_all("user-agent").iter().count(), 1);
+                (StatusCode::FOUND, [("location", location)])
+            }
+        }))
+        .route("/final", get(|headers: HeaderMap| async move {
+            assert_ne!(headers.get("user-agent").and_then(|value| value.to_str().ok()), Some("SenPlayer"));
+            assert!(headers.get("x-emby-token").is_none());
+            StatusCode::OK
+        }));
+    let task = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let client = Client::builder().no_proxy().redirect(Policy::none())
+        .resolve("emby.younoyes.com", address).resolve("unrelated.test", address)
+        .build().unwrap();
+    let gateway = Gateway::new(Arc::new(|media| Box::pin(async move { Ok(media) }))).unwrap();
+    let url = format!("http://emby.younoyes.com:{}/initial", address.port());
+    let headers = Headers::from([
+        ("user-agent".into(), "BoxPlayer".into()),
+        ("X-Emby-Token".into(), "synthetic-token".into()),
+    ]);
+    let response = gateway.send(&client, Method::GET, url, headers, None, true).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    task.abort();
+}
+
+#[test]
+fn server_media_user_agent_matches_ios_host_policy() {
+    for host in ["emby.younoyes.com", "onatoshi.example", "drivemby.com", "a.drivemby.com"] {
+        let mut headers = Headers::from([("user-agent".into(), "BoxPlayer".into())]);
+        apply_server_media_user_agent(&format!("https://{host}/Items/1/Download"), &mut headers);
+        assert_eq!(headers, Headers::from([("User-Agent".into(), "SenPlayer".into())]));
+    }
+    for url in ["https://drivemby.com.example/", "https://unrelated.test/younoyes"] {
+        let mut headers = Headers::new();
+        apply_server_media_user_agent(url, &mut headers);
+        assert!(headers.is_empty());
+    }
+}
 pub(crate) const SAMPLE: &[u8] = include_bytes!("../../../e2e/assets/mpv-sample.mp4");
 pub(crate) struct Fixture {
     pub base: String,

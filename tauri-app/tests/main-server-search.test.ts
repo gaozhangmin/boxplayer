@@ -14,11 +14,30 @@ it('routes sidebar server selection and search to the account-bound server works
  const owner={id:'server-a',providerId:'jellyfin' as const,name:'客厅 Jellyfin',userId:'user',baseUrl:'https://server.test',authOrigins:['https://server.test']}
  sources.accounts=[owner];sources.replaceSnapshot({localFolders:[],drives:[],mediaServers:[{id:owner.id,name:owner.name}],hasDirectURLs:false})
  const wrapper=mount(Main,{attachTo:document.body,global:{plugins:[pinia],stubs:{LibraryWorkspace:{template:'<div/>'}}}})
+ const content=wrapper.get('.content-body').element
+ content.scrollTop=600
  await wrapper.findAll('button').find(button=>button.text()===owner.name)!.trigger('click');await flushPromises()
  expect(wrapper.getComponent(ServerWorkspace).props('account')).toEqual(owner)
+ expect(wrapper.getComponent(ServerWorkspace).props('initialRoute')).toBeUndefined()
+ expect(content.scrollTop).toBe(0)
+ expect(content.classList.contains('server-content')).toBe(true)
  expect(wrapper.find('.files-browser').exists()).toBe(false)
  await wrapper.get('.search-box input').setValue('new');await wrapper.get('.search-box').trigger('submit');await flushPromises()
  expect(wrapper.getComponent(ServerWorkspace).props('searchQuery')).toBe('new')
  expect(wrapper.getComponent(ServerWorkspace).props('searchRevision')).toBe(1)
+ wrapper.unmount()
+})
+
+it('opens a Files server card on the same library root as its sidebar entry', async () => {
+ const pinia=createPinia(),sources=useFileSourcesStore(pinia)
+ const owner={id:'server-emby',providerId:'emby' as const,name:'本地 Emby',userId:'user',baseUrl:'https://server.test',authOrigins:['https://server.test']}
+ sources.accounts=[owner];sources.replaceSnapshot({localFolders:[],drives:[],mediaServers:[{id:owner.id,name:owner.name}],hasDirectURLs:false})
+ const wrapper=mount(Main,{attachTo:document.body,global:{plugins:[pinia],stubs:{LibraryWorkspace:{template:'<div/>'}}}})
+ await wrapper.findAll('button').find(button=>button.text()==='文件')!.trigger('click')
+ await flushPromises()
+ await wrapper.get('.file-source-card[data-source-key="server:server-emby"]').trigger('click')
+ await flushPromises()
+ expect(wrapper.getComponent(ServerWorkspace).props('account')).toEqual(owner)
+ expect(wrapper.getComponent(ServerWorkspace).props('initialRoute')).toBeUndefined()
  wrapper.unmount()
 })

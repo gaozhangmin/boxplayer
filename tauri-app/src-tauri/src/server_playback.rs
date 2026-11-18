@@ -756,5 +756,6 @@ pub async fn file_media_selected(
         }
     };
     accounts.media_headers(&mut media)?;
+    crate::gateway::apply_server_media_user_agent(&media.url, &mut media.headers);
     Ok(media)
 }

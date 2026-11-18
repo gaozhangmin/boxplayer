@@ -77,6 +77,7 @@ function getListingMetaItems(item:ServerItem){return [item.rating?'★ '+item.ra
                 </div></template></div></div></template>
 <style scoped src="./workspace.css"></style><style src="./workspace-overrides.css"></style>
 <style scoped>
+.media-server-workspace{height:auto;overflow:visible}
 .library-card:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
 .library-cover :deep(img){position:absolute;inset:0}
 .library-card{cursor:pointer}

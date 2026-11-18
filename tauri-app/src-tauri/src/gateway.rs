@@ -25,6 +25,21 @@ use tokio_util::sync::CancellationToken;
 use url::Url;
 
 pub type Headers = BTreeMap<String, String>;
+const EMBY_COMPAT_USER_AGENT: &str = "SenPlayer";
+
+fn uses_emby_compat_user_agent(url: &Url) -> bool {
+    url.host_str().is_some_and(|host| {
+        host == "drivemby.com" || host.ends_with(".drivemby.com")
+            || host.contains("younoyes") || host.contains("onatoshi")
+    })
+}
+
+pub(crate) fn apply_server_media_user_agent(url: &str, headers: &mut Headers) {
+    if Url::parse(url).is_ok_and(|url| uses_emby_compat_user_agent(&url)) {
+        headers.retain(|name, _| !name.eq_ignore_ascii_case("user-agent"));
+        headers.insert("User-Agent".into(), EMBY_COMPAT_USER_AGENT.into());
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ResolvedMedia {
@@ -392,7 +407,7 @@ impl Gateway {
                     .unwrap_or(crate::network_proxy::client()?)
             };
             let response = self
-                .send(&client, method, request.url, headers, request.body)
+                .send(&client, method, request.url, headers, request.body, request.provider_id == "emby")
                 .await?;
             let status = response.status().as_u16();
             let final_url = response.url().to_string();
@@ -431,11 +446,19 @@ impl Gateway {
         url: String,
         mut headers: Headers,
         mut body: Option<Vec<u8>>,
+        emby_compat: bool,
     ) -> Result<reqwest::Response, AppError> {
         let mut url = parsed_url(&url)?;
         for hop in 0..=5 {
             let mut builder = client.request(method.clone(), url.clone());
+            let compat = emby_compat && uses_emby_compat_user_agent(&url);
+            if compat {
+                builder = builder.header(reqwest::header::USER_AGENT, EMBY_COMPAT_USER_AGENT);
+            }
             for (name, value) in &headers {
+                if compat && name.eq_ignore_ascii_case("user-agent") {
+                    continue;
+                }
                 let key = reqwest::header::HeaderName::from_bytes(name.as_bytes())
                     .map_err(|_| failure("HEADER_INVALID", "Invalid header name"))?;
                 let val = reqwest::header::HeaderValue::from_str(value)
@@ -535,6 +558,7 @@ impl Gateway {
                 original.url.clone(),
                 headers.clone(),
                 None,
+                true,
             )
             .await?;
         if resource.refresh_allowed
@@ -577,7 +601,7 @@ impl Gateway {
                 }
             }
             response = self
-                .send(&crate::network_proxy::client()?, method.clone(), retry_url, headers, None)
+                .send(&crate::network_proxy::client()?, method.clone(), retry_url, headers, None, true)
                 .await?;
         }
         let manifest = response.status().is_success()

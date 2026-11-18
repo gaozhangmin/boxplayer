@@ -175,6 +175,6 @@ fieldset { padding:0; margin:0; border:0; min-width:0; }fieldset:disabled { opac
 .nav-children { padding-left: 18px; }
 
 /* Workspace owns the same pane inset as Electron; do not add a second shell inset. */
-.content-body:has(> .video-workspace){padding:0}
+.content-body:has(> .video-workspace),.content-body.server-content{padding:0}
 
 .settings-select { position:relative; flex:none; }.settings-select select { appearance:none; height:32px; padding-right:29px; }.settings-select > svg { position:absolute; right:10px; top:50%; transform:translateY(-50%); pointer-events:none; color:var(--muted-text); }

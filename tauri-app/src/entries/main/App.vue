@@ -44,6 +44,9 @@ function onMembershipFocus(){void refreshMembership().catch(()=>{});if(recoveryR
 watch(()=>membership.selectedId,()=>{if(isNative())void membership.refresh()})
 const searchText=ref(''), serverSearch=ref(''), searchRevision=ref(0)
 const selected = ref<Selection>({ key: 'home' })
+const contentBody = ref<HTMLElement>()
+function resetContentScroll() { if (contentBody.value) contentBody.value.scrollTop = 0 }
+watch(() => [selected.value.key, selected.value.source?.id, selected.value.route, selected.value.serverRoute], resetContentScroll, { flush: 'post' })
 const history = ref<Selection[]>([])
 const fileSources = useFileSourcesStore()
 const videoCatalog=useVideoCatalog()
@@ -171,8 +174,8 @@ onUnmounted(() => {scanScheduler.stop();if(scanTimer)clearInterval(scanTimer);if
         <WindowBar :class="{'electron-files-window-bar':!selectedServer}">
           <FilesHeader v-if="selected.key==='files'&&!selectedServer" :title="selectionTitle" @back="history.length||fileCanBack?back():select('home')"><div id="file-toolbar-actions"/></FilesHeader><LibraryHeader v-else-if="selected.key!=='files'" v-show="!(selected.key==='library'&&!selected.route)" :title="selectionTitle" :home="(selected.route||selected.key)==='home'" @back="back"><div id="library-toolbar-actions"/></LibraryHeader><div v-else class="toolbar"><Button v-if="(selected.route||selected.key)!=='home'&&(history.length||(selected.key==='files'&&(selectedServer?serverCanBack:fileCanBack)))" class="toolbar-back" variant="outline" size="icon" :aria-label="t('back')" @click="back"><ChevronLeft :size="20" /></Button><span class="toolbar-title">{{ selectionTitle }}</span><div class="toolbar-spacer" /><div v-if="selected.key === 'files'" id="file-toolbar-actions" /><div v-else id="library-toolbar-actions"/></div>
         </WindowBar>
-        <div class="content-body">
-          <ServerWorkspace v-if="selected.key==='files'&&selectedServer" ref="serverWorkspace" :key="selectedServer.id" :account="selectedServer" :initial-route="selected.serverRoute" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @title="serverPageTitle=$event" @can-go-back="serverCanBack=$event" @go-back="back" @account-updated="run(()=>fileSources.refresh())" @switch-account="id=>openServer(id,{kind:'home',title:'主屏幕'})"/>
+        <div ref="contentBody" class="content-body" :class="{'server-content':selected.key==='files'&&!!selectedServer}">
+          <ServerWorkspace v-if="selected.key==='files'&&selectedServer" ref="serverWorkspace" :key="selectedServer.id" :account="selectedServer" :initial-route="selected.serverRoute" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @navigate="resetContentScroll" @title="serverPageTitle=$event" @can-go-back="serverCanBack=$event" @go-back="back" @account-updated="run(()=>fileSources.refresh())" @switch-account="id=>openServer(id,{kind:'home',title:'主屏幕'})"/>
           <FileBrowser ref="fileWorkspace" @title="filePageTitle=$event" @can-go-back="fileCanBack=$event" @go-back="back" v-else-if="selected.key === 'files'" :key="selected.source?.id ?? 'files'" :source="selected.source" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @menu="openMenu" @select-source="selectSourceId" @open-folder="selectFolder" @server-route="openServer" />
           <LibraryWorkspace v-else :origin="selected.key==='home'?'home':'library'" :route="selected.route||selected.key" :query="searchText" toolbar-target="#library-toolbar-actions" @navigate="selectCatalog" @source="selectSourceId" @server="openServer" @folder="selectFolder" @title="libraryPageTitle=$event"/>
 
