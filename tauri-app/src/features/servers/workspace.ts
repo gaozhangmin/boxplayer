@@ -130,6 +130,7 @@ export async function browseServer(account: Account, route: BrowseRoute, options
       q.set('Recursive', 'true')
       q.set('IncludeItemTypes', options.type || (category === 'movies' ? 'Movie' : category === 'shows' ? 'Series' : category === 'collections' ? 'BoxSet' : category === 'playlists' ? 'Playlist' : category === 'favorites' ? route.favoriteType || 'Movie,Series,Episode,Video,BoxSet,Playlist' : route.kind === 'search' ? 'Movie,Series,Season,Episode,Video,BoxSet,Playlist,Person' : 'Movie,Series,Video'))
     }
+    if (category === 'resume') q.set('IncludeItemTypes', 'Movie,Episode')
     if (category === 'favorites') { q.set('IsFavorite', 'true'); if (route.favoriteType === 'Person') { path = 'Persons'; q.delete('IncludeItemTypes'); q.set('UserId', account.userId!) } }
     if (route.kind === 'search') q.set('SearchTerm', route.query || '')
       if (category === 'music') q.set('IncludeItemTypes', 'Audio')

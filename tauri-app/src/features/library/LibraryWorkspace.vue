@@ -410,9 +410,28 @@ function localRow(items: MediaLibraryItem[], row: Omit<Row, 'cards'>, card: (ite
   return { ...row, count: groupCards.length + members.length, get cards() { return [...groupCards, ...members.map(card)] }, preview: () => [...groupCards, ...members.slice(0, 24).map(card)].slice(0, 24) }
 }
 const homeRows=computed<UnifiedLibraryRow[]>(()=>shelves.value.map(shelf=>{if(shelf.grouped)return {key:libraryHomeId(shelf.route),title:shelf.title,grouped:true,landscape:true,count:shelf.groups.length,cards:shelf.groups.map(group=>({key:group.route,title:group.title,image:cover(group.route),contextMenu:(event:MouseEvent)=>openContext(event,group.route),action:()=>emit('navigate',group.route)})),more:()=>navigateHome(shelf.route)};const grouped=videoGroups(homeItemsFor(shelf.route)).map(group=>originalItem(group.item,group.files));const row=localRow(grouped,{key:libraryHomeId(shelf.route),title:shelf.title,more:()=>navigateHome(shelf.route)});return {key:row.key,title:row.title,landscape:row.landscape,grouped:row.grouped,count:Math.min(row.count??row.cards.length,24),get cards(){return row.preview?row.preview():row.cards.slice(0,24)},more:row.more}}))
-const originalRows=computed(()=>[...(generalPreferences.recentlyPlayed&&homeItemsFor('continue').length?[shelfRow('continue','继续观看',homeItemsFor('continue').slice(0,24),true)]:[]),...homeRows.value])
+const homeResumeItems = computed(() => generalPreferences.recentlyPlayed
+ ? homeItemsFor('continue').filter(item=>(item.progress??0)<100 && (!item.watched || item.continueAdded)) : [])
+const leadKind = ref<'resume'|'latest'>('latest')
+function homeCardTimestamp(card: UnifiedLibraryCard) {
+ const value = card.sortValues?.addedAt
+ if (typeof value === 'number') return value < 1e12 ? value * 1000 : value
+ return value ? new Date(value).getTime() || 0 : 0
+}
+function homeLead(kind: 'resume'|'latest', remoteCards: UnifiedLibraryCard[]): UnifiedLibraryRow {
+ const resume = kind === 'resume'
+ const localItems = (resume ? homeResumeItems.value : homeItemsFor('recent')).slice(0,24)
+ const cards = [...remoteCards, ...localItems.map(item=>({
+  ...mediaCard(item,resume?'continue':'recent',resume),
+  sortValues: { title:item.name, addedAt:resume?item.lastWatched:item.addedAt },
+  duration: item.duration || Number(item.originalMetadata?.lastPlayedDurationSeconds),
+  playbackPosition: item.progress === undefined ? item.originalMetadata?.lastPlayedPositionSeconds : undefined,
+  ...(resume ? {action:()=>void run(()=>playItems([item],'play'))} : {})
+ }))].sort((a,b)=>homeCardTimestamp(b)-homeCardTimestamp(a)).slice(0,24)
+ return { key:resume?'resume':'home-latest',title:resume?'继续观看':'最近添加',cards,landscape:resume,more:()=>navigateHome(resume?'continue':'recent') }
+}
 const homeLayout=computed(()=>orderedHomeItems(withFixedHomeMenus([{id:'sources',title:home.titles.sources||'收藏夹',sourceId:'local',available:true},...routes.value]),home.$state).filter(item=>isHomeItemEnabled(item,home.$state)).map(item=>({item:{...item,title:home.titles[item.id]||item.title},row:homeRows.value.find(row=>row.key===item.id)})).filter(entry=>entry.item.id==='sources'?homeFavoriteCards.value.length:!!(entry.row?.count??entry.row?.cards.length)))
-const homeIsEmpty=computed(()=>!homeServerContent.value&&!homeLayout.value.length&&!originalRows.value.some(row=>row.key==='resume'))
+const homeIsEmpty=computed(()=>!homeServerContent.value&&!homeLayout.value.length&&!homeResumeItems.value.length&&!homeItemsFor('recent').length)
 const visibleHomeShelves=new Set<string>()
 function homeRowVisibility(id:string,visible:boolean){if(visible)visibleHomeShelves.add(id);else visibleHomeShelves.delete(id)}
 function openHomeMenu(id:string){if(id==='sources')navigateHome('favorites');else navigateHome(categoryRouteForHomeId(id))}
@@ -524,8 +543,14 @@ function finishFavoritePointer(event: PointerEvent) {
           <div class="library-refresh-actions"><button :disabled="libraryScanning || metadataRefreshing || media.isScanning" @click="rescanLibraryFolders"><Search :size="16" />{{ t('librarySettings.refreshLibrary') }}</button><button :disabled="metadataRefreshing || libraryScanning || media.isScanning" @click="refreshLibraryMetadata"><RefreshCw :size="16" :class="{ spinning: metadataRefreshing }" />{{ t('librarySettings.refreshMetadata') }}</button></div>
         </section>
       <div v-if="section === 'home' || (section === 'collection' && selectedHomeRowKey === 'sources')" class="unified-home" :class="{ 'source-screen-empty': section === 'home' && homeIsEmpty }" ref="homeElement" @scroll="section === 'home' && (homeScrollTop = ($event.target as HTMLElement).scrollTop)">
-        <ServerHomeSections v-if="section==='home'" :accounts="homeServerAccounts" hide-favorites @loading="homeServerLoading=$event" @content="homeServerContent=$event" @items="serverManagementItems=$event" @navigate="(id,route)=>emit('server',id,route)"/><UnifiedMediaRow v-for="row in originalRows.filter(item => item.key === 'resume')" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :key="row.key" :row="row" />
-        <template v-for="entry in (section === 'home' && homeIsEmpty ? [] : homeLayout)" :key="entry.item.id">
+        <ServerHomeSections v-if="section==='home'" :accounts="homeServerAccounts" hide-favorites unified-lead
+          :has-local-resume="homeResumeItems.length > 0" @lead-kind="leadKind=$event"
+          @loading="homeServerLoading=$event" @content="homeServerContent=$event" @items="serverManagementItems=$event" @navigate="(id,route)=>emit('server',id,route)">
+          <template #lead="{ kind, cards }">
+            <UnifiedMediaRow v-for="row in [homeLead(kind, cards)].filter(row=>row.cards.length)" :key="row.key" :row="row" :show-more-action="false" />
+          </template>
+        </ServerHomeSections>
+        <template v-for="entry in (section === 'home' ? homeLayout.filter(entry=>leadKind!=='latest'||entry.item.id!==libraryHomeId('recent')) : homeLayout)" :key="entry.item.id">
         <section v-if="entry.item.id === 'sources'" class="home-row source-shortcuts">
           <div class="row-heading"><h2>{{ entry.item.title }}</h2><button @click="openHomeMenu('sources')">{{ t('mediaServer.seeAllPlain') }}</button></div>
           <div class="horizontal-row">

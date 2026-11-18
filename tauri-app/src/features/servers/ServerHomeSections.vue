@@ -25,8 +25,8 @@ import UnifiedMediaRow from '../library/electron/UnifiedMediaRow.vue'
 import HomeShelfViewport from '../library/electron/HomeShelfViewport.vue'
 import type {UnifiedLibraryRow} from '../library/electron/types'
 import ServerArtwork from './ServerArtwork.vue'
-const props=defineProps<{accounts:Account[];manager?:boolean;favoritesOnly?:boolean;hideFavorites?:boolean}>()
-const emit=defineEmits<{navigate:[accountId:string,route:BrowseRoute];items:[items:HomeManagementItem[]];loading:[value:boolean];content:[visible:boolean]}>()
+const props=defineProps<{accounts:Account[];manager?:boolean;favoritesOnly?:boolean;hideFavorites?:boolean;unifiedLead?:boolean;hasLocalResume?:boolean}>()
+const emit=defineEmits<{navigate:[accountId:string,route:BrowseRoute];items:[items:HomeManagementItem[]];loading:[value:boolean];content:[visible:boolean];leadKind:[kind:'resume'|'latest']}>()
 interface ServerHome{account:Account;preferences:ServerPreferences;libraries:ServerItem[];rows:{key:string;title:string;route:BrowseRoute;items:ServerItem[];error?:string}[];error?:string}
 const navigation=useLibraryNavigation(),sources=useFileSourcesStore(),sourceManager=ref(false),reordering=ref(false)
 const servers=ref<ServerHome[]>([]),loading=ref(false)
@@ -64,7 +64,7 @@ async function visibleArtwork(server:ServerHome,row:ServerHome['rows'][number],v
 onUnmounted(clearArtwork)
 const shelfSnapshots=new Map<string,{height?:number;scrollLeft?:number}>()
 function snapshot(key:string){let value=shelfSnapshots.get(key);if(!value){value={};shelfSnapshots.set(key,value)}return value}
-function originalServerRow(server:ServerHome,row:ServerHome['rows'][number]):UnifiedLibraryRow{return {key:row.key==='resume'?'resume':server.account.id+':'+row.key,title:row.title+' - '+server.account.name,landscape:row.key==='resume'||!server.preferences.portrait,error:row.error,retry:load,more:()=>emit('navigate',server.account.id,row.route),cards:row.items.map(item=>({key:server.account.id+':'+item.id,title:item.name,image:artwork.value[server.account.id+':'+item.id],rating:item.rating,overview:item.overview,progress:item.progress,action:()=>row.key==='resume'?playResume(server,row.route,item):emit('navigate',server.account.id,serverItemRoute(item,row.route.libraryId)),posterMenu:{server:true,tv:['series','show','season'].includes(item.kind),watched:!!item.watched,favorite:!!item.favorite,disabled:['playlist',...(!item.playable?['download' as const]:[])],action:id=>{context.value={server,route:row.route,item,x:0,y:0};void action(id)}}}))}}
+function originalServerRow(server:ServerHome,row:ServerHome['rows'][number]):UnifiedLibraryRow{return {key:row.key==='resume'?'resume':server.account.id+':'+row.key,title:row.title+' - '+server.account.name,landscape:row.key==='resume'||!server.preferences.portrait,error:row.error,retry:load,more:()=>emit('navigate',server.account.id,row.route),cards:row.items.map(item=>({key:server.account.id+':'+item.id,title:item.name,sortValues:{title:item.name,addedAt:item.sortValues?.[row.key==='resume'?'seriesDatePlayed':'addedAt']},duration:item.duration,image:artwork.value[server.account.id+':'+item.id],rating:item.rating,overview:item.overview,progress:item.progress,action:()=>row.key==='resume'?playResume(server,row.route,item):emit('navigate',server.account.id,serverItemRoute(item,row.route.libraryId)),posterMenu:{server:true,tv:['series','show','season'].includes(item.kind),watched:!!item.watched,favorite:!!item.favorite,disabled:['playlist',...(!item.playable?['download' as const]:[])],action:id=>{context.value={server,route:row.route,item,x:0,y:0};void action(id)}}}))}}
 let generation=0
 let homeLoad:AbortController|undefined
 const homeLoadTimeoutMs=12000
@@ -87,7 +87,7 @@ async function load(){
    catch(cause){server.error=message(cause)}
    if(!props.manager&&!props.favoritesOnly){
     const available=choices(server)
-    server.rows=await Promise.all(server.preferences.home.flatMap(key=>available.find(choice=>choice.key===key)||[]).map(async(choice)=>{
+    server.rows=await Promise.all([...new Set([...server.preferences.home,...(props.unifiedLead?['resume','latest']:[])])].flatMap(key=>available.find(choice=>choice.key===key)||[]).map(async(choice)=>{
      try{return {...choice,items:(await browseServer(account,choice.route,{limit:24,signal})).items}}
      catch(cause){return {...choice,items:previous?.rows.find(row=>row.key===choice.key)?.items||[],error:message(cause)}}
     }))
@@ -110,20 +110,45 @@ function toggle(server:ServerHome,key:string,checked:boolean){save(server,{...se
 function move(server:ServerHome,key:string,offset:number){const keys=[...server.preferences.home],index=keys.indexOf(key),target=index+offset;if(index<0||target<0||target>=keys.length)return;[keys[index],keys[target]]=[keys[target]!,keys[index]!];save(server,{...server.preferences,home:keys})}
 const items=computed<HomeManagementItem[]>(()=>servers.value.flatMap(server=>choices(server).map(choice=>({id:server.account.id+':'+choice.key,title:choice.title,sourceId:server.account.id,sourceTitle:server.account.name,available:true,optIn:true}))))
 watch(items,value=>{emit('items',value);navigation.setServerMenus(servers.value.flatMap(server=>server.preferences.home.flatMap(key=>{const choice=choices(server).find(choice=>choice.key===key);return choice?[{accountId:server.account.id,id:server.account.id+':'+key,title:choice.title+' - '+server.account.name,route:choice.route}]:[]})))},{immediate:true})
-watch([()=>JSON.stringify(props.accounts.map(account=>[account.id,account.baseUrl,account.userId])),()=>props.manager,()=>props.favoritesOnly],()=>void load(),{immediate:true})
+function canResume(item: ServerItem) {
+ const progress = item.progress ?? 0
+ return progress < 100 && (progress > 0 || !item.watched)
+}
+const leadKind = computed<'resume'|'latest'>(() => generalPreferences.recentlyPlayed &&
+ (props.hasLocalResume || servers.value.some(server=>server.rows.some(row=>row.key==='resume'&&row.items.some(item=>canResume(item)))))
+ ? 'resume' : 'latest')
+watch(leadKind, kind => emit('leadKind', kind), { immediate:true })
+const leadSources = computed(() => props.unifiedLead ? orderedServers.value.flatMap(server =>
+ server.rows.filter(row=>row.key===leadKind.value).map(row=>({server,row}))) : [])
+const leadCards = computed(() => leadSources.value.flatMap(({server,row}) =>
+ originalServerRow(server, leadKind.value==='resume'
+   ? {...row,items:row.items.filter(item=>canResume(item))}
+   : row).cards))
+watch(leadSources, sources => {
+ for (const {server,row} of sources) void visibleArtwork(server,row,true)
+}, { flush:'post' })
+function shownRows(server: ServerHome) {
+ return server.rows.filter(row=> {
+  if (!props.unifiedLead) return row.items.length || row.error
+  if (row.key==='resume' || row.key==='latest' && leadKind.value==='latest') return row.error && !row.items.length
+  return server.preferences.home.includes(row.key) && (row.items.length || row.error)
+ })
+}
+watch([()=>JSON.stringify(props.accounts.map(account=>[account.id,account.baseUrl,account.userId])),()=>props.manager,()=>props.favoritesOnly,()=>props.unifiedLead],()=>void load(),{immediate:true})
 function refresh(event?:Event){if(event instanceof StorageEvent&&!event.key?.startsWith('boxplayer:server-workspace:'))return;void load()}
 onMounted(()=>{window.addEventListener('storage',refresh);window.addEventListener('boxplayer:server-home-changed',refresh)})
 onUnmounted(()=>{generation++;homeLoad?.abort();window.removeEventListener('storage',refresh);window.removeEventListener('boxplayer:server-home-changed',refresh)})
 </script>
 <template>
  <div class="server-home-sections" :aria-busy="busy"><p v-if="error" role="alert">{{error}}</p><div v-if="deleting" class="server-prompt-mask"><form role="dialog" aria-label="删除服务器媒体" @submit.prevent="removeItem"><h3>删除 {{deleting.item.name}}？</h3><p>此操作会请求媒体服务器删除媒体文件。</p><button :disabled="busy" type="submit">确认删除</button><button :disabled="busy" type="button" @click="deleting=undefined">取消</button></form></div><SourceCardMenu v-if="sourceContext" :source-id="sourceContext.id" :x="sourceContext.x" :y="sourceContext.y" @close="sourceContext=undefined" @reorder="reordering=true;sourceContext=undefined" @reauthorize="sourceManager=true;sourceContext=undefined"/><SourceManager v-if="sourceManager" @close="sourceManager=false" @saved="sources.refresh();sourceManager=false"/><ServerRating v-if="ratingItem" :account-id="ratingAccount" :item="ratingItem" @close="ratingItem=undefined"/><ServerShare v-if="shareItem" :item="shareItem" @close="shareItem=undefined"/><WorkspaceContextMenu v-if="context" :x="context.x" :y="context.y" :entries="menuEntries" label="服务器分类菜单" @action="action" @close="context=undefined"/><div v-if="prompt" class="server-prompt-mask"><form role="dialog" @submit.prevent="savePrompt"><h3>{{prompt.kind==='add'?'添加到收藏夹':prompt.kind==='rename'?'重命名收藏夹':'选择封面'}}</h3><input v-model="prompt.value" :aria-label="prompt.kind!=='cover'?'名称':'服务器封面路径'"/><button type="submit">保存</button><button type="button" @click="prompt=undefined">取消</button></form></div>
+  <slot v-if="unifiedLead" name="lead" :kind="leadKind" :cards="leadCards" />
   <template v-for="server in orderedServers" :key="server.account.id">
    <section v-if="manager" class="server-home-manager"><h3>{{server.account.name}}</h3><p v-if="server.error" role="alert">{{server.error}} <button @click="load">重试</button></p><label v-for="choice in choices(server)" :key="choice.key"><input type="checkbox" :checked="server.preferences.home.includes(choice.key)" @change="toggle(server,choice.key,($event.target as HTMLInputElement).checked)"/><span>{{choice.title}}</span><button aria-label="上移" @click.prevent="move(server,choice.key,-1)">↑</button><button aria-label="下移" @click.prevent="move(server,choice.key,1)">↓</button></label></section>
    <template v-else>
     <section v-if="!hideFavorites" class="server-home-favorites"><header><h2>{{server.account.name}}</h2><button @click="emit('navigate',server.account.id,{kind:'root',title:'媒体库'})">查看全部</button></header><div class="server-home-cards"><div role="button" tabindex="0" class="server-source-card" @contextmenu.prevent="sourceContext={id:server.account.id,x:$event.clientX,y:$event.clientY}" @click="emit('navigate',server.account.id,{kind:'root',title:'媒体库'})"><span class="source-symbol">▣</span><strong>{{server.account.name}}</strong><span v-if="reordering"><button aria-label="前移来源" @click.stop="moveSource(server.account.id,-1)">↑</button><button aria-label="后移来源" @click.stop="moveSource(server.account.id,1)">↓</button><button @click.stop="reordering=false">完成</button></span></div><button v-for="favorite in server.preferences.favorites.filter(favorite=>favoritesOnly||!favorite.hiddenOnHome)" :key="favorite.key" @click="emit('navigate',server.account.id,favorite.route)" @contextmenu.prevent="openMenu($event,server,favorite.route,undefined,favorite)"><div class="favorite-art"><ServerArtwork v-if="favorite.cover" :account="server.account" :path="favorite.cover" :alt="favorite.title"/><span v-else>☆</span></div><strong>{{favorite.title}}</strong></button></div></section>
     <UnifiedMediaRow v-if="server.error && !server.rows.some(row => row.error)"
       :row="{ key: server.account.id, title: server.account.name, cards: [], error: server.error, retry: load, more: () => emit('navigate', server.account.id, { kind: 'root', title: '媒体库' }) }" />
-    <template v-for="row in server.rows.filter(row=>row.items.length||row.error)" :key="row.key"><HomeShelfViewport @visible="visible=>visibleArtwork(server,row,visible)" :snapshot="snapshot(server.account.id+':'+row.key)" :landscape="row.key==='resume'||!server.preferences.portrait"><UnifiedMediaRow :row="originalServerRow(server,row)"/></HomeShelfViewport></template>
+    <template v-for="row in shownRows(server)" :key="row.key"><HomeShelfViewport @visible="visible=>visibleArtwork(server,row,visible)" :snapshot="snapshot(server.account.id+':'+row.key)" :landscape="row.key==='resume'||!server.preferences.portrait"><UnifiedMediaRow :row="originalServerRow(server,row)"/></HomeShelfViewport></template>
 
    </template>
   </template>

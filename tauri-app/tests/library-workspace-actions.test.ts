@@ -13,7 +13,7 @@ import {appendMembers,renameCollection,moveMember,objectMenu,posterMenu,playback
 import {generalPreferences,seriesPreferences} from '@/features/library/displayPreferences'
 import type {VideoItem} from '@/features/library/catalog'
 import {useFileSourcesStore} from '@/stores/fileSources'
-vi.mock('@/features/servers/ServerHomeSections.vue',()=>({default:{name:'ServerHomeSections',props:{hideFavorites:Boolean},template:'<div />'}}))
+vi.mock('@/features/servers/ServerHomeSections.vue',()=>({default:{name:'ServerHomeSections',props:{hideFavorites:Boolean,hasLocalResume:Boolean},setup:()=>({card:{key:'remote-film',title:'Remote film',duration:300,progress:20,action:()=>{}}}),template:`<div><slot name="lead" :kind="hasLocalResume ? 'resume' : 'latest'" :cards="[card]" /></div>`}}))
 const fixture=vi.hoisted(()=>({catalog:null as any,native:vi.fn(),list:vi.fn(),browse:vi.fn(),share:vi.fn()}))
 vi.mock('@/platform/native',async original=>({...await original<object>(),isNative:()=>false,localList:(...args:unknown[])=>fixture.list(...args),nativeCall:(...args:unknown[])=>fixture.native(...args)}))
 vi.mock('@/features/sources/share',()=>({supportsSourceShare:(account:{providerId:string})=>account.providerId==='dropbox',createSourceShare:(...args:unknown[])=>fixture.share(...args)}))
@@ -193,4 +193,22 @@ it('restores Home scroll and the library source scope after leaving the workspac
  wrappers = wrappers.filter(wrapper => wrapper !== search)
  const reopened = page('search')
  expect(reopened.get('.scope button:nth-child(2)').attributes('aria-pressed')).toBe('true')
+})
+
+
+it('combines local and remote cards in the first shelf and shows resume times', async () => {
+ const wrapper = page('home')
+ await flushPromises()
+ const firstRow = () => wrapper.findAll('.unified-home .home-row')[0]!
+ expect(firstRow().get('h2').text()).toBe('最近添加')
+ expect(firstRow().text()).toContain('Remote film')
+ expect(firstRow().text()).toContain('One')
+ generalPreferences.recentlyPlayed = true
+ Object.assign(fixture.catalog.items[0], { progress: 25, duration: 240, lastWatched: '2026-01-01' })
+ await flushPromises()
+ expect(firstRow().get('h2').text()).toBe('继续观看')
+ expect(firstRow().text()).toContain('Remote film')
+ expect(firstRow().text()).toContain('1:00 / 4:00')
+ expect(firstRow().text()).toContain('1:00 / 5:00')
+ expect(firstRow().findAll('progress')).toHaveLength(2)
 })

@@ -14,7 +14,21 @@ import { t } from '@/features/files/electron/i18n'
 import { detailBackdropUrl } from './mediaArtwork'
 import { categoryBannerStyle, categoryNetworkLogo } from './categoryBannerTheme'
 
-const props = withDefaults(defineProps<{ row: UnifiedLibraryRow; mode?: 'horizontal' | 'grid' | 'list'; showMore?: boolean; selection?: string[]; reordering?: boolean }>(), { mode: 'horizontal', showMore: true, reordering: false })
+const props = withDefaults(defineProps<{ row: UnifiedLibraryRow; mode?: 'horizontal' | 'grid' | 'list'; showMore?: boolean; showMoreAction?: boolean; selection?: string[]; reordering?: boolean }>(), { mode: 'horizontal', showMore: true, showMoreAction: true, reordering: false })
+function playbackTime(seconds: number) {
+  const whole = Math.max(0, Math.floor(seconds))
+  const minutes = Math.floor(whole / 60)
+  const remainder = String(whole % 60).padStart(2, '0')
+  return minutes >= 60
+    ? `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}:${remainder}`
+    : `${minutes}:${remainder}`
+}
+function resumeTime(card: UnifiedLibraryCard) {
+  const duration = card.duration
+  if (!duration || !Number.isFinite(duration) || duration < 0) return ''
+  const position = card.playbackPosition ?? duration * (card.progress || 0) / 100
+  return `${playbackTime(Math.min(position, duration))} / ${playbackTime(duration)}`
+}
 const cardsElement = ref<HTMLElement>()
 const itemCount = computed(() => props.row.cardAt ? props.row.count || 0 : props.row.cards.length)
 const virtual = computed(() => props.mode !== 'horizontal' && itemCount.value > 80)
@@ -89,7 +103,7 @@ const failedImages = ref(new Set<string>())
     <div v-if="showMore" class="row-heading">
       <h2>{{ row.title }}</h2>
       <button v-if="row.retry && (row.error || row.loading)" :disabled="row.loading" :aria-label="t('common.retry')" @click="row.retry"><RefreshCw :size="24" :class="{ 'shelf-refreshing': row.loading }" /></button>
-      <button v-else @click="row.more">{{ t('mediaServer.seeAllPlain') }}</button>
+      <button v-else-if="showMoreAction" @click="row.more">{{ t('mediaServer.seeAllPlain') }}</button>
     </div>
     <ContentLoading v-if="row.loading && !itemCount" class="shelf-status" />
     <div v-else-if="row.error && !itemCount" role="status" class="shelf-status shelf-error"><Ban :size="48" aria-hidden="true" /><strong>{{ t('mediaServer.sectionLoadFailed') }}</strong><span>{{ row.error }}</span></div>
@@ -104,7 +118,8 @@ const failedImages = ref(new Set<string>())
           <WatchedIndicator v-if="generalPreferences.watchIndicators && row.key !== 'resume' && card.posterMenu" corner :watched="card.posterMenu.watched" />
           <PosterRatingBadge :rating="card.rating" :is-movie="card.posterMenu ? !card.posterMenu.tv : undefined" />
           <span v-if="row.key === 'resume'" class="resume-play" aria-hidden="true">▶</span>
-          <progress v-if="generalPreferences.watchIndicators && (row.key === 'resume' || (card.progress || 0) > 0)" :aria-label="card.title" :value="card.progress || 0" max="100" />
+          <progress v-if="row.key === 'resume' || generalPreferences.watchIndicators && (card.progress || 0) > 0" :aria-label="card.title" :value="card.progress || 0" max="100" />
+          <span v-if="row.key === 'resume' && resumeTime(card)" class="resume-time">{{ resumeTime(card) }}</span>
           <div v-if="row.grouped" class="group-copy"><img v-if="categoryNetworkLogo(card.title) && !failedImages.has(categoryNetworkLogo(card.title)!)" class="group-logo" :class="{ 'network-logo-original': card.title.trim().toLowerCase() === 'netflix' }" :src="categoryNetworkLogo(card.title)" :alt="card.title" @error="failedImages.add(categoryNetworkLogo(card.title)!)" /><strong v-else class="group-title">{{ card.title }}</strong><span v-if="card.subtitle" class="group-subtitle">{{ card.subtitle }}</span></div>
           <span v-if="row.grouped" class="group-arrow" aria-hidden="true"><ChevronRight :size="22" /></span>
         </div>
@@ -138,6 +153,7 @@ const failedImages = ref(new Set<string>())
 @media (prefers-reduced-motion: reduce) { .shelf-refreshing { animation: none; } }
 .home-poster-popup{position:fixed;z-index:1100;border:1px solid var(--color-border-3);border-radius:12px;box-shadow:0 8px 24px #0003;overflow:hidden}
 .home-row { margin-bottom: 26px; }
+.resume-time { position: absolute; z-index: 3; right: 8px; bottom: 10px; padding: 3px 7px; border-radius: 6px; background: #000c; color: white; font-size: 12px; font-variant-numeric: tabular-nums; }
 .resume-play { position: absolute; inset: 0; margin: auto; width: 52px; height: 52px; border: 3px solid white; border-radius: 50%; display: grid; place-items: center; padding-left: 3px; box-sizing: border-box; color: white; font-size: 26px; background: #0002; filter: drop-shadow(0 2px 4px #0008); pointer-events: none; }
 .row-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 14px; }
 .shelf-status { min-height: 165px; display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--color-text-3); }

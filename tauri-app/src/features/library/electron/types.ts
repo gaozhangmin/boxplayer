@@ -11,6 +11,8 @@ export interface UnifiedLibraryCard {
   subtitle?: string
   /** Playback progress as a percentage from 0 to 100. */
   progress?: number
+  duration?: number
+  playbackPosition?: number
   contextMenu?: (event: MouseEvent) => void
   posterMenu?: { server: boolean; tv: boolean; watched: boolean; favorite?: boolean; continuing?: boolean; homePlaylistItem?: boolean; seriesItem?: boolean; disabled: PosterAction[]; action: (action: PosterAction) => void }
   action: () => void

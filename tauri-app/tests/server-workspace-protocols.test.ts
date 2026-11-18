@@ -107,3 +107,11 @@ it.each([
  vi.mocked(json).mockResolvedValueOnce({Items:[movie,{Id:'group',Type:type,Name:'Group'}],TotalRecordCount:2})
  expect((await browseServer(account('emby'),route)).items.map(item=>item.id)).toEqual([id])
 })
+
+it('requests movies and episodes for Emby continue watching', async () => {
+ vi.mocked(json).mockResolvedValueOnce({Items:[],TotalRecordCount:0})
+ await browseServer(account('emby'),{kind:'category',category:'resume',title:'继续观看'})
+ const url=new URL(vi.mocked(json).mock.lastCall![2])
+ expect(url.pathname).toBe('/prefix/Users/u%2Fa/Items/Resume')
+ expect(url.searchParams.get('IncludeItemTypes')).toBe('Movie,Episode')
+})

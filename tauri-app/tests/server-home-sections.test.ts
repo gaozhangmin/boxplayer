@@ -82,3 +82,19 @@ it('shows a server-specific retry shelf if discovery fails without any failed co
  expect(wrapper.find('button[aria-label="重试"]').exists()).toBe(true)
  wrapper.unmount()
 })
+
+it('loads sections for the unified lead even when per-account rows are disabled', async () => {
+ localStorage.setItem(preferenceKey(account.id),JSON.stringify({version:1,home:[],favorites:[]}))
+ const browse=vi.mocked(browseServer)
+ const {normalizeItem}=await import('@/features/servers/workspace')
+ browse.mockResolvedValueOnce({items:[]})
+  .mockResolvedValueOnce({items:[normalizeItem({Id:'resume',Type:'Movie',Name:'Resume',RunTimeTicks:600000000,UserData:{PlaybackPositionTicks:150000000}},false)]})
+  .mockResolvedValueOnce({items:[normalizeItem({Id:'latest',Type:'Movie',Name:'Recent'},false)]})
+ const wrapper=mount(ServerHomeSections,{props:{accounts:[account],unifiedLead:true,hideFavorites:true},global:{plugins:[createPinia()]},slots:{
+  lead:'<div class="lead">{{ params.kind }} {{ params.cards.map(card => card.title).join(",") }}</div>'
+ }})
+ await flushPromises()
+ expect(browse.mock.calls.map(call=>call[1].category)).toEqual([undefined,'resume','latest'])
+ expect(wrapper.get('.lead').text()).toBe('resume Resume')
+ wrapper.unmount()
+})
