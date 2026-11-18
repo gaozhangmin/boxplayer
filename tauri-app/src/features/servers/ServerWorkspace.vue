@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {Grid2X2,List,ArrowUp,ArrowDown,MoreHorizontal,ChevronDown,Check,SquareCheck,ListFilter,Play,Repeat,Shuffle,Star} from 'lucide-vue-next'
+import {Grid2X2,List,ArrowUp,ArrowDown,MoreHorizontal,ChevronDown,Check,SquareCheck,ListFilter,Play,Repeat,Shuffle,Star,ServerOff,RotateCw} from 'lucide-vue-next'
 import ServerPlaylistPicker from './ServerPlaylistPicker.vue'
 import ElectronModal from '@/components/dialog/ElectronModal.vue'
 import ServerHomeManager from './electron/ServerHomeManager.vue'
@@ -72,10 +72,11 @@ function changePreference(patch: Partial<ServerPreferences>) { try { save({ ...p
 function navigate(target: BrowseRoute,browseOptions:BrowseOptions={}) { history.value.push({ ...route.value }); route.value = { ...target }; selected.value = []; selecting.value = false; menu.value = undefined; options.value = { sort: target.category === 'latest' ? 'addedAt' : 'sortName', descending: target.category === 'latest',...browseOptions }; void load() }
 function goBack() { const target = history.value.pop(); if (!target) { emit('go-back'); return false } route.value = target; selected.value = []; selecting.value = false; menu.value = undefined; void load(); return true }
 function openPersonSection(kind:string){navigate({...route.value,kind:'category',category:kind==='movie'?'movies':kind==='series'?'shows':'all',title:route.value.title+' - '+(kind==='movie'?'电影':kind==='episode'?'剧集':'电视剧')},{type:kind==='movie'?'Movie':kind==='episode'?'Episode':'Series'})}
+const pageLoadFailed = ref(false)
 async function load(append = false) {
   if (append && (loading.value || nextOffset.value === undefined)) return
   const current = ++generation, account = { ...props.account }, target = { ...route.value }, offset = append ? nextOffset.value! : 0
-  loading.value = true; error.value = ''
+  loading.value = true; error.value = ''; pageLoadFailed.value = false
   if (!append) {homeStatistics.value=undefined; items.value = []; detail.value = undefined; nextOffset.value = undefined; total.value = undefined; homeRows.value = []; facets.value = []; detailChildren.value = []; similar.value = [];seasonEpisodes.value=undefined;selectedSeasonId.value=''; childrenOffset.value = undefined; detailError.value = '' }
   try {
     // Global Home cards can pass a raw server directory route. Resolve its actual
@@ -114,7 +115,12 @@ async function load(append = false) {
       items.value = append ? [...items.value, ...fresh] : result.items; nextOffset.value = result.nextOffset; total.value = result.total
       if (target.kind === 'root') libraries.value = result.items
     }
-  } catch (e) { if (current === generation) error.value = message(e) } finally { if (current === generation) loading.value = false }
+  } catch (e) {
+    if (current === generation) {
+      pageLoadFailed.value = !append
+      error.value = message(e)
+    }
+  } finally { if (current === generation) loading.value = false }
 }
 function itemRoute(item: ServerItem): BrowseRoute {
  if (item.kind === 'person') return { kind: 'person', personId: item.id, title: item.name, libraryId: route.value.libraryId }
@@ -220,8 +226,20 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
     <button class="round-button more-button" aria-label="更多媒体操作" @click="openMenu(route,undefined,undefined,true)"><MoreHorizontal :size="18"/><ChevronDown :size="10"/></button>
     </template>
   </div></Teleport>
-  <h1 v-if="!toolbarTarget">{{ title }}</h1><p v-if="error" role="alert">{{ error }} <button :disabled="loading" @click="load()">重试</button></p><p v-if="status" role="status">{{ status }}</p>
-  <div v-if="route.kind === 'home'" class="server-home">
+  <h1 v-if="!toolbarTarget">{{ title }}</h1>
+  <p v-if="error && !pageLoadFailed" role="alert">{{ error }} <button :disabled="loading" @click="load()">重试</button></p>
+  <p v-if="status" role="status">{{ status }}</p>
+  <section v-if="pageLoadFailed" class="server-load-error" aria-label="媒体库加载失败">
+    <div class="server-load-error-icon"><ServerOff :size="28" aria-hidden="true" /></div>
+    <div role="alert">
+      <h2>暂时无法打开媒体库</h2>
+      <p>请确认「{{ account.name }}」正在运行、此设备可以访问，然后重试。</p>
+    </div>
+    <button type="button" class="server-load-retry" :disabled="loading || working" @click="load()">
+      <RotateCw :size="16" aria-hidden="true" /> 重试连接
+    </button>
+  </section>
+  <div v-else-if="route.kind === 'home'" class="server-home">
     <nav class="workspace-tabs"><button :class="{active:route.kind==='home'}" @click="navigate({kind:'home',title:account.name})">主屏幕</button><button @click="navigate({kind:'search',title:'搜索',query:''})">搜索</button><button @click="navigate({kind:'root',title:'媒体库'})">媒体库</button></nav>
     <section v-if="preferences.favorites.some(f => !f.hiddenOnHome)"><h2>收藏夹</h2><div class="category-grid"><article v-for="favorite in preferences.favorites.filter(f => !f.hiddenOnHome)" :key="favorite.key"><button @click="navigate(favorite.content ? { ...favorite.route, kind: 'detail' } : favorite.route)" @contextmenu.prevent="openMenu(favorite.route, undefined, favorite)"><span v-if="favorite.cover" class="favorite-art"><ServerArtwork :account="account" :path="favorite.cover" :alt="favorite.title" /></span>{{ favorite.title }}</button><button :aria-label="favorite.title + '菜单'" @click="openMenu(favorite.route, undefined, favorite)">⋯</button></article></div></section>
     <template v-for="row in homeRows" :key="row.key"><ServerResumeRow v-if="row.key==='resume'" :title="row.title" :account="account" :items="row.items" @play="item=>play(itemRoute(item),'play',item)" @context="(event,item)=>{captureMenu(event);openMenu(itemRoute(item),item)}"/><ServerPosterRow v-else :title="row.title" :items="row.items" :account="account" :landscape="!preferences.portrait||row.key==='resume'" :error="row.error" more @select="select" @more="navigate(row.route)" @retry="load()" @context="(event,item)=>{captureMenu(event);openMenu(itemRoute(item),item)}"/></template>
@@ -251,6 +269,12 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
 </template>
 
 <style scoped>
+.server-load-error{display:grid;justify-items:center;align-content:center;gap:16px;min-height:clamp(260px,55vh,520px);padding:24px;text-align:center}
+.server-load-error-icon{display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:var(--secondary);color:var(--primary)}
+.server-load-error h2{margin:0;font-size:20px;font-weight:650}
+.server-load-error p{max-width:36ch;margin:8px 0 0;color:var(--muted-text);line-height:1.6;overflow-wrap:anywhere}
+.server-load-error .server-load-retry{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:8px 16px;border:0;border-radius:9px;background:var(--primary);color:var(--primary-foreground,#fff);font-weight:600}
+.server-load-retry:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
 .cover-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.cover-choice{display:block;width:100%;aspect-ratio:2/3;overflow:hidden}.cover-grid button[aria-pressed=true]{outline:2px solid var(--primary)}.server-workspace{padding:20px;min-height:100%;color:var(--foreground,#eee)}button,input,select{font:inherit;color:inherit;background:var(--secondary,#29292e);border:1px solid #7774;border-radius:7px;padding:7px 11px}button{cursor:pointer}button:disabled{opacity:.4;cursor:default}button:hover:not(:disabled){border-color:var(--primary,#34a86f)}h1{font-size:25px}h2{font-size:19px}.server-toolbar,.server-filters,header,.selection-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.server-toolbar{margin-bottom:12px}.server-filters{margin:14px 0}.server-filters input{width:120px}header h2{margin-right:auto}.category-grid{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0}.server-home{display:grid;gap:20px}.server-shelf{display:flex;gap:16px;overflow-x:auto;padding:8px 0}.server-shelf article{flex:0 0 150px;min-width:0}.poster{display:block;width:100%;aspect-ratio:2/3;padding:0;overflow:hidden;position:relative;border:0;background:#25252a}.landscape .poster{aspect-ratio:16/9}.landscape article{flex-basis:240px}.server-items.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:22px 16px}.server-items article{min-width:0}.server-items .item-title{background:transparent;border:0;padding-left:0;text-align:left}.server-items.list{display:flex;flex-direction:column;gap:12px}.list article{display:flex;gap:18px;border-bottom:1px solid #7773;padding-bottom:12px;align-items:center}.list .poster{width:90px;flex-shrink:0}.list article>div{flex:1}.selected{outline:2px solid var(--primary,#34a86f);outline-offset:4px}.selected-indicator{position:absolute;top:8px;left:8px;color:var(--primary,#34a86f);background:#111b;font-size:24px}.server-detail{display:flex;gap:28px}.detail-art{width:230px;aspect-ratio:2/3;flex-shrink:0}.server-detail>div:last-child{max-width:850px}.server-detail button{margin:5px}.dialog-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;background:#0008;padding:24px}.server-dialog,.server-menu{display:flex;flex-direction:column;gap:10px;background:var(--background,#202025);padding:24px;border:1px solid #7775;border-radius:14px;max-height:85vh;overflow:auto;min-width:290px;max-width:650px}.server-menu button{text-align:left}.server-dialog label{display:flex;gap:8px;align-items:center}.server-dialog input:not([type=checkbox]){min-width:220px}.favorite-art{display:block;width:160px;aspect-ratio:16/9}.selection-bar{position:sticky;bottom:10px;background:var(--background,#202025);padding:14px}.server-items p{opacity:.7;font-size:13px}@media(max-width:640px){.server-detail{flex-direction:column}.server-items.grid{grid-template-columns:repeat(auto-fill,minmax(115px,1fr))}}
 .server-toolbar{margin:0;flex-wrap:nowrap}.server-toolbar .round-button{display:flex;align-items:center;justify-content:center;gap:6px;height:36px;min-width:36px;width:36px;padding:0;border:1px solid var(--control-border);border-radius:22px;background:var(--control-surface)}.server-toolbar .more-button{gap:2px;width:48px}</style>
 

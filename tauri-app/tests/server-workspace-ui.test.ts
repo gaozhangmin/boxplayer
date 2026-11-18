@@ -30,6 +30,22 @@ it('defaults to library-root, emits title/back state, disables favoriteSelected 
  await button(wrapper,'添加到收藏夹').trigger('click'); await wrapper.find('[role=dialog] input').setValue('My library'); await wrapper.find('[role=dialog]').trigger('submit'); await flushPromises()
  expect(readPreferences(account.id).favorites[0]?.title).toBe('My library'); expect(readPreferences(account.id).home).toEqual(['resume','nextup','latest']); wrapper.unmount()
 })
+it('shows a recoverable library connection error and retries the same server route', async () => {
+ vi.mocked(browseServer).mockRejectedValueOnce(new Error('Synthetic transport failure'))
+ const wrapper = mount(ServerWorkspace, { props: { account }, global: { stubs } })
+ await flushPromises()
+ expect(wrapper.get('[role="alert"]').text()).toContain('暂时无法打开媒体库')
+ expect(wrapper.get('[role="alert"]').text()).toContain(account.name)
+ expect(wrapper.text()).not.toContain('Synthetic transport failure')
+ expect(wrapper.find('.library-card').exists()).toBe(false)
+
+ await button(wrapper, '重试连接').trigger('click')
+ await flushPromises()
+ expect(vi.mocked(browseServer).mock.calls[1]).toEqual(vi.mocked(browseServer).mock.calls[0])
+ expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+ expect(wrapper.get('.library-card h4').text()).toBe(library.name)
+ wrapper.unmount()
+})
 it('initialRoute enters season children, account changes invalidate previous responses', async () => {
  let resolve!: (value: { items: typeof film[] }) => void
  vi.mocked(browseServer).mockImplementationOnce(() => new Promise(r => { resolve = r }))
