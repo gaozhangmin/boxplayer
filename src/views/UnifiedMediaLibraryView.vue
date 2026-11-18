@@ -1834,7 +1834,7 @@ watch(() => favoriteCards.value.map(card => card.key), keys => { void placement.
         </a-dropdown>
         <button v-if="section === 'files'" class="add-source file-source-add" @click="showAddFileSource = true"><Plus :size="16" />{{ t('unified.addSource') }}</button>
       </header>
-      <div v-if="media.isScanning" class="library-scan-status" role="status" aria-live="polite" aria-atomic="true" data-testid="library-scan-status">
+      <div v-if="media.isScanning && section !== 'server'" class="library-scan-status" role="status" aria-live="polite" aria-atomic="true" data-testid="library-scan-status">
         <MediaLoadingIndicator :size="18" aria-hidden="true" />
         <span>{{ t('footer.scanningMedia') }}</span>
         <span v-if="media.scanProgress > 0" class="library-scan-count">{{ t('unified.scanProcessed', { count: media.scanProgress }) }}</span>
