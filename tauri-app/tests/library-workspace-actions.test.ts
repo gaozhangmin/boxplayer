@@ -148,3 +148,29 @@ it('keeps the Home empty prompt off while a server shelf has content or a retry'
  await flushPromises()
  expect(wrapper.get('.unified-home').classes()).not.toContain('source-screen-empty')
 })
+
+it('shows only actual series and playlists on Home, and omits their shelves when empty', async () => {
+ fixture.catalog.data.playlists = {}
+ fixture.catalog.data.series = {}
+
+ const wrapper = mount(Workspace, { props: { route: 'home' }, global: {
+   stubs: { HomeShelfViewport: { template: '<div><slot /></div>' } }
+ } })
+ wrappers.push(wrapper)
+ await flushPromises()
+ const titles = () => wrapper.findAll('.row-heading h2').map(row=>row.text())
+ expect(titles()).not.toContain('系列')
+ expect(titles()).not.toContain('播放列表')
+
+ fixture.catalog.data.playlists = { Mix: ['Two'] }
+ fixture.catalog.items[0].collectionId = 42
+ fixture.catalog.items[0].collectionName = 'Saga'
+ await flushPromises()
+ const group = (title:string) => wrapper.findAll('section').find(section=>section.find('.row-heading h2').exists()&&section.get('.row-heading h2').text()===title)!
+ expect(group('播放列表').findAll('.media-card').map(card=>card.text())).toEqual(['Mix'])
+ expect(group('系列').findAll('.media-card').map(card=>card.text())).toEqual(['Saga'])
+
+ seriesPreferences.useTMDB = false
+ await flushPromises()
+ expect(titles()).not.toContain('系列')
+})

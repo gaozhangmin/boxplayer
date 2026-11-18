@@ -215,7 +215,9 @@ onMounted(async()=>{await run(async()=>{await sources.refresh();await catalog.lo
 async function run(action:()=>unknown|Promise<unknown>){if(busy.value)return;busy.value=true;error.value='';try{await action()}catch(cause){error.value=(cause as Error).message}finally{busy.value=false}}
 function decode(value:string){try{return decodeURIComponent(value)}catch{return value}}
 const scoped=computed(()=>catalog.items.filter(item=>!localOnly.value||item.local))
-function filter(route:string){const [root,category,value='']=route.split('/'),group=decode(value);let items=categoryItems(scoped.value,route)
+function filter(route:string){const [root,category,value='']=route.split('/'),group=decode(value)
+ if (!category && ['playlist','series','custom-series'].includes(root)) return []
+ let items=categoryItems(scoped.value,route)
  if(root==='detail-tag'){const metadata=(item:VideoItem)=>originalItem(item);if(category==='country')items=items.filter(item=>metadata(item).productionCountries?.includes(group));else if(['cast','crew'].includes(category||''))items=items.filter(item=>[...(metadata(item).credits?.cast||[]),...(metadata(item).credits?.crew||[])].some(person=>String(person.id)===group||person.name===group));return items}
  if(root==='unwatched'||category==='unwatched')items=items.filter(item=>!item.watched)
  if(root==='continue')items=items.filter(item=>!item.continueHidden&&((item.progress||0)>0||!!item.continueAdded))
@@ -242,7 +244,12 @@ function shelfRow(route:string,title:string,items:VideoItem[],landscape=false):U
 function openCollection(route:string){const first=filter(route)[0];if(seriesPreferences.openDetail||!first)emit('navigate',route);else void run(()=>playItems(filter(route),'play'))}
 const currentFiles=computed(()=>current.value?videoGroups(catalog.items).find(group=>group.files.some(item=>item.id===current.value!.id))?.files||[current.value]:[])
 const groupCards=computed(()=>{const [root,category]=props.route.split('/');if(props.route==='movies'||props.route==='tv')return rootCategories(props.route).map(g=>({...g,count:filter(g.route).length}));if(root==='playlist'&&!category)return Object.entries(catalog.data.playlists).map(([title,ids])=>({title,count:ids.length,route:'playlist/'+encodeURIComponent(title)}));if(root==='series'&&!category)return [...(seriesPreferences.useTMDB?movieCollections(scoped.value):[]).map(group=>({title:group.title,count:group.members.length,route:'series/'+encodeURIComponent(group.id)})),...(seriesPreferences.useCustom?Object.entries(catalog.data.series):[]).map(([title,ids])=>({title,count:ids.length,route:'custom-series/'+encodeURIComponent(title)}))];if(!category||!['genres','networks','ratings','years','certification','resolution'].includes(category)||props.route.split('/').length>2)return[];return categoryGroups(scoped.value,props.route)})
-const groupIndex=computed(()=>['movies','tv','playlist','series'].includes(props.route)||props.route.split('/').length===2&&['genres','networks','ratings','years','certification','resolution'].includes(props.route.split('/')[1]!))
+function isGroupIndex(route:string) {
+ const [, facet, member] = route.split('/')
+ return ['movies','tv','playlist','series'].includes(route) ||
+   !!facet && !member && ['genres','networks','ratings','years','certification','resolution'].includes(facet)
+}
+const groupIndex=computed(()=>isGroupIndex(props.route))
 const isCatalogMediaPage=computed(()=>!groupIndex.value&&!['home','library','library-shortcuts','favorites','search'].includes(props.route))
 async function refreshWorkspace(){await catalog.load();if(props.route==='home')window.dispatchEvent(new Event('boxplayer:server-home-changed'))}
 const favoriteRoutes=computed(()=>placement.orderFavoriteCards(placement.favoriteRoutes.filter(route=>!['music','books'].includes(route)).map(key=>({key}))).map(card=>card.key))
@@ -272,9 +279,24 @@ const managementGroups=computed<HomeManagementGroup[]>(()=>{
 })
 const managementSettings=computed(()=>{void serverPreferenceRevision.value;const serverIDs=new Set(serverManagementItems.value.map(item=>item.id));const selected=serverManagementItems.value.filter(item=>readPreferences(item.sourceId).home.includes(item.id.slice(item.sourceId.length+1))).map(item=>item.id);return {...home.$state,order:[...new Set([...home.order,...selected])],hidden:[...home.hidden,...[...serverIDs].filter(id=>!selected.includes(id))]}})
 async function saveHomeSettings(value:UnifiedHomeSettings){await run(async()=>{const remoteIDs=new Set(serverManagementItems.value.map(item=>item.id));for(const account of sources.accounts.filter(account=>['emby','jellyfin','plex'].includes(account.providerId))){const choices=serverManagementItems.value.filter(item=>item.sourceId===account.id);if(!choices.length)continue;const selected=orderedHomeItems(choices,value).filter(item=>!value.hidden.includes(item.id)&&value.order.includes(item.id));writePreferences(account.id,{...readPreferences(account.id),home:selected.map(item=>item.id.slice(account.id.length+1))})}await placement.applyHome({...value,order:value.order.filter(id=>!remoteIDs.has(id)),hidden:value.hidden.filter(id=>!remoteIDs.has(id))});window.dispatchEvent(new Event('boxplayer:server-home-changed'))})}
-const shelves=computed(()=>visibleHomeItems(withFixedHomeMenus(routes.value),home.$state).map(item=>({route:categoryRouteForHomeId(item.id),title:home.titles[item.id]||item.title,items:videoGroups(homeItemsFor(categoryRouteForHomeId(item.id))).map(group=>group.item).slice(0,12),groups:homeGroups(categoryRouteForHomeId(item.id))})).filter(shelf=>shelf.items.length||shelf.groups.length))
+const shelves=computed(()=>visibleHomeItems(withFixedHomeMenus(routes.value),home.$state).flatMap(item=>{
+ const route = categoryRouteForHomeId(item.id)
+ const grouped = isGroupIndex(route)
+ const groups = grouped ? homeGroups(route).filter(group => !home.hidden.includes(libraryHomeId(group.route))) : []
+ if (grouped ? !groups.length : !homeItemsFor(route).length) return []
+ return [{ route, title: home.titles[item.id] || item.title, grouped, groups }]
+}))
 function homeItemsFor(route:string){return filter(route).filter(item=>{if(home.hidden.includes('source:'+item.sourceId)||home.hidden.includes('source:server:'+item.sourceId))return false;const roots=sources.cards.filter(card=>!card.serverFavorite&&(card.local||card.favorite)&&card.sourceId===item.sourceId&&(!card.path||item.folderPath===card.path||item.folderAncestors?.includes(card.path)||item.catalogRoots?.includes(card.path)));return !roots.length||roots.some(card=>!home.hidden.includes('source:folder:'+card.id))})}
-function homeGroups(route:string){if(['playlist','series','movies','tv'].includes(route)){if(route==='playlist')return Object.keys(catalog.data.playlists).map(title=>({route:'playlist/'+encodeURIComponent(title),title}));if(route==='series')return [...movieCollections(scoped.value).map(g=>({route:'series/'+g.id,title:g.title})),...Object.keys(catalog.data.series).map(title=>({route:'custom-series/'+encodeURIComponent(title),title}))];return rootCategories(route)}return route.split('/').length===2&&['genres','networks','ratings','years','certification','resolution'].includes(route.split('/')[1]!)?categoryGroups(scoped.value,route):[]}
+function homeGroups(route:string) {
+ if (route === 'playlist') return Object.keys(catalog.data.playlists)
+   .map(title=>({route:'playlist/'+encodeURIComponent(title),title}))
+ if (route === 'series') return [
+   ...(seriesPreferences.useTMDB ? movieCollections(homeItemsFor('all')) : []).map(group=>({route:'series/'+group.id,title:group.title})),
+   ...(seriesPreferences.useCustom ? Object.keys(catalog.data.series) : []).map(title=>({route:'custom-series/'+encodeURIComponent(title),title}))
+ ]
+ if (route === 'movies' || route === 'tv') return rootCategories(route)
+ return categoryGroups(homeItemsFor('all'),route)
+}
 function setShelf(id:string,enabled:boolean){void run(()=>placement.applyHome({...home.$state,order:enabled?[...new Set([...home.order,id])]:home.order,hidden:enabled?home.hidden.filter(value=>value!==id):[...new Set([...home.hidden,id])]}))}
 function moveShelf(id:string,offset:number){const ids=shelves.value.map(item=>libraryHomeId(item.route)),destination=ids[ids.indexOf(id)+offset];if(destination)void run(()=>placement.applyHome(moveHomeItem(home.$state,ids,id,destination)))}
 function detailTag(kind:string,value:string,personId?:number) {
@@ -384,7 +406,7 @@ function localRow(items: MediaLibraryItem[], row: Omit<Row, 'cards'>, card: (ite
     } }))
   return { ...row, count: groupCards.length + members.length, get cards() { return [...groupCards, ...members.map(card)] }, preview: () => [...groupCards, ...members.slice(0, 24).map(card)].slice(0, 24) }
 }
-const homeRows=computed<UnifiedLibraryRow[]>(()=>shelves.value.map(shelf=>{if(shelf.groups.length)return {key:libraryHomeId(shelf.route),title:shelf.title,grouped:true,landscape:true,count:shelf.groups.length,cards:shelf.groups.map(group=>({key:group.route,title:group.title,image:cover(group.route),contextMenu:(event:MouseEvent)=>openContext(event,group.route),action:()=>emit('navigate',group.route)})),more:()=>navigateHome(shelf.route)};const grouped=videoGroups(homeItemsFor(shelf.route)).map(group=>originalItem(group.item,group.files));const row=localRow(grouped,{key:libraryHomeId(shelf.route),title:shelf.title,more:()=>navigateHome(shelf.route)});return {key:row.key,title:row.title,landscape:row.landscape,grouped:row.grouped,count:Math.min(row.count??row.cards.length,24),get cards(){return row.preview?row.preview():row.cards.slice(0,24)},more:row.more}}))
+const homeRows=computed<UnifiedLibraryRow[]>(()=>shelves.value.map(shelf=>{if(shelf.grouped)return {key:libraryHomeId(shelf.route),title:shelf.title,grouped:true,landscape:true,count:shelf.groups.length,cards:shelf.groups.map(group=>({key:group.route,title:group.title,image:cover(group.route),contextMenu:(event:MouseEvent)=>openContext(event,group.route),action:()=>emit('navigate',group.route)})),more:()=>navigateHome(shelf.route)};const grouped=videoGroups(homeItemsFor(shelf.route)).map(group=>originalItem(group.item,group.files));const row=localRow(grouped,{key:libraryHomeId(shelf.route),title:shelf.title,more:()=>navigateHome(shelf.route)});return {key:row.key,title:row.title,landscape:row.landscape,grouped:row.grouped,count:Math.min(row.count??row.cards.length,24),get cards(){return row.preview?row.preview():row.cards.slice(0,24)},more:row.more}}))
 const originalRows=computed(()=>[...(generalPreferences.recentlyPlayed&&homeItemsFor('continue').length?[shelfRow('continue','继续观看',homeItemsFor('continue').slice(0,24),true)]:[]),...homeRows.value])
 const homeLayout=computed(()=>orderedHomeItems(withFixedHomeMenus([{id:'sources',title:home.titles.sources||'收藏夹',sourceId:'local',available:true},...routes.value]),home.$state).filter(item=>isHomeItemEnabled(item,home.$state)).map(item=>({item:{...item,title:home.titles[item.id]||item.title},row:homeRows.value.find(row=>row.key===item.id)})).filter(entry=>entry.item.id==='sources'?homeFavoriteCards.value.length:!!(entry.row?.count??entry.row?.cards.length)))
 const homeIsEmpty=computed(()=>!homeServerContent.value&&!homeLayout.value.length&&!originalRows.value.some(row=>row.key==='resume'))
