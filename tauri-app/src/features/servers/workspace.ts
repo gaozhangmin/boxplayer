@@ -15,7 +15,7 @@ export interface ServerItem extends SourceEntry {
   genres: string[]; studios: string[]; season?: number; episode?: number; sortValues?: Partial<Record<keyof typeof sortFields, string | number>>
 }
 export interface ServerPerson { id: string; name: string; role?: string; imagePath?: string }
-export type Category = 'all' | 'movies' | 'shows' | 'collections' | 'playlists' | 'resume' | 'nextup' | 'latest' | 'favorites'
+export type Category = 'all' | 'movies' | 'shows' | 'collections' | 'playlists' | 'resume' | 'nextup' | 'latest' | 'favorites' | 'music'
 export interface BrowseRoute { kind: 'home' | 'root' | 'category' | 'children' | 'detail' | 'search' | 'person'; title: string; id?: string; category?: Category; query?: string; favoriteType?: string; facet?: 'genre' | 'studio' | 'year' | 'certification' | 'rating' | 'network'; value?: string; personId?: string; libraryId?: string }
 export const categories: { id: Category; title: string }[] = [
   { id: 'all', title: '所有视频' }, { id: 'movies', title: '电影' }, { id: 'shows', title: '电视剧' },
@@ -79,7 +79,8 @@ export async function browseServer(account: Account, route: BrowseRoute, options
   // Plex has section-scoped catalogs. Merge video sections instead of guessing /library/all.
   if (plex && route.kind === 'category' && !route.id && !route.personId && !['playlists', 'resume', 'nextup', 'favorites'].includes(category || '')) {
     const roots = await browseServer(account, { kind: 'root', title: '' })
-    const selected = roots.items.filter(item => category !== 'movies' && category !== 'shows' || item.libraryType === (category === 'movies' ? 'movie' : 'show'))
+    const types = category === 'movies' ? ['movie'] : category === 'shows' ? ['show'] : ['movie', 'show', 'video']
+    const selected = roots.items.filter(item => types.includes(item.libraryType || ''))
     const merged: ServerItem[] = []
     for (const library of selected) merged.push(...await allServerItems(account, { ...route, id: library.id }, options))
     const unique = [...new Map(merged.map(item => [item.id, item])).values()].sort((a,b) => compareItems(a,b,options.sort || (category === 'latest' ? 'addedAt' : 'sortName'),options.descending ?? category === 'latest'))
@@ -109,6 +110,7 @@ export async function browseServer(account: Account, route: BrowseRoute, options
     if (route.id?.startsWith('section:')) {
       for (const key of ['genre', 'studio'] as const) if (options[key] && !/^\d+$/.test(options[key]!)) {
         const data = await json<Record<string,any>>(account,'GET',endpoint(account,`library/sections/${enc(route.id.slice(8))}/${key}`))
+    if (category === 'music') q.set('type', '10')
         const found = data.MediaContainer?.Directory?.find((entry: any) => (entry.title || entry.tag) === options[key])
         if (!found) return { items: [], total: 0 }
         options = { ...options, [key]: String(found.key) }
@@ -128,16 +130,21 @@ export async function browseServer(account: Account, route: BrowseRoute, options
     }
     if (category === 'favorites') { q.set('IsFavorite', 'true'); if (route.favoriteType === 'Person') { path = 'Persons'; q.delete('IncludeItemTypes'); q.set('UserId', account.userId!) } }
     if (route.kind === 'search') q.set('SearchTerm', route.query || '')
+      if (category === 'music') q.set('IncludeItemTypes', 'Audio')
     if (route.personId) q.set('PersonIds', route.personId)
     for (const [key, value] of Object.entries({ Genres: options.genre, Studios: options.studio, Years: options.year, OfficialRatings: options.certification, MinCommunityRating: options.minRating, MaxCommunityRating: options.maxRating, IsPlayed: options.watched === 'yes' ? 'true' : options.watched === 'no' ? 'false' : undefined })) if (value) q.set(key, value)
   }
-  const data = await json<Record<string, any>>(account, 'GET', endpoint(account, `${path}?${q}`))
+  const data = await json<Record<string, any>>(account, 'GET', endpoint(account, root ? path : `${path}?${q}`))
   const container = plex ? data.MediaContainer : data
   if (!container || typeof container !== 'object') throw new Error('服务器列表响应无效')
   const rows = plex ? root ? container.Directory : container.Metadata ?? (container.Hub ? container.Hub.flatMap((hub: any) => hub.Metadata || []) : []) : container.Items
   if (!Array.isArray(rows)) throw new Error('服务器列表响应无效')
   const total = plex ? container.totalSize : container.TotalRecordCount
-  const items = rows.filter((row: any) => root ? (plex ? ['movie', 'show', 'video'].includes(String(row.type || '').toLowerCase()) : !['music', 'audiobooks', 'books', 'photos'].includes(String(row.CollectionType || '').toLowerCase())) : videoKinds.has(String(plex ? row.type : row.Type).toLowerCase())).map((row: any) => normalizeItem(row, plex, root))
+  const items = rows.filter((row: any) => {
+    if (root) return true
+    const kind = String(plex ? row.type : row.Type).toLowerCase()
+    return category === 'music' ? kind === (plex ? 'track' : 'audio') : videoKinds.has(kind)
+  }).map((row: any) => normalizeItem(row, plex, root))
   // Plex hubs/search has no offset protocol: never fabricate a next page.
   const next = !root && route.kind !== 'search' || !plex && route.kind === 'search'
   return { items, total, nextOffset: next && rows.length && (typeof total === 'number' ? offset + rows.length < total : rows.length === limit) ? offset + rows.length : undefined }

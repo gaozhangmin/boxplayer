@@ -14,11 +14,20 @@ it.each(['jellyfin', 'emby'] as const)('%s applies account-bound category, type,
  const [actual, method, path] = vi.mocked(json).mock.calls[0]!; expect(actual).toBe(owner); expect(method).toBe('GET'); const url = new URL(path)
  expect(url.pathname).toBe('/prefix/Users/u%2Fa/Items'); expect(Object.fromEntries(url.searchParams)).toMatchObject({ IncludeItemTypes: 'Movie', Recursive: 'true', StartIndex: '1', Genres: '科幻', Years: '2026', IsPlayed: 'true', SortBy: 'Runtime,SortName', SortOrder: 'Descending' }); expect(result.items[0]?.watched).toBe(true); expect(result.nextOffset).toBeUndefined()
 })
-it('library roots omit music/books/photos and preserve Plex section IDs', async () => {
+it('library roots preserve returned libraries and Plex section IDs', async () => {
  vi.mocked(json).mockResolvedValueOnce({ Items: [{ Id: 'films', Name: 'Films', Type: 'CollectionFolder', CollectionType: 'movies' }, { Id: 'music', CollectionType: 'music' }, { Id: 'books', CollectionType: 'books' }] })
- expect((await browseServer(account(), { kind: 'root', title: '' })).items.map(i => i.id)).toEqual(['films'])
+ expect((await browseServer(account(), { kind: 'root', title: '' })).items.map(i => i.id)).toEqual(['films', 'music', 'books'])
  vi.mocked(json).mockResolvedValueOnce({ MediaContainer: { Directory: [{ key: '1', title: 'Films', type: 'movie' }, { key: '2', title: 'Music', type: 'artist' }] } })
- expect((await browseServer(account('plex'), { kind: 'root', title: '' })).items[0]).toMatchObject({ id: 'section:1', kind: 'folder', isDirectory: true })
+ expect((await browseServer(account('plex'), { kind: 'root', title: '' })).items).toMatchObject([
+  { id: 'section:1', kind: 'folder', isDirectory: true }, { id: 'section:2', libraryType: 'artist' }
+ ])
+})
+it('requests only audio tracks inside the selected Emby music library', async () => {
+ vi.mocked(json).mockResolvedValue({ Items: [{ Id: 'track', Name: 'Track', Type: 'Audio' }], TotalRecordCount: 1 })
+ const result = await browseServer(account('emby'), { kind: 'category', category: 'music', id: 'music-lib', title: 'Music' })
+ const url = new URL(vi.mocked(json).mock.lastCall![2])
+ expect(Object.fromEntries(url.searchParams)).toMatchObject({ ParentId: 'music-lib', IncludeItemTypes: 'Audio', Recursive: 'true' })
+ expect(result.items).toMatchObject([{ id: 'track', kind: 'audio' }])
 })
 it('Plex playlist and section browsing use separate paths, with stable pagination', async () => {
  vi.mocked(json).mockResolvedValue({ MediaContainer: { Metadata: [{ ratingKey: 'm', title: 'Film', type: 'movie' }], totalSize: 3 } })
