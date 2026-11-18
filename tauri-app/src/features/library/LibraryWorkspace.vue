@@ -306,7 +306,9 @@ const isCatalogPage=computed(()=>!['home','library','search'].includes(props.rou
 const isLibrarySettingsPage=computed(()=>props.route==='library')
 const selectedObjectItems=selected
 const selectedObjectKeys=computed(()=>selected.value.map(id=>'local:'+id))
-const refreshing=busy,libraryScanning=computed(()=>catalog.scanning),metadataRefreshing=busy
+const homeServerLoading=ref(false)
+const refreshing=computed(()=>busy.value||catalog.loading||homeServerLoading.value)
+const libraryScanning=computed(()=>catalog.scanning),metadataRefreshing=busy
 const libraryBrowser=ref<InstanceType<typeof UnifiedLibraryBrowser>>()
 const catalogTitle=ref('')
 const recommendationLoading=computed(()=>false)
@@ -429,7 +431,7 @@ function finishFavoritePointer(event: PointerEvent) {
           <button :class="{ active: !localOnly }" :aria-pressed="!localOnly" @click="localOnly = false">{{ t('unified.allSources') }}</button>
           <button :class="{ active: localOnly }" :aria-pressed="localOnly" @click="localOnly = true">{{ t('unified.localFiles') }}</button>
         </div>
-        <button v-if="section === 'home'" class="round-button" :disabled="refreshing" :aria-label="t('common.refresh')" @click="refresh()"><MediaLoadingIndicator v-if="refreshing" :size="18" /><RefreshCw v-else :size="18" /></button>
+        <button v-if="section === 'home'" class="round-button" :disabled="refreshing" :aria-label="t('common.refresh')" :aria-busy="refreshing" @click="refresh()"><MediaLoadingIndicator v-if="refreshing" :size="18" /><RefreshCw v-else :size="18" /></button>
         <button v-if="section === 'home'" class="round-button" data-testid="unified-manage-home" :aria-label="t('media.manager')" @click="showHomeManagement = true"><List :size="18" /></button>
         <button v-if="section === 'home'" class="round-button" aria-label="Trakt" title="Trakt" @click="showTraktAccount = true"><TraktAvatar v-if="traktStatus.connected" :src="traktAccount?.avatar" :size="32" /><img v-else :src="traktLogo" alt="Trakt" width="26" height="26" /></button>
         <button v-if="(isCategoryPage || isServerRootPage || isFolderPage || section === 'files') && !isGenreIndexPage && !isLibrarySettingsPage && !isSearchPage" class="round-button" :aria-label="collectionMode === 'grid' ? t('mediaServer.listView') : t('mediaServer.gridView')" @click="collectionMode = collectionMode === 'grid' ? 'list' : 'grid'"><Grid2X2 v-if="collectionMode === 'grid'" :size="18" /><List v-else :size="18" /></button>
@@ -479,7 +481,7 @@ function finishFavoritePointer(event: PointerEvent) {
           <div class="library-refresh-actions"><button :disabled="libraryScanning || metadataRefreshing || media.isScanning" @click="rescanLibraryFolders"><Search :size="16" />{{ t('librarySettings.refreshLibrary') }}</button><button :disabled="metadataRefreshing || libraryScanning || media.isScanning" @click="refreshLibraryMetadata"><RefreshCw :size="16" :class="{ spinning: metadataRefreshing }" />{{ t('librarySettings.refreshMetadata') }}</button></div>
         </section>
       <div v-if="section === 'home' || (section === 'collection' && selectedHomeRowKey === 'sources')" class="unified-home" :class="{ 'source-screen-empty': section === 'home' && homeIsEmpty }" ref="homeElement" @scroll="section === 'home' && (homeScrollTop = ($event.target as HTMLElement).scrollTop)">
-        <ServerHomeSections v-if="section==='home'" :accounts="homeServerAccounts" hide-favorites @items="serverManagementItems=$event" @navigate="(id,route)=>emit('server',id,route)"/><UnifiedMediaRow v-for="row in originalRows.filter(item => item.key === 'resume')" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :key="row.key" :row="row" />
+        <ServerHomeSections v-if="section==='home'" :accounts="homeServerAccounts" hide-favorites @loading="homeServerLoading=$event" @items="serverManagementItems=$event" @navigate="(id,route)=>emit('server',id,route)"/><UnifiedMediaRow v-for="row in originalRows.filter(item => item.key === 'resume')" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :key="row.key" :row="row" />
         <template v-for="entry in (section === 'home' && homeIsEmpty ? [] : homeLayout)" :key="entry.item.id">
         <section v-if="entry.item.id === 'sources'" class="home-row source-shortcuts">
           <div class="row-heading"><h2>{{ entry.item.title }}</h2><button @click="openHomeMenu('sources')">{{ t('mediaServer.seeAllPlain') }}</button></div>
@@ -492,7 +494,6 @@ function finishFavoritePointer(event: PointerEvent) {
         </section>
         <HomeShelfViewport v-else-if="entry.row" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :snapshot="homeShelfSnapshot(entry.item.id)" :landscape="entry.row.landscape" @visible="visible => homeRowVisibility(entry.item.id, visible)"><UnifiedMediaRow :row="entry.row" /></HomeShelfViewport>
         </template>
-        <div v-if="section === 'home' && homeIsEmpty && refreshing" class="unified-loading-state"><MediaLoadingIndicator /></div>
         <SourceEmptyState v-if="section === 'home' && homeIsEmpty && !refreshing" home @add="showAddFileSource = true" />
       </div>
         <div v-if="isCatalogPage && selectedHomeRowKey === 'catalog:favorites'" class="favorite-page-wrap" :class="{ 'is-reordering': favoriteReordering }">
@@ -534,7 +535,6 @@ function finishFavoritePointer(event: PointerEvent) {
 .source-shortcuts .row-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .source-shortcuts .row-heading h2{margin:0}
 .source-shortcuts .row-heading button{border:0;background:transparent;color:#ff8000;cursor:pointer}
-.unified-loading-state{display:flex;align-items:center;justify-content:center;min-height:56vh}
 .unified-toolbar .round-button{padding:0;box-sizing:border-box;overflow:hidden;place-items:center}
 .unified-library{display:flex;height:100%;min-height:0;background:var(--color-bg-1);color:var(--color-text-1)}
 :global(#xbybody .unified-library .music-pane), :global(#xbybody .unified-library .music-pane .unified-toolbar){background:#000!important}

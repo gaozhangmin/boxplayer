@@ -76,6 +76,25 @@ describe('home integration boundaries',()=>{
 })
 
 describe('Electron toolbar page capabilities',()=>{
+ it('shows server loading in the Home refresh button while keeping existing shelves visible',async()=>{
+  const target=document.createElement('div')
+  target.id='home-loading-toolbar'
+  document.body.append(target)
+  const wrapper=page('home','#home-loading-toolbar')
+  await flushPromises()
+  const button=target.querySelector<HTMLButtonElement>('[aria-label="刷新"]')!
+  const shelves=wrapper.get('.unified-home').text()
+  wrapper.getComponent({name:'ServerHomeSections'}).vm.$emit('loading',true)
+  await flushPromises()
+  expect(button.disabled).toBe(true)
+  expect(button.querySelector('.media-loading-indicator')).not.toBeNull()
+  expect(wrapper.find('.content-loading').exists()).toBe(false)
+  expect(wrapper.get('.unified-home').text()).toBe(shelves)
+  wrapper.getComponent({name:'ServerHomeSections'}).vm.$emit('loading',false)
+  await flushPromises()
+  expect(button.disabled).toBe(false)
+  expect(button.querySelector('.media-loading-indicator')).toBeNull()
+ })
  it('shows one search scope and a view control without sorting, refresh or general actions',async()=>{const target=document.createElement('div');target.id='search-toolbar';document.body.append(target);const wrapper=page('search','#search-toolbar');await flushPromises();expect(document.querySelectorAll('.search-scopes')).toHaveLength(1);expect(target.querySelector('[aria-label="排序方式"]')).toBeNull();expect(target.querySelector('[aria-label="媒体管理"]')).toBeNull();expect(target.querySelector('[aria-label="刷新"]')).toBeNull();expect(target.querySelector('[aria-label="列表视图"]')).not.toBeNull();await wrapper.setProps({route:'movies/genres'});expect(target.querySelector('[aria-label="排序方式"]')).toBeNull();expect(target.querySelector('.source-scope')).not.toBeNull();await wrapper.setProps({route:'movies/all'});expect(target.querySelector('[aria-label="排序方式"]')).not.toBeNull();expect(target.querySelector('.source-scope')).not.toBeNull();await wrapper.setProps({route:'playlist'});expect(target.querySelector('[aria-label="排序方式"]')).toBeNull()})
  it('refreshes server shelves as well as the local home catalog',async()=>{const target=document.createElement('div');target.id='home-toolbar';document.body.append(target);const refresh=vi.fn();window.addEventListener('boxplayer:server-home-changed',refresh);page('home','#home-toolbar');await flushPromises();new DOMWrapper(target.querySelector<HTMLButtonElement>('[aria-label="刷新"]')!).trigger('click');await flushPromises();expect(fixture.catalog.load).toHaveBeenCalledTimes(2);expect(refresh).toHaveBeenCalledOnce();window.removeEventListener('boxplayer:server-home-changed',refresh)})
 })
