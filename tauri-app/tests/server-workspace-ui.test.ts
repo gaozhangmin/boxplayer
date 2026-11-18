@@ -24,7 +24,7 @@ beforeEach(() => {
 })
 it('defaults to library-root, emits title/back state, disables favoriteSelected and password until selection', async () => {
  const wrapper = mount(ServerWorkspace, { props: { account }, global: { stubs } }); await flushPromises()
- expect(vi.mocked(browseServer).mock.calls[0]?.[1]).toMatchObject({ kind: 'root', title: '媒体库' }); expect(wrapper.emitted('title')?.at(-1)).toEqual(['媒体库'])
+ expect(vi.mocked(browseServer).mock.calls[0]?.[1]).toMatchObject({ kind: 'root', title: '媒体库' }); expect(wrapper.emitted('title')?.at(-1)).toEqual([account.name])
  await wrapper.get('[aria-label="更多媒体操作"]').trigger('click'); expect(button(wrapper,'添加到收藏夹').attributes('disabled')).toBeDefined(); expect(button(wrapper,'启用密码锁').attributes('disabled')).toBeDefined()
  await button(wrapper,'选择').trigger('click'); await wrapper.get('.library-card').trigger('click'); await wrapper.get('[aria-label="更多媒体操作"]').trigger('click'); expect(button(wrapper,'添加到收藏夹').attributes('disabled')).toBeUndefined()
  await button(wrapper,'添加到收藏夹').trigger('click'); await wrapper.find('[role=dialog] input').setValue('My library'); await wrapper.find('[role=dialog]').trigger('submit'); await flushPromises()

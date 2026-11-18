@@ -62,7 +62,7 @@ const coverChoices = ref<{ path: string; title: string }[]>([])
 const ratingItem = ref<ServerItem>(), shareItem = ref<ServerItem>()
 let generation = 0, operation = 0, alive = true
 function isCurrentAccount(account: Account) { return alive && account.id === props.account.id && account.baseUrl === props.account.baseUrl && account.userId === props.account.userId }
-const title = computed(() => route.value.kind === 'home' ? props.account.name : route.value.title)
+const title = computed(() => ['home', 'root'].includes(route.value.kind) ? props.account.name : route.value.title)
 const choices = computed(() => [...categories.map(c => ({ key: c.id, title: c.title, route: categoryRoute(c.id, c.title) })), ...libraries.value.map(item => ({ key: `library:${item.id}`, title: item.name, route: childRoute(item) }))])
 const visibleItems = computed(() => route.value.kind === 'root' || needsLocalSort(props.account, options.value.sort) ? [...items.value].sort((a, b) => compareItems(a, b, options.value.sort || 'sortName', options.value.descending, seed.value)) : items.value)
 

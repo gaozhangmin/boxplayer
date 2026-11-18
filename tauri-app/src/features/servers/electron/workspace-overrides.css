@@ -1489,15 +1489,10 @@ html:not(.dark) .media-server-workspace .detail-backdrop-fallback {
   }
 }
 
-/* Server library root uses landscape collections, not media posters. */
+/* Server library root switches between landscape tiles and portrait rows. */
 .media-server-workspace.unified-server-root .root-library-fallback { position:absolute;inset:0;display:grid;place-items:center;color:var(--primary);background:var(--secondary); }
 .media-server-workspace.unified-server-root .library-shell { margin:0!important; }
-#xbybody.media-server-workspace.unified-server-root .library-shell-list .library-card { width:100%!important;display:flex!important;flex-direction:row!important;align-items:center!important;gap:16px!important; }
-#xbybody.media-server-workspace.unified-server-root .library-shell-list .library-cover { width:92px!important;height:138px!important;min-width:92px!important;max-width:92px!important;aspect-ratio:2/3!important; }
-#xbybody.media-server-workspace.unified-server-root .library-shell-list .library-card h4 { display:block!important;position:static!important;color:var(--foreground)!important;font-size:14px!important; }
 .media-server-workspace.unified-server-root .workspace-page { padding:0!important;background:transparent!important; }
-.media-server-workspace.unified-server-root .library-card .listing-overlay-badge { display:none!important; }
-.media-server-workspace.unified-server-root .library-card-hero { gap:0!important; }
 .media-server-workspace.unified-server-root .workspace-content { padding: 0 !important; }
 .media-server-workspace.unified-server-root .home-page { padding: 16px !important; }
 .media-server-workspace.unified-server-root .library-shell-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 16px!important;grid-template-columns:repeat(3,minmax(0,1fr))!important; }
@@ -1506,11 +1501,11 @@ html:not(.dark) .media-server-workspace .detail-backdrop-fallback {
 .media-server-workspace.unified-server-root .listing-overlay-badge { display:none!important; }
 .media-server-workspace.unified-server-root .library-card h4 { margin:8px 0 0;font-size:13px;font-weight:600;text-align:left;color:var(--foreground)!important; }
 .media-server-workspace.unified-server-root .library-shell-list { display:flex;flex-direction:column;gap:0; }
-.media-server-workspace.unified-server-root .library-card-list { display:flex!important;flex-direction:row!important;align-items:center;gap:16px;padding:16px!important;border-bottom:1px solid var(--border)!important;border-radius:0!important; }
-.media-server-workspace.unified-server-root .library-card-list .library-cover { width:92px!important;height:138px!important;aspect-ratio:2/3!important;flex-shrink:0;border-radius:8px; }
-.media-server-workspace.unified-server-root .library-card-list h4 { margin:0;font-size:14px; }
+.media-server-workspace.unified-server-root .library-shell-list .library-card { display:flex!important;flex-direction:row!important;align-items:center;gap:16px;width:100%;padding:16px!important;border-bottom:1px solid var(--border)!important;border-radius:0!important; }
+.media-server-workspace.unified-server-root .library-shell-list .library-card .library-cover { width:92px!important;height:138px!important;min-width:92px!important;max-width:92px!important;aspect-ratio:2/3!important;flex-shrink:0;border-radius:8px; }
+.media-server-workspace.unified-server-root .library-shell-list .library-card h4 { display:block;position:static;margin:0;font-size:14px; }
 .root-library-check { position:absolute;top:8px;right:8px;z-index:3; }
-@media(max-width:900px){.media-server-workspace.unified-server-root .library-shell-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(max-width:900px){.media-server-workspace.unified-server-root .library-shell-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}
 /* Unified category cards share the local media library's plain poster treatment.
    This must win over PageMain's global glass-panel rules, regardless of CSS load order. */
 .media-server-workspace.unified-server-category .workspace-page,

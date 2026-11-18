@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import MediaPosterPlaceholder from '../library/electron/MediaPosterPlaceholder.vue'
+import { Folder } from 'lucide-vue-next'
 import { ref, watch, onBeforeUnmount } from 'vue'
 import type { Account } from '../sources/contracts'
 import { isLocalCoverData } from './cover'
 import { serverArtwork } from '../sources/serverMetadata'
-const props = defineProps<{ account: Account; path?: string; alt?: string }>()
+const props = defineProps<{ account: Account; path?: string; alt?: string; folderFallback?: boolean }>()
 const url = ref(''); let revision = 0
 function clear() { if (url.value.startsWith('blob:')) URL.revokeObjectURL(url.value); url.value = '' }
 watch(() => [props.account.id, props.account.baseUrl, props.path], async () => {
@@ -16,5 +17,5 @@ watch(() => [props.account.id, props.account.baseUrl, props.path], async () => {
 }, { immediate: true })
 onBeforeUnmount(() => { revision++; clear() })
 </script>
-<template><img v-if="url" :src="url" :alt="alt || ''" loading="lazy" @error="clear" /><span v-else class="server-art-fallback" role="img" :aria-label="alt || '暂无封面'"><MediaPosterPlaceholder/></span></template>
+<template><img v-if="url" :src="url" :alt="alt || ''" loading="lazy" @error="clear" /><span v-else class="server-art-fallback" role="img" :aria-label="alt || '暂无封面'"><Folder v-if="folderFallback" :size="56" aria-hidden="true"/><MediaPosterPlaceholder v-else/></span></template>
 <style scoped>.server-art-fallback{display:grid;place-items:center;width:100%;height:100%;background:var(--secondary);color:var(--primary,#34a86f);font-size:32px}img{width:100%;height:100%;object-fit:cover}</style>

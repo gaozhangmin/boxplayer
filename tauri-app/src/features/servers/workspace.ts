@@ -41,13 +41,15 @@ export function normalizeItem(row: Record<string, any>, plex: boolean, root = fa
   const kind = root ? 'folder' : String(plex ? row.type || '' : row.Type || '').toLowerCase()
   const rawId = String(plex ? row.ratingKey ?? row.key : row.Id)
   const id = root && plex ? `section:${rawId}` : kind === 'playlist' ? `playlist:${rawId}` : rawId
+  const primaryTag = row.ImageTags?.Primary || row.PrimaryImageTag
+  const thumbTag = root && row.ImageTags?.Thumb
   return { id, ...serverIdentity(row, plex), parentId: plex ? row.parentRatingKey : row.ParentId || row.SeasonId, libraryType: root ? String(plex ? row.type : row.CollectionType || '') : undefined, people: (plex ? [...(row.Role || []), ...(row.Director || []), ...(row.Writer || [])] : row.People || []).filter((p: any) => plex ? p.id != null || p.key : p.Id).map((p: any) => ({ id: String(plex ? p.id ?? p.key : p.Id), name: String(plex ? p.tag : p.Name), role: plex ? p.role : p.Role || p.Type, imagePath: plex ? p.thumb : p.PrimaryImageTag ? `Items/${enc(p.Id)}/Images/Primary?maxWidth=180&tag=${enc(p.PrimaryImageTag)}` : undefined })), name: String(plex ? row.title : row.Name), kind, serverType: kind, size: Number(plex?row.Media?.[0]?.Part?.[0]?.size||0:row.MediaSources?.[0]?.Size||row.Size||0),
     isDirectory: root || ['show', 'series', 'season', 'folder', 'collectionfolder', 'userview', 'boxset', 'collection', 'playlist'].includes(kind),
     playable: ['movie', 'episode', 'video', 'clip', 'musicvideo'].includes(kind),
     overview: String((plex ? row.summary : row.Overview) || ''), year: String((plex ? row.year : row.ProductionYear) || '') || undefined,
     rating: plex ? row.rating : row.CommunityRating, watched: plex ? Number(row.viewCount || 0) > 0 : !!row.UserData?.Played,
     favorite: plex ? Number(row.userRating || 0) >= 9 : !!row.UserData?.IsFavorite,
-    imagePath: plex ? row.thumb : row.ImageTags?.Primary ? `Items/${enc(rawId)}/Images/Primary?maxWidth=400&tag=${enc(row.ImageTags.Primary)}` : undefined,
+    imagePath: plex ? row.thumb : primaryTag ? `Items/${enc(rawId)}/Images/Primary?maxWidth=${root ? 1200 : 400}&tag=${enc(primaryTag)}` : thumbTag ? `Items/${enc(rawId)}/Images/Thumb?maxWidth=1200&tag=${enc(thumbTag)}` : undefined,
     externalLinks:((row.ExternalUrls||[]).map((link:any)=>({title:link.Name||'外部链接',url:link.Url})).filter((link:any)=>{try{const url=new URL(link.url);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password}catch{return false}})),
     birthday:row.PremiereDate?.slice(0,10),birthPlace:row.ProductionLocations?.[0],deathDate:row.EndDate?.slice(0,10),
     versions:mediaVersions(row,plex),criticRating:plex?row.audienceRating:row.CriticRating,

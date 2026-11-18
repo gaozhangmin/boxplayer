@@ -91,8 +91,7 @@ async function saveFavorite() {
   } catch (e) { message.error(String(e)) } finally { saving.value = false }
 }
 const allFolders = computed<Entry | undefined>(() => {
-  if (props.device) return undefined
-  if (props.source?.server) return { name: t('source.allFolders'), directory: true, serverItem: history.value.at(-1)?.serverItem || { id: '__all__', serverId: props.source.server.id, provider: props.source.server.type, kind: 'folder', title: props.source.name } }
+  if (props.device || props.source?.server) return undefined
   const current = history.value.at(-1)
   if (!current && props.source?.drives?.length) return undefined
   const folder = current?.folder || props.source?.folder

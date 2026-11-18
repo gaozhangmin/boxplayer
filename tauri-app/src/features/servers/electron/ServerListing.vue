@@ -16,6 +16,9 @@ const getListingHeading=(item:ServerItem)=>item.name
 const getListingYearLabel=(item:ServerItem)=>item.year
 const getListingOverlay=(item:ServerItem)=>item.childCount?String(item.childCount):''
 const getListingOverview=(item:ServerItem)=>item.overview
+function listingArtwork(item: ServerItem) {
+  return props.root ? item.imagePath || item.backdropPath : props.landscape ? item.backdropPath || item.imagePath : item.imagePath
+}
 function getListingMetaItems(item:ServerItem){return [item.rating?'★ '+item.rating.toFixed(1):'',item.duration?Math.max(1,Math.round(item.duration/60))+'分钟':'',item.year,item.sortValues?.officialRating,item.height?item.height+'p':''].filter(Boolean)}
 </script>
 <template><div class="media-server-workspace" :class="{'unified-server-root':root,'unified-server-category':!root}"><div class="library-shell unified-listing" :class="[landscape?'library-shell-landscape':'library-shell-portrait',mode==='list'?'library-shell-list':'library-shell-grid']"><template v-for="item in items" :key="item.id"><div role="button" tabindex="0"
@@ -29,17 +32,15 @@ function getListingMetaItems(item:ServerItem){return [item.rating?'★ '+item.ra
                   <div
                     class="library-cover media-image-frame"
                     :class="{
-                      'has-image': !!item.imagePath,
-                      'library-cover-fallback': !item.imagePath,
+                      'has-image': !!listingArtwork(item),
+                      'library-cover-fallback': !listingArtwork(item),
                       'library-cover-list': currentListingBrowseMode === 'list' && !root
                     }"
                   >
-                    <ServerArtwork v-if="item.imagePath" :account="account" :path="landscape?item.backdropPath||item.imagePath:item.imagePath" :alt="item.name" />
-                    <div v-if="root && !item.imagePath" class="root-library-fallback"><Folder :size="56" aria-hidden="true" /></div>
+                    <ServerArtwork v-if="listingArtwork(item)" :account="account" :path="listingArtwork(item)" :alt="item.name" :folder-fallback="root" />
+                    <div v-if="root && !listingArtwork(item)" class="root-library-fallback"><Folder :size="56" aria-hidden="true" /></div>
                     <div v-else class="media-card-placeholder media-image-placeholder"><MediaPosterPlaceholder /></div>
                     <div v-if="root && selection" class="root-library-check"><input type="checkbox" :checked="selection?.includes(item.id)" tabindex="-1" :aria-label="item.name" /></div>
-                    <div v-if="root && !root" class="library-cover-overlay"></div>
-                    <div v-if="root && !root" class="library-cover-title">{{ getListingHeading(item) }}</div>
                     <WatchedIndicator v-if="isDetailCandidate(item)" corner :watched="item.watched" />
                     <PosterRatingBadge :rating="item.rating" :is-movie="item.kind === 'movie'" />
                     <div v-if="getListingOverlay(item)" class="listing-overlay-badge">{{ getListingOverlay(item) }}</div>
@@ -76,5 +77,7 @@ function getListingMetaItems(item:ServerItem){return [item.rating?'★ '+item.ra
                 </div></template></div></div></template>
 <style scoped src="./workspace.css"></style><style src="./workspace-overrides.css"></style>
 <style scoped>
-.unified-server-root .library-shell{display:grid;grid-template-columns:repeat(auto-fill,174px);gap:22px}.unified-server-root .library-card{background:transparent;border:0;padding:0;cursor:pointer}.unified-server-root .library-cover{aspect-ratio:2/3;border-radius:16px}.unified-server-root h4{font-size:13px;margin:10px 0 0}.root-library-fallback{height:100%;display:grid;place-items:center;color:var(--primary)}.library-card:focus-visible{outline:2px solid var(--primary);outline-offset:3px}.library-cover :deep(img){position:absolute;inset:0}.library-card{cursor:pointer}
+.library-card:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
+.library-cover :deep(img){position:absolute;inset:0}
+.library-card{cursor:pointer}
 </style>
