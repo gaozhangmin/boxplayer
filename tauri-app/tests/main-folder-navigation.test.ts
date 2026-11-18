@@ -39,3 +39,30 @@ it('returns a folder opened directly from the sidebar to Files before Home',asyn
  expect(wrapper.findComponent(FileBrowser).exists()).toBe(false)
  wrapper.unmount()
 })
+
+it('returns to the already loaded parent directory without a native reload', async () => {
+ const { localList } = await import('@/platform/native')
+ const { encodeLocal } = await import('@/features/files/adapters/sourceServices')
+ const root = { sourceId:'local', relativePath:'', parentPath:null, entries:[
+   {id:'Nested', name:'Nested', relativePath:'Nested', isDirectory:true, playable:false, size:0, modified:0}
+ ] }
+ vi.mocked(localList).mockResolvedValueOnce(root).mockResolvedValueOnce({
+  sourceId:'local',relativePath:'Nested',parentPath:'',entries:[]
+ })
+ const pinia=createPinia()
+ useFileSourcesStore(pinia).replaceSnapshot({localFolders:[{id:'local',name:'Videos'}],drives:[],mediaServers:[],hasDirectURLs:false})
+ const wrapper=mount(Main,{attachTo:document.body,global:{plugins:[pinia],stubs:{LibraryWorkspace:{template:'<div/>'}}}})
+ try {
+  await wrapper.get('[data-sidebar-root="files"] .nav-children button').trigger('click')
+  await flushPromises()
+  wrapper.findComponent({name:'MediaPanRight'}).vm.$emit('enterFolder',{
+   file_id:encodeLocal('local','Nested'),name:'Nested',isDir:true
+  })
+  await flushPromises()
+  expect(wrapper.get('.unified-toolbar h1').text()).toBe('Nested')
+  await wrapper.get('.unified-toolbar .back-button').trigger('click')
+  expect(wrapper.get('.unified-toolbar h1').text()).toBe('Videos')
+  expect(wrapper.get('.files-browser').text()).toContain('Nested')
+  expect(localList).toHaveBeenCalledTimes(2)
+ } finally { wrapper.unmount() }
+})

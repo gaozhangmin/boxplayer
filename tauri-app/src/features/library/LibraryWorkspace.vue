@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import {cachedArtwork} from './artworkCache'
 import {computed,onMounted,onUnmounted,ref,watch,toRaw,nextTick} from 'vue'
@@ -80,7 +81,7 @@ const toolbarReady=ref(false)
 onMounted(()=>{toolbarReady.value=true})
 const emit=defineEmits<{navigate:[route:string,origin?:'home'|'library'];source:[id:string];folder:[value:{sourceId:string;path:string;local:boolean;favoriteId:string}];server:[id:string,route:BrowseRoute];title:[title:string];detailActive:[active:boolean]}>()
 const catalog=useVideoCatalog(),sources=useFileSourcesStore(),placement=usePlacement(),home=useHome(),bookmarks=useBookmarks()
-const mode=ref<'grid'|'list'>('grid'),sort=ref<MediaBrowseSort>('title'),descending=ref(false),explicitSort=ref(false),localOnly=ref(false),selectionMode=ref(false),detail=ref<string>(),selected=ref<string[]>([]),error=ref(''),busy=ref(false),menu=ref(false),manageHome=ref(false),scanPicker=ref(false)
+const mode=ref<'grid'|'list'>('grid'),explicitSort=ref(false),selectionMode=ref(false),detail=ref<string>(),selected=ref<string[]>([]),error=ref(''),busy=ref(false),menu=ref(false),manageHome=ref(false),scanPicker=ref(false)
 try{mode.value=localStorage.getItem('MediaLibrary_BrowseMode')==='list'?'list':'grid'}catch{}
 watch(mode,value=>{try{if(localStorage.getItem('MediaLibrary_BrowseMode')!==value){localStorage.setItem('MediaLibrary_BrowseMode',value);window.dispatchEvent(new Event('boxplayer:browse-mode-changed'))}}catch{}})
 function syncMode(){try{mode.value=localStorage.getItem('MediaLibrary_BrowseMode')==='list'?'list':'grid'}catch{}}
@@ -126,6 +127,7 @@ async function createShare(){const target=sharing.value,candidate=shareFiles.val
 const shareText=computed(()=>sharing.value?[sharing.value.name,sharing.value.year,sharing.value.rating?'评分：'+sharing.value.rating:'',sharing.value.overview].filter(Boolean).join('\n'):'')
 async function copyShare(){await run(async()=>{await navigator.clipboard.writeText(shareResult.value||shareText.value);shareCopied.value=true})}
 const navigation=useLibraryNavigation()
+const { homeScrollTop, browseSort: sort, browseDescending: descending, localOnly } = storeToRefs(navigation)
 function playItems(items:VideoItem[],mode:'play'|'loop'|'shuffle'){const preference=seriesPreferences.playbackVersion==='auto'?seriesPreferences.defaultVersion:seriesPreferences.playbackVersion;return catalog.playMany(playbackItems(items,preference),mode)}
 async function playFrom(item:VideoItem[],selected:VideoItem){const preference=seriesPreferences.playbackVersion==='auto'?seriesPreferences.defaultVersion:seriesPreferences.playbackVersion;const rows=playbackItems(item,preference),chosen=rows.find(value=>value.id===selected.id||value.type==='movie'&&!!selected.tmdbId&&value.tmdbId===selected.tmdbId||value.type==='tv'&&!!selected.tmdbId&&value.tmdbId===selected.tmdbId&&value.seasonNumber===selected.seasonNumber&&value.episodeNumber===selected.episodeNumber)||selected;return catalog.play(chosen,rows)}
 async function importTrakt(records:PlaybackProgress[]){await run(()=>catalog.update(draft=>{for(const {id,patch} of playbackPatches(draft.items,records,traktStatus.value.settings.range)){const item=draft.items.find(i=>i.id===id);if(item)Object.assign(item,patch)}}))}
@@ -374,13 +376,14 @@ function fileSourceMenuKey(source:typeof sources.cards[number]){return source.se
 function openFavoriteCardMenu(event:MouseEvent,key:string){const card=favoriteCards.value.find(card=>card.key===key);if(card?.source){event.preventDefault();fileMenu.value?.openMenu(event,fileSourceMenuKey(card.source))}else if(card)favoriteContext(event,card)}
 function startFavoriteReordering(){if(props.route!=='favorites')emit('navigate','favorites');setFavoriteTitleSort(false);favoriteReordering.value=true}
 function finishFavoriteReordering(){favoriteReordering.value=false;draggedFavoriteKey.value=''}
-const homeElement=ref<HTMLElement>(),homeScrollTop=ref(0)
+const homeElement=ref<HTMLElement>()
 const homeShelfSnapshots=new Map<string,{height?:number;scrollLeft?:number}>()
 function homeShelfSnapshot(id:string){let snapshot=homeShelfSnapshots.get(id);if(!snapshot){snapshot={};homeShelfSnapshots.set(id,snapshot)}return snapshot}
 watch([() => props.route, () => !!current.value], ([route, showingDetail]) => {
  if (route !== 'home') homeServerContent.value = homeServerLoading.value = false
  if (route === 'home' && !showingDetail && homeElement.value) homeElement.value.scrollTop = homeScrollTop.value
 }, { flush: 'post' })
+onMounted(() => { if (props.route === 'home' && homeElement.value) homeElement.value.scrollTop = homeScrollTop.value })
 const homeLibrary=computed(()=>videoGroups(homeItemsFor('all')).map(group=>originalItem(group.item,group.files)))
 const customSeriesGroups=computed(()=>loadCustomSeries())
 function openVideo(item:MediaLibraryItem){const native=nativeItem(item);if(native)detail.value=native.id}

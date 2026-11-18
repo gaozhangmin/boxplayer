@@ -95,21 +95,39 @@ function closeDetail(){}
 onUnmounted(()=>{requestSequence++})
 const remoteEntries=ref<SourceEntry[]>([])
 const remotePath=ref(''),remoteTitle=ref('')
-const remoteHistory=ref<{path:string;query:string;title?:string}[]>([])
+const remoteHistory=ref<{path:string;query:string;title:string;entries:SourceEntry[];cursor?:string}[]>([])
+const localHistory=ref<LocalListing[]>([])
 const remoteQuery=ref('')
 const cursor=ref<string>()
 watch(()=>props.source?.sourceId,id=>{if(currentBookmark.value&&currentBookmark.value.sourceId!==id)openedBookmark.value=undefined})
 const remoteAccount=computed(()=>sources.accounts.find(a=>a.id===props.source?.sourceId))
 
-async function browseRemote(path='',next?:string,query='',title?:string){
+async function browseRemote(path='',next?:string,query='',title?:string,enterFolder=false){
  const account=remoteAccount.value;if(!account)return
  const sequence=++requestSequence;loading.value=true;error.value=''
- try{const protocol=driver(account);if(query&&!protocol.search)throw new Error('此来源不支持搜索');const result=await(query?protocol.search!(account,query,next):protocol.list(account,path,next));if(sequence!==requestSequence)return;remoteEntries.value=next?[...remoteEntries.value,...result.entries]:result.entries;cursor.value=result.nextCursor;remotePath.value=path;remoteQuery.value=query;if(!next)remoteTitle.value=title||(!path?props.source?.title||'':remoteTitle.value)}
+ try{const protocol=driver(account);if(query&&!protocol.search)throw new Error('此来源不支持搜索');const result=await(query?protocol.search!(account,query,next):protocol.list(account,path,next));if(sequence!==requestSequence)return;if(enterFolder)remoteHistory.value.push({ path: remotePath.value, query: remoteQuery.value, title: remoteTitle.value, entries: remoteEntries.value, cursor: cursor.value });remoteEntries.value=next?[...remoteEntries.value,...result.entries]:result.entries;cursor.value=result.nextCursor;remotePath.value=path;remoteQuery.value=query;if(!next)remoteTitle.value=title||(!path?props.source?.title||'':remoteTitle.value)}
  catch(e){if(sequence===requestSequence)error.value=asAppError(e).message}finally{if(sequence===requestSequence)loading.value=false}
 }
-async function remoteBack(){const previous=remoteHistory.value.pop();if(previous)await browseRemote(previous.path,undefined,previous.query,previous.title)}
-async function openRemote(entry:SourceEntry){if(selection.value){selected.value=selected.value.includes(entry.id)?selected.value.filter(id=>id!==entry.id):[...selected.value,entry.id];return}if(entry.isDirectory){remoteHistory.value.push({path:remotePath.value,query:remoteQuery.value,title:remoteTitle.value});await browseRemote(entry.id,undefined,'',entry.name)}else if(remoteAccount.value){try{await playSource(remoteAccount.value,entry,remoteEntries.value)}catch(e){error.value=asAppError(e).message}}}
+function remoteBack() {
+ const previous = remoteHistory.value.pop()
+ if (!previous) return false
+ requestSequence++
+ loading.value = false
+ error.value = ''
+ remotePath.value = previous.path
+ remoteQuery.value = previous.query
+ remoteTitle.value = previous.title
+ remoteEntries.value = previous.entries
+ cursor.value = previous.cursor
+ return true
+}
+async function openRemote(entry:SourceEntry){if(selection.value){selected.value=selected.value.includes(entry.id)?selected.value.filter(id=>id!==entry.id):[...selected.value,entry.id];return}if(entry.isDirectory){await browseRemote(entry.id,undefined,'',entry.name,true)}else if(remoteAccount.value){try{await playSource(remoteAccount.value,entry,remoteEntries.value)}catch(e){error.value=asAppError(e).message}}}
 const listing = ref<LocalListing>()
+const directoryElement = ref<HTMLElement>()
+watch([() => listing.value?.relativePath, remotePath], () => {
+ const container = directoryElement.value?.closest<HTMLElement>('.content-body')
+ if (container) container.scrollTop = 0
+}, { flush: 'post' })
 const folderTitle=computed(()=>{const root=currentBookmark.value?.path||'',path=listing.value?.relativePath||'';return !props.source?t('files'):canBrowse.value?(path&&path!==root?path.split(/[\\/]/).at(-1)||props.source.title:props.source.title):remoteTitle.value||props.source.title})
 const error = ref('')
 const loading = ref(false)
@@ -117,19 +135,33 @@ let requestSequence = 0
 const canBrowse = computed(() => props.source?.kind === 'localFolder' || !!currentBookmark.value?.local)
 watch(folderTitle,value=>emit('title',value),{immediate:true})
 watch(()=>canBrowse.value?!!listing.value?.relativePath&&listing.value.relativePath!==(currentBookmark.value?.path||''):remoteHistory.value.length>0,value=>emit('canGoBack',value),{immediate:true})
-function goBack(){if(canBrowse.value&&listing.value?.relativePath&&listing.value.relativePath!==(currentBookmark.value?.path||'')){void browse(listing.value.parentPath||'');return true}if(remoteHistory.value.length){void remoteBack();return true}emit('goBack');return false}
+function goBack() {
+ if (canBrowse.value && listing.value?.relativePath && listing.value.relativePath !== (currentBookmark.value?.path || '')) {
+  const previous = localHistory.value.pop()
+  if (previous) {
+   requestSequence++
+   loading.value = false
+   error.value = ''
+   listing.value = previous
+  } else void browse(listing.value.parentPath || '')
+  return true
+ }
+ if (remoteBack()) return true
+ emit('goBack')
+ return false
+}
 defineExpose({goBack})
-async function browse(path = '') {
+async function browse(path = '', enterFolder = false) {
   if (!props.source?.sourceId || !canBrowse.value) return
   const sequence = ++requestSequence
   loading.value = true; error.value = ''
-  try { const result = await localList(props.source.sourceId, path); if (sequence === requestSequence) listing.value = result }
+  try { const result = await localList(props.source.sourceId, path); if (sequence === requestSequence) { if (enterFolder && listing.value) localHistory.value.push(listing.value); listing.value = result } }
   catch (e) { if (sequence === requestSequence) error.value = asAppError(e).message }
   finally { if (sequence === requestSequence) loading.value = false }
 }
-watch(() => [props.source?.id,props.searchQuery,props.searchRevision,currentBookmark.value?.id], () => { closeDetail();requestSequence++; listing.value = undefined; error.value = ''; remoteEntries.value=[];remoteHistory.value=[];if (canBrowse.value) void browse(currentBookmark.value?.path||'');else if(remoteAccount.value)void browseRemote(currentBookmark.value?.path||'',undefined,props.searchQuery||'') }, { immediate: true })
+watch(() => [props.source?.id,props.searchQuery,props.searchRevision,currentBookmark.value?.id], () => { closeDetail();requestSequence++; listing.value = undefined; error.value = ''; remoteEntries.value=[];remoteHistory.value=[];localHistory.value=[];if (canBrowse.value) void browse(currentBookmark.value?.path||'');else if(remoteAccount.value)void browseRemote(currentBookmark.value?.path||'',undefined,props.searchQuery||'') }, { immediate: true })
 async function open(entry: LocalEntry) {if(selection.value){selected.value=selected.value.includes(entry.relativePath)?selected.value.filter(id=>id!==entry.relativePath):[...selected.value,entry.relativePath];return}
-  if (entry.isDirectory) { await browse(entry.relativePath); return }
+  if (entry.isDirectory) { await browse(entry.relativePath,true); return }
   if (!props.source?.sourceId || !entry.playable) return
   try { await playLocal(props.source.sourceId, entry.relativePath) } catch (e) { error.value = asAppError(e).message }
 }
@@ -137,7 +169,7 @@ function modifiedDate(value:number){if(!value)return '';return new Date(value<1e
 function size(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB` }
 </script>
 <template>
-  <section class="files-browser" :aria-label="t('files')">
+  <section ref="directoryElement" class="files-browser" :aria-label="t('files')">
     <Teleport v-if="toolbarReady" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><FilesFolderToolbar :mode="gridView?'grid':'list'" :descending="sources.preferences.descending" :selection="selection" @mode="gridView=$event==='grid'" @direction="sources.preferences.descending=!sources.preferences.descending" @selection="selection=!selection;selected=[]" @play="playFolder" @remove="currentFolderAction('removeFavoriteFolder')" @rename="currentFolderAction('renameCollection')"/></Teleport>
     <div v-if="selection" class="poster-selection-bar"><span>已选择 {{selected.length}} 项</span><button @click="selection=false;selected=[]">取消</button></div><p v-if="error" role="alert">{{error}}</p>
     <ContentLoading v-if="loading" :label="t('loadingFiles')" />

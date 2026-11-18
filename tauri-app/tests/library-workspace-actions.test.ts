@@ -174,3 +174,23 @@ it('shows only actual series and playlists on Home, and omits their shelves when
  await flushPromises()
  expect(titles()).not.toContain('系列')
 })
+
+it('restores Home scroll and the library source scope after leaving the workspace', async () => {
+ const first = page('home')
+ await flushPromises()
+ const scroll = first.get('.unified-home')
+ scroll.element.scrollTop = 280
+ await scroll.trigger('scroll')
+ first.unmount()
+ wrappers = wrappers.filter(wrapper => wrapper !== first)
+ const home = page('home')
+ await flushPromises()
+ expect(home.get('.unified-home').element.scrollTop).toBe(280)
+
+ const search = page('search')
+ await search.get('.scope button:nth-child(2)').trigger('click')
+ search.unmount()
+ wrappers = wrappers.filter(wrapper => wrapper !== search)
+ const reopened = page('search')
+ expect(reopened.get('.scope button:nth-child(2)').attributes('aria-pressed')).toBe('true')
+})
