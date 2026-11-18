@@ -34,7 +34,8 @@ const { t } = useI18n()
 type Selection = { key: MessageKey; source?: FileSidebarEntry; route?:string;serverRoute?:BrowseRoute }
 const libraryPageTitle=ref(''),serverPageTitle=ref(''),filePageTitle=ref('')
 const fileWorkspace=ref<InstanceType<typeof FileBrowser>>(),fileCanBack=ref(false)
-const serverDetailActive=ref(false)
+const fileNavigationRevision = ref(0)
+const libraryDetail=ref(false),serverDetailActive=ref(false)
 const serverWorkspace=ref<InstanceType<typeof ServerWorkspace>>(),serverCanBack=ref(false)
 const serverNavigationRevision = ref(0)
 const showAccounts=ref(false)
@@ -86,6 +87,7 @@ function selectSource(source: FileSidebarEntry) {
   }
   filePageTitle.value = ''
   fileCanBack.value = false
+  fileNavigationRevision.value++
   navigate({ key: 'files', source })
 }
 function openServerSelection(source: FileSidebarEntry, serverRoute?: BrowseRoute) {
@@ -95,7 +97,27 @@ function openServerSelection(source: FileSidebarEntry, serverRoute?: BrowseRoute
   serverNavigationRevision.value++
   navigate({ key: 'files', source, serverRoute })
 }
-function back() {if(selectedServer.value&&serverCanBack.value){serverWorkspace.value?.goBack();return}if(selected.value.key==='files'&&!selectedServer.value&&fileCanBack.value){fileWorkspace.value?.goBack();return}const previous = history.value.pop(); if (previous) selected.value = previous }
+function back() {
+  if (selectedServer.value && serverCanBack.value) {
+    serverWorkspace.value?.goBack()
+    return
+  }
+  if (selected.value.key === 'files' && !selectedServer.value) {
+    if (fileCanBack.value) {
+      fileWorkspace.value?.goBack()
+      return
+    }
+    if (selected.value.source) {
+      while (history.value.at(-1)?.key === 'files' && history.value.at(-1)?.source) history.value.pop()
+      if (history.value.at(-1)?.key === 'files') history.value.pop()
+      filePageTitle.value = ''
+      selected.value = { key: 'files' }
+      return
+    }
+  }
+  const previous = history.value.pop()
+  if (previous) selected.value = previous
+}
 async function run(action: () => Promise<unknown>) { try { await action() } catch (e) { toast.error(asAppError(e).message) } }
 async function toggleSidebar() { await settings.save({ sidebarCollapsed: !collapsed.value }) }
 function openMenu(event: MouseEvent) {
@@ -188,13 +210,13 @@ onUnmounted(() => {scanScheduler.stop();if(scanTimer)clearInterval(scanTimer);if
         </footer>
       </aside>
       <main class="main-content">
-        <WindowBar v-show="!(selectedServer&&serverDetailActive)" :class="{'electron-files-window-bar':!selectedServer}">
-          <FilesHeader v-if="selected.key==='files'&&!selectedServer" :title="selectionTitle" @back="history.length||fileCanBack?back():select('home')"><div id="file-toolbar-actions"/></FilesHeader><LibraryHeader v-else-if="selected.key!=='files'" v-show="!(selected.key==='library'&&!selected.route)" :title="selectionTitle" :home="(selected.route||selected.key)==='home'" @back="back"><div id="library-toolbar-actions"/></LibraryHeader><div v-else class="toolbar"><Button v-if="(selected.route||selected.key)!=='home'&&(history.length||(selected.key==='files'&&(selectedServer?serverCanBack:fileCanBack)))" class="toolbar-back" variant="outline" size="icon" :aria-label="t('back')" @click="back"><ChevronLeft :size="20" /></Button><span class="toolbar-title">{{ selectionTitle }}</span><div class="toolbar-spacer" /><div v-if="selected.key === 'files'" id="file-toolbar-actions" /><div v-else id="library-toolbar-actions"/></div>
+        <WindowBar v-show="!libraryDetail&&!(selectedServer&&serverDetailActive)" :class="{'electron-files-window-bar':!selectedServer}">
+          <FilesHeader v-if="selected.key==='files'&&!selectedServer" :title="selectionTitle" @back="selected.source||history.length||fileCanBack?back():select('home')"><div id="file-toolbar-actions"/></FilesHeader><LibraryHeader v-else-if="selected.key!=='files'" v-show="!(selected.key==='library'&&!selected.route)" :title="selectionTitle" :home="(selected.route||selected.key)==='home'" @back="back"><div id="library-toolbar-actions"/></LibraryHeader><div v-else class="toolbar"><Button v-if="(selected.route||selected.key)!=='home'&&(history.length||(selected.key==='files'&&(selectedServer?serverCanBack:fileCanBack)))" class="toolbar-back" variant="outline" size="icon" :aria-label="t('back')" @click="back"><ChevronLeft :size="20" /></Button><span class="toolbar-title">{{ selectionTitle }}</span><div class="toolbar-spacer" /><div v-if="selected.key === 'files'" id="file-toolbar-actions" /><div v-else id="library-toolbar-actions"/></div>
         </WindowBar>
         <div ref="contentBody" class="content-body" :class="{'server-content':selected.key==='files'&&!!selectedServer}">
           <ServerWorkspace v-if="selected.key==='files'&&selectedServer" ref="serverWorkspace" :key="selectedServer.id" :account="selectedServer" :initial-route="selected.serverRoute" :navigation-revision="serverNavigationRevision" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @navigate="resetContentScroll" @detail-active="serverDetailActive=$event" @title="serverPageTitle=$event" @can-go-back="serverCanBack=$event" @go-back="back" @account-updated="run(()=>fileSources.refresh())" @switch-account="id=>openServer(id,{kind:'home',title:'主屏幕'})"/>
-          <FileBrowser ref="fileWorkspace" @title="filePageTitle=$event" @can-go-back="fileCanBack=$event" @go-back="back" v-else-if="selected.key === 'files'" :key="selected.source?.id ?? 'files'" :source="selected.source" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @menu="openMenu" @select-source="selectSourceId" @open-folder="selectFolder" @server-route="openServer" />
-          <LibraryWorkspace v-else :origin="selected.key==='home'?'home':'library'" :route="selected.route||selected.key" :query="searchText" toolbar-target="#library-toolbar-actions" @navigate="selectCatalog" @source="selectSourceId" @server="openServer" @folder="selectFolder" @title="libraryPageTitle=$event"/>
+          <FileBrowser ref="fileWorkspace" @title="filePageTitle=$event" @can-go-back="fileCanBack=$event" @go-back="back" v-else-if="selected.key === 'files'" :key="selected.source ? JSON.stringify([selected.source.id, fileNavigationRevision]) : 'files'" :source="selected.source" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @menu="openMenu" @select-source="selectSourceId" @open-folder="selectFolder" @server-route="openServer" />
+          <LibraryWorkspace v-else :origin="selected.key==='home'?'home':'library'" :route="selected.route||selected.key" :query="searchText" toolbar-target="#library-toolbar-actions" @navigate="selectCatalog" @source="selectSourceId" @server="openServer" @folder="selectFolder" @title="libraryPageTitle=$event" @detail-active="libraryDetail=$event"/>
 
         </div>
       </main>

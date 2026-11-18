@@ -41,3 +41,16 @@ it('does not restart an unchanged account refresh and releases loading on the sh
   vi.useRealTimers()
  }
 })
+
+it('opens a series shelf card in the same detail route as server browsing',async()=>{
+ localStorage.setItem(preferenceKey(account.id),JSON.stringify({version:1,home:['latest'],favorites:[]}))
+ vi.mocked(browseServer).mockResolvedValueOnce({items:[]})
+ const {normalizeItem}=await import('@/features/servers/workspace')
+ vi.mocked(browseServer).mockResolvedValueOnce({items:[normalizeItem({Id:'series',Name:'A series',Type:'Series',IsFolder:true},false)]})
+ const wrapper=mount(ServerHomeSections,{props:{accounts:[account],hideFavorites:true},global:{plugins:[createPinia()],stubs:{HomeShelfViewport:{template:"<div><slot/></div>"}}}})
+ await flushPromises()
+ expect(wrapper.emitted('content')?.at(-1)).toEqual([true])
+ await wrapper.get('.media-card').trigger('click')
+ await vi.waitFor(()=>expect(wrapper.emitted('navigate')?.at(-1)).toEqual([account.id,{kind:'detail',id:'series',title:'A series'}]))
+ wrapper.unmount()
+})

@@ -78,7 +78,7 @@ import {endpoint,request} from '@/features/sources/transport'
 const props=defineProps<{route:string;query?:string;toolbarTarget?:string;origin?:'home'|'library'}>()
 const toolbarReady=ref(false)
 onMounted(()=>{toolbarReady.value=true})
-const emit=defineEmits<{navigate:[route:string,origin?:'home'|'library'];source:[id:string];folder:[value:{sourceId:string;path:string;local:boolean;favoriteId:string}];server:[id:string,route:BrowseRoute];title:[title:string]}>()
+const emit=defineEmits<{navigate:[route:string,origin?:'home'|'library'];source:[id:string];folder:[value:{sourceId:string;path:string;local:boolean;favoriteId:string}];server:[id:string,route:BrowseRoute];title:[title:string];detailActive:[active:boolean]}>()
 const catalog=useVideoCatalog(),sources=useFileSourcesStore(),placement=usePlacement(),home=useHome(),bookmarks=useBookmarks()
 const mode=ref<'grid'|'list'>('grid'),sort=ref<MediaBrowseSort>('title'),descending=ref(false),explicitSort=ref(false),localOnly=ref(false),selectionMode=ref(false),detail=ref<string>(),selected=ref<string[]>([]),error=ref(''),busy=ref(false),menu=ref(false),manageHome=ref(false),scanPicker=ref(false)
 try{mode.value=localStorage.getItem('MediaLibrary_BrowseMode')==='list'?'list':'grid'}catch{}
@@ -192,6 +192,8 @@ async function chooseMatch(result:Record<string,any>){const target=matching.valu
 
 const libraryIndexRoutes=[['playlist','播放列表'],['series','系列'],['recent','最近添加'],['unwatched','未观看的'],['daily','每日精选'],['movies','电影'],['tv','电视剧'],['other','其他']] as const
 const current=computed(()=>catalog.items.find(item=>item.id===detail.value))
+watch(()=>!!current.value,active=>emit('detailActive',active),{immediate:true})
+onUnmounted(()=>emit('detailActive',false))
 const routes=computed(()=>{
  const base=[...videoLibraryRoutes].sort(([a],[b])=>a==='series'?-1:b==='series'?1:0).map(([route,title])=>({route,title:homeRouteTitle(route),id:libraryHomeId(route),sourceId:'local',available:true,optIn:libraryHomeId(route).startsWith('catalog:')}))
  const children=['movies/genres','tv/genres','tv/networks','movies/ratings','tv/ratings','movies/years','tv/years','movies/certification','tv/certification','movies/resolution','tv/resolution'].flatMap(route=>categoryGroups(catalog.items,route)).map(group=>({...group,id:libraryHomeId(group.route),sourceId:'local',available:true,child:true,optIn:true}))
@@ -202,7 +204,12 @@ const routes=computed(()=>{
 watch(routes,value=>{placement.setCatalog(value);navigation.setItems(value)},{immediate:true});placement.ensureLoaded()
 const title=computed(()=>current.value?.name||home.titles[libraryHomeId(props.route)]||(props.route.startsWith('series/')?movieCollections(catalog.items).find(g=>g.id===props.route.slice(7))?.title:undefined)||(props.origin==='home'?homeRouteTitle(props.route):routeLabel(props.route)))
 watch(title,value=>emit('title',value),{immediate:true})
-watch(()=>[props.route,props.origin],()=>{detail.value=undefined;selectionMode.value=false;explicitSort.value=false;selected.value=pendingSelection.value||[];pendingSelection.value=undefined;menu.value=false;context.value=undefined;sourceContext.value=undefined;serverFavoriteContext.value=undefined;reorderRoute.value='';error.value=''})
+const detailTagReturn = ref<{ route: string; origin?: 'home' | 'library'; tagRoute: string; itemId: string }>()
+watch([() => props.route, () => props.origin], ([route, origin], [previousRoute]) => {
+ const target = detailTagReturn.value
+ detail.value = target && previousRoute === target.tagRoute && route === target.route && origin === target.origin ? target.itemId : undefined
+ if (target && route !== target.tagRoute) detailTagReturn.value = undefined
+ selectionMode.value=false;explicitSort.value=false;selected.value=pendingSelection.value||[];pendingSelection.value=undefined;menu.value=false;context.value=undefined;sourceContext.value=undefined;serverFavoriteContext.value=undefined;reorderRoute.value='';error.value=''})
 onMounted(async()=>{await run(async()=>{await sources.refresh();await catalog.load()});void catalog.loadRanking()})
 
 async function run(action:()=>unknown|Promise<unknown>){if(busy.value)return;busy.value=true;error.value='';try{await action()}catch(cause){error.value=(cause as Error).message}finally{busy.value=false}}
@@ -270,7 +277,15 @@ function homeItemsFor(route:string){return filter(route).filter(item=>{if(home.h
 function homeGroups(route:string){if(['playlist','series','movies','tv'].includes(route)){if(route==='playlist')return Object.keys(catalog.data.playlists).map(title=>({route:'playlist/'+encodeURIComponent(title),title}));if(route==='series')return [...movieCollections(scoped.value).map(g=>({route:'series/'+g.id,title:g.title})),...Object.keys(catalog.data.series).map(title=>({route:'custom-series/'+encodeURIComponent(title),title}))];return rootCategories(route)}return route.split('/').length===2&&['genres','networks','ratings','years','certification','resolution'].includes(route.split('/')[1]!)?categoryGroups(scoped.value,route):[]}
 function setShelf(id:string,enabled:boolean){void run(()=>placement.applyHome({...home.$state,order:enabled?[...new Set([...home.order,id])]:home.order,hidden:enabled?home.hidden.filter(value=>value!==id):[...new Set([...home.hidden,id])]}))}
 function moveShelf(id:string,offset:number){const ids=shelves.value.map(item=>libraryHomeId(item.route)),destination=ids[ids.indexOf(id)+offset];if(destination)void run(()=>placement.applyHome(moveHomeItem(home.$state,ids,id,destination)))}
-function detailTag(kind:string,value:string,personId?:number){if(!current.value)return;const root=current.value.type==='tv'?'tv':'movies';if(['genre','genres','year','years'].includes(kind))emit('navigate',root+'/'+(kind.startsWith('genre')?'genres':'years')+'/'+encodeURIComponent(value));else emit('navigate','detail-tag/'+kind+'/'+encodeURIComponent(personId?String(personId):value)+'/'+encodeURIComponent(value))}
+function detailTag(kind:string,value:string,personId?:number) {
+ if (!current.value) return
+ const root = current.value.type === 'tv' ? 'tv' : 'movies'
+ const tagRoute = ['genre','genres','year','years'].includes(kind)
+   ? root + '/' + (kind.startsWith('genre') ? 'genres' : 'years') + '/' + encodeURIComponent(value)
+   : 'detail-tag/' + kind + '/' + encodeURIComponent(personId ? String(personId) : value) + '/' + encodeURIComponent(value)
+ detailTagReturn.value = { route: props.route, origin: props.origin, tagRoute, itemId: current.value.id }
+ emit('navigate', tagRoute, props.origin)
+}
 function routeLabel(route:string){if(bookmarks.titles[route])return bookmarks.titles[route]!;if(route==='library-shortcuts')return '媒体库';const parts=route.split('/');if(parts.length===2&&['movies','tv'].includes(parts[0]!)&&parts[1]!=='all')return categoryLabels[parts[1]!]||libraryTitle(route);return libraryTitle(route)}
 function sourceName(id:string){return sources.accounts.find(source=>source.id===id)?.name||sources.snapshot.localFolders.find(source=>source.id===id)?.name||'来源未连接'}
 function toggle(id:string){selected.value=selected.value.includes(id)?selected.value.filter(value=>value!==id):[...selected.value,id]}
@@ -306,7 +321,7 @@ const isCatalogPage=computed(()=>!['home','library','search'].includes(props.rou
 const isLibrarySettingsPage=computed(()=>props.route==='library')
 const selectedObjectItems=selected
 const selectedObjectKeys=computed(()=>selected.value.map(id=>'local:'+id))
-const homeServerLoading=ref(false)
+const homeServerLoading=ref(false), homeServerContent=ref(false)
 const refreshing=computed(()=>busy.value||catalog.loading||homeServerLoading.value)
 const libraryScanning=computed(()=>catalog.scanning),metadataRefreshing=busy
 const libraryBrowser=ref<InstanceType<typeof UnifiedLibraryBrowser>>()
@@ -340,7 +355,10 @@ function finishFavoriteReordering(){favoriteReordering.value=false;draggedFavori
 const homeElement=ref<HTMLElement>(),homeScrollTop=ref(0)
 const homeShelfSnapshots=new Map<string,{height?:number;scrollLeft?:number}>()
 function homeShelfSnapshot(id:string){let snapshot=homeShelfSnapshots.get(id);if(!snapshot){snapshot={};homeShelfSnapshots.set(id,snapshot)}return snapshot}
-watch(()=>props.route,async value=>{if(value==='home'){await nextTick();if(homeElement.value)homeElement.value.scrollTop=homeScrollTop.value}})
+watch([() => props.route, () => !!current.value], ([route, showingDetail]) => {
+ if (route !== 'home') homeServerContent.value = homeServerLoading.value = false
+ if (route === 'home' && !showingDetail && homeElement.value) homeElement.value.scrollTop = homeScrollTop.value
+}, { flush: 'post' })
 const homeLibrary=computed(()=>videoGroups(homeItemsFor('all')).map(group=>originalItem(group.item,group.files)))
 const customSeriesGroups=computed(()=>loadCustomSeries())
 function openVideo(item:MediaLibraryItem){const native=nativeItem(item);if(native)detail.value=native.id}
@@ -369,7 +387,7 @@ function localRow(items: MediaLibraryItem[], row: Omit<Row, 'cards'>, card: (ite
 const homeRows=computed<UnifiedLibraryRow[]>(()=>shelves.value.map(shelf=>{if(shelf.groups.length)return {key:libraryHomeId(shelf.route),title:shelf.title,grouped:true,landscape:true,count:shelf.groups.length,cards:shelf.groups.map(group=>({key:group.route,title:group.title,image:cover(group.route),contextMenu:(event:MouseEvent)=>openContext(event,group.route),action:()=>emit('navigate',group.route)})),more:()=>navigateHome(shelf.route)};const grouped=videoGroups(homeItemsFor(shelf.route)).map(group=>originalItem(group.item,group.files));const row=localRow(grouped,{key:libraryHomeId(shelf.route),title:shelf.title,more:()=>navigateHome(shelf.route)});return {key:row.key,title:row.title,landscape:row.landscape,grouped:row.grouped,count:Math.min(row.count??row.cards.length,24),get cards(){return row.preview?row.preview():row.cards.slice(0,24)},more:row.more}}))
 const originalRows=computed(()=>[...(generalPreferences.recentlyPlayed&&homeItemsFor('continue').length?[shelfRow('continue','继续观看',homeItemsFor('continue').slice(0,24),true)]:[]),...homeRows.value])
 const homeLayout=computed(()=>orderedHomeItems(withFixedHomeMenus([{id:'sources',title:home.titles.sources||'收藏夹',sourceId:'local',available:true},...routes.value]),home.$state).filter(item=>isHomeItemEnabled(item,home.$state)).map(item=>({item:{...item,title:home.titles[item.id]||item.title},row:homeRows.value.find(row=>row.key===item.id)})).filter(entry=>entry.item.id==='sources'?homeFavoriteCards.value.length:!!(entry.row?.count??entry.row?.cards.length)))
-const homeIsEmpty=computed(()=>!homeLayout.value.length&&!originalRows.value.some(row=>row.key==='resume'))
+const homeIsEmpty=computed(()=>!homeServerContent.value&&!homeLayout.value.length&&!originalRows.value.some(row=>row.key==='resume'))
 const visibleHomeShelves=new Set<string>()
 function homeRowVisibility(id:string,visible:boolean){if(visible)visibleHomeShelves.add(id);else visibleHomeShelves.delete(id)}
 function openHomeMenu(id:string){if(id==='sources')navigateHome('favorites');else navigateHome(categoryRouteForHomeId(id))}
@@ -481,7 +499,7 @@ function finishFavoritePointer(event: PointerEvent) {
           <div class="library-refresh-actions"><button :disabled="libraryScanning || metadataRefreshing || media.isScanning" @click="rescanLibraryFolders"><Search :size="16" />{{ t('librarySettings.refreshLibrary') }}</button><button :disabled="metadataRefreshing || libraryScanning || media.isScanning" @click="refreshLibraryMetadata"><RefreshCw :size="16" :class="{ spinning: metadataRefreshing }" />{{ t('librarySettings.refreshMetadata') }}</button></div>
         </section>
       <div v-if="section === 'home' || (section === 'collection' && selectedHomeRowKey === 'sources')" class="unified-home" :class="{ 'source-screen-empty': section === 'home' && homeIsEmpty }" ref="homeElement" @scroll="section === 'home' && (homeScrollTop = ($event.target as HTMLElement).scrollTop)">
-        <ServerHomeSections v-if="section==='home'" :accounts="homeServerAccounts" hide-favorites @loading="homeServerLoading=$event" @items="serverManagementItems=$event" @navigate="(id,route)=>emit('server',id,route)"/><UnifiedMediaRow v-for="row in originalRows.filter(item => item.key === 'resume')" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :key="row.key" :row="row" />
+        <ServerHomeSections v-if="section==='home'" :accounts="homeServerAccounts" hide-favorites @loading="homeServerLoading=$event" @content="homeServerContent=$event" @items="serverManagementItems=$event" @navigate="(id,route)=>emit('server',id,route)"/><UnifiedMediaRow v-for="row in originalRows.filter(item => item.key === 'resume')" v-show="!(section === 'collection' && selectedHomeRowKey === 'sources')" :key="row.key" :row="row" />
         <template v-for="entry in (section === 'home' && homeIsEmpty ? [] : homeLayout)" :key="entry.item.id">
         <section v-if="entry.item.id === 'sources'" class="home-row source-shortcuts">
           <div class="row-heading"><h2>{{ entry.item.title }}</h2><button @click="openHomeMenu('sources')">{{ t('mediaServer.seeAllPlain') }}</button></div>

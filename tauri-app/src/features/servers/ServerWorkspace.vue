@@ -35,6 +35,7 @@ import ServerShare from './ServerShare.vue'
 import { useServerBrowseMode } from './layout'
 import { generalPreferences } from '../library/displayPreferences'
 import { preferenceKey } from './preferences'
+import { serverContainerRoute, serverItemRoute } from './itemRoute'
 const props = defineProps<{ account: Account; searchQuery?: string; searchRevision?: number; toolbarTarget?: string; initialRoute?: BrowseRoute; navigationRevision?: number }>()
 const toolbarReady=ref(!props.toolbarTarget)
 onMounted(()=>{toolbarReady.value=true})
@@ -64,15 +65,12 @@ const ratingItem = ref<ServerItem>(), shareItem = ref<ServerItem>()
 let generation = 0, operation = 0, alive = true
 function isCurrentAccount(account: Account) { return alive && account.id === props.account.id && account.baseUrl === props.account.baseUrl && account.userId === props.account.userId }
 const title = computed(() => ['home', 'root'].includes(route.value.kind) ? props.account.name : route.value.title)
-const choices = computed(() => [...categories.map(c => ({ key: c.id, title: c.title, route: categoryRoute(c.id, c.title) })), ...libraries.value.map(item => ({ key: `library:${item.id}`, title: item.name, route: childRoute(item) }))])
+const choices = computed(() => [...categories.map(c => ({ key: c.id, title: c.title, route: categoryRoute(c.id, c.title) })), ...libraries.value.map(item => ({ key: `library:${item.id}`, title: item.name, route: serverContainerRoute(item) }))])
 const visibleItems = computed(() => route.value.kind === 'root' || needsLocalSort(props.account, options.value.sort) ? [...items.value].sort((a, b) => compareItems(a, b, options.value.sort || 'sortName', options.value.descending, seed.value)) : items.value)
 
 const selectedItems = computed(() => items.value.filter(item => selected.value.includes(item.id)))
 function categoryRoute(category: Category, title: string, favoriteType?: string): BrowseRoute { return { kind: 'category', category, title, favoriteType } }
-function childRoute(item: ServerItem): BrowseRoute {
-  const music = ['music', 'artist'].includes(item.libraryType?.toLowerCase() || '')
-  return item.libraryType ? { kind: 'category', category: music ? 'music' : 'all', id: item.id, libraryId: item.id, title: item.name } : { kind: 'children', id: item.id, libraryId: route.value.libraryId, title: item.name }
-}
+function childRoute(item: ServerItem) { return serverContainerRoute(item, route.value.libraryId) }
 function message(e: unknown) { return e instanceof Error ? e.message : (e as { message?: string })?.message || String(e) }
 async function safely(action: () => Promise<void>) { if (working.value) return; const current = ++operation; working.value = true; error.value = ''; try { await action() } catch (e) { if (current === operation) error.value = message(e) } finally { if (current === operation) working.value = false } }
 function save(value: ServerPreferences) { writePreferences(props.account.id, value); preferences.value = value; emit('preferences-change', props.account.id, JSON.parse(JSON.stringify(value))); window.dispatchEvent(new CustomEvent('boxplayer:server-home-changed', { detail: props.account.id })) }
@@ -135,10 +133,8 @@ async function load(append = false) {
     }
   } finally { if (current === generation) loading.value = false }
 }
-function itemRoute(item: ServerItem): BrowseRoute {
- if (item.kind === 'person') return { kind: 'person', personId: item.id, title: item.name, libraryId: route.value.libraryId }
- if (['series','show','season','episode','movie','video','clip','musicvideo'].includes(item.kind)) return { kind: 'detail', id: item.id, title: item.name, libraryId: route.value.libraryId }
- return childRoute(item)
+function itemRoute(item: ServerItem) {
+  return serverItemRoute(item, route.value.libraryId)
 }
 function select(item: ServerItem) { if (selecting.value) { selected.value = selected.value.includes(item.id) ? selected.value.filter(id => id !== item.id) : [...selected.value, item.id]; return } navigate(itemRoute(item)) }
 function openPerson(person: ServerPerson) { navigate({ kind: 'person', personId: person.id, title: person.name, libraryId: route.value.libraryId }) }

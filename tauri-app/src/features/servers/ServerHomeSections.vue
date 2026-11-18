@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed,onMounted,onUnmounted,ref,watch} from 'vue'
 import type {Account} from '../sources/contracts'
+import {serverItemRoute} from './itemRoute'
 import {browseServer,categories,collectPlayable,setWatched,type BrowseRoute,type ServerItem} from './workspace'
 import {useVideoCatalog,type VideoItem} from '../library/catalog'
 import {serverFavorite} from '../sources/mediaServer'
@@ -25,11 +26,14 @@ import HomeShelfViewport from '../library/electron/HomeShelfViewport.vue'
 import type {UnifiedLibraryRow} from '../library/electron/types'
 import ServerArtwork from './ServerArtwork.vue'
 const props=defineProps<{accounts:Account[];manager?:boolean;favoritesOnly?:boolean;hideFavorites?:boolean}>()
-const emit=defineEmits<{navigate:[accountId:string,route:BrowseRoute];items:[items:HomeManagementItem[]];loading:[value:boolean]}>()
+const emit=defineEmits<{navigate:[accountId:string,route:BrowseRoute];items:[items:HomeManagementItem[]];loading:[value:boolean];content:[visible:boolean]}>()
 interface ServerHome{account:Account;preferences:ServerPreferences;libraries:ServerItem[];rows:{key:string;title:string;route:BrowseRoute;items:ServerItem[];error?:string}[];error?:string}
 const navigation=useLibraryNavigation(),sources=useFileSourcesStore(),sourceManager=ref(false),reordering=ref(false)
 const servers=ref<ServerHome[]>([]),loading=ref(false)
 watch(() => loading.value && props.accounts.length > 0, value => emit('loading', value), { immediate: true })
+watch(() => servers.value.some(server => !!server.error || server.rows.some(row => !!row.error || row.items.length > 0)),
+  visible => emit('content', visible), { immediate: true })
+
 const sourceContext=ref<{id:string;x:number;y:number}>(),ratingItem=ref<ServerItem>(),ratingAccount=ref(''),shareItem=ref<ServerItem>()
 const deleting=ref<{account:Account;item:ServerItem}>()
 const catalog=useVideoCatalog(),error=ref(''),busy=ref(false)
@@ -60,11 +64,11 @@ async function visibleArtwork(server:ServerHome,row:ServerHome['rows'][number],v
 onUnmounted(clearArtwork)
 const shelfSnapshots=new Map<string,{height?:number;scrollLeft?:number}>()
 function snapshot(key:string){let value=shelfSnapshots.get(key);if(!value){value={};shelfSnapshots.set(key,value)}return value}
-function originalServerRow(server:ServerHome,row:ServerHome['rows'][number]):UnifiedLibraryRow{return {key:row.key==='resume'?'resume':server.account.id+':'+row.key,title:row.title+' - '+server.account.name,landscape:row.key==='resume'||!server.preferences.portrait,error:row.error,retry:load,more:()=>emit('navigate',server.account.id,row.route),cards:row.items.map(item=>({key:server.account.id+':'+item.id,title:item.name,image:artwork.value[server.account.id+':'+item.id],rating:item.rating,overview:item.overview,progress:item.progress,action:()=>row.key==='resume'?playResume(server,row.route,item):emit('navigate',server.account.id,{kind:item.isDirectory?'children':'detail',id:item.id,title:item.name}),posterMenu:{server:true,tv:['series','show','season'].includes(item.kind),watched:!!item.watched,favorite:!!item.favorite,disabled:['playlist',...(!item.playable?['download' as const]:[])],action:id=>{context.value={server,route:row.route,item,x:0,y:0};void action(id)}}}))}}
+function originalServerRow(server:ServerHome,row:ServerHome['rows'][number]):UnifiedLibraryRow{return {key:row.key==='resume'?'resume':server.account.id+':'+row.key,title:row.title+' - '+server.account.name,landscape:row.key==='resume'||!server.preferences.portrait,error:row.error,retry:load,more:()=>emit('navigate',server.account.id,row.route),cards:row.items.map(item=>({key:server.account.id+':'+item.id,title:item.name,image:artwork.value[server.account.id+':'+item.id],rating:item.rating,overview:item.overview,progress:item.progress,action:()=>row.key==='resume'?playResume(server,row.route,item):emit('navigate',server.account.id,serverItemRoute(item,row.route.libraryId)),posterMenu:{server:true,tv:['series','show','season'].includes(item.kind),watched:!!item.watched,favorite:!!item.favorite,disabled:['playlist',...(!item.playable?['download' as const]:[])],action:id=>{context.value={server,route:row.route,item,x:0,y:0};void action(id)}}}))}}
 let generation=0
 let homeLoad:AbortController|undefined
 const homeLoadTimeoutMs=12000
-function choices(server:ServerHome){return [...categories.map(category=>({key:category.id,title:category.title,route:{kind:'category' as const,category:category.id,title:category.title}})),...server.libraries.map(library=>({key:'library:'+library.id,title:library.name,route:{kind:'children' as const,id:library.id,title:library.name}}))]}
+function choices(server:ServerHome){return [...categories.map(category=>({key:category.id,title:category.title,route:{kind:'category' as const,category:category.id,title:category.title}})),...server.libraries.map(library=>({key:'library:'+library.id,title:library.name,route:serverItemRoute(library)}))]}
 async function load(){
  const current=++generation
  homeLoad?.abort()

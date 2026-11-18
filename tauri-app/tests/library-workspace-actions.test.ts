@@ -125,3 +125,26 @@ it('keeps an empty Home compact and the library shortcut index distinct from fix
 it("sorts from an anchored dropdown and repeats the selected option to reverse direction",async()=>{const target=document.createElement('div');target.id='sort-toolbar';document.body.append(target);const wrapper=page('movies/all','#sort-toolbar');await flushPromises();await new DOMWrapper(target.querySelector('[aria-label="排序方式"]')!).trigger('click');await flushPromises();const menu=new DOMWrapper(document.body);expect(menu.findAll('[role=menuitemradio]').map(row=>row.text())).toEqual(['片名','文件名','添加日期','上映日期']);await menu.get('[role=menuitemradio]').trigger('click');await flushPromises();expect(wrapper.findAll('.media-card strong').map(row=>row.text())).toEqual(['Two','One']);expect(target.querySelector('[aria-label="刷新"]')).toBeNull()})
 
 it("opens Electron Home management in sorting mode and keeps discarded visibility edits uncommitted",async()=>{const target=document.createElement('div');target.id='management-toolbar';document.body.append(target);const wrapper=page('home','#management-toolbar');await flushPromises();await new DOMWrapper(target.querySelector('[aria-label="媒体管理"]')!).trigger('click');await flushPromises();const body=new DOMWrapper(document.body),management=body.get('[data-testid="unified-home-management"]');expect(management.text()).toContain('添加到主页');expect(management.text()).toContain('显示项目');expect(management.find('input[type=checkbox]').exists()).toBe(false);await management.findAll('button').find(row=>row.text()==='编辑')!.trigger('click');await management.findAll('button').find(row=>row.attributes('aria-label')?.includes('收藏夹')&&row.classes().includes('visibility'))!.trigger('click');await management.get('[aria-label="关闭"]').trigger('click');await flushPromises();expect(wrapper.get('.source-shortcuts').text()).toContain('收藏夹');expect(wrapper.get('.source-shortcuts').isVisible()).toBe(true)})
+
+it('restores the originating media detail after returning from a detail tag',async()=>{
+ const wrapper=page('movies/all')
+ await flushPromises()
+ await wrapper.get('.media-card').trigger('click')
+ await vi.waitFor(()=>expect(wrapper.findComponent(MediaDetailPage).exists()).toBe(true))
+ wrapper.getComponent({name:'MediaDetail'}).vm.$emit('tagClick','genre','Drama')
+ const destination = wrapper.emitted('navigate')?.at(-1)?.[0] as string
+ expect(destination).toBe('movies/genres/Drama')
+ await wrapper.setProps({route:destination})
+ expect(wrapper.findComponent(MediaDetailPage).exists()).toBe(false)
+ await wrapper.setProps({route:'movies/all'})
+ expect(wrapper.getComponent(MediaDetailPage).get('.detail-back-title').text()).toBe('One')
+})
+
+it('keeps the Home empty prompt off while a server shelf has content or a retry',async()=>{
+ const wrapper=page('home')
+ await flushPromises()
+ const server=wrapper.getComponent({name:'ServerHomeSections'})
+ server.vm.$emit('content',true)
+ await flushPromises()
+ expect(wrapper.get('.unified-home').classes()).not.toContain('source-screen-empty')
+})

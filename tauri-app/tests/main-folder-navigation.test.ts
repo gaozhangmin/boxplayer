@@ -21,3 +21,21 @@ it('keeps a favorite folder route when its source-selection notification follows
  expect(wrapper.get('.unified-toolbar h1').text()).toBe('Favorites')
  wrapper.unmount()
 })
+
+it('returns a folder opened directly from the sidebar to Files before Home',async()=>{
+ const pinia=createPinia(),sources=useFileSourcesStore(pinia)
+ sources.replaceSnapshot({localFolders:[{id:'local',name:'Videos'}],drives:[],mediaServers:[],hasDirectURLs:false})
+ const wrapper=mount(Main,{attachTo:document.body,global:{plugins:[pinia],stubs:{LibraryWorkspace:{template:'<div/>'}}}})
+ await wrapper.get('[data-sidebar-root="files"] .nav-children button').trigger('click')
+ await flushPromises()
+ const directory = wrapper.getComponent(FileBrowser).element
+ await wrapper.get('[data-sidebar-root="files"] .nav-children button').trigger('click')
+ await flushPromises()
+ expect(wrapper.getComponent(FileBrowser).element).not.toBe(directory)
+ await wrapper.get('.unified-toolbar .back-button').trigger('click')
+ expect(wrapper.getComponent(FileBrowser).props('source')).toBeUndefined()
+ expect(wrapper.get('.unified-toolbar h1').text()).toBe('文件')
+ await wrapper.get('.unified-toolbar .back-button').trigger('click')
+ expect(wrapper.findComponent(FileBrowser).exists()).toBe(false)
+ wrapper.unmount()
+})
