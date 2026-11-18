@@ -94,3 +94,16 @@ it('normalizes server cast and never requests TMDB for metadata, people or simil
  vi.mocked(json).mockResolvedValueOnce({Items:[{Id:'similar',Name:'Similar',Type:'Movie'},{Id:'audio',Name:'Audio',Type:'Audio'}]});expect((await similarServerItems(account(),'series')).map(i=>i.id)).toEqual(['similar'])
  expect(vi.mocked(json).mock.calls.every(c=>c[0].id===account().id&&new URL(c[2]).origin==='https://synthetic.test')).toBe(true)
 })
+
+it.each([
+ ['playlists','Playlist','playlist:group'],
+ ['collections','BoxSet','group']
+] as const)('shows only actual %s even when the server ignores the type filter', async (category, type, id) => {
+ const route = { kind:'category' as const, category, title:category }
+ const movie = {Id:'film',Type:'Movie',Name:'Plain film'}
+ vi.mocked(json).mockResolvedValueOnce({Items:[movie],TotalRecordCount:1000})
+ expect(await browseServer(account('emby'),route,{limit:1})).toEqual({items:[],total:undefined,nextOffset:undefined})
+ expect(new URL(vi.mocked(json).mock.lastCall![2]).searchParams.get('IncludeItemTypes')).toBe(type)
+ vi.mocked(json).mockResolvedValueOnce({Items:[movie,{Id:'group',Type:type,Name:'Group'}],TotalRecordCount:2})
+ expect((await browseServer(account('emby'),route)).items.map(item=>item.id)).toEqual([id])
+})

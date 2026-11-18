@@ -145,11 +145,17 @@ export async function browseServer(account: Account, route: BrowseRoute, options
   const items = rows.filter((row: any) => {
     if (root) return true
     const kind = String(plex ? row.type : row.Type).toLowerCase()
+    if (category === 'playlists') return kind === 'playlist'
+    if (category === 'collections') return kind === 'boxset' || kind === 'collection'
     return category === 'music' ? kind === (plex ? 'track' : 'audio') : videoKinds.has(kind)
   }).map((row: any) => normalizeItem(row, plex, root))
   // Plex hubs/search has no offset protocol: never fabricate a next page.
   const next = !root && route.kind !== 'search' || !plex && route.kind === 'search'
-  return { items, total, nextOffset: next && rows.length && (typeof total === 'number' ? offset + rows.length < total : rows.length === limit) ? offset + rows.length : undefined }
+  const collectionIndex = category === 'playlists' || category === 'collections'
+  // Some servers ignore the type filter. Stop paging an unfiltered result rather
+  // than walking the entire video library looking for matching groups.
+  const nextPage = next && (!collectionIndex || items.length > 0)
+  return { items, total: collectionIndex && items.length !== rows.length ? undefined : total, nextOffset: nextPage && rows.length && (typeof total === 'number' ? offset + rows.length < total : rows.length === limit) ? offset + rows.length : undefined }
 }
 export async function serverDetail(account: Account, id: string) {
   mediaServerAccount(account)
