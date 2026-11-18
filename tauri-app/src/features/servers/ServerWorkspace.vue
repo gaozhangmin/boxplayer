@@ -16,7 +16,6 @@ import MediaPosterMenu from './electron/MediaPosterMenu.vue'
 import ServerDetail from './electron/ServerDetail.vue'
 import {posterMenu as videoPosterMenu} from '../library/workspaceMenus'
 import ServerListing from './electron/ServerListing.vue'
-import SourceEmptyState from '../files/SourceEmptyState.vue'
 import AnchoredMenu from '../library/AnchoredMenu.vue'
 import WorkspaceContextMenu from '../library/WorkspaceContextMenu.vue'
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
@@ -260,7 +259,10 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
       <li v-for="track in visibleItems" :key="track.id">{{ track.name }}</li>
     </ul>
     <ServerListing v-else-if="route.kind!=='person'&&route.kind!=='search'&&(!route.facet||route.value)&&(!pageLoadFailed||visibleItems.length)" :items="visibleItems" :account="account" :mode="layout" :root="route.kind==='root'" :landscape="!preferences.portrait" :selection="selecting?selected:undefined" :busy="working" @select="select" @context="(event,item)=>{captureMenu(event);openMenu(itemRoute(item),item)}" @watched="item=>updateItem(item,'watched')" @download="download"/>
-    <div v-if="selecting&&route.kind!=='root'" class="selection-bar"><span>已选择 {{ selected.length }} 项</span><button @click="selected = selected.length === items.length ? [] : items.map(i => i.id)">全选／取消全选</button><template><button :disabled="!selected.length || working" @click="batchWatched(true)">标记为已观看</button><button :disabled="!selected.length || working" @click="batchWatched(false)">标记为未观看</button></template></div><button v-if="nextOffset !== undefined" :disabled="loading" @click="load(true)">加载更多</button><SourceEmptyState v-if="!loading&&!items.length&&!error&&(!route.facet||route.value)"/>
+    <div v-if="selecting&&route.kind!=='root'" class="selection-bar"><span>已选择 {{ selected.length }} 项</span><button @click="selected = selected.length === items.length ? [] : items.map(i => i.id)">全选／取消全选</button><template><button :disabled="!selected.length || working" @click="batchWatched(true)">标记为已观看</button><button :disabled="!selected.length || working" @click="batchWatched(false)">标记为未观看</button></template></div><button v-if="nextOffset !== undefined" :disabled="loading" @click="load(true)">加载更多</button>
+    <p v-if="!loading && !error && nextOffset === undefined && ['root', 'category', 'children', 'search'].includes(route.kind) && (route.facet && !route.value ? !facets.length : !items.length)" class="server-empty" role="status">
+      {{ route.kind === 'root' ? '此服务器暂无可浏览的媒体库' : route.kind === 'search' && route.query?.trim() ? '未找到匹配的媒体' : '暂无媒体内容' }}
+    </p>
   </template><p v-if="loading" role="status">正在加载…</p>
   <AnchoredMenu v-if="menu" :x="menuAnchor.x" :y="menuAnchor.y" :label="menu.target.title+'菜单'" @close="menu=undefined">
     <template v-if="menu.target.kind === 'root'"><button role="menuitem" @click="selecting = !selecting; selected = []; menu = undefined">{{ selecting ? '完成选择' : '选择' }}</button><button role="menuitem" @click="options.sort = 'title'; options.descending = !options.descending; menu = undefined; load()">排序方式: 名称</button><button role="menuitem" :disabled="!selecting" @click="favoriteSelectedLibraries(); menu = undefined">添加到收藏夹</button><button role="menuitem" disabled>启用密码锁</button></template>
@@ -281,6 +283,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
 .server-load-error{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:14px 18px;border:1px solid var(--border);border-radius:16px;background:var(--secondary)}
 .server-load-error span{min-width:0;overflow-wrap:anywhere}
 .server-load-error .server-load-retry{flex-shrink:0;min-height:36px;padding:6px 14px;border:0;border-radius:8px;background:var(--primary);color:var(--primary-foreground);font-weight:600}
+.server-empty{margin:0;padding:48px 16px;text-align:center;color:var(--muted-text)}
 .server-music-tracks{list-style:none;margin:0;padding:0}
 .server-music-tracks li{padding:12px 8px;border-bottom:1px solid var(--border)}
 .server-load-retry:focus-visible{outline:2px solid var(--primary);outline-offset:3px}

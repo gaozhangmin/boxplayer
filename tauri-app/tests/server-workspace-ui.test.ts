@@ -30,11 +30,22 @@ it('defaults to library-root, emits title/back state, disables favoriteSelected 
  await button(wrapper,'添加到收藏夹').trigger('click'); await wrapper.find('[role=dialog] input').setValue('My library'); await wrapper.find('[role=dialog]').trigger('submit'); await flushPromises()
  expect(readPreferences(account.id).favorites[0]?.title).toBe('My library'); expect(readPreferences(account.id).home).toEqual(['resume','nextup','latest']); wrapper.unmount()
 })
+it('shows a server-specific empty state after a successful empty response', async () => {
+ vi.mocked(browseServer).mockResolvedValueOnce({ items: [] })
+ const wrapper = mount(ServerWorkspace, { props: { account: { ...account, id: 'empty-server' } }, global: { stubs } })
+ expect(wrapper.find('.server-empty').exists()).toBe(false)
+ await flushPromises()
+ expect(wrapper.get('.server-empty').text()).toBe('此服务器暂无可浏览的媒体库')
+ expect(wrapper.text()).not.toContain('新增文件来源')
+ expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+ wrapper.unmount()
+})
 it('shows a top error banner and retries the same server route', async () => {
  vi.mocked(browseServer).mockRejectedValueOnce(new Error('Synthetic transport failure'))
  const wrapper = mount(ServerWorkspace, { props: { account: { ...account, id: 'offline' } }, global: { stubs } })
  await flushPromises()
  expect(wrapper.get('.server-load-error[role="alert"]').text()).toContain('Synthetic transport failure')
+ expect(wrapper.find('.server-empty').exists()).toBe(false)
  expect(wrapper.find('.library-card').exists()).toBe(false)
 
  await button(wrapper, '重试').trigger('click')
