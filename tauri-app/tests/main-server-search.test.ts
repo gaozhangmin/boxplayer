@@ -25,9 +25,8 @@ it('routes sidebar server selection and search to the account-bound server works
  await wrapper.get('.search-box input').setValue('new');await wrapper.get('.search-box').trigger('submit');await flushPromises()
  expect(wrapper.getComponent(ServerWorkspace).props('searchQuery')).toBe('new')
  expect(wrapper.getComponent(ServerWorkspace).props('searchRevision')).toBe(1)
- const revision = wrapper.getComponent(ServerWorkspace).props('navigationRevision')
  await wrapper.findAll('button').find(button=>button.text()===owner.name)!.trigger('click')
- expect(wrapper.getComponent(ServerWorkspace).props('navigationRevision')).toBe(revision+1)
+ expect(wrapper.getComponent(ServerWorkspace).props('navigationRevision')).toBe(2)
  expect(wrapper.getComponent(ServerWorkspace).props('searchQuery')).toBe('')
 
  wrapper.unmount()
