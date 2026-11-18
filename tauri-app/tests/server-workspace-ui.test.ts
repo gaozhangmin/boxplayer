@@ -177,3 +177,33 @@ it('native cover selection previews and persists bounded data; cancel preserves 
  vi.mocked(nativeCall).mockResolvedValueOnce(data);await button(wrapper,'选择图片').trigger('click');await flushPromises();expect(nativeCall).toHaveBeenLastCalledWith('choose_cover_image');await wrapper.find('[role=dialog]').trigger('submit');await flushPromises();expect(readPreferences(account.id).favorites[0]?.cover).toBe(data)
  await wrapper.get('[aria-label="更多媒体操作"]').trigger('click');await button(wrapper,'选择封面').trigger('click');vi.mocked(nativeCall).mockResolvedValueOnce(null);await button(wrapper,'选择图片').trigger('click');await flushPromises();await wrapper.find('[role=dialog]').trigger('submit');await flushPromises();expect(readPreferences(account.id).favorites[0]?.cover).toBe(data);wrapper.unmount()
 })
+
+
+it('returns a directly opened category to the library root before leaving the server', async () => {
+ const initialRoute = { kind: 'category' as const, category: 'movies' as const, title: 'Movies' }
+ const wrapper = mount(ServerWorkspace, { props: { account, initialRoute, navigationRevision: 1 }, global: { stubs } })
+ await flushPromises()
+ const workspace = wrapper.vm as unknown as { goBack: () => boolean }
+ expect(wrapper.emitted('can-go-back')?.at(-1)).toEqual([true])
+ expect(workspace.goBack()).toBe(true)
+ await flushPromises()
+ expect(vi.mocked(browseServer).mock.calls.at(-1)?.[1].kind).toBe('root')
+ expect(wrapper.emitted('go-back')).toBeUndefined()
+ await wrapper.setProps({ navigationRevision: 2 })
+ await flushPromises()
+ expect(vi.mocked(browseServer).mock.calls.at(-1)?.[1]).toEqual(initialRoute)
+ wrapper.unmount()
+})
+
+it('replaces a scoped search so Back returns to the category', async () => {
+ const initialRoute = { kind: 'category' as const, category: 'movies' as const, title: 'Movies' }
+ const wrapper = mount(ServerWorkspace, { props: { account, initialRoute }, global: { stubs } })
+ await wrapper.setProps({ searchQuery: 'first', searchRevision: 1 })
+ await wrapper.setProps({ searchQuery: 'second', searchRevision: 2 })
+ await flushPromises()
+ expect(vi.mocked(browseServer).mock.calls.at(-1)?.[1].query).toBe('second')
+ expect((wrapper.vm as unknown as { goBack: () => boolean }).goBack()).toBe(true)
+ await flushPromises()
+ expect(vi.mocked(browseServer).mock.calls.at(-1)?.[1]).toEqual(initialRoute)
+ wrapper.unmount()
+})

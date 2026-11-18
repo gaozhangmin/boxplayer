@@ -36,6 +36,7 @@ const libraryPageTitle=ref(''),serverPageTitle=ref(''),filePageTitle=ref('')
 const fileWorkspace=ref<InstanceType<typeof FileBrowser>>(),fileCanBack=ref(false)
 const serverDetailActive=ref(false)
 const serverWorkspace=ref<InstanceType<typeof ServerWorkspace>>(),serverCanBack=ref(false)
+const serverNavigationRevision = ref(0)
 const showAccounts=ref(false)
 const showBoxPlayerAccount=ref(false)
 const membership=useMembershipStore()
@@ -78,7 +79,22 @@ function navigate(next: Selection) {
 }
 function select(key: MessageKey) { libraryPageTitle.value='';navigate({ key }) }
 function selectCatalog(route:string,origin?:'home'|'library'){libraryPageTitle.value='';navigate({key:origin||(route==='home'?'home':route==='favorites'?'favorites':'library'),route})}
-function selectSource(source: FileSidebarEntry) {serverPageTitle.value='';serverCanBack.value=false;filePageTitle.value='';fileCanBack.value=false; navigate({ key: 'files', source,serverRoute:source.serverRoute }) }
+function selectSource(source: FileSidebarEntry) {
+  if (source.kind === 'mediaServer' || source.kind === 'serverFavorite') {
+    openServerSelection(source, source.serverRoute)
+    return
+  }
+  filePageTitle.value = ''
+  fileCanBack.value = false
+  navigate({ key: 'files', source })
+}
+function openServerSelection(source: FileSidebarEntry, serverRoute?: BrowseRoute) {
+  searchText.value = ''
+  serverSearch.value = ''
+  if (searchTimer) clearTimeout(searchTimer)
+  serverNavigationRevision.value++
+  navigate({ key: 'files', source, serverRoute })
+}
 function back() {if(selectedServer.value&&serverCanBack.value){serverWorkspace.value?.goBack();return}if(selected.value.key==='files'&&!selectedServer.value&&fileCanBack.value){fileWorkspace.value?.goBack();return}const previous = history.value.pop(); if (previous) selected.value = previous }
 async function run(action: () => Promise<unknown>) { try { await action() } catch (e) { toast.error(asAppError(e).message) } }
 async function toggleSidebar() { await settings.save({ sidebarCollapsed: !collapsed.value }) }
@@ -88,7 +104,7 @@ function openMenu(event: MouseEvent) {
 }
 async function choose() { const file = await openFile(); if (file) await playFile(file) }
 function selectSourceId(id: string) { if(selected.value.source?.kind==='favorite'&&selected.value.source.sourceId===id)return;const entry = fileEntries.value.find(entry => entry.sourceId === id && ['localFolder', 'drive', 'mediaServer'].includes(entry.kind)); if (entry) selectSource(entry) }
-function openServer(id:string,route:BrowseRoute){const source=fileEntries.value.find(entry=>entry.kind==='mediaServer'&&entry.sourceId===id);if(source){serverPageTitle.value='';navigate({key:'files',source,serverRoute:route})}}
+function openServer(id:string,route:BrowseRoute){const source=fileEntries.value.find(entry=>entry.kind==='mediaServer'&&entry.sourceId===id);if(source)openServerSelection(source,route)}
 function selectFolder(folder:{sourceId:string;path:string;local:boolean;favoriteId:string}){
  const entry=fileEntries.value.find(entry=>entry.kind==='favorite'&&entry.sourceId===folder.sourceId&&entry.favoriteId===folder.favoriteId)
  const bookmark=fileSources.findBookmark(folder.favoriteId)
@@ -176,7 +192,7 @@ onUnmounted(() => {scanScheduler.stop();if(scanTimer)clearInterval(scanTimer);if
           <FilesHeader v-if="selected.key==='files'&&!selectedServer" :title="selectionTitle" @back="history.length||fileCanBack?back():select('home')"><div id="file-toolbar-actions"/></FilesHeader><LibraryHeader v-else-if="selected.key!=='files'" v-show="!(selected.key==='library'&&!selected.route)" :title="selectionTitle" :home="(selected.route||selected.key)==='home'" @back="back"><div id="library-toolbar-actions"/></LibraryHeader><div v-else class="toolbar"><Button v-if="(selected.route||selected.key)!=='home'&&(history.length||(selected.key==='files'&&(selectedServer?serverCanBack:fileCanBack)))" class="toolbar-back" variant="outline" size="icon" :aria-label="t('back')" @click="back"><ChevronLeft :size="20" /></Button><span class="toolbar-title">{{ selectionTitle }}</span><div class="toolbar-spacer" /><div v-if="selected.key === 'files'" id="file-toolbar-actions" /><div v-else id="library-toolbar-actions"/></div>
         </WindowBar>
         <div ref="contentBody" class="content-body" :class="{'server-content':selected.key==='files'&&!!selectedServer}">
-          <ServerWorkspace v-if="selected.key==='files'&&selectedServer" ref="serverWorkspace" :key="selectedServer.id" :account="selectedServer" :initial-route="selected.serverRoute" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @navigate="resetContentScroll" @detail-active="serverDetailActive=$event" @title="serverPageTitle=$event" @can-go-back="serverCanBack=$event" @go-back="back" @account-updated="run(()=>fileSources.refresh())" @switch-account="id=>openServer(id,{kind:'home',title:'主屏幕'})"/>
+          <ServerWorkspace v-if="selected.key==='files'&&selectedServer" ref="serverWorkspace" :key="selectedServer.id" :account="selectedServer" :initial-route="selected.serverRoute" :navigation-revision="serverNavigationRevision" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @navigate="resetContentScroll" @detail-active="serverDetailActive=$event" @title="serverPageTitle=$event" @can-go-back="serverCanBack=$event" @go-back="back" @account-updated="run(()=>fileSources.refresh())" @switch-account="id=>openServer(id,{kind:'home',title:'主屏幕'})"/>
           <FileBrowser ref="fileWorkspace" @title="filePageTitle=$event" @can-go-back="fileCanBack=$event" @go-back="back" v-else-if="selected.key === 'files'" :key="selected.source?.id ?? 'files'" :source="selected.source" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @menu="openMenu" @select-source="selectSourceId" @open-folder="selectFolder" @server-route="openServer" />
           <LibraryWorkspace v-else :origin="selected.key==='home'?'home':'library'" :route="selected.route||selected.key" :query="searchText" toolbar-target="#library-toolbar-actions" @navigate="selectCatalog" @source="selectSourceId" @server="openServer" @folder="selectFolder" @title="libraryPageTitle=$event"/>
 

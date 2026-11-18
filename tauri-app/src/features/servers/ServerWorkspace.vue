@@ -35,7 +35,7 @@ import ServerShare from './ServerShare.vue'
 import { useServerBrowseMode } from './layout'
 import { generalPreferences } from '../library/displayPreferences'
 import { preferenceKey } from './preferences'
-const props = defineProps<{ account: Account; searchQuery?: string; searchRevision?: number; toolbarTarget?: string; initialRoute?: BrowseRoute }>()
+const props = defineProps<{ account: Account; searchQuery?: string; searchRevision?: number; toolbarTarget?: string; initialRoute?: BrowseRoute; navigationRevision?: number }>()
 const toolbarReady=ref(!props.toolbarTarget)
 onMounted(()=>{toolbarReady.value=true})
 const emit = defineEmits<{ title: [title: string]; 'can-go-back': [value: boolean]; 'detail-active': [value: boolean]; 'go-back': []; navigate: [route: BrowseRoute]; 'preferences-change': [accountId: string, preferences: ServerPreferences]; 'account-updated': [account: Account]; 'download-complete': [itemId: string]; 'switch-account':[id:string] }>()
@@ -44,7 +44,8 @@ function cycleToolbarSort(){toolbarBrowseSort.value=toolbarBrowseSort.value==='t
 const sortMenu=ref<{x:number;y:number}>()
 function openSort(event:MouseEvent){const box=(event.currentTarget as HTMLElement).getBoundingClientRect();sortMenu.value={x:box.right-220,y:box.bottom+6}}
 function chooseSort(value:string){if(value==='ascending'||value==='descending')options.value.descending=value==='descending';else if(options.value.sort===value)options.value.descending=!options.value.descending;else options.value.sort=value as BrowseOptions['sort'];sortMenu.value=undefined;changeSort()}
-const route = ref<BrowseRoute>(props.initialRoute || { kind: 'root', title: '媒体库' }), history = ref<BrowseRoute[]>([])
+const libraryRoot: BrowseRoute = { kind: 'root', title: '媒体库' }
+const route = ref<BrowseRoute>({ ...libraryRoot }), history = ref<BrowseRoute[]>([])
 const preferences = ref(readPreferences(props.account.id)), items = ref<ServerItem[]>([]), libraries = ref<ServerItem[]>([])
 const homeRows = ref<{ key: string; title: string; route: BrowseRoute; items: ServerItem[]; error?: string }[]>([])
 const homeStatistics=ref<Awaited<ReturnType<typeof serverHomeStatistics>>>()
@@ -76,7 +77,7 @@ function message(e: unknown) { return e instanceof Error ? e.message : (e as { m
 async function safely(action: () => Promise<void>) { if (working.value) return; const current = ++operation; working.value = true; error.value = ''; try { await action() } catch (e) { if (current === operation) error.value = message(e) } finally { if (current === operation) working.value = false } }
 function save(value: ServerPreferences) { writePreferences(props.account.id, value); preferences.value = value; emit('preferences-change', props.account.id, JSON.parse(JSON.stringify(value))); window.dispatchEvent(new CustomEvent('boxplayer:server-home-changed', { detail: props.account.id })) }
 function changePreference(patch: Partial<ServerPreferences>) { try { save({ ...preferences.value, ...patch }) } catch (e) { error.value = message(e) } }
-function navigate(target: BrowseRoute,browseOptions:BrowseOptions={}) { history.value.push({ ...route.value }); route.value = { ...target }; selected.value = []; selecting.value = false; menu.value = undefined; options.value = { sort: target.category === 'latest' ? 'addedAt' : 'sortName', descending: target.category === 'latest',...browseOptions }; void load() }
+function navigate(target: BrowseRoute,browseOptions:BrowseOptions={}, replace = false) { if (!replace) history.value.push({ ...route.value }); route.value = { ...target }; selected.value = []; selecting.value = false; menu.value = undefined; options.value = { sort: target.category === 'latest' ? 'addedAt' : 'sortName', descending: target.category === 'latest',...browseOptions }; void load() }
 function goBack() { const target = history.value.pop(); if (!target) { emit('go-back'); return false } route.value = target; selected.value = []; selecting.value = false; menu.value = undefined; void load(); return true }
 function openPersonSection(kind:string){navigate({...route.value,kind:'category',category:kind==='movie'?'movies':kind==='series'?'shows':'all',title:route.value.title+' - '+(kind==='movie'?'电影':kind==='episode'?'剧集':'电视剧')},{type:kind==='movie'?'Movie':kind==='episode'?'Episode':'Series'})}
 const pageLoadFailed = ref(false)
@@ -216,10 +217,21 @@ watch(() => history.value.length, value => emit('can-go-back', value > 0), { imm
 const detailActive = computed(() => !!detail.value && ['detail', 'person'].includes(route.value.kind))
 watch(detailActive, value => emit('detail-active', value), { immediate: true })
 watch(route, value => emit('navigate', { ...value }), { immediate: true })
-watch([() => props.searchQuery, () => props.searchRevision], () => { const query = props.searchQuery?.trim(); if (query) navigate({ kind: 'search', title: `搜索：${query}`, query }); else if (route.value.kind === 'search') goBack() })
-watch([() => props.account.id, () => props.account.baseUrl, () => props.account.userId, () => JSON.stringify(props.initialRoute)], () => {
-  generation++; operation++; working.value = false; history.value = []; route.value = props.initialRoute ? { ...props.initialRoute } : { kind: 'root', title: '媒体库' }; preferences.value = readPreferences(props.account.id); options.value = { sort: 'sortName', descending: false }; selected.value = []; selecting.value = false; menu.value = undefined; prompt.value = undefined; manager.value = false; playlistDialog.value = false; ratingItem.value = undefined; shareItem.value = undefined; libraries.value = []; favoriteQueue.value = []; status.value = ''
-  if (props.searchQuery?.trim()) route.value = { kind: 'search', title: `搜索：${props.searchQuery.trim()}`, query: props.searchQuery.trim() }
+watch(() => props.searchRevision, () => {
+  const query = props.searchQuery?.trim()
+  if (!query) {
+    if (route.value.kind === 'search') goBack()
+    return
+  }
+  navigate({ kind: 'search', title: `搜索：${query}`, query }, {}, route.value.kind === 'search')
+})
+watch([() => props.account.id, () => props.account.baseUrl, () => props.account.userId, () => JSON.stringify(props.initialRoute), () => props.navigationRevision], () => {
+  generation++; operation++; working.value = false; route.value = { ...(props.initialRoute || libraryRoot) }; history.value = route.value.kind === 'root' ? [] : [{ ...libraryRoot }]; preferences.value = readPreferences(props.account.id); options.value = { sort: 'sortName', descending: false }; selected.value = []; selecting.value = false; menu.value = undefined; prompt.value = undefined; manager.value = false; playlistDialog.value = false; ratingItem.value = undefined; shareItem.value = undefined; libraries.value = []; favoriteQueue.value = []; status.value = ''
+  const query = props.searchQuery?.trim()
+  if (query && route.value.kind !== 'search') {
+    history.value.push(route.value)
+    route.value = { kind: 'search', title: `搜索：${query}`, query }
+  }
   void load()
 }, { immediate: true })
 function syncPreferences(event: Event) { if (event instanceof CustomEvent && event.detail !== props.account.id || event instanceof StorageEvent && event.key !== preferenceKey(props.account.id)) return; const value = readPreferences(props.account.id); if (JSON.stringify(value) === JSON.stringify(preferences.value)) return; preferences.value = value; if (route.value.kind === 'home') void load() }
