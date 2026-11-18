@@ -79,17 +79,38 @@ function navigate(target: BrowseRoute,browseOptions:BrowseOptions={}, replace = 
 function goBack() { const target = history.value.pop(); if (!target) { emit('go-back'); return false } route.value = target; selected.value = []; selecting.value = false; menu.value = undefined; void load(); return true }
 function openPersonSection(kind:string){navigate({...route.value,kind:'category',category:kind==='movie'?'movies':kind==='series'?'shows':'all',title:route.value.title+' - '+(kind==='movie'?'电影':kind==='episode'?'剧集':'电视剧')},{type:kind==='movie'?'Movie':kind==='episode'?'Episode':'Series'})}
 const pageLoadFailed = ref(false)
+const pageEnd = ref<HTMLElement>()
+const appendError = ref('')
+watch([pageEnd, nextOffset, loading, appendError], ([end, offset, pending, failure], _, onCleanup) => {
+  if (!end || offset === undefined || pending || failure || typeof IntersectionObserver === 'undefined') return
+  const observer = new IntersectionObserver(([entry]) => {
+    if (entry?.isIntersecting && pageEnd.value === end && nextOffset.value === offset && !appendError.value) void load(true)
+  }, { rootMargin: '0px 0px 240px 0px' })
+  observer.observe(end)
+  onCleanup(() => observer.disconnect())
+}, { flush: 'post' })
+
+function applyPage(result: { items: ServerItem[]; nextOffset?: number; total?: number }, append: boolean, offset: number) {
+  const existing = new Set(items.value.map(item => item.id))
+  const fresh = result.items.filter(item => !existing.has(item.id))
+  if (append && result.nextOffset !== undefined && (result.nextOffset <= offset || !fresh.length)) {
+    throw new Error('服务器未推进分页，请重试')
+  }
+  items.value = append ? [...items.value, ...fresh] : result.items
+  nextOffset.value = result.nextOffset
+  total.value = result.total
+}
 async function load(append = false) {
   if (append && (loading.value || nextOffset.value === undefined)) return
   const current = ++generation, account = { ...props.account }, target = { ...route.value }, offset = append ? nextOffset.value! : 0
   const cacheKey = JSON.stringify([account.id, account.providerId, account.baseUrl, account.userId])
-  loading.value = true; error.value = ''; pageLoadFailed.value = false
+  loading.value = true; error.value = ''; appendError.value = ''; pageLoadFailed.value = false
   if (!append) {homeStatistics.value=undefined; items.value = []; detail.value = undefined; nextOffset.value = undefined; total.value = undefined; homeRows.value = []; facets.value = []; detailChildren.value = []; similar.value = [];seasonEpisodes.value=undefined;selectedSeasonId.value=''; childrenOffset.value = undefined; detailError.value = '' }
-  if (target.kind === 'root') items.value = serverRootCache.get(cacheKey) || []
+  if (!append && target.kind === 'root') items.value = serverRootCache.get(cacheKey) || []
   try {
     // Global Home cards can pass a raw server directory route. Resolve its actual
     // kind once so shows/seasons retain their server synopsis and detail actions.
-    if (target.kind === 'children' && target.id && !target.id.startsWith('section:') && !target.id.startsWith('playlist:')) {
+    if (!append && target.kind === 'children' && target.id && !target.id.startsWith('section:') && !target.id.startsWith('playlist:')) {
       try {
         const node = await serverDetail(account, target.id)
         if (current !== generation) return
@@ -112,24 +133,22 @@ async function load(append = false) {
       try { const rows = await similarServerItems(account, value.id); if (current === generation) similar.value = rows } catch (e) { if (current === generation) detailError.value = message(e) }
     } else if (target.facet && !target.value) { const groups = await serverFacets(account, target); if (current === generation) facets.value = groups }
     else if (target.kind === 'person') {
-      try{const person=await serverDetail(account,target.personId!);if(current===generation)detail.value=person}catch{if(current===generation)detail.value={id:target.personId!,name:target.title,kind:'person',isDirectory:false,playable:false,size:0,overview:'',watched:false,genres:[],studios:[]}}
-      const page = await browseServer(account, { ...target, kind: 'category', category: 'all', id: target.libraryId }, { ...options.value, offset }); if (current === generation) { items.value = page.items; nextOffset.value = page.nextOffset; total.value = page.total }
+      if (!append) try{const person=await serverDetail(account,target.personId!);if(current===generation)detail.value=person}catch{if(current===generation)detail.value={id:target.personId!,name:target.title,kind:'person',isDirectory:false,playable:false,size:0,overview:'',watched:false,genres:[],studios:[]}}
+      const page = await browseServer(account, { ...target, kind: 'category', category: 'all', id: target.libraryId }, { ...options.value, offset }); if (current === generation) applyPage(page, append, offset)
     }
     else {
       const result = needsLocalSort(account, options.value.sort) ? { items: await allServerItems(account, target, options.value), nextOffset: undefined, total: undefined } : await browseServer(account, target, { ...options.value, offset })
       if (current !== generation) return
-      const existing = new Set(items.value.map(item => item.id)), fresh = result.items.filter(item => !existing.has(item.id))
-      if (append && result.nextOffset !== undefined && !fresh.length) throw new Error('服务器未推进分页，请重试')
-      items.value = append ? [...items.value, ...fresh] : result.items; nextOffset.value = result.nextOffset; total.value = result.total
+      applyPage(result, append, offset)
       if (target.kind === 'root') {
-        libraries.value = result.items
-        serverRootCache.set(cacheKey, result.items)
+        libraries.value = items.value
+        serverRootCache.set(cacheKey, items.value)
       }
     }
   } catch (e) {
     if (current === generation) {
-      pageLoadFailed.value = !append
-      error.value = message(e)
+      if (append) appendError.value = message(e)
+      else { pageLoadFailed.value = true; error.value = message(e) }
     }
   } finally { if (current === generation) loading.value = false }
 }
@@ -255,7 +274,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
   </div>
   <p v-else-if="error" role="alert">{{ error }} <button :disabled="loading" @click="load()">重试</button></p>
   <p v-if="status && route.kind !== 'detail'" role="status">{{ status }}</p>
-  <ContentLoading v-if="loading && !detailActive" class="server-load-indicator" />
+  <ContentLoading v-if="loading && !detailActive && nextOffset === undefined" class="server-load-indicator" />
   <div v-if="route.kind === 'home'" class="server-home">
     <nav class="workspace-tabs"><button :class="{active:route.kind==='home'}" @click="navigate({kind:'home',title:account.name})">主屏幕</button><button @click="navigate({kind:'search',title:'搜索',query:''})">搜索</button><button @click="navigate({kind:'root',title:'媒体库'})">媒体库</button></nav>
     <section v-if="preferences.favorites.some(f => !f.hiddenOnHome)"><h2>收藏夹</h2><div class="category-grid"><article v-for="favorite in preferences.favorites.filter(f => !f.hiddenOnHome)" :key="favorite.key"><button @click="navigate(favorite.content ? { ...favorite.route, kind: 'detail' } : favorite.route)" @contextmenu.prevent="openMenu(favorite.route, undefined, favorite)"><span v-if="favorite.cover" class="favorite-art"><ServerArtwork :account="account" :path="favorite.cover" :alt="favorite.title" /></span>{{ favorite.title }}</button><button :aria-label="favorite.title + '菜单'" @click="openMenu(favorite.route, undefined, favorite)">⋯</button></article></div></section>
@@ -282,7 +301,11 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
       <li v-for="track in visibleItems" :key="track.id">{{ track.name }}</li>
     </ul>
     <ServerListing v-else-if="route.kind!=='person'&&route.kind!=='search'&&(!route.facet||route.value)&&visibleItems.length" :items="visibleItems" :account="account" :mode="layout" :root="route.kind==='root'" :landscape="!preferences.portrait" :selection="selecting?selected:undefined" :busy="working" @select="select" @context="(event,item)=>{captureMenu(event);openMenu(itemRoute(item),item)}" @watched="item=>updateItem(item,'watched')" @download="download"/>
-    <div v-if="selecting&&route.kind!=='root'" class="selection-bar"><span>已选择 {{ selected.length }} 项</span><button @click="selected = selected.length === items.length ? [] : items.map(i => i.id)">全选／取消全选</button><template><button :disabled="!selected.length || working" @click="batchWatched(true)">标记为已观看</button><button :disabled="!selected.length || working" @click="batchWatched(false)">标记为未观看</button></template></div><button v-if="nextOffset !== undefined" :disabled="loading" @click="load(true)">加载更多</button>
+    <div v-if="selecting&&route.kind!=='root'" class="selection-bar"><span>已选择 {{ selected.length }} 项</span><button @click="selected = selected.length === items.length ? [] : items.map(i => i.id)">全选／取消全选</button><template><button :disabled="!selected.length || working" @click="batchWatched(true)">标记为已观看</button><button :disabled="!selected.length || working" @click="batchWatched(false)">标记为未观看</button></template></div>
+    <div v-if="nextOffset !== undefined" ref="pageEnd" class="server-page-end">
+      <ContentLoading v-if="loading" />
+      <p v-else-if="appendError" role="alert">{{ appendError }} <button type="button" @click="load(true)">重试</button></p>
+    </div>
     <p v-if="!loading && !error && nextOffset === undefined && ['root', 'category', 'children', 'search'].includes(route.kind) && (route.facet && !route.value ? !facets.length : !items.length)" class="server-empty" role="status">
       {{ route.kind === 'root' ? '此服务器暂无可浏览的媒体库' : route.kind === 'search' && route.query?.trim() ? '未找到匹配的媒体' : '暂无媒体内容' }}
     </p>
@@ -303,6 +326,8 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
 </template>
 
 <style scoped>
+.server-page-end{min-height:1px;text-align:center}
+.server-page-end :deep(.content-loading){min-height:48px;height:auto}
 .server-workspace.server-workspace-detail{padding:0}
 .server-workspace-detail:has(> .media-detail){height:100%}
 .server-load-indicator.content-loading{position:sticky;top:calc(50vh - 54px);height:0;min-height:0;overflow:visible;z-index:2;pointer-events:none}

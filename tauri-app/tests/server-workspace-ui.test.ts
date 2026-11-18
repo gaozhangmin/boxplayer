@@ -207,3 +207,39 @@ it('replaces a scoped search so Back returns to the category', async () => {
  expect(vi.mocked(browseServer).mock.calls.at(-1)?.[1]).toEqual(initialRoute)
  wrapper.unmount()
 })
+
+it('appends near the bottom and retries failed pages without resetting the list', async () => {
+ const callbacks: IntersectionObserverCallback[] = []
+ vi.stubGlobal('IntersectionObserver', class {
+  constructor(callback: IntersectionObserverCallback) { callbacks.push(callback) }
+  observe() {}
+  disconnect() {}
+ })
+ const browse = vi.mocked(browseServer)
+ const second = { ...film, id: 'second', name: 'Second' }
+ browse.mockResolvedValueOnce({items:[film],nextOffset:1})
+  .mockRejectedValueOnce(new Error('page timeout'))
+  .mockResolvedValueOnce({items:[film,second]})
+ const wrapper = mount(ServerWorkspace,{props:{account,initialRoute:{kind:'category',category:'movies',title:'Movies'}},global:{stubs}})
+ try {
+  await flushPromises()
+  expect(wrapper.text()).not.toContain('加载更多')
+  const observer = callbacks.at(-1)!
+  observer([{isIntersecting:false} as IntersectionObserverEntry],{} as IntersectionObserver)
+  expect(browse).toHaveBeenCalledTimes(1)
+  observer([{isIntersecting:true} as IntersectionObserverEntry],{} as IntersectionObserver)
+  observer([{isIntersecting:true} as IntersectionObserverEntry],{} as IntersectionObserver)
+  await flushPromises()
+  expect(browse).toHaveBeenCalledTimes(2)
+  expect(wrapper.get('.server-page-end [role="alert"]').text()).toContain('page timeout')
+  expect(wrapper.findAll('.library-card')).toHaveLength(1)
+  await wrapper.get('.server-page-end button').trigger('click')
+  await flushPromises()
+  expect(browse.mock.calls.at(-1)?.[2]).toMatchObject({offset:1})
+  expect(wrapper.findAll('.library-card')).toHaveLength(2)
+  expect(wrapper.find('.server-page-end').exists()).toBe(false)
+ } finally {
+  wrapper.unmount()
+  vi.unstubAllGlobals()
+ }
+})
