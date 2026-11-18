@@ -62,29 +62,54 @@ const shelfSnapshots=new Map<string,{height?:number;scrollLeft?:number}>()
 function snapshot(key:string){let value=shelfSnapshots.get(key);if(!value){value={};shelfSnapshots.set(key,value)}return value}
 function originalServerRow(server:ServerHome,row:ServerHome['rows'][number]):UnifiedLibraryRow{return {key:row.key==='resume'?'resume':server.account.id+':'+row.key,title:row.title+' - '+server.account.name,landscape:row.key==='resume'||!server.preferences.portrait,error:row.error,retry:load,more:()=>emit('navigate',server.account.id,row.route),cards:row.items.map(item=>({key:server.account.id+':'+item.id,title:item.name,image:artwork.value[server.account.id+':'+item.id],rating:item.rating,overview:item.overview,progress:item.progress,action:()=>row.key==='resume'?playResume(server,row.route,item):emit('navigate',server.account.id,{kind:item.isDirectory?'children':'detail',id:item.id,title:item.name}),posterMenu:{server:true,tv:['series','show','season'].includes(item.kind),watched:!!item.watched,favorite:!!item.favorite,disabled:['playlist',...(!item.playable?['download' as const]:[])],action:id=>{context.value={server,route:row.route,item,x:0,y:0};void action(id)}}}))}}
 let generation=0
+let homeLoad:AbortController|undefined
+const homeLoadTimeoutMs=12000
 function choices(server:ServerHome){return [...categories.map(category=>({key:category.id,title:category.title,route:{kind:'category' as const,category:category.id,title:category.title}})),...server.libraries.map(library=>({key:'library:'+library.id,title:library.name,route:{kind:'children' as const,id:library.id,title:library.name}}))]}
 async function load(){
- const current=++generation;clearArtwork();loading.value=true
- const values=await Promise.all(props.accounts.filter(account=>['jellyfin','emby','plex'].includes(account.providerId)).map(async(account)=>{
-  const server:ServerHome={account,preferences:readPreferences(account.id),libraries:[],rows:[]}
-  try{server.libraries=(await browseServer(account,{kind:'root',title:'媒体库'},{limit:100})).items}catch(cause){server.error=(cause as Error).message}
-  if(!props.manager&&!props.favoritesOnly){server.rows=await Promise.all(server.preferences.home.flatMap(key=>choices(server).find(choice=>choice.key===key)||[]).map(async(choice)=>{
-   try{return {...choice,items:(await browseServer(account,choice.route,{limit:24})).items}}
-   catch(cause){return {...choice,items:[],error:(cause as Error).message}}
-  }))}
-  return server
- }))
- if(current===generation){servers.value=values;loading.value=false;for(const server of values)for(const row of server.rows)if(visibleShelves.has(server.account.id+':'+row.key))void visibleArtwork(server,row,true)}
+ const current=++generation
+ homeLoad?.abort()
+ clearArtwork()
+ const controller=new AbortController()
+ homeLoad=controller
+ const signal=controller.signal
+ const timer=setTimeout(()=>controller.abort(),homeLoadTimeoutMs)
+ const message=(cause:unknown)=>signal.aborted?'服务器请求超时，可以重试':(cause as Error).message
+ loading.value=true
+ try{
+  const values=await Promise.all(props.accounts.filter(account=>['jellyfin','emby','plex'].includes(account.providerId)).map(async(account)=>{
+   const previous=servers.value.find(server=>server.account.id===account.id&&server.account.baseUrl===account.baseUrl&&server.account.userId===account.userId)
+   const server:ServerHome={account,preferences:readPreferences(account.id),libraries:previous?.libraries||[],rows:[]}
+   try{server.libraries=(await browseServer(account,{kind:'root',title:'媒体库'},{limit:100,signal})).items}
+   catch(cause){server.error=message(cause)}
+   if(!props.manager&&!props.favoritesOnly){
+    const available=choices(server)
+    server.rows=await Promise.all(server.preferences.home.flatMap(key=>available.find(choice=>choice.key===key)||[]).map(async(choice)=>{
+     try{return {...choice,items:(await browseServer(account,choice.route,{limit:24,signal})).items}}
+     catch(cause){return {...choice,items:previous?.rows.find(row=>row.key===choice.key)?.items||[],error:message(cause)}}
+    }))
+   }
+   return server
+  }))
+  if(current===generation){
+   servers.value=values
+   for(const server of values)for(const row of server.rows)if(visibleShelves.has(server.account.id+':'+row.key))void visibleArtwork(server,row,true)
+  }
+ }catch(cause){
+  if(current===generation)error.value=message(cause)
+ }finally{
+  clearTimeout(timer)
+  if(current===generation){homeLoad=undefined;loading.value=false}
+ }
 }
 function save(server:ServerHome,value:ServerPreferences){try{writePreferences(server.account.id,value);server.preferences=value;window.dispatchEvent(new CustomEvent('boxplayer:server-home-changed',{detail:server.account.id}))}catch(cause){server.error=(cause as Error).message}}
 function toggle(server:ServerHome,key:string,checked:boolean){save(server,{...server.preferences,home:checked?[...new Set([...server.preferences.home,key])]:server.preferences.home.filter(value=>value!==key)})}
 function move(server:ServerHome,key:string,offset:number){const keys=[...server.preferences.home],index=keys.indexOf(key),target=index+offset;if(index<0||target<0||target>=keys.length)return;[keys[index],keys[target]]=[keys[target]!,keys[index]!];save(server,{...server.preferences,home:keys})}
 const items=computed<HomeManagementItem[]>(()=>servers.value.flatMap(server=>choices(server).map(choice=>({id:server.account.id+':'+choice.key,title:choice.title,sourceId:server.account.id,sourceTitle:server.account.name,available:true,optIn:true}))))
 watch(items,value=>{emit('items',value);navigation.setServerMenus(servers.value.flatMap(server=>server.preferences.home.flatMap(key=>{const choice=choices(server).find(choice=>choice.key===key);return choice?[{accountId:server.account.id,id:server.account.id+':'+key,title:choice.title+' - '+server.account.name,route:choice.route}]:[]})))},{immediate:true})
-watch(()=>[props.accounts.map(account=>account.id+account.baseUrl).join('|'),props.manager,props.favoritesOnly],()=>void load(),{immediate:true})
+watch([()=>JSON.stringify(props.accounts.map(account=>[account.id,account.baseUrl,account.userId])),()=>props.manager,()=>props.favoritesOnly],()=>void load(),{immediate:true})
 function refresh(event?:Event){if(event instanceof StorageEvent&&!event.key?.startsWith('boxplayer:server-workspace:'))return;void load()}
 onMounted(()=>{window.addEventListener('storage',refresh);window.addEventListener('boxplayer:server-home-changed',refresh)})
-onUnmounted(()=>{generation++;window.removeEventListener('storage',refresh);window.removeEventListener('boxplayer:server-home-changed',refresh)})
+onUnmounted(()=>{generation++;homeLoad?.abort();window.removeEventListener('storage',refresh);window.removeEventListener('boxplayer:server-home-changed',refresh)})
 </script>
 <template>
  <div class="server-home-sections" :aria-busy="busy"><p v-if="error" role="alert">{{error}}</p><div v-if="deleting" class="server-prompt-mask"><form role="dialog" aria-label="删除服务器媒体" @submit.prevent="removeItem"><h3>删除 {{deleting.item.name}}？</h3><p>此操作会请求媒体服务器删除媒体文件。</p><button :disabled="busy" type="submit">确认删除</button><button :disabled="busy" type="button" @click="deleting=undefined">取消</button></form></div><SourceCardMenu v-if="sourceContext" :source-id="sourceContext.id" :x="sourceContext.x" :y="sourceContext.y" @close="sourceContext=undefined" @reorder="reordering=true;sourceContext=undefined" @reauthorize="sourceManager=true;sourceContext=undefined"/><SourceManager v-if="sourceManager" @close="sourceManager=false" @saved="sources.refresh();sourceManager=false"/><ServerRating v-if="ratingItem" :account-id="ratingAccount" :item="ratingItem" @close="ratingItem=undefined"/><ServerShare v-if="shareItem" :item="shareItem" @close="shareItem=undefined"/><WorkspaceContextMenu v-if="context" :x="context.x" :y="context.y" :entries="menuEntries" label="服务器分类菜单" @action="action" @close="context=undefined"/><div v-if="prompt" class="server-prompt-mask"><form role="dialog" @submit.prevent="savePrompt"><h3>{{prompt.kind==='add'?'添加到收藏夹':prompt.kind==='rename'?'重命名收藏夹':'选择封面'}}</h3><input v-model="prompt.value" :aria-label="prompt.kind!=='cover'?'名称':'服务器封面路径'"/><button type="submit">保存</button><button type="button" @click="prompt=undefined">取消</button></form></div>
@@ -100,5 +125,5 @@ onUnmounted(()=>{generation++;window.removeEventListener('storage',refresh);wind
  </div>
 </template>
 <style scoped>
-.server-prompt-mask{position:fixed;inset:0;background:#0004;display:grid;place-items:center;z-index:550}.server-prompt-mask form{padding:24px;background:var(--background);border-radius:14px;display:grid;gap:14px}.server-prompt-mask input{padding:8px;border:1px solid var(--border);border-radius:6px}.server-home-sections{display:grid;gap:26px}h2{font-size:19px;margin:0}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}header button{color:var(--primary)}.server-home-cards{display:flex;gap:20px;overflow:auto;padding:4px}.server-home-cards>button,.server-home-cards>.server-source-card{flex:0 0 150px;min-width:0;text-align:left}.server-home-cards strong,.server-home-cards small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:8px}.server-home-poster{aspect-ratio:2/3;border-radius:12px;overflow:hidden}.server-source-card,.favorite-art{border-radius:12px;background:var(--secondary)}.server-source-card{text-align:center!important;min-height:160px;padding:16px}.source-symbol,.favorite-art>span{color:var(--primary);font-size:48px}.favorite-art{height:120px;display:grid;place-items:center;overflow:hidden}.server-home-manager label{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--border)}.server-home-manager label span{flex:1}.server-home-manager h3{margin:12px 0}.server-home-manager button{padding:6px 10px;color:var(--primary)}[role=alert]{color:#b93838}
+.server-prompt-mask{position:fixed;inset:0;background:#0004;display:grid;place-items:center;z-index:550}.server-prompt-mask form{padding:24px;background:var(--background);border-radius:14px;display:grid;gap:14px}.server-prompt-mask input{padding:8px;border:1px solid var(--border);border-radius:6px}.server-home-sections{display:grid;grid-template-columns:minmax(0,1fr);min-width:0;gap:26px}h2{font-size:19px;margin:0}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}header button{color:var(--primary)}.server-home-cards{display:flex;gap:20px;overflow:auto;padding:4px}.server-home-cards>button,.server-home-cards>.server-source-card{flex:0 0 150px;min-width:0;text-align:left}.server-home-cards strong,.server-home-cards small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:8px}.server-home-poster{aspect-ratio:2/3;border-radius:12px;overflow:hidden}.server-source-card,.favorite-art{border-radius:12px;background:var(--secondary)}.server-source-card{text-align:center!important;min-height:160px;padding:16px}.source-symbol,.favorite-art>span{color:var(--primary);font-size:48px}.favorite-art{height:120px;display:grid;place-items:center;overflow:hidden}.server-home-manager label{display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid var(--border)}.server-home-manager label span{flex:1}.server-home-manager h3{margin:12px 0}.server-home-manager button{padding:6px 10px;color:var(--primary)}[role=alert]{color:#b93838}
 </style>

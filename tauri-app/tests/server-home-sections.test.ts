@@ -20,5 +20,24 @@ it('Home row management changes Home independently of category favorites',async(
  const wrapper=mount(ServerHomeSections,{props:{accounts:[account],manager:true},global:{plugins:[createPinia()],stubs:{ServerArtwork:true,SourceCardMenu:true,SourceManager:true,ServerRating:true,ServerShare:true}}});await flushPromises()
  const label=wrapper.findAll('label').find(label=>label.text().includes('电影'))!;await label.get('input').setValue(true);await flushPromises()
  expect(readPreferences(account.id).home).toContain('movies');expect(readPreferences(account.id).favorites).toEqual([])
- expect(browseServer).toHaveBeenCalledWith(account,{kind:'root',title:'媒体库'},{limit:100});wrapper.unmount()
+ expect(browseServer).toHaveBeenCalledWith(account,{kind:'root',title:'媒体库'},expect.objectContaining({limit:100}));wrapper.unmount()
+})
+it('does not restart an unchanged account refresh and releases loading on the shared deadline', async () => {
+ vi.useFakeTimers()
+ const browse = vi.mocked(browseServer)
+ browse.mockImplementationOnce((_account,_route,options) => new Promise((_resolve,reject) => {
+  options?.signal?.addEventListener('abort',()=>reject(new Error('cancelled')),{once:true})
+ }))
+ const wrapper=mount(ServerHomeSections,{props:{accounts:[account],manager:true},global:{plugins:[createPinia()]}})
+ try {
+  await wrapper.setProps({accounts:[{...account}]})
+  expect(browse).toHaveBeenCalledTimes(1)
+  expect(wrapper.emitted('loading')?.at(-1)).toEqual([true])
+  await vi.advanceTimersByTimeAsync(12000)
+  expect(wrapper.emitted('loading')?.at(-1)).toEqual([false])
+  expect(wrapper.get('[role="alert"]').text()).toContain('服务器请求超时')
+ } finally {
+  wrapper.unmount()
+  vi.useRealTimers()
+ }
 })

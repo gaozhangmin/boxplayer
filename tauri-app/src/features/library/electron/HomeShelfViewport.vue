@@ -39,5 +39,5 @@ onBeforeUnmount(() => { saveScroll(); observer?.disconnect(); resize?.disconnect
 <style scoped>
 /* Keep the shelf margin inside its measured placeholder rather than allowing
    it to collapse through the wrapper when content is mounted. */
-.home-shelf-viewport { display: flow-root; }
+.home-shelf-viewport { display: flow-root; min-width: 0; max-width: 100%; }
 </style>

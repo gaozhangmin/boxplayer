@@ -34,7 +34,7 @@ export const sortFields = {
 } as const
 export function randomRank(id: string, seed: number) { let hash = seed | 0; for (let i = 0; i < id.length; i++) hash = Math.imul(hash ^ id.charCodeAt(i), 16777619); hash ^= hash >>> 16; hash = Math.imul(hash, 0x45d9f3b); return (hash ^ hash >>> 16) >>> 0 }
 
-export interface BrowseOptions { offset?: number; limit?: number; sort?: keyof typeof sortFields; descending?: boolean; type?: string; genre?: string; studio?: string; year?: string; certification?: string; watched?: string; minRating?: string; maxRating?: string }
+export interface BrowseOptions { offset?: number; limit?: number; sort?: keyof typeof sortFields; descending?: boolean; type?: string; genre?: string; studio?: string; year?: string; certification?: string; watched?: string; minRating?: string; maxRating?: string; signal?: AbortSignal }
 const enc = encodeURIComponent
 const videoKinds = new Set(['movie', 'series', 'show', 'season', 'episode', 'video', 'clip', 'musicvideo', 'boxset', 'collection', 'playlist', 'person', 'folder', 'collectionfolder', 'userview'])
 export function normalizeItem(row: Record<string, any>, plex: boolean, root = false): ServerItem {
@@ -80,7 +80,7 @@ export async function browseServer(account: Account, route: BrowseRoute, options
   const plex = account.providerId === 'plex', root = route.kind === 'root', category = route.category
   // Plex has section-scoped catalogs. Merge video sections instead of guessing /library/all.
   if (plex && route.kind === 'category' && !route.id && !route.personId && !['playlists', 'resume', 'nextup', 'favorites'].includes(category || '')) {
-    const roots = await browseServer(account, { kind: 'root', title: '' })
+    const roots = await browseServer(account, { kind: 'root', title: '' }, { signal: options.signal })
     const types = category === 'movies' ? ['movie'] : category === 'shows' ? ['show'] : ['movie', 'show', 'video']
     const selected = roots.items.filter(item => types.includes(item.libraryType || ''))
     const merged: ServerItem[] = []
@@ -111,7 +111,7 @@ export async function browseServer(account: Account, route: BrowseRoute, options
     if (types[type]) q.set('type', types[type])
     if (route.id?.startsWith('section:')) {
       for (const key of ['genre', 'studio'] as const) if (options[key] && !/^\d+$/.test(options[key]!)) {
-        const data = await json<Record<string,any>>(account,'GET',endpoint(account,`library/sections/${enc(route.id.slice(8))}/${key}`))
+        const data = await json<Record<string,any>>(account,'GET',endpoint(account,`library/sections/${enc(route.id.slice(8))}/${key}`), undefined, JSON.parse, {}, options.signal)
     if (category === 'music') q.set('type', '10')
         const found = data.MediaContainer?.Directory?.find((entry: any) => (entry.title || entry.tag) === options[key])
         if (!found) return { items: [], total: 0 }
@@ -136,7 +136,7 @@ export async function browseServer(account: Account, route: BrowseRoute, options
     if (route.personId) q.set('PersonIds', route.personId)
     for (const [key, value] of Object.entries({ Genres: options.genre, Studios: options.studio, Years: options.year, OfficialRatings: options.certification, MinCommunityRating: options.minRating, MaxCommunityRating: options.maxRating, IsPlayed: options.watched === 'yes' ? 'true' : options.watched === 'no' ? 'false' : undefined })) if (value) q.set(key, value)
   }
-  const data = await json<Record<string, any>>(account, 'GET', endpoint(account, root ? path : `${path}?${q}`))
+  const data = await json<Record<string, any>>(account, 'GET', endpoint(account, root ? path : `${path}?${q}`), undefined, JSON.parse, {}, options.signal)
   const container = plex ? data.MediaContainer : data
   if (!container || typeof container !== 'object') throw new Error('服务器列表响应无效')
   const rows = plex ? root ? container.Directory : container.Metadata ?? (container.Hub ? container.Hub.flatMap((hub: any) => hub.Metadata || []) : []) : container.Items

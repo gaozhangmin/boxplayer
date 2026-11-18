@@ -38,7 +38,7 @@ import { preferenceKey } from './preferences'
 const props = defineProps<{ account: Account; searchQuery?: string; searchRevision?: number; toolbarTarget?: string; initialRoute?: BrowseRoute }>()
 const toolbarReady=ref(!props.toolbarTarget)
 onMounted(()=>{toolbarReady.value=true})
-const emit = defineEmits<{ title: [title: string]; 'can-go-back': [value: boolean]; 'go-back': []; navigate: [route: BrowseRoute]; 'preferences-change': [accountId: string, preferences: ServerPreferences]; 'account-updated': [account: Account]; 'download-complete': [itemId: string]; 'switch-account':[id:string] }>()
+const emit = defineEmits<{ title: [title: string]; 'can-go-back': [value: boolean]; 'detail-active': [value: boolean]; 'go-back': []; navigate: [route: BrowseRoute]; 'preferences-change': [accountId: string, preferences: ServerPreferences]; 'account-updated': [account: Account]; 'download-complete': [itemId: string]; 'switch-account':[id:string] }>()
 const toolbarBrowseSort=ref<'title'|'addedAt'|'premiereDate'>('title')
 function cycleToolbarSort(){toolbarBrowseSort.value=toolbarBrowseSort.value==='title'?'addedAt':toolbarBrowseSort.value==='addedAt'?'premiereDate':'title';options.value.sort=toolbarBrowseSort.value;menu.value=undefined;changeSort()}
 const sortMenu=ref<{x:number;y:number}>()
@@ -213,9 +213,11 @@ async function batchWatched(value: boolean) { const rows = [...selectedItems.val
 
 watch(title, value => emit('title', value), { immediate: true })
 watch(() => history.value.length, value => emit('can-go-back', value > 0), { immediate: true })
+const detailActive = computed(() => !!detail.value && ['detail', 'person'].includes(route.value.kind))
+watch(detailActive, value => emit('detail-active', value), { immediate: true })
 watch(route, value => emit('navigate', { ...value }), { immediate: true })
-watch(() => [props.searchQuery, props.searchRevision], () => { const query = props.searchQuery?.trim(); if (query) navigate({ kind: 'search', title: `搜索：${query}`, query }); else if (route.value.kind === 'search') goBack() })
-watch(() => [props.account.id, props.account.baseUrl, props.account.userId, JSON.stringify(props.initialRoute)], () => {
+watch([() => props.searchQuery, () => props.searchRevision], () => { const query = props.searchQuery?.trim(); if (query) navigate({ kind: 'search', title: `搜索：${query}`, query }); else if (route.value.kind === 'search') goBack() })
+watch([() => props.account.id, () => props.account.baseUrl, () => props.account.userId, () => JSON.stringify(props.initialRoute)], () => {
   generation++; operation++; working.value = false; history.value = []; route.value = props.initialRoute ? { ...props.initialRoute } : { kind: 'root', title: '媒体库' }; preferences.value = readPreferences(props.account.id); options.value = { sort: 'sortName', descending: false }; selected.value = []; selecting.value = false; menu.value = undefined; prompt.value = undefined; manager.value = false; playlistDialog.value = false; ratingItem.value = undefined; shareItem.value = undefined; libraries.value = []; favoriteQueue.value = []; status.value = ''
   if (props.searchQuery?.trim()) route.value = { kind: 'search', title: `搜索：${props.searchQuery.trim()}`, query: props.searchQuery.trim() }
   void load()
@@ -227,7 +229,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
 </script>
 
 <template>
-<section class="server-workspace" :aria-busy="loading || working" @click.capture="captureMenu" @contextmenu.capture="captureMenu">
+<section class="server-workspace" :class="{ 'server-workspace-detail': detailActive }" :aria-busy="loading || working" @click.capture="captureMenu" @contextmenu.capture="captureMenu">
   <AnchoredMenu v-if="sortMenu" compact :x="sortMenu.x" :y="sortMenu.y" label="服务器排序" @close="sortMenu=undefined"><div class="server-sort-menu"><button v-for="(value,id) in sortFields" :key="id" role="menuitemradio" :aria-checked="options.sort===id" @click="chooseSort(id)"><ArrowUp v-if="options.sort===id&&!options.descending" :size="13"/><ArrowDown v-else-if="options.sort===id" :size="13"/><span v-else class="sort-menu-spacer"/><span>{{value[0]}}</span></button><div class="server-sort-divider"/><button role="menuitemradio" :aria-checked="!options.descending" @click="chooseSort('ascending')"><Check :size="13" :style="{visibility:options.descending?'hidden':'visible'}"/>升序</button><button role="menuitemradio" :aria-checked="options.descending" @click="chooseSort('descending')"><Check v-if="options.descending" :size="13"/><ArrowDown v-else :size="13"/>降序</button></div></AnchoredMenu>
   <Teleport v-if="toolbarReady" :disabled="!toolbarTarget" :to="toolbarTarget || 'body'"><div v-if="!['detail','person'].includes(route.kind)" class="server-toolbar" @click.capture="captureMenu">
     <template v-if="route.kind==='home'"><button class="round-button" aria-label="媒体管理" @click="manager=true"><List :size="18"/></button><button class="round-button" aria-label="横版海报" @click="changePreference({portrait:false})"><Grid2X2 :size="18"/></button><button class="round-button" aria-label="竖版海报" @click="changePreference({portrait:true})"><List :size="18"/></button><ServerSwitcher :account="account" @select="emit('switch-account',$event)"/></template>
@@ -245,7 +247,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
   </div>
   <p v-else-if="error" role="alert">{{ error }} <button :disabled="loading" @click="load()">重试</button></p>
   <p v-if="status" role="status">{{ status }}</p>
-  <ContentLoading v-if="loading" class="server-load-indicator" />
+  <ContentLoading v-if="loading && !detailActive" class="server-load-indicator" />
   <div v-if="route.kind === 'home'" class="server-home">
     <nav class="workspace-tabs"><button :class="{active:route.kind==='home'}" @click="navigate({kind:'home',title:account.name})">主屏幕</button><button @click="navigate({kind:'search',title:'搜索',query:''})">搜索</button><button @click="navigate({kind:'root',title:'媒体库'})">媒体库</button></nav>
     <section v-if="preferences.favorites.some(f => !f.hiddenOnHome)"><h2>收藏夹</h2><div class="category-grid"><article v-for="favorite in preferences.favorites.filter(f => !f.hiddenOnHome)" :key="favorite.key"><button @click="navigate(favorite.content ? { ...favorite.route, kind: 'detail' } : favorite.route)" @contextmenu.prevent="openMenu(favorite.route, undefined, favorite)"><span v-if="favorite.cover" class="favorite-art"><ServerArtwork :account="account" :path="favorite.cover" :alt="favorite.title" /></span>{{ favorite.title }}</button><button :aria-label="favorite.title + '菜单'" @click="openMenu(favorite.route, undefined, favorite)">⋯</button></article></div></section>
@@ -282,6 +284,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
 </template>
 
 <style scoped>
+.server-workspace.server-workspace-detail{padding:0}
 .server-load-indicator.content-loading{position:sticky;top:calc(50vh - 54px);height:0;min-height:0;overflow:visible;z-index:2;pointer-events:none}
 .server-load-error{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:16px;padding:14px 18px;border:1px solid var(--border);border-radius:16px;background:var(--secondary)}
 .server-load-error span{min-width:0;overflow-wrap:anywhere}

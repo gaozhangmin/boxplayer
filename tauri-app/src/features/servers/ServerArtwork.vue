@@ -17,5 +17,5 @@ watch(() => [props.account.id, props.account.baseUrl, props.path], async () => {
 }, { immediate: true })
 onBeforeUnmount(() => { revision++; clear() })
 </script>
-<template><img v-if="url" :src="url" :alt="alt || ''" loading="lazy" @error="clear" /><span v-else class="server-art-fallback" role="img" :aria-label="alt || '暂无封面'"><Folder v-if="folderFallback" :size="56" aria-hidden="true"/><MediaPosterPlaceholder v-else/></span></template>
+<template><img v-if="url" :src="url" :alt="alt || ''" loading="lazy" @error="clear" /><span v-else-if="!$slots.fallback" class="server-art-fallback" role="img" :aria-label="alt || '暂无封面'"><Folder v-if="folderFallback" :size="56" aria-hidden="true"/><MediaPosterPlaceholder v-else/></span><slot v-else name="fallback" /></template>
 <style scoped>.server-art-fallback{display:grid;place-items:center;width:100%;height:100%;background:var(--secondary);color:var(--primary,#34a86f);font-size:32px}img{width:100%;height:100%;object-fit:cover}</style>

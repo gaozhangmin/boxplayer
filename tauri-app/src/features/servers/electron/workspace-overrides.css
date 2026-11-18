@@ -248,7 +248,7 @@ html:not(.dark) .media-server-workspace {
 }
 
 html:not(.dark) .media-server-workspace .toolbar-btn,
-html:not(.dark) .media-server-workspace .detail-back-button,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-back-button,
 html:not(.dark) .media-server-workspace .server-switch-dropdown .arco-btn {
   color: rgba(17, 24, 39, 0.88) !important;
   border-color: rgba(15, 23, 42, 0.08) !important;
@@ -264,7 +264,7 @@ html:not(.dark) .media-server-workspace .server-switch-trigger-text {
 }
 
 html:not(.dark) .media-server-workspace .toolbar-btn:hover,
-html:not(.dark) .media-server-workspace .detail-back-button:hover,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-back-button:hover,
 html:not(.dark) .media-server-workspace .server-switch-dropdown .arco-btn:hover {
   color: rgba(17, 24, 39, 0.96) !important;
   border-color: rgba(15, 23, 42, 0.12) !important;
@@ -272,7 +272,7 @@ html:not(.dark) .media-server-workspace .server-switch-dropdown .arco-btn:hover 
 }
 
 html:not(.dark) .media-server-workspace .toolbar-btn .iconfont,
-html:not(.dark) .media-server-workspace .detail-back-button .iconfont,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-back-button .iconfont,
 html:not(.dark) .media-server-workspace .view-toggle-seg .iconfont {
   color: currentColor !important;
   opacity: 0.82 !important;
@@ -531,14 +531,14 @@ html:not(.dark) .media-server-workspace .search-feedback-card {
   -webkit-backdrop-filter: none !important;
 }
 
-html:not(.dark) .media-server-workspace .detail-lower-content,
-html:not(.dark) .media-server-workspace .detail-section,
-html:not(.dark) .media-server-workspace .detail-section-header,
-html:not(.dark) .media-server-workspace .detail-section-episodes,
-html:not(.dark) .media-server-workspace .detail-chip-row,
-html:not(.dark) .media-server-workspace .detail-people-rail,
-html:not(.dark) .media-server-workspace .detail-recommendation-rail,
-html:not(.dark) .media-server-workspace .detail-media-card-rail {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-lower-content,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section-header,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section-episodes,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-chip-row,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-people-rail,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-recommendation-rail,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-media-card-rail {
   background: transparent !important;
   background-color: transparent !important;
   border-color: transparent !important;
@@ -547,31 +547,31 @@ html:not(.dark) .media-server-workspace .detail-media-card-rail {
   -webkit-backdrop-filter: none !important;
 }
 
-html:not(.dark) .media-server-workspace .detail-section::before,
-html:not(.dark) .media-server-workspace .detail-section::after,
-html:not(.dark) .media-server-workspace .detail-section-header::before,
-html:not(.dark) .media-server-workspace .detail-section-header::after {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section::before,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section::after,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section-header::before,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section-header::after {
   display: none !important;
   background: transparent !important;
   box-shadow: none !important;
 }
 
-html:not(.dark) .media-server-workspace .detail-section-header h4 {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-section-header h4 {
   color: rgba(17, 24, 39, 0.94) !important;
   text-shadow: none !important;
 }
 
-html:not(.dark) .media-server-workspace .detail-chip-button,
-html:not(.dark) .media-server-workspace .detail-chip-link {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-chip-button,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-chip-link {
   color: rgba(31, 41, 55, 0.78) !important;
   border-color: rgba(15, 23, 42, 0.08) !important;
   background: rgba(255, 255, 255, 0.42) !important;
   box-shadow: none !important;
 }
 
-html:not(.dark) .media-server-workspace .person-card,
-html:not(.dark) .media-server-workspace .detail-media-card,
-html:not(.dark) .media-server-workspace .detail-file-bar {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .person-card,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-media-card,
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-file-bar {
   color: rgba(17, 24, 39, 0.92) !important;
   border-color: rgba(15, 23, 42, 0.08) !important;
   background: rgba(255, 255, 255, 0.48) !important;
@@ -703,7 +703,7 @@ html:not(.dark) .media-server-workspace .detail-file-bar {
 
 .media-server-workspace .detail-episode-card,
 html.dark .media-server-workspace .detail-episode-card,
-html:not(.dark) .media-server-workspace .detail-episode-card {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-episode-card {
   background: transparent !important;
   background-color: transparent !important;
   border-color: transparent !important;
@@ -730,11 +730,11 @@ html:not(.dark) .media-server-workspace .detail-episode-card {
   box-shadow: none !important;
 }
 
-html:not(.dark) .media-server-workspace .detail-episode-kicker {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-episode-kicker {
   color: rgba(31, 41, 55, 0.72) !important;
 }
 
-html:not(.dark) .media-server-workspace .detail-episode-title {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-episode-title {
   color: rgba(17, 24, 39, 0.94) !important;
 }
 
@@ -835,7 +835,7 @@ html.dark .media-server-workspace .media-image-placeholder:has(> .media-poster-p
 
 .media-server-workspace .detail-backdrop-fallback,
 html.dark .media-server-workspace .detail-backdrop-fallback,
-html:not(.dark) .media-server-workspace .detail-backdrop-fallback {
+html:not(.dark) .media-server-workspace:not(.server-detail-surface) .detail-backdrop-fallback {
   background:
     radial-gradient(circle at 34% 12%, rgba(76, 87, 104, 0.38), transparent 35%),
     linear-gradient(180deg, #28303a 0%, #20252d 46%, #191919 100%) !important;

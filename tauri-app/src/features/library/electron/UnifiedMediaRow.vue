@@ -146,7 +146,7 @@ h2 { font-size: 19px; font-weight: 600; margin: 0; }
 button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible { outline: 2px solid #ff8b25; outline-offset: 2px; }
 .row-heading button { flex-shrink: 0; border: 0; background: transparent; color: #ff8b25; font-size: 13px; }
-.horizontal-row { display: flex; align-items: flex-start; gap: 24px; overflow-x: auto; padding: 3px 0 10px; scrollbar-width: none; }
+.horizontal-row { display: flex; align-items: flex-start; gap: 24px; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; padding: 3px 0 10px; scrollbar-width: none; }
 .horizontal-row::-webkit-scrollbar { display: none; }
 .media-card { width: 110px; flex-shrink: 0; text-align: left; border: 0; background: transparent; padding: 0; }
 .media-card { cursor: pointer; color: inherit; font: inherit; }

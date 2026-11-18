@@ -85,6 +85,20 @@ it('initialRoute enters season children, account changes invalidate previous res
  await wrapper.setProps({ account: { ...account, id: 'synthetic-b' } }); await flushPromises(); resolve({ items: [film] }); await flushPromises()
  expect(wrapper.findAll('.library-card h4').map(v=>v.text())).toEqual(['Films']); expect(vi.mocked(browseServer).mock.calls[1]?.[0].id).toBe('synthetic-b'); wrapper.unmount()
 })
+it('keeps the selected library when the parent replaces equivalent account and route props', async () => {
+ const initialRoute = { kind: 'root' as const, title: '媒体库' }
+ vi.mocked(browseServer).mockImplementation(async (_account, route) => ({ items: route.kind === 'root' ? [library] : [film] }))
+ const wrapper = mount(ServerWorkspace, { props: { account, initialRoute }, global: { stubs } })
+ await flushPromises()
+ await wrapper.get('.library-card').trigger('click')
+ await flushPromises()
+ const callCount = vi.mocked(browseServer).mock.calls.length
+ await wrapper.setProps({ account: { ...account }, initialRoute: { ...initialRoute } })
+ await flushPromises()
+ expect(vi.mocked(browseServer).mock.calls.length).toBe(callCount)
+ expect(wrapper.get('.library-card h4').text()).toBe(film.name)
+ wrapper.unmount()
+})
 it('category menus offer Favorites only and queue loop calls the shared playMany mode', async () => {
  const wrapper = mount(ServerWorkspace, { props: { account, initialRoute: { kind: 'category', category: 'movies', title: 'Movies' } }, global: { stubs } }); await flushPromises()
  await wrapper.get('.library-card').trigger('contextmenu'); const menu = wrapper.find('[role=menu]'); expect(menu.text()).toContain('添加到收藏夹'); expect(menu.text()).not.toContain('添加到主页')
