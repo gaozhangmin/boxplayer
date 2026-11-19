@@ -2,7 +2,7 @@
 import { storeToRefs } from 'pinia'
 import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import {cachedArtwork} from './artworkCache'
-import {computed,onMounted,onUnmounted,ref,watch,toRaw,nextTick} from 'vue'
+import {computed,onMounted,onUnmounted,onActivated,onDeactivated,ref,watch,toRaw,nextTick} from 'vue'
 import {Film,Folder,Play,Library,Star,Eye,EyeOff,Grid2X2,List,RefreshCw,MoreHorizontal,ChevronLeft,ChevronDown,ArrowDown,ArrowUp,Search,Plus,X} from 'lucide-vue-next'
 import UnifiedMediaRow from './electron/UnifiedMediaRow.vue'
 import type {UnifiedLibraryRow,UnifiedLibraryCard} from './electron/types'
@@ -213,7 +213,7 @@ watch([() => props.route, () => props.origin], ([route, origin], [previousRoute]
  detail.value = target && previousRoute === target.tagRoute && route === target.route && origin === target.origin ? target.itemId : undefined
  if (target && route !== target.tagRoute) detailTagReturn.value = undefined
  selectionMode.value=false;explicitSort.value=false;selected.value=pendingSelection.value||[];pendingSelection.value=undefined;menu.value=false;context.value=undefined;sourceContext.value=undefined;serverFavoriteContext.value=undefined;reorderRoute.value='';error.value=''})
-onMounted(async()=>{await run(async()=>{await sources.refresh();await catalog.load()});void catalog.loadRanking()})
+onMounted(async()=>{await run(async()=>{await sources.refresh();await catalog.ensureLoaded()});void catalog.loadRanking()})
 
 async function run(action:()=>unknown|Promise<unknown>){if(busy.value)return;busy.value=true;error.value='';try{await action()}catch(cause){error.value=(cause as Error).message}finally{busy.value=false}}
 function decode(value:string){try{return decodeURIComponent(value)}catch{return value}}
@@ -385,6 +385,8 @@ watch([() => props.route, () => !!current.value], ([route, showingDetail]) => {
  if (route === 'home' && !showingDetail && homeElement.value) homeElement.value.scrollTop = homeScrollTop.value
 }, { flush: 'post' })
 onMounted(() => { if (props.route === 'home' && homeElement.value) homeElement.value.scrollTop = homeScrollTop.value })
+onActivated(async()=>{toolbarReady.value=true;emit('title',title.value);emit('detailActive',!!current.value);await nextTick();if(props.route==='home'&&homeElement.value)homeElement.value.scrollTop=homeScrollTop.value})
+onDeactivated(()=>{toolbarReady.value=false;menu.value=false;context.value=undefined;sourceContext.value=undefined;serverFavoriteContext.value=undefined})
 const homeLibrary=computed(()=>videoGroups(homeItemsFor('all')).map(group=>originalItem(group.item,group.files)))
 const customSeriesGroups=computed(()=>loadCustomSeries())
 function openVideo(item:MediaLibraryItem){const native=nativeItem(item);if(native)detail.value=native.id}
@@ -600,7 +602,7 @@ function finishFavoritePointer(event: PointerEvent) {
 @keyframes source-card-wiggle{from{transform:rotate(-.7deg)}to{transform:rotate(.7deg)}}
 @media(prefers-reduced-motion:reduce){.is-reordering:not(.file-source-list) .file-source-card,.favorite-page-wrap.is-reordering .favorite-shortcut{animation:none;outline:1px dashed #ff8700;outline-offset:4px}}
 .favorite-page-wrap{min-height:0;overflow:auto;padding:24px 28px}
-.favorite-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,220px));gap:30px 24px}
+.favorite-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(172px,100%),1fr));gap:30px 24px}
 .favorite-page-grid .favorite-shortcut{width:100%}
 .source-shortcuts .row-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .source-shortcuts .row-heading h2{margin:0}

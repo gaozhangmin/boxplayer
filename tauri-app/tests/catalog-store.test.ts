@@ -85,3 +85,13 @@ it('scrapes actual season and episode details while preserving expected coverage
  vi.mocked(nativeCall).mockImplementation(async(command,args:any)=>{if(command==='catalog_load')return structuredClone(state.snapshot);if(command==='catalog_save'){state.snapshot={...structuredClone(args.catalog),revision:state.snapshot.revision+1};return structuredClone(state.snapshot)}if(command==='catalog_metadata')return args.season?{current_season:{id:10,season_number:1,name:'Season One',episodes:[{id:102,episode_number:2,name:'Actual Episode',runtime:50,still_path:'/still.jpg'}]}}:{tv:{id:42,name:'Show',seasons:[{season_number:1,episode_count:10}],credits:{cast:[{name:'Actor'}]}}}})
  const catalog=useVideoCatalog();await catalog.scan('s');expect(catalog.items[0]).toMatchObject({type:'tv',tmdbId:42,seasonNumber:1,episodeNumber:2,duration:3000,originalMetadata:{credits:{cast:[{name:'Actor'}]},expectedSeasons:[{seasonNumber:1,episodeCount:10}],seasons:[{seasonNumber:1,episodes:[{episodeNumber:2,name:'Actual Episode'}]}]}})
 })
+
+it('reuses the initial catalog snapshot while allowing explicit refresh and failed-load retry',async()=>{
+ const catalog=useVideoCatalog()
+ await Promise.all([catalog.ensureLoaded(),catalog.ensureLoaded()]);await catalog.ensureLoaded()
+ expect(vi.mocked(nativeCall).mock.calls.filter(([command])=>command==='catalog_load')).toHaveLength(1)
+ await catalog.load();expect(vi.mocked(nativeCall).mock.calls.filter(([command])=>command==='catalog_load')).toHaveLength(2)
+ setActivePinia(createPinia());const retry=useVideoCatalog()
+ vi.mocked(nativeCall).mockRejectedValueOnce(new Error('offline'));await retry.ensureLoaded();expect(retry.error).toBe('offline')
+ await retry.ensureLoaded();expect(retry.error).toBe('');expect(vi.mocked(nativeCall).mock.calls.filter(([command])=>command==='catalog_load')).toHaveLength(4)
+})

@@ -183,7 +183,7 @@ onMounted(async () => {
     })
     await recoverFileState()
     await fileSources.refresh()
-    await videoCatalog.load()
+    await videoCatalog.ensureLoaded()
     if(recoveryReady)void scanScheduler.tick()
     await membership.refresh()
     const info = await runtimeInfo()
@@ -216,7 +216,9 @@ onUnmounted(() => {scanScheduler.stop();if(scanTimer)clearInterval(scanTimer);if
         <div ref="contentBody" class="content-body" :class="{'server-content':selected.key==='files'&&!!selectedServer}">
           <ServerWorkspace v-if="selected.key==='files'&&selectedServer" ref="serverWorkspace" :key="selectedServer.id" :account="selectedServer" :initial-route="selected.serverRoute" :navigation-revision="serverNavigationRevision" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @navigate="resetContentScroll" @detail-active="serverDetailActive=$event" @title="serverPageTitle=$event" @can-go-back="serverCanBack=$event" @go-back="back" @account-updated="run(()=>fileSources.refresh())" @switch-account="id=>openServer(id,{kind:'home',title:'主屏幕'})"/>
           <FileBrowser ref="fileWorkspace" @title="filePageTitle=$event" @can-go-back="fileCanBack=$event" @go-back="back" v-else-if="selected.key === 'files'" :key="selected.source ? JSON.stringify([selected.source.id, fileNavigationRevision]) : 'files'" :source="selected.source" :search-query="serverSearch" :search-revision="searchRevision" toolbar-target="#file-toolbar-actions" @menu="openMenu" @select-source="selectSourceId" @open-folder="selectFolder" @server-route="openServer" />
-          <LibraryWorkspace v-else :origin="selected.key==='home'?'home':'library'" :route="selected.route||selected.key" :query="searchText" toolbar-target="#library-toolbar-actions" @navigate="selectCatalog" @source="selectSourceId" @server="openServer" @folder="selectFolder" @title="libraryPageTitle=$event" @detail-active="libraryDetail=$event"/>
+          <KeepAlive :max="2">
+          <LibraryWorkspace v-if="selected.key!=='files'" :key="(selected.route||selected.key)==='home'?'home':'browse'" :origin="selected.key==='home'?'home':'library'" :route="selected.route||selected.key" :query="searchText" toolbar-target="#library-toolbar-actions" @navigate="selectCatalog" @source="selectSourceId" @server="openServer" @folder="selectFolder" @title="libraryPageTitle=$event" @detail-active="libraryDetail=$event"/>
+          </KeepAlive>
 
         </div>
       </main>

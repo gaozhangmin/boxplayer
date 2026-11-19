@@ -1,0 +1,15 @@
+--- a/tauri-app/tests/m7/favorite-file-entry.test.ts
++++ b/tauri-app/tests/m7/favorite-file-entry.test.ts
+@@ -25,10 +25,10 @@
+  }finally{view.unmount()}
+ })
+ 
+-it('reports browse failure as a toast without raw corner text or a false empty folder',async()=>{
++it('reports browse failure inline with retry without a global toast or a false empty folder',async()=>{
+  const pinia=createPinia();setActivePinia(pinia)
+  const sources=useFileSourcesStore();sources.replaceSnapshot({localFolders:[{id:'local',name:'Mixed'}],drives:[],mediaServers:[],hasDirectURLs:false})
+  vi.mocked(localList).mockRejectedValueOnce(new Error('Fixture browse failure'))
+  const view=mount(Controller,{props:{source:{id:'local',sourceId:'local',kind:'localFolder',title:'Mixed'} as any},global:{plugins:[pinia],stubs:{NativeFilesDialogs:true,MediaMetadataEditorModal:true,MediaPersonalRatingModal:true,MediaShareModal:true,MediaCollectionPicker:true}}})
+- try{await flushPromises();expect(toast.error).toHaveBeenCalledWith('Fixture browse failure');expect(view.text()).not.toContain('Fixture browse failure');expect(view.findComponent({name:'MediaEmptyFolder'}).exists()).toBe(false)}finally{view.unmount()}
++ try{await flushPromises();expect(toast.error).not.toHaveBeenCalled();expect(view.get('[role=alert]').text()).toContain('Fixture browse failure');expect(view.get('[role=alert] button').text()).toBeTruthy();expect(view.findComponent({name:'MediaEmptyFolder'}).exists()).toBe(false)}finally{view.unmount()}
+ })

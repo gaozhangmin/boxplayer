@@ -66,7 +66,8 @@ const mediaStore = useMediaLibraryStore()
 
 const persistedCollectionItems = ref<MediaLibraryItem[]>([])
 const collectionMovies = computed(() => activeCustomSeries.value ? [] : detailCollectionMovies(props.mediaItem, [...persistedCollectionItems.value, ...mediaStore.mediaItems]))
-watch(() => props.mediaItem, async (item, _previous, onCleanup) => {
+watch(() => JSON.stringify([props.mediaItem.id, props.mediaItem.type, props.mediaItem.collectionId]), async (_identity, _previous, onCleanup) => {
+  const item = props.mediaItem
   let cancelled = false
   onCleanup(() => { cancelled = true })
   persistedCollectionItems.value = []
@@ -93,7 +94,7 @@ const selectedEpisode = ref<number>()
 const hasUserSelectedEpisode = ref(false)
 const selectedDriveFileId = ref('')
 const manuallySelectedVersion = ref(false)
-watch(() => props.mediaItem, () => {
+watch(() => activeMediaItem.value.id, () => {
   selectedSeason.value = activeMediaItem.value.type === 'tv' && activeMediaItem.value.seasons?.length ? activeMediaItem.value.seasons[0].seasonNumber : 1
   selectedEpisode.value = undefined
   hasUserSelectedEpisode.value = false

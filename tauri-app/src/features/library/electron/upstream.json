@@ -1480,12 +1480,15 @@
       ],
       "snapshot": "src/vendor/electron-library/upstream/src__components__MediaDetail.vue.source",
       "sha256": "85cb8cd45aba6b35ad5cdfd9c572f9364c70a3f07068fc04cea31c257edae1a1",
-      "targetSha256": "78d4fef8c3ac3932e31490626a80f2dbf8e25ad004da95cacf85ef1c3415bc6e",
+      "targetSha256": "984f5eec090d0a433f190d6492768a3bd8763faa838a6d6957c6ae3860f1d537",
       "templatePolicy": "native-detail",
       "nativeExceptions": [
         "Original acquisition/tracking entries retained but disabled: Electron boxplayer backend has not been migrated; no fake endpoint or success state introduced",
         "Remove upstream temporary five-episode generation and fixed 24min/1080P/SDR labels; show real source fields",
         "Native download destination selection and opaque file identity"
+      ],
+      "nativeExtensions": [
+        "Preserve season, episode and version selections on watched/favorite state changes; reload collection members only when detail identity changes (2026-11-19)."
       ]
     },
     {

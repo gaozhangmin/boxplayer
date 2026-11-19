@@ -66,3 +66,15 @@ it('returns to the already loaded parent directory without a native reload', asy
   expect(localList).toHaveBeenCalledTimes(2)
  } finally { wrapper.unmount() }
 })
+
+it('retains the home workspace when visiting files and library categories',async()=>{
+ const {defineComponent,onMounted,onActivated}=await import('vue')
+ const mounts:string[]=[]
+ const CachedWorkspace=defineComponent({props:{route:String},emits:['title','detailActive'],setup(props,{emit}){onMounted(()=>mounts.push(props.route||''));onActivated(()=>{emit('title',props.route==='home'?'主屏幕':'其他页面');emit('detailActive',false)});return{}},template:'<div class="cached-workspace">{{route}}</div>'})
+ const wrapper=mount(Main,{attachTo:document.body,global:{plugins:[createPinia()],stubs:{LibraryWorkspace:CachedWorkspace,MediaWorkspace:{template:'<div>Music</div>'}}}})
+ const visit=async(label:string)=>{await wrapper.findAll('button').find(button=>button.text()===label)!.trigger('click');await flushPromises()}
+ await flushPromises();expect(mounts).toEqual(['home'])
+ await visit('文件');await visit('主屏幕');expect(mounts).toEqual(['home'])
+ await visit('所有电影');await visit('主屏幕');expect(mounts.filter(route=>route==='home')).toHaveLength(1)
+ expect(wrapper.get('.unified-toolbar h1').text()).toBe('主屏幕');wrapper.unmount()
+})

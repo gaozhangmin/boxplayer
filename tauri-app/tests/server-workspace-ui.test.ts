@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import ServerWorkspace from '@/features/servers/ServerWorkspace.vue'
 import ServerArtwork from '@/features/servers/ServerArtwork.vue'
-import { browseServer, normalizeItem, collectPlayable, serverDetail, similarServerItems, serverFacets } from '@/features/servers/workspace'
+import { browseServer, normalizeItem, collectPlayable, serverDetail, similarServerItems, serverFacets, setWatched } from '@/features/servers/workspace'
 import { serverArtwork } from '@/features/sources/serverMetadata'
 import { nativeCall } from '@/platform/native'
 import { preferenceKey, readPreferences } from '@/features/servers/preferences'
@@ -14,7 +14,7 @@ vi.mock('@/platform/native', () => ({ nativeCall: vi.fn() }))
 vi.mock('@/features/sources/serverMetadata', () => ({ serverArtwork: vi.fn() }))
 vi.mock('@/features/sources/mediaServer', () => ({ serverFavorite: vi.fn() }))
 vi.mock('@/features/sources/playlists', () => ({ createServerPlaylist: vi.fn(), deleteServerPlaylist: vi.fn(), deleteServerMedia: vi.fn(), listServerPlaylists: vi.fn(), serverPlaylistMembership: vi.fn(), setServerPlaylistMembership: vi.fn() }))
-vi.mock('@/features/servers/workspace', async original => ({ ...await original<typeof import('@/features/servers/workspace')>(), browseServer: vi.fn(), collectPlayable: vi.fn(), serverDetail: vi.fn(), similarServerItems: vi.fn(), serverFacets: vi.fn() }))
+vi.mock('@/features/servers/workspace', async original => ({ ...await original<typeof import('@/features/servers/workspace')>(), browseServer: vi.fn(), collectPlayable: vi.fn(), serverDetail: vi.fn(), similarServerItems: vi.fn(), serverFacets: vi.fn(), setWatched: vi.fn() }))
 const account = { id: 'synthetic-a', providerId: 'jellyfin' as const, userId: 'u', name: 'Synthetic', baseUrl: 'https://synthetic.test', authOrigins: ['https://synthetic.test'] }
 const film = normalizeItem({ Id: 'film', Name: 'Film', Type: 'Movie' }, false), library = normalizeItem({ Id: 'lib', Name: 'Films', Type: 'CollectionFolder' }, false, true)
 const button = (wrapper: ReturnType<typeof mount>, label: string) => { const value = wrapper.findAll('button').find(b => b.text() === label); if (!value) throw new Error('Missing button: '+label); return value }
@@ -278,4 +278,19 @@ it('repeats the active server sort field to reverse direction without separate d
  await wrapper.get('.server-sort-button').trigger('click');await flushPromises()
  const options=wrapper.findAll('.server-sort-menu [role=menuitemradio]');expect(options.length).toBeGreaterThan(0);expect(options.some(row=>['升序','降序'].includes(row.text()))).toBe(false)
  await options.find(row=>row.attributes('aria-checked')==='true')!.trigger('click');await flushPromises();expect(vi.mocked(browseServer).mock.calls.at(-1)?.[2]?.descending).toBe(true);wrapper.unmount()
+})
+
+it('updates detail membership after persistence without reloading the detail or losing its scroll',async()=>{
+ const {serverFavorite}=await import('@/features/sources/mediaServer')
+ vi.mocked(serverDetail).mockResolvedValue({...film,watched:false,favorite:false})
+ const wrapper=mount(ServerWorkspace,{props:{account,initialRoute:{kind:'detail',id:film.id,title:film.name}},global:{stubs}});await flushPromises()
+ const before=vi.mocked(serverDetail).mock.calls.length,detail=wrapper.getComponent({name:'ServerDetail'}),page=wrapper.get('.detail-content').element as HTMLElement
+ page.scrollTop=250
+ detail.vm.$emit('action','favorite',detail.props('item'));await flushPromises()
+ expect(serverFavorite).toHaveBeenCalledWith(account,film.id,true);expect(detail.props('item').favorite).toBe(true)
+ detail.vm.$emit('action','watched',detail.props('item'));await flushPromises()
+ expect(setWatched).toHaveBeenCalledWith(account,film.id,true);expect(detail.props('item').watched).toBe(true)
+ expect(vi.mocked(serverDetail)).toHaveBeenCalledTimes(before);expect(wrapper.get('.detail-content').element).toBe(page);expect(page.scrollTop).toBe(250)
+ vi.mocked(serverFavorite).mockRejectedValueOnce(new Error('save failed'));detail.vm.$emit('action','favorite',detail.props('item'));await flushPromises()
+ expect(detail.props('item').favorite).toBe(true);expect(wrapper.get('[role=alert]').text()).toContain('save failed');wrapper.unmount()
 })

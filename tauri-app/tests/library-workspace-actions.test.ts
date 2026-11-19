@@ -26,7 +26,7 @@ vi.stubGlobal('localStorage',{getItem:(key:string)=>saved.get(key)??null,setItem
 let wrappers:ReturnType<typeof mount>[]=[]
 function page(route:string,toolbarTarget?:string){const wrapper=mount(Workspace,{props:{route,toolbarTarget},attachTo:document.body});wrappers.push(wrapper);return wrapper}
 function menuButton(label:string){const button=[...document.querySelectorAll<HTMLButtonElement>('[role=menuitem],.media-poster-menu button,.arco-dropdown-option')].find(b=>b.textContent?.trim()===(({个人评分:'评分',添加到继续观看:'加入正在观看列表',从继续观看移除:'从正在观看列表移除',添加到播放列表:'播放列表'} as Record<string,string>)[label]||label));expect(button,label+': '+[...document.querySelectorAll('.home-poster-popup button,.arco-dropdown-option')].map(b=>b.textContent?.trim()).join('|')).toBeTruthy();button!.click()}
-beforeEach(()=>{for(const w of wrappers)w.unmount();wrappers=[];document.body.innerHTML='';localStorage.clear();generalPreferences.fileManagement=true;seriesPreferences.mergeVersions=true;seriesPreferences.defaultVersion='auto';seriesPreferences.playbackVersion='auto';seriesPreferences.showMovies=false;seriesPreferences.useCustom=true;seriesPreferences.useTMDB=true;setActivePinia(createPinia());fixture.browse.mockReset();fixture.list.mockReset();fixture.native.mockReset();fixture.native.mockImplementation(async command=>command==='trakt_status'?{connected:false,settings:{enabled:true,range:-1}}:undefined);const data=reactive({revision:1,items:[item('One'),item('Two')],playlists:{Mix:['One']} as Record<string,string[]>,series:{Saga:['Two']} as Record<string,string[]>});useFileSourcesStore().accounts.push({id:'cloud',providerId:'webdav',name:'Cloud',baseUrl:'https://example.org',authOrigins:[]});fixture.catalog=reactive({data,get items(){return data.items},dailyRanking:[],load:vi.fn(),loadRanking:vi.fn(),cancelScan:vi.fn(),play:vi.fn(),playMany:vi.fn(),patch:vi.fn(async(id:string,patch:Partial<VideoItem>)=>{Object.assign(data.items.find(i=>i.id===id)!,patch);data.revision++}),update:vi.fn(async(action:any)=>{action(data);data.revision++}),scan:vi.fn(),remove:vi.fn()})})
+beforeEach(()=>{for(const w of wrappers)w.unmount();wrappers=[];document.body.innerHTML='';localStorage.clear();generalPreferences.fileManagement=true;seriesPreferences.mergeVersions=true;seriesPreferences.defaultVersion='auto';seriesPreferences.playbackVersion='auto';seriesPreferences.showMovies=false;seriesPreferences.useCustom=true;seriesPreferences.useTMDB=true;setActivePinia(createPinia());fixture.browse.mockReset();fixture.list.mockReset();fixture.native.mockReset();fixture.native.mockImplementation(async command=>command==='trakt_status'?{connected:false,settings:{enabled:true,range:-1}}:undefined);const data=reactive({revision:1,items:[item('One'),item('Two')],playlists:{Mix:['One']} as Record<string,string[]>,series:{Saga:['Two']} as Record<string,string[]>});useFileSourcesStore().accounts.push({id:'cloud',providerId:'webdav',name:'Cloud',baseUrl:'https://example.org',authOrigins:[]});fixture.catalog=reactive({data,get items(){return data.items},dailyRanking:[],ensureLoaded:vi.fn(()=>fixture.catalog.load()),load:vi.fn(),loadRanking:vi.fn(),cancelScan:vi.fn(),play:vi.fn(),playMany:vi.fn(),patch:vi.fn(async(id:string,patch:Partial<VideoItem>)=>{Object.assign(data.items.find(i=>i.id===id)!,patch);data.revision++}),update:vi.fn(async(action:any)=>{action(data);data.revision++}),scan:vi.fn(),remove:vi.fn()})})
 afterEach(()=>{for(const w of wrappers)w.unmount();wrappers=[]})
 describe('workspace targeted actions',()=>{
  it('opens scraped movies in the shared detail page and returns to the library',async()=>{
@@ -211,4 +211,15 @@ it('combines local and remote cards in the first shelf and shows resume times', 
  expect(firstRow().text()).toContain('1:00 / 4:00')
  expect(firstRow().text()).toContain('1:00 / 5:00')
  expect(firstRow().findAll('progress')).toHaveLength(2)
+})
+
+it('preserves selected season when watched or favorite data for the same detail changes',async()=>{
+ const {default:Detail}=await import('@/features/library/electron/MediaDetail.vue')
+ const {originalItem}=await import('@/features/library/adapters/libraryData')
+ const first=item('show',{type:'tv',seasonNumber:1,episodeNumber:1}),second=item('ep2',{type:'tv',seasonNumber:2,episodeNumber:1})
+ fixture.catalog.data.items=[first,second]
+ const wrapper=mount(Detail,{props:{mediaItem:originalItem(first,[first,second])},attachTo:document.body});wrappers.push(wrapper);await flushPromises()
+ await wrapper.findAll('.season-tabs button').find(button=>button.text()==='第 2 季')!.trigger('click');await flushPromises()
+ await wrapper.setProps({mediaItem:originalItem({...first,watched:true,favorite:true},[first,second])});await flushPromises()
+ expect(wrapper.get('.season-tabs .arco-btn-primary').text()).toBe('第 2 季')
 })

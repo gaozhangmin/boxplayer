@@ -109,14 +109,16 @@ const remoteHistory=ref<{path:string;query:string;title:string;entries:SourceEnt
 const localHistory=ref<LocalListing[]>([])
 const remoteQuery=ref('')
 const cursor=ref<string>()
+const retryDirectory=ref<()=>Promise<void>>()
 watch(()=>props.source?.sourceId,id=>{if(currentBookmark.value&&currentBookmark.value.sourceId!==id)openedBookmark.value=undefined})
 const remoteAccount=computed(()=>sources.accounts.find(a=>a.id===props.source?.sourceId))
 
 async function browseRemote(path='',next?:string,query='',title?:string,enterFolder=false){
  const account=remoteAccount.value;if(!account)return
+ retryDirectory.value=undefined
  const sequence=++requestSequence;loading.value=true;error.value=''
  try{const protocol=driver(account);if(query&&!protocol.search)throw new Error('此来源不支持搜索');const result=await(query?protocol.search!(account,query,next):protocol.list(account,path,next));if(sequence!==requestSequence)return;if(enterFolder)remoteHistory.value.push({ path: remotePath.value, query: remoteQuery.value, title: remoteTitle.value, entries: remoteEntries.value, cursor: cursor.value });remoteEntries.value=next?[...remoteEntries.value,...result.entries]:result.entries;cursor.value=result.nextCursor;remotePath.value=path;remoteQuery.value=query;if(!next)remoteTitle.value=title||(!path?props.source?.title||'':remoteTitle.value)}
- catch(e){if(sequence===requestSequence)error.value=asAppError(e).message}finally{if(sequence===requestSequence)loading.value=false}
+ catch(e){if(sequence===requestSequence){retryDirectory.value=()=>browseRemote(path,next,query,title,enterFolder);error.value=asAppError(e).message}}finally{if(sequence===requestSequence)loading.value=false}
 }
 function remoteBack() {
  const previous = remoteHistory.value.pop()
@@ -135,7 +137,7 @@ async function openRemote(entry:SourceEntry){if(selection.value){selected.value=
 const listing = ref<LocalListing>()
 const directoryElement = ref<HTMLElement>()
 watch([() => listing.value?.relativePath, remotePath], () => {
- const container = directoryElement.value?.closest<HTMLElement>('.content-body')
+ const container = directoryElement.value
  if (container) container.scrollTop = 0
 }, { flush: 'post' })
 const manageCurrentFavorite = computed(() => {
@@ -169,9 +171,10 @@ defineExpose({goBack})
 async function browse(path = '', enterFolder = false) {
   if (!props.source?.sourceId || !canBrowse.value) return
   const sequence = ++requestSequence
+  retryDirectory.value=undefined
   loading.value = true; error.value = ''
   try { const result = await localList(props.source.sourceId, path); if (sequence === requestSequence) { if (enterFolder && listing.value) localHistory.value.push(listing.value); listing.value = result } }
-  catch (e) { if (sequence === requestSequence) error.value = asAppError(e).message }
+  catch (e) { if (sequence === requestSequence) {retryDirectory.value=()=>browse(path,enterFolder);error.value = asAppError(e).message} }
   finally { if (sequence === requestSequence) loading.value = false }
 }
 watch(() => [props.source?.id,props.searchQuery,props.searchRevision,currentBookmark.value?.id], () => { closeDetail();requestSequence++; listing.value = undefined; error.value = ''; remoteEntries.value=[];remoteHistory.value=[];localHistory.value=[];if (canBrowse.value) void browse(currentBookmark.value?.path||'');else if(remoteAccount.value)void browseRemote(currentBookmark.value?.path||'',undefined,props.searchQuery||'') }, { immediate: true })
@@ -186,10 +189,10 @@ function size(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3
 <template>
   <section ref="directoryElement" class="files-browser" :aria-label="t('files')">
     <Teleport v-if="toolbarReady" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><FilesFolderToolbar :mode="gridView?'grid':'list'" :descending="sources.preferences.descending" :sort="sources.preferences.sort" :filter="sources.preferences.filter" @sort="sources.preferences.sort=$event" @filter="sources.preferences.filter=$event;selected=[]" :selection="selection" :manage-favorite="manageCurrentFavorite" @mode="gridView=$event==='grid'" @direction="sources.preferences.descending=!sources.preferences.descending" @selection="selection=!selection;selected=[]" @play="playFolder" @remove="currentFolderAction('removeFavoriteFolder')" @rename="currentFolderAction('renameCollection')"/></Teleport>
-    <div v-if="selection" class="poster-selection-bar"><span>已选择 {{selected.length}} 项</span><button @click="selection=false;selected=[]">取消</button></div><p v-if="error" role="alert">{{error}}</p>
+    <div v-if="selection" class="poster-selection-bar"><span>已选择 {{selected.length}} 项</span><button @click="selection=false;selected=[]">取消</button></div><p v-if="error" class="browser-error" role="alert">{{error}} <button v-if="retryDirectory" type="button" @click="retryDirectory()">{{t('retry')}}</button></p>
     <ContentLoading v-if="loading" :label="t('loadingFiles')" />
     <MediaEmptyFolder v-else-if="!browserFiles.length"/><MediaPanRight v-else :files="browserFiles" :media="browserMedia" :posters="browserPosters" :selected="browserSelected" :favorite-ids="browserFavorites" :favorite-browse="!!currentBookmark||canBrowse" :browse-mode="gridView?'grid':'list'" :browse-selection="selection" :descending="sources.preferences.descending" @enter-folder="openBrowserFile" @open-file="openBrowserFile" @open-media="item=>catalog.play(item)" @select="selectBrowserFiles" @file-action="browserAction"/>
     <NativeFilesDialogs :ports="filePorts"/><MediaCollectionPicker :visible="!!assignment" :heading="assignment?.kind==='series'?'系列':'播放列表'" item-title="添加到集合" :rows="collectionRows" :editing="collectionEditing" v-model:name="collectionName" :renamable="false" :removable="false" @toggle="toggleCollection" @create="collectionEditing='new'" @cancel-name="collectionEditing=null" @confirm-name="createCollection" @done="saveAssignmentSelection(true)" @close="assignment=undefined"/><MediaMetadataEditorModal :visible="!!editingMetadata" :item="metadataTarget" @close="editingMetadata=undefined" @save="saveMetadata"/><MediaPersonalRatingModal/><MediaShareModal/>  </section>
 </template>
 
-<style scoped>.files-browser{display:flex;flex-direction:column;min-height:100%;padding:0}.browser-error{color:#e35d5d}.poster-selection-bar{display:flex;justify-content:space-between;padding:10px 20px;font-size:13px}</style>
+<style scoped>.files-browser{display:flex;flex:1;flex-direction:column;min-height:0;height:100%;overflow-y:auto;overflow-x:hidden;padding:0}.browser-error{color:#e35d5d}.poster-selection-bar{display:flex;justify-content:space-between;padding:10px 20px;font-size:13px}</style>

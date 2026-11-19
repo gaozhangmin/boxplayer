@@ -13,17 +13,18 @@ interface Snapshot{schemaVersion:1;revision:number;items:VideoItem[];playlists:R
 const blank=():Snapshot=>({schemaVersion:1,revision:0,items:[],playlists:{},series:{}})
 export const useVideoCatalog=defineStore('video-catalog',()=>{
  const data=ref<Snapshot>(blank()),loading=ref(false),error=ref(''),scanning=ref(false),scanCount=ref(0),scanSource=ref('')
- const sources=useFileSourcesStore();let generation=0,scanGeneration=0;let writes=Promise.resolve()
+ const sources=useFileSourcesStore();let generation=0,scanGeneration=0;let writes=Promise.resolve();let loaded=false,initialLoad:Promise<void>|undefined
  const dailyRanking=ref<TmdbRankedEntry[]>([]);let rankingDay=''
  async function loadRanking(){const day=new Date().toISOString().slice(0,10);if(!isNative()||rankingDay===day)return;try{const values=await Promise.all(['daily-movies','daily-tv'].map(async(kind)=>{const rows:TmdbRankedEntry[]=[];for(let page=1;page<=5;page++){const result=await nativeCall<Record<string,any>>('catalog_metadata',{kind,query:'',year:null,tmdbId:null,page});const payload=result.data??result;if(!Array.isArray(payload.results))throw new Error('每日精选响应无效');for(const row of payload.results)if(Number.isSafeInteger(row.id)&&row.id>0)rows.push({id:row.id,type:kind==='daily-movies'?'movie':'tv'});if(page>=Number(payload.total_pages||1)||!payload.results.length)break}return rows}));dailyRanking.value=values.flat();rankingDay=day}catch{/* Electron daily picks can rotate matched catalog entries while ranking is offline. */}}
- async function load(){if(!isNative())return;const current=++generation;loading.value=true;try{const result=await nativeCall<Snapshot>('catalog_load');if(current===generation){data.value=result;error.value=''}}catch(e){if(current===generation)error.value=(e as Error).message}finally{if(current===generation)loading.value=false}}
+ async function load(){if(!isNative())return;const current=++generation;loading.value=true;try{const result=await nativeCall<Snapshot>('catalog_load');if(current===generation){data.value=result;loaded=true;error.value=''}}catch(e){if(current===generation)error.value=(e as Error).message}finally{if(current===generation)loading.value=false}}
+ async function ensureLoaded(){if(loaded)return;if(!initialLoad)initialLoad=load().finally(()=>{initialLoad=undefined});await initialLoad}
  function update(action:(draft:Snapshot)=>void,stillCurrent:()=>boolean=()=>true){
   const work=writes.then(async()=>{
    if(!stillCurrent())return
    if(!isNative())throw new Error('请在Tauri应用中操作媒体库')
    for(let attempt=0;attempt<3;attempt++){
     const fresh=await nativeCall<Snapshot>('catalog_load');if(!stillCurrent())return;const draft=structuredClone(fresh);action(draft)
-    try{const saved=await nativeCall<Snapshot>('catalog_save',{expectedRevision:fresh.revision,catalog:draft});generation++;data.value=saved;error.value='';return}
+    try{const saved=await nativeCall<Snapshot>('catalog_save',{expectedRevision:fresh.revision,catalog:draft});generation++;data.value=saved;loaded=true;error.value='';return}
     catch(cause){if((cause as {code?:string}).code!=='CATALOG_CONFLICT'||attempt===2)throw cause}
    }
   });writes=work.catch(()=>{});return work
@@ -95,7 +96,7 @@ export const useVideoCatalog=defineStore('video-catalog',()=>{
   await patch(item.id,{progress,lastWatched:new Date().toISOString(),watched:snapshot.state==='ended'||progress>=90?true:item.watched})
  }
  const items=computed(()=>data.value.items)
- return{data,items,loading,error,scanning,scanCount,scanSource,dailyRanking,loadRanking,load,update,patch,remove,collection,scan,scanFolder,removeFolder,cancelScan,play,playMany,recordProgress}
+ return{data,items,loading,error,scanning,scanCount,scanSource,dailyRanking,loadRanking,load,ensureLoaded,update,patch,remove,collection,scan,scanFolder,removeFolder,cancelScan,play,playMany,recordProgress}
 })
 export function applyMetadata(item:VideoItem,info:Record<string,any>,tv:boolean){
  item.backdrop=info.backdrop_path?'https://api.boxplayer.cc/api/tmdb/image/w780/'+String(info.backdrop_path).replace(/^\//,''):undefined;item.duration=Number(info.runtime||info.episode_run_time?.[0]||0)*60||item.duration;item.tmdbId=Number(info.id);item.name=info.title||info.name||item.name;item.type=tv?'tv':'movie';item.metadataSource='tmdb';item.year=String(info.release_date||info.first_air_date||'').slice(0,4)||item.year;item.releaseDate=info.release_date||info.first_air_date;item.rating=typeof info.vote_average==='number'?info.vote_average:undefined;item.overview=info.overview;item.genres=(info.genres||[]).map((genre:any)=>typeof genre==='string'?genre:genre.name).filter(Boolean);item.poster=info.poster_path?'https://api.boxplayer.cc/api/tmdb/image/w500/'+String(info.poster_path).replace(/^\//,''):undefined;item.certification=tmdbCertification(info,tv);item.networks=(info.networks||[]).map((network:any)=>network.name);item.isMiniseries=info.type==='Miniseries';item.collectionId=info.belongs_to_collection?.id;item.collectionName=info.belongs_to_collection?.name;item.scrapeRetrying=false;item.originalMetadata={...(item.originalMetadata||{}),id:item.id,parentId:'',type:item.type,name:item.name,genres:item.genres,addedAt:new Date(item.addedAt),driveFiles:[],credits:info.credits,productionCountries:(info.production_countries||[]).map((country:any)=>country.name||country.iso_3166_1).filter(Boolean),logoUrl:info.logo_path?'https://api.boxplayer.cc/api/tmdb/image/w500/'+String(info.logo_path).replace(/^\//,''):item.originalMetadata?.logoUrl,expectedSeasons:tv?(info.seasons||[]).filter((season:any)=>season.season_number>0).map((season:any)=>({seasonNumber:season.season_number,episodeCount:season.episode_count||0,airDate:season.air_date})):undefined}

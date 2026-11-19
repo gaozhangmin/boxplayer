@@ -215,7 +215,15 @@ async function submitPrompt() {
 }
 async function updateItem(item: ServerItem, action: 'watched' | 'favorite', watched?: boolean) {
   const account = { ...props.account }
-  await safely(async () => { if (action === 'favorite') await serverFavorite(account, item.id, !item.favorite); else await setWatched(account, item.id, watched ?? !item.watched); if (isCurrentAccount(account)) { menu.value = undefined; await load() } })
+  const value=action==='favorite'?!item.favorite:watched??!item.watched
+  await safely(async () => {
+   if(action==='favorite')await serverFavorite(account,item.id,value);else await setWatched(account,item.id,value)
+   if(!isCurrentAccount(account))return
+   const rows=[item,...items.value,...libraries.value,...detailChildren.value,...(seasonEpisodes.value||[]),...similar.value,...homeRows.value.flatMap(row=>row.items),...(detail.value?[detail.value]:[])]
+   for(const row of rows)if(row.id===item.id){if(action==='favorite')row.favorite=value;else{row.watched=value;row.progress=value?100:0}}
+   menu.value=undefined
+   window.dispatchEvent(new CustomEvent('boxplayer:server-home-changed',{detail:account.id}))
+  })
 }
 async function toggleContentFavorite() { const target = menu.value; if (!target) return; if (target.item) { await updateItem(target.item, 'favorite'); return } const account = { ...props.account }; await safely(async () => { const item = await serverDetail(account, target.target.id!); await serverFavorite(account, item.id, !item.favorite); if (isCurrentAccount(account)) menu.value = undefined }) }
 async function download(item: ServerItem) { const account = { ...props.account }; await safely(async () => { const result = await nativeCall<boolean>('source_download', { accountId: account.id, fileId: item.id, name:item.versions?.find(version=>version.id===getServerPlaybackSource(account.id,item.id))?.fileLabel||item.name,...(getServerPlaybackSource(account.id,item.id)?{preferredSourceId:getServerPlaybackSource(account.id,item.id)}:{}) }); if (result && isCurrentAccount(account)) { status.value = '下载完成'; emit('download-complete', item.id) } }) }
