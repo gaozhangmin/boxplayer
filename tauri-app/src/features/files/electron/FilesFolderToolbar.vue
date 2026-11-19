@@ -16,8 +16,8 @@ const removeFolderFavorite=()=>emit('remove'),renameFolder=()=>emit('rename')
               <a-doption class="unified-action-option server-root-option" @click="videoView?.playBrowse('play')"><template #icon><Play :size="14" /></template>{{ t('unified.play') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="videoView?.playBrowse('loop')"><template #icon><RefreshCw :size="14" /></template>{{ t('unified.loopPlay') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="videoView?.playBrowse('shuffle')"><template #icon><Shuffle :size="14" /></template>{{ t('unified.shufflePlay') }}</a-doption>
-              <a-doption class="unified-action-option server-root-option" @click="removeFolderFavorite"><template #icon><Star :size="14" /></template>{{ t('unified.removeFavoriteFolder') }}</a-doption>
-              <a-doption class="unified-action-option server-root-option" @click="renameFolder"><template #icon><Pencil :size="14" /></template>{{ t('unified.renameCollection') }}</a-doption>
+              <a-doption v-if="manageFavorite" class="unified-action-option server-root-option" @click="removeFolderFavorite"><template #icon><Star :size="14" /></template>{{ t('unified.removeFavoriteFolder') }}</a-doption>
+              <a-doption v-if="manageFavorite" class="unified-action-option server-root-option" @click="renameFolder"><template #icon><Pencil :size="14" /></template>{{ t('unified.renameCollection') }}</a-doption>
             </template>
 </template></a-dropdown></div></template>
 <style scoped>.round-button{display:grid;place-items:center;border:1px solid var(--color-border-2);background:var(--color-fill-1);border-radius:50%;width:36px;height:36px;flex-shrink:0}
