@@ -36,7 +36,7 @@ Cancel increments native generation immediately even while an exchange holds the
 
 ## Fixed publicAPI proxy contract — backend confirmation required
 
-Native HTTP uses existing `Gateway` and the fixed origin `https://api.xbyvideohub.com`. The implemented prefix is `/api/trakt` followed by the canonical Trakt path/query. There is no renderer-supplied origin, secret or redirect URI.
+Native HTTP uses existing `Gateway` and the fixed origin `https://api.boxplayer.cc`. The implemented prefix is `/api/trakt` followed by the canonical Trakt path/query. There is no renderer-supplied origin, secret or redirect URI.
 
 The inspected local `boxplayer-api/server` currently contains no Trakt handler. This is a required backend contract, NOT a claim that the route is deployed. No live requests were made to verify it.
 

@@ -3,7 +3,7 @@ import {isNative} from '@/platform/native'
  * continue using their existing native account-bound Blob adapter. */
 export function cachedArtwork(url:string|undefined):string|undefined{
  if(!url||!isNative())return url
- try{const parsed=new URL(url);if(parsed.origin!=='https://api.xbyvideohub.com'||!parsed.pathname.startsWith('/api/tmdb/image/')||parsed.search||parsed.hash||parsed.username||parsed.password)return url
+ try{const parsed=new URL(url);if(!['https://api.boxplayer.cc','https://api.xbyvideohub.com'].includes(parsed.origin)||!parsed.pathname.startsWith('/api/tmdb/image/')||parsed.search||parsed.hash||parsed.username||parsed.password)return url
  const scheme=/Windows|Android/.test(navigator.userAgent)?'http://mscache.localhost':'mscache://localhost'
  return scheme+'/image?url='+encodeURIComponent(url)
  }catch{return url}

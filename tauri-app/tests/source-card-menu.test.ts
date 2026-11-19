@@ -10,7 +10,7 @@ beforeEach(()=>{const data=new Map<string,string>();vi.stubGlobal('localStorage'
 it('shares Home visibility and covers without removing the Files card',async()=>{
  const pinia=createPinia(),store=useFileSourcesStore(pinia);store.replaceSnapshot({localFolders:[{id:'local',name:'Films'}],drives:[],mediaServers:[],hasDirectURLs:false})
  const wrapper=mount(SourceCardMenu,{props:{sourceId:'local',x:10,y:10},global:{plugins:[pinia]}});expect(wrapper.text()).toContain('循环播放');await wrapper.findAll('button').find(b=>b.text()==='在主屏幕隐藏')!.trigger('click');expect(store.homeCards).toEqual([]);expect(store.cards).toHaveLength(1)
- await wrapper.findAll('button').find(b=>b.text()==='选择封面')!.trigger('click');await wrapper.get('input').setValue('https://api.xbyvideohub.com/cover.jpg');await wrapper.get('form').trigger('submit');await flushPromises();expect(store.favoriteCards[0]!.cover).toBe('https://api.xbyvideohub.com/cover.jpg')
+ await wrapper.findAll('button').find(b=>b.text()==='选择封面')!.trigger('click');await wrapper.get('input').setValue('https://api.boxplayer.cc/cover.jpg');await wrapper.get('form').trigger('submit');await flushPromises();expect(store.favoriteCards[0]!.cover).toBe('https://api.boxplayer.cc/cover.jpg')
 })
 it('unfavorites a real local root while keeping its stored device source',async()=>{
  const pinia=createPinia(),store=useFileSourcesStore(pinia);store.replaceSnapshot({localFolders:[{id:'local',name:'Films'}],drives:[],mediaServers:[],hasDirectURLs:false});const removeFolder=vi.fn(async()=>{})

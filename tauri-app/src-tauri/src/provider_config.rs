@@ -8,7 +8,12 @@ pub fn site_url() -> Result<String, crate::settings::AppError> {
     let url = values["BOXPLAYER_SITE_URL"]
         .as_str()
         .unwrap_or("")
+        .trim()
         .trim_end_matches('/');
+    let url = match url {
+        "" | "https://xbyvideohub.com" | "https://www.xbyvideohub.com" | "https://xbysite.pages.dev" => "https://boxplayer.cc",
+        custom => custom,
+    };
     let parsed = url::Url::parse(url).map_err(|_| {
         crate::settings::AppError::new("ACCOUNT_CONFIG", "此开发包缺少账号服务配置", false)
     })?;

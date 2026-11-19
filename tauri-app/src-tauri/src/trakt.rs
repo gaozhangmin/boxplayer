@@ -15,7 +15,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::Mutex;
-const PUBLIC_API: &str = "https://api.xbyvideohub.com";
+const PUBLIC_API: &str = "https://api.boxplayer.cc";
 const SLOT: &str = "trakt-account-v1";
 fn err(code: &'static str) -> AppError {
     AppError::new(
@@ -1269,7 +1269,7 @@ mod protocol_tests {
         let r = &requests[0];
         assert_eq!(
             r.url,
-            "https://api.xbyvideohub.com/api/trakt/oauth/device/code"
+            "https://api.boxplayer.cc/api/trakt/oauth/device/code"
         );
         assert_eq!(r.method, "POST");
         assert_eq!(r.headers["trakt-api-key"], "synthetic-client");

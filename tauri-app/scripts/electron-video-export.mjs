@@ -27,8 +27,8 @@ export async function exportVideoLibrary({items,bindings,sources=[],playlists={}
    for(const key of ['year','releaseDate','rating','certification','overview','tmdbId','collectionId','collectionName','metadataSource'])if(item[key]!==undefined)row[key]=item[key]
    if(season!==undefined){row.seasonNumber=season;row.episodeNumber=episode}
    if(item.lastWatched)row.lastWatched=new Date(item.lastWatched).toISOString()
-   if(item.posterUrl?.startsWith('https://api.xbyvideohub.com/api/tmdb/image/'))row.poster=item.posterUrl
-   if(item.backdropUrl?.startsWith('https://api.xbyvideohub.com/api/tmdb/image/'))row.backdrop=item.backdropUrl
+   if(item.posterUrl?.match(/^https:\/\/api\.(?:boxplayer\.cc|xbyvideohub\.com)\/api\/tmdb\/image\//))row.poster=item.posterUrl
+   if(item.backdropUrl?.match(/^https:\/\/api\.(?:boxplayer\.cc|xbyvideohub\.com)\/api\/tmdb\/image\//))row.backdrop=item.backdropUrl
    for(const key of ['favorite','watched','personalRating','continueHidden','continueAdded'])if(user[key]!==undefined)row[key]=user[key]
    // Remove file links embedded in seasons/collections: full metadata is retained
    // but account credentials/thumbnail signed URLs are not portable data.
