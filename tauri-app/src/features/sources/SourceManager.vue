@@ -108,7 +108,7 @@ async function webLogin() {
 }
 async function save() {
   if (busy.value) return
-  if(provider.value!=='local'&&!authenticationForm.value){authorizing.value=true;return}
+  if(!['local','139'].includes(provider.value)&&!authenticationForm.value){authorizing.value=true;return}
   busy.value = true; error.value = ''
   try {
     if(provider.value==='local'){if(!localChoice.value)return;const source=savedLocal.value||await nativeCall<{id:string;name:string}>('local_save_chosen_source',{selectionId:localChoice.value.id,name:name.value.trim()});savedLocal.value=source;await sources.refresh();if(props.folderCatalog)await props.folderCatalog.scanFolder(source.id,'');else await catalog.scan(source.id);localChoice.value=undefined;savedLocal.value=undefined;emit('close');return}
@@ -231,7 +231,7 @@ async function save() {
           <p v-if="error" class="source-error" role="alert">{{ error }}</p>
           <button v-if="provider==='alipan-open'" class="advanced-toggle" type="button" :disabled="busy" @click="webLogin">使用网页登录</button>
           </template>
-          <div class="source-buttons"><Button type="submit" :disabled="busy||(provider==='local'&&!localChoice)||(['jellyfin','emby','webdav','alist'].includes(provider)&&!url.trim())">{{provider==='local'?'保存':!authenticationForm?'连接': busy ? '正在连接…' : provider === '139' ? '打开官方登录' : provider === 'guangya' ? (smsSession ? '登录' : '获取短信验证码') : qrProviders.includes(provider) ? '生成二维码' : provider==='plex'?'连接':oauthProviders.includes(provider) ? '在浏览器登录' : '新增' }}</Button></div>
+          <div class="source-buttons"><Button type="submit" :disabled="busy||(provider==='local'&&!localChoice)||(['jellyfin','emby','webdav','alist'].includes(provider)&&!url.trim())">{{provider==='local'?'保存':provider==='139'?(busy?'正在连接…':'打开官方登录'):!authenticationForm?'连接': busy ? '正在连接…' : provider === 'guangya' ? (smsSession ? '登录' : '获取短信验证码') : qrProviders.includes(provider) ? '生成二维码' : provider==='plex'?'连接':oauthProviders.includes(provider) ? '在浏览器登录' : '新增' }}</Button></div>
           </form>
         </div>
       </DialogContent>

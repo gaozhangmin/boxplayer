@@ -48,3 +48,13 @@ it('merges legacy folders and content using the original extraction and mapper',
  expect(result.entries.map(row=>[row.id,row.isDirectory])).toEqual([['folder',true],['movie',false]])
  expect((result.entries[1] as any).electronModel.icon).not.toBe('iconfile-txt')
 })
+
+it('lists the provider root and keeps slash-containing cloud IDs opaque', async () => {
+ const id='fixture/opaque+id='
+ rows=[{...movie,fileId:id,parentFileId:'root:/'}]
+ const root=await cloud139.list(account,'')
+ expect(root.entries[0]).toMatchObject({id,originalParent:''})
+ rows=[{...movie,parentFileId:id}]
+ await cloud139.list(account,id)
+ expect(vi.mocked(json).mock.lastCall?.[3]).toMatchObject({parentFileId:id})
+})

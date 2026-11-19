@@ -18,3 +18,21 @@ it('offers favorite management only on the bookmarked directory', async () => {
   expect(document.body.textContent).toContain('重命名收藏夹')
  } finally { wrapper.unmount() }
 })
+
+it('uses one toolbar button for name and direction and omits sorting from More', async () => {
+ const wrapper = mount(FilesFolderToolbar, {
+  attachTo: document.body,
+  props: { mode: 'grid', descending: false, selection: false }
+ })
+ try {
+  const sort = wrapper.get('.files-name-sort')
+  expect(sort.attributes('aria-label')).toMatch(/名称.*升序/)
+  await sort.trigger('click')
+  expect(wrapper.emitted('direction')).toHaveLength(1)
+  await wrapper.setProps({ descending: true })
+  expect(sort.attributes('aria-label')).toMatch(/名称.*降序/)
+  await wrapper.get('.more-button').trigger('click')
+  await flushPromises()
+  expect(document.body.querySelector('.arco-dropdown')?.textContent).not.toContain('排序')
+ } finally { wrapper.unmount() }
+})

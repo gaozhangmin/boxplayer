@@ -42,11 +42,11 @@ function entries(data:Item,account:Account,parent:string){
   if(!item||typeof item!=='object'||Array.isArray(item))throw Error('移动云盘文件模型无效')
   const id=cloud139Id(item.fileId||item.catalogId||item.catalogID||item.contentID)
   const actualParent=item.parentFileId??item.parentCatalogId
-  if(actualParent!==undefined&&cloud139Id(actualParent,true)!==parent)throw Error('移动云盘文件父目录不匹配')
+  if(actualParent!=null&&cloud139Id(actualParent,true)!==parent)throw Error('移动云盘文件父目录不匹配')
   if(item.type!==undefined&&!['folder','file'].includes(item.type)||item.type==='file'&&!!(item.catalogId||item.catalogID))throw Error('移动云盘文件类型冲突')
   const name=item.name||item.catalogName||item.contentName
   if(typeof name!=='string'||!name)throw Error('移动云盘文件缺少名称')
-  const model=mapCloud139FileToAliModel(item,account.id,parent==='/'?'cloud139_root':parent)
+  const model=mapCloud139FileToAliModel(parent==='/'?{...item,parentFileId:'cloud139_root'}:item,account.id,parent)
   if(model.file_id!==id||model.name!==name||!Number.isSafeInteger(model.size)||model.size<0||!Number.isFinite(model.time)||typeof model.thumbnail!=='string')throw Error('移动云盘媒体字段无效')
   return {id,name,isDirectory:model.isDir,size:model.size,modified:model.time,playable:!model.isDir&&['video','video2'].includes(model.category),originalParent:parent==='/'?'':parent,electronModel:model}
  })

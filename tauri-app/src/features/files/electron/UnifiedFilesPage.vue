@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed,ref,onMounted,onUnmounted,watch,nextTick} from 'vue'
-import {Folder,Network,Play,RefreshCw,Shuffle,Star,Pencil,Eye,EyeOff,Move,Image,Trash2,List,SquareCheck,ListPlus,GalleryVerticalEnd,Grid2X2,ArrowDown,ArrowUp,ChevronDown,Ellipsis,Plus,ListFilter,LockKeyhole} from 'lucide-vue-next'
+import {Folder,Network,Play,RefreshCw,Shuffle,Star,Pencil,Eye,EyeOff,Move,Image,Trash2,List,SquareCheck,ListPlus,GalleryVerticalEnd,Grid2X2,ChevronDown,Ellipsis,Plus,LockKeyhole} from 'lucide-vue-next'
 import {Dropdown as ADropdown,Doption as ADoption} from '@arco-design/web-vue'
 import LibraryObjectActions from './LibraryObjectActions.vue'
 import MediaServerIcon from './MediaServerIcon.vue'
@@ -9,6 +9,7 @@ import AddFileSourceModal from './AddFileSourceModal.vue'
 import SourceEmptyState from './SourceEmptyState.vue'
 import {message} from '../adapters/sourceServices'
 import {t} from './i18n'
+import FilesNameSortButton from './FilesNameSortButton.vue'
 import {reorderFileSourceIds,applyFileSourceOrder} from './fileSourceOrder'
 import {useFilesPorts} from '../adapters/filesPorts'
 const props=defineProps<{toolbarTarget?:string;menusOnly?:boolean}>()
@@ -162,10 +163,9 @@ function openFileSource(card: typeof fileSourceCards.value[number]) { if (fileSo
 
 defineExpose({coverForKey:favoriteCover,openMenu:openFileCardMenu,openAdd:()=>{showAddFileSource.value=true}})
 </script>
-<template><Teleport v-if="toolbarReady&&!menusOnly" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><div class="electron-files-toolbar"><button class="round-button" :aria-label="collectionMode === 'grid' ? t('mediaServer.listView') : t('mediaServer.gridView')" @click="collectionMode = collectionMode === 'grid' ? 'list' : 'grid'"><Grid2X2 v-if="collectionMode === 'grid'" :size="18"/><List v-else :size="18"/></button><button class="round-button" :aria-label="t('unified.sortLabel')" @click="ports.toggleDirection"><ArrowDown v-if="ports.descending.value" :size="16"/><ArrowUp v-else :size="16"/></button><a-dropdown trigger="click" position="br"><button class="round-button more-button" :aria-label="t('media.manager')"><Ellipsis :size="18"/><ChevronDown :size="10"/></button><template #content>            <template v-if="section === 'files'">
+<template><Teleport v-if="toolbarReady&&!menusOnly" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><div class="electron-files-toolbar"><button class="round-button" :aria-label="collectionMode === 'grid' ? t('mediaServer.listView') : t('mediaServer.gridView')" @click="collectionMode = collectionMode === 'grid' ? 'list' : 'grid'"><Grid2X2 v-if="collectionMode === 'grid'" :size="18"/><List v-else :size="18"/></button><FilesNameSortButton :descending="fileSourceDescending" @toggle="ports.toggleDirection"/><a-dropdown trigger="click" position="br"><button class="round-button more-button" :aria-label="t('media.manager')"><Ellipsis :size="18"/><ChevronDown :size="10"/></button><template #content>            <template v-if="section === 'files'">
               <a-doption class="unified-action-option server-root-option" @click="startSourceReordering"><template #icon><Move :size="14" /></template>{{ t('unified.sourceReorder') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="toggleFileSourceSelection"><template #icon><SquareCheck :size="14" /></template>{{ t('unified.selectItems') }}</a-doption>
-              <a-doption class="unified-action-option server-root-option" @click="ports.toggleDirection()"><template #icon><ListFilter :size="14" /></template>{{ t('unified.sortLabel') }}: {{ t('unified.sort.title') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" disabled><template #icon><Star :size="14" /></template>{{ t('unified.addToFavorites') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" disabled><template #icon><LockKeyhole :size="14" /></template>{{ t('unified.enablePasswordLock') }}</a-doption>
             </template>
