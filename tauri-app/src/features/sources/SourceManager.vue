@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SavedSourceEditor from './SavedSourceEditor.vue'
+import SourceFormPresentation, { sourceProviderOptions as options } from './SourceFormPresentation.vue'
 import OperationProgressDialog from '@/features/library/detailDialogs/OperationProgressDialog.vue'
 import ConnectionFailureDialog from '@/features/library/detailDialogs/ConnectionFailureDialog.vue'
 import {testHttpConnection} from './testConnection'
@@ -32,7 +33,6 @@ const browsing=ref('')
 async function selectSaved(id:string){await back();browsing.value=id}
 async function editSaved(id:string){await back();editingAccountId.value=id}
 const emit = defineEmits<{ saved: [account: Account]; close: []; local: []; select: [id: string] }>()
-const options = [['smb','SMB'], ['nfs','NFS'], ['ftp','FTP'], ['webdav', 'WebDAV'], ['alist', 'AList'], ['jellyfin', 'Jellyfin'], ['emby', 'Emby'], ['plex', 'Plex'], ['alipan-open','阿里云盘'], ['baidu','百度网盘'], ['123','123网盘'], ['115', '115网盘'], ['quark', '夸克网盘'], ['guangya', '光鸭云盘'], ['pikpak', 'PikPak'], ['139', '139云盘'], ['189', '天翼云盘'], ['onedrive', 'OneDrive'], ['google', 'Google Drive'], ['dropbox', 'Dropbox'], ['box', 'Box']] as const
 const provider = ref<string>('')
 const authorizing=ref(false),localChoice=ref<{id:string;path:string;name:string}>(),savedLocal=ref<{id:string;name:string}>()
 const deviceName=/Mac/i.test(navigator.platform)?'Mac':/Win/i.test(navigator.platform)?'PC':'Linux'
@@ -223,9 +223,7 @@ async function save() {
             </div></section>
           </div>
           <form v-else-if="plexDiscovery" class="plex-modal" @submit.prevent="savePlex"><p v-if="!plexDiscovery.resources.length" class="plex-empty">没有可用的 Plex 资源</p><div class="plex-resource-list"><button v-for="resource in plexDiscovery.resources" :key="resource.id" type="button" class="plex-resource-row" :class="{selected:plexSelected.includes(resource.id)}" :aria-pressed="plexSelected.includes(resource.id)" @click="plexSelected=plexSelected.includes(resource.id)?plexSelected.filter(id=>id!==resource.id):[...plexSelected,resource.id]"><Server :size="20"/><span><strong>{{resource.name}}</strong><small>{{resource.connections}} 个可用连接</small></span><input type="checkbox" :checked="plexSelected.includes(resource.id)" tabindex="-1" aria-hidden="true"/></button></div><p v-if="error" role="alert">{{error}}</p><footer class="plex-actions"><button type="button" :disabled="busy" @click="back">取消</button><Button type="submit" :disabled="busy||!plexSelected.length">保存</Button></footer></form>
-          <form v-else class="source-form" :class="{'server-connection':['jellyfin','emby','plex'].includes(provider)}" @submit.prevent="save">
-          <label>名称<input v-model="name" :disabled="busy" :placeholder="provider==='local'?'文件夹名称':'我的 '+title" autocomplete="off" /></label>
-          <label>通讯协议<span class="protocol-name">{{ provider==='local'?deviceName:title }}</span></label>
+          <SourceFormPresentation v-else v-model:name="name" :provider="provider" :protocol-name="provider==='local'?deviceName:undefined" :disabled="busy" :name-placeholder="provider==='local'?'文件夹名称':'我的 '+title" :submit-disabled="(provider==='local'&&!localChoice)||(['jellyfin','emby','webdav','alist'].includes(provider)&&!url.trim())" :submit-label="provider==='local'?'保存':provider==='139'?(busy?'正在连接…':'打开官方登录'):!authenticationForm?'连接': busy ? '正在连接…' : provider === 'guangya' ? (smsSession ? '登录' : '获取短信验证码') : qrProviders.includes(provider) ? '生成二维码' : provider==='plex'?'连接':oauthProviders.includes(provider) ? '在浏览器登录' : '新增'" @submit="save">
           <label v-if="provider==='local'">文件夹<span class="local-path"><span>{{localChoice?.path}}</span><button type="button" :disabled="busy" @click="chooseLocal">选择文件夹</button></span></label>
           <template v-if="authenticationForm">
           <label v-if="!['guangya','pikpak','139','plex'].includes(provider) && !oauthProviders.includes(provider) && !qrProviders.includes(provider)">地址<input v-model="url" :disabled="busy" :placeholder="['jellyfin','emby','plex'].includes(provider) ? 'iMac.local' : 'https://server.example/dav/'" required autocomplete="off" /></label>
@@ -242,8 +240,7 @@ async function save() {
           <p v-if="error" class="source-error" role="alert">{{ error }}</p>
           <button v-if="provider==='alipan-open'" class="advanced-toggle" type="button" :disabled="busy" @click="webLogin">使用网页登录</button>
           </template>
-          <div class="source-buttons"><Button type="submit" :disabled="busy||(provider==='local'&&!localChoice)||(['jellyfin','emby','webdav','alist'].includes(provider)&&!url.trim())">{{provider==='local'?'保存':provider==='139'?(busy?'正在连接…':'打开官方登录'):!authenticationForm?'连接': busy ? '正在连接…' : provider === 'guangya' ? (smsSession ? '登录' : '获取短信验证码') : qrProviders.includes(provider) ? '生成二维码' : provider==='plex'?'连接':oauthProviders.includes(provider) ? '在浏览器登录' : '新增' }}</Button></div>
-          </form>
+          </SourceFormPresentation>
         </div>
       </DialogContent>
     </DialogPortal>
@@ -274,22 +271,11 @@ async function save() {
 .provider-row:hover { color: var(--primary); }
 .provider-row > svg:first-child { color: var(--primary); flex: none; }
 .provider-row > svg:last-child { margin-left: auto; color: var(--muted-text); }
-.source-form { padding: 34px 38px; display: grid; gap: 8px; align-content: start; }
-.source-form label { display: grid; grid-template-columns: 100px minmax(0,1fr); min-height: 30px; align-items: center; gap: 16px; font-size: 14px; text-align: right; }
-.source-form input { min-width: 0; width: 100%; border: 0; border-bottom: 1px solid transparent; padding: 4px 0; background: transparent; color: inherit; outline-offset: 3px; }
-.advanced-toggle { justify-self: center; border: 0; border-radius: 20px; padding: 5px 12px; background: var(--secondary); color: var(--muted-text); font-size: 12px; cursor: pointer; }
-.source-form select { padding: 6px; border: 0; border-radius: 7px; background: var(--secondary); color: inherit; }
-.protocol-name { text-align: left; color: var(--muted-text); }
 .source-description { color: var(--muted-text); font-size: 12px; margin: 0; }
-.source-form input:focus { border-bottom-color: var(--primary); }
-.source-form > img { justify-self: center; }
-.source-buttons { display: flex; justify-content: center; gap: 8px; margin-top: 10px; }
-.source-buttons > button { min-width: 128px; height: 30px; border-radius: 5px; font-size: 14px; }
 .source-error { color: #c33; }
-@media (max-width: 650px) { .source-dialog { grid-template-columns: 32% minmax(0,1fr); } .source-sidebar { padding-inline: 8px; } .source-form { padding: 20px 16px; } .source-form label { grid-template-columns: 1fr; gap: 5px; text-align: left; } }
-.source-header{min-height:64px;padding:0 55px}.source-back{left:20px;top:16px}.source-title{font-size:17px;font-weight:650}.source-catalog{padding:0 30px 24px}.source-catalog h3{font-size:12px;font-weight:500;margin:20px 0 10px}.provider-group{background:transparent;border-radius:0}.provider-row{min-height:44px;padding:8px 0;border:0;gap:14px;font-size:14px;font-weight:550}.source-form{max-width:520px;width:100%;align-self:center;padding:56px 28px 32px}.source-form label{min-height:40px}.source-form input{padding:8px 4px;border:0;border-radius:4px;background:transparent}.source-buttons{justify-content:flex-start;margin:24px 0 0 116px}.source-buttons>button{min-height:36px;border-radius:7px}.local-path{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;overflow-wrap:anywhere}.local-path button{border:1px solid var(--control-border);border-radius:7px;padding:6px 16px;background:var(--secondary)}
-.source-form.server-connection{width:calc(100% - 56px);max-width:none;margin:0 28px;padding:20px 0 0;gap:0}.server-connection .advanced-toggle{justify-self:start;display:flex;align-items:center;gap:12px;padding:12px 0;margin:22px 0 4px 116px;background:transparent;border-radius:0;font-size:14px}.server-connection .source-buttons{margin:24px 0 0 116px}.server-connection .source-buttons>button{width:145px;height:42px;border-radius:9px}.source-main:has(.server-connection) .source-header{margin:0 28px;padding:0;width:calc(100% - 56px)}.source-main:has(.server-connection) .source-back{left:0;top:20px;width:40px;height:40px}
-.saved-heading{margin:16px 8px 8px}.source-main:has(.server-connection){padding-top:10px}.source-main:has(.server-connection) .source-title{font-weight:700;line-height:26.714px;margin:0}.server-connection input:not([type=checkbox]){line-height:22px}.server-connection .protocol-name{padding:8px 4px;line-height:22px}.server-connection .advanced-toggle{line-height:22px}.server-connection .source-buttons{margin-top:26px}.server-connection .source-buttons>button{font-size:16px}.server-connection>label:first-child input::placeholder{color:var(--foreground)}.library-mode input{width:16px;height:16px;margin:0;justify-self:start;accent-color:var(--primary)}
+@media (max-width: 650px) { .source-dialog { grid-template-columns: 32% minmax(0,1fr); } .source-sidebar { padding-inline: 8px; } }
+.source-header{min-height:64px;padding:0 55px}.source-back{left:20px;top:16px}.source-title{font-size:17px;font-weight:650}.source-catalog{padding:0 30px 24px}.source-catalog h3{font-size:12px;font-weight:500;margin:20px 0 10px}.provider-group{background:transparent;border-radius:0}.provider-row{min-height:44px;padding:8px 0;border:0;gap:14px;font-size:14px;font-weight:550}.local-path{display:flex;flex-direction:column;align-items:flex-start;gap:10px;text-align:left;overflow-wrap:anywhere}.local-path button{border:1px solid var(--control-border);border-radius:7px;padding:6px 16px;background:var(--secondary)}.source-main:has(.server-connection) .source-header{margin:0 28px;padding:0;width:calc(100% - 56px)}.source-main:has(.server-connection) .source-back{left:0;top:20px;width:40px;height:40px}
+.saved-heading{margin:16px 8px 8px}.source-main:has(.server-connection){padding-top:10px}.source-main:has(.server-connection) .source-title{font-weight:700;line-height:26.714px;margin:0}
 </style>
 
 <style scoped>

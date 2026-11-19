@@ -21,7 +21,7 @@ it('sends play controls with the current session and rejects an older event', as
   expect((wrapper.get('input.top-bar__input').element as HTMLInputElement).value).toBe('~/Videos/video.mp4')
   expect(wrapper.find('.controls-left').exists()).toBe(true)
   expect(wrapper.find('.controls-right').exists()).toBe(true)
-  expect(wrapper.find('.side-actions').exists()).toBe(true)
+  expect(wrapper.find('.side-actions').exists()).toBe(false)
   expect(wrapper.find('.player-diagnostics').exists()).toBe(false)
   expect(wrapper.find('select[aria-label="倍速"]').exists()).toBe(false)
   wrapper.unmount()

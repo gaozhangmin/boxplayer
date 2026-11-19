@@ -1,0 +1,133 @@
+/* Shared control material for non-player Tauri windows and Teleport surfaces.
+   No reset, dimensions, positioning or pseudo-elements: embedded players and
+   switches keep their hit areas, tooltips, thumbs and vendor interaction layers. */
+:root {
+  --app-glass-fill: rgba(95, 95, 105, .12);
+  --app-glass-hover: rgba(255, 255, 255, .38);
+  --app-glass-selected: rgba(255, 255, 255, .46);
+  --app-glass-edge: rgba(80, 80, 95, .24);
+  --app-glass-shine: rgba(255, 255, 255, .92);
+  --app-glass-shadow: rgba(25, 25, 35, .1);
+  --app-glass-ink: #252528;
+  --app-glass-accent: var(--primary, #287b4e);
+  --app-glass-danger: #b42338;
+  --app-glass-reflection: linear-gradient(165deg, rgba(255,255,255,.32), transparent 42%, rgba(255,255,255,.06) 70%, rgba(255,255,255,.22));
+  --app-glass-depth: inset 0 1px 0 var(--app-glass-shine), inset 0 -1px 1px rgba(255,255,255,.62), inset 1px 0 2px rgba(255,255,255,.3), inset -1px 0 2px rgba(40,40,55,.08), 0 2px 5px var(--app-glass-shadow);
+  --app-glass-blur: blur(8px) saturate(180%) brightness(1.04);
+}
+:root.dark, :root[data-theme='dark'], body[arco-theme='dark'] {
+  --app-glass-fill: rgba(65,65,72,.32);
+  --app-glass-hover: rgba(100,100,110,.4);
+  --app-glass-selected: rgba(125,125,135,.46);
+  --app-glass-edge: rgba(255,255,255,.22);
+  --app-glass-shine: rgba(255,255,255,.48);
+  --app-glass-shadow: rgba(0,0,0,.22);
+  --app-glass-ink: #f5f5f7;
+  --app-glass-danger: #ff8795;
+}
+
+/* Root specificity also beats retained vendor !important accent declarations.
+   Cards are content, switches are stateful tracks; neither is an action surface. */
+:root:root:not(.player-window) body :is(button, input[type='button'], input[type='submit'], .bp-glass-control, [role='button']):not(:where(
+  [role='switch'], .settings-switch, .arco-switch, .ant-switch, .track-menu__mode-switch,
+  .media-card, .poster-tile, .folder-browser-card, .local-file-card, .file-source-card,
+  .episode-card, .cast-card, .collection-poster-card, .resume-card, .tmdb-result-card,
+  .preset-card, .home-card, .home-insight-card, .home-next-card, .aml-home-card,
+  .podcast-continue-card, .pl-card, .favorite-shortcut, .detail-playlist-member,
+  .server-home-cards > button, .server-source-card,
+  :has(img), .category-grid > article > button:first-child, [data-glass-control='off']
+)) {
+  border-width: var(--app-control-border-width, 1px) !important;
+  border-style: solid !important;
+  border-color: var(--app-control-edge, var(--app-glass-edge)) !important;
+  border-radius: var(--app-control-radius, 999px) !important;
+  background-color: var(--app-control-fill, var(--app-glass-fill)) !important;
+  background-image: var(--app-control-reflection, var(--app-glass-reflection)) !important;
+  color: var(--app-control-ink, var(--app-glass-ink)) !important;
+  box-shadow: var(--app-control-depth, var(--app-glass-depth)) !important;
+  backdrop-filter: var(--app-control-blur, var(--app-glass-blur)) !important;
+  -webkit-backdrop-filter: var(--app-control-blur, var(--app-glass-blur)) !important;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+/* Flat variants share the material palette without floating a disk behind every row. */
+:root:root:not(.player-window) body :is(
+  .sidebar button, .settings-sidebar button, .source-sidebar button,
+  .electron-library-sidebar button, .electron-files-sidebar button, .file-source-navigation button,
+  .settings-tab, .settings-back, .settings-collapse, .saved-source, .provider-row,
+  .saved-source-edit, .saved-source-pencil, .file-source-handle, .source-file-row button,
+  .saved-source-row button, .file-source-list button, [role='row'] button,
+  .arco-table-tr button, .arco-list-item button, .ant-list-item button,
+  .plex-resource-row, .group-heading, .group-toggle, .nav-children button,
+  [role='menu'] button, [role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox'],
+  .arco-dropdown-option, .ant-dropdown-menu-item, .context-menu__item, .track-menu__item,
+  .detail-more-action-item, .advanced-toggle, .library-object-actions button,
+  .trigger-popup button, .source-context-menu button, .server-sort-menu button,
+  .settings-segment button, [role='tab'], .transfer-tab, .local-beat-tab,
+  .track-menu__mode-toggle, .window-controls button, .top-bar__window-control
+) {
+  --app-control-fill: transparent;
+  --app-control-reflection: none;
+  --app-control-edge: transparent;
+  --app-control-radius: 8px;
+  --app-control-depth: none;
+  --app-control-border-width: 0px;
+  --app-control-blur: none;
+}
+:root:root:not(.player-window) body :is(.primary, .bg-primary, .arco-btn-primary, .ant-btn-primary, .file-source-add, .add-source-button, .source-submit, .composer-send-btn, .na-primary-btn, .na-send-btn, .home-management .confirm, .bp-glass-control[data-button-variant='default']) {
+  --app-control-fill: color-mix(in srgb, var(--app-glass-accent) 20%, transparent);
+  --app-control-edge: color-mix(in srgb, var(--app-glass-accent) 40%, transparent);
+  --app-control-ink: var(--app-glass-accent);
+}
+/* Source rows and their edit affordance stay flat and visually quiet. */
+:root:root:not(.player-window) body :is(.saved-source-edit, .saved-source-pencil) {
+  --app-control-ink: var(--muted-text, #8b8b8f);
+}
+:root:root:not(.player-window) body :is(.saved-source-edit, .saved-source-pencil) svg {
+  color: var(--muted-text, #8b8b8f) !important;
+}
+:root:root:not(.player-window) body :is(.danger, .destructive, .arco-btn-status-danger, .ant-btn-dangerous, .na-danger-link, [data-button-tone='danger']) {
+  --app-control-fill: color-mix(in srgb, var(--app-glass-danger) 9%, transparent);
+  --app-control-ink: var(--app-glass-danger);
+}
+:root:root:not(.player-window) body :is(button, .bp-glass-control, [role='button'], [role='menuitem'], [role='tab']):hover:not(:disabled):not([aria-disabled='true']) {
+  --app-control-fill: var(--app-glass-hover);
+}
+:root:root:not(.player-window) body :is(button, .bp-glass-control, [role='button'], [role='tab']):is(.active, .selected, [aria-pressed='true'], [aria-checked='true'], [aria-selected='true'], [data-state='on']) {
+  --app-control-fill: var(--app-glass-selected);
+  --app-control-ink: var(--app-glass-accent);
+}
+:root:root:not(.player-window) body :is(button, .bp-glass-control, [role='button']):active:not(:disabled):not([aria-disabled='true']) {
+  --app-control-fill: color-mix(in srgb, var(--app-glass-ink) 14%, var(--app-glass-fill));
+}
+:root:root:not(.player-window) body :is(button, .bp-glass-control, [role='button'], [role='menuitem'], [role='tab']):focus-visible {
+  outline: 2px solid var(--app-glass-accent) !important;
+  outline-offset: 3px;
+}
+:root:root:not(.player-window) body :is(button, .bp-glass-control, [role='button']):is(:disabled, [aria-disabled='true']) {
+  opacity: .45 !important;
+  cursor: default !important;
+}
+/* Preserve stateful track geometry and its existing checked fill/thumb motion. */
+:root:root:not(.player-window) body :is([role='switch'], .settings-switch, .arco-switch, .ant-switch) {
+  box-shadow: inset 0 1px 1px var(--app-glass-shine), 0 1px 2px var(--app-glass-shadow);
+}
+:root:root:not(.player-window) body :is(.top-bar__window-control--close, .window-controls button:last-child):hover {
+  --app-control-fill: rgba(210,40,60,.8);
+  --app-control-ink: white;
+}
+/* Text actions that previously had no hit-area padding also need a usable pill. */
+:root:root:not(.player-window) body :is(.server-home-sections header > button, .see-all-button, .row-heading > button, .section-header .more-link) {
+  min-height: 30px;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  body :is(button, .bp-glass-control, [role='button']) { transition: none !important; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --app-glass-fill: rgba(235,235,239,.92); }
+  :root.dark, :root[data-theme='dark'], body[arco-theme='dark'] { --app-glass-fill: rgba(55,55,62,.94); }
+}

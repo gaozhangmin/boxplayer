@@ -1,5 +1,5 @@
 import { mount, flushPromises,DOMWrapper } from '@vue/test-utils'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import FilesFolderToolbar from '@/features/files/electron/FilesFolderToolbar.vue'
 
 it('offers favorite management only on the bookmarked directory', async () => {
@@ -19,25 +19,29 @@ it('offers favorite management only on the bookmarked directory', async () => {
  } finally { wrapper.unmount() }
 })
 
-it('uses one toolbar button for name and direction and omits sorting from More', async () => {
+it('moves sorting into More and preserves field selection and repeated-field direction', async () => {
  const wrapper = mount(FilesFolderToolbar, {
   attachTo: document.body,
   props: { mode: 'grid', descending: false, selection: false }
  })
  try {
-  const sort = wrapper.get('.files-name-sort')
-  expect(sort.attributes('aria-label')).toMatch(/名称.*升序/)
-  await sort.trigger('click')
-  await flushPromises()
-  const menu=new DOMWrapper(document.body)
-  expect(menu.find('[data-file-direction]').exists()).toBe(false)
-  expect(['name','modified','added','watched'].every(value=>menu.find(`[data-file-sort="${value}"]`).exists())).toBe(true)
+  expect(wrapper.find('.files-name-sort').exists()).toBe(false)
+  expect(wrapper.findAll('.electron-files-toolbar > button')).toHaveLength(2)
+  const menu = new DOMWrapper(document.body)
+  async function openSort() {
+   await wrapper.get('.more-button').trigger('click'); await flushPromises()
+   const sorting = menu.findAll('.arco-dropdown-option').find(option => option.text().includes('排序'))!
+   expect(sorting.text()).toContain('名称')
+   await sorting.trigger('mouseenter'); await flushPromises()
+   await vi.waitFor(() => expect(menu.find('[data-file-sort="name"]').exists()).toBe(true))
+  }
+  await openSort()
+  expect(['name','modified','added','watched','size'].every(value=>menu.find(`[data-file-sort="${value}"]`).exists())).toBe(true)
   await menu.get('[data-file-sort="name"]').trigger('click')
   expect(wrapper.emitted('direction')).toHaveLength(1)
   await wrapper.setProps({ descending: true })
-  expect(sort.attributes('aria-label')).toMatch(/名称.*降序/)
-  await wrapper.get('.more-button').trigger('click')
-  await flushPromises()
-  expect(document.body.querySelector('.arco-dropdown')?.textContent).not.toContain('排序')
+  await openSort()
+  await menu.get('[data-file-sort="modified"]').trigger('click')
+  expect(wrapper.emitted('sort')).toEqual([['modified']])
  } finally { wrapper.unmount() }
 })

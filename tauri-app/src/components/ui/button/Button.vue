@@ -9,4 +9,4 @@ const variants = cva('inline-flex items-center justify-center gap-2 whitespace-n
   variants: { variant: { default: 'bg-primary text-primary-foreground hover:opacity-90', outline: 'border border-border bg-background hover:bg-muted', ghost: 'hover:bg-muted' }, size: { default: 'h-9 px-4 py-2', icon: 'size-9 p-0' } }
 })
 </script>
-<template><Primitive :as="as" :as-child="asChild" :class="cn(variants({ variant, size }), props.class)"><slot /></Primitive></template>
+<template><Primitive :as="as" :as-child="asChild" :class="cn('bp-glass-control', variants({ variant, size }), props.class)" :data-button-variant="variant"><slot /></Primitive></template>

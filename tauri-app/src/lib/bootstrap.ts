@@ -2,6 +2,7 @@ import { createApp, watch } from 'vue'
 import type { Component, App } from 'vue'
 import { createPinia } from 'pinia'
 import { useSettingsStore } from '@/stores/settings'
+import '@/styles/glass-controls.css'
 
 export function mountApp(component: Component, configure?: (app:App)=>void) {
   const app = createApp(component)

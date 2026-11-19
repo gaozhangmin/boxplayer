@@ -6,11 +6,10 @@ import AppFrame from '@/components/AppFrame.vue'
 import PlayerHeader from '@/vendor/soia/components/PlayerHeader.vue'
 import PlayerControls from '@/vendor/soia/components/PlayerControls.vue'
 import PlaylistDrawer from '@/vendor/soia/components/PlaylistDrawer.vue'
-import SideActionsNav from '@/vendor/soia/components/SideActionsNav.vue'
 import { formatTime } from '@/features/player/formatTime'
 import { usePlayer } from '@/features/player/usePlayer'
 import { useI18n } from '@/lib/i18n'
-import { asAppError, isNative, openFile, playFile, openWindow } from '@/platform/native'
+import { asAppError, isNative, openFile, playFile } from '@/platform/native'
 import type { BoxPlayer } from '@/vendor/soia/types/media'
 import type { MediaInfo } from '@/vendor/soia/mock/mediaInfo'
 import '@/vendor/soia/styles/app-theme.css'
@@ -45,7 +44,6 @@ async function toggleFullscreen() { try { const win = getCurrentWindow(); await 
 async function toggleMute() { const v = snapshot.value?.volume ?? 70; if (v) lastVolume.value = v; await control('volume', v ? 0 : lastVolume.value) }
 function toggleMenu(next: string) { menu.value = menu.value === next ? '' : next; wake() }
 async function setting(key: keyof typeof adjustments.value, value: number | boolean) { const action = key === 'zoom' ? 'zoom' : key; await control(action, key === 'zoom' ? Math.log2(Number(value)) : typeof value === 'boolean' ? Number(value) : value); if (!error.value) (adjustments.value as Record<string, number | boolean>)[key] = value }
-async function navigate(panel: string) { if (panel === 'settings') await openWindow('settings'); else if (panel === 'home') { await import('@/platform/native').then(n => n.nativeCall('player_show_main')) } else unsupported(panel === 'history' ? '播放历史' : '网络源') }
 function key(event: KeyboardEvent) {
   if ((event.target as HTMLElement).closest('input,select,textarea,[contenteditable="true"]')) return
   if (event.code === 'Space') { event.preventDefault(); void control('pause', paused.value ? 0 : 1) }
@@ -63,7 +61,6 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
 <template>
   <AppFrame>
     <div class="soia-container" :class="{ 'video-mode': active, 'cursor-hidden': !controlsVisible }" @mousemove="wake" @mouseleave="wake" @click.self="menu = ''; wake()">
-      <SideActionsNav v-show="controlsVisible" :is-playback-active="!!active" active-panel="home" :nav-active-panel="null" @navigate="navigate" />
       <PlayerHeader v-show="controlsVisible" :is-mac-os="isMac" :url="url || snapshot?.displayPath || snapshot?.title || ''" :media-title="snapshot?.title || ''" :is-url-modified="!!url" :is-file-loaded="!!active" :is-info-open="infoOpen" :is-playlist-open="playlistOpen" :is-loading="snapshot?.state === 'loading'" playback-title-mode="Show" :compact-mode-enabled="true" :is-fullscreen="fullscreen" :info="info" :current-time="snapshot?.position || 0" :duration="snapshot?.duration || 0" :is-playing="!paused" :video-bitrate="0" hwdec-current="" :playback-speed="snapshot?.speed || 1" :video-tracks="video" :audio-tracks="audio" :sub-tracks="subtitles" @update:url="url = $event" @open-file-picker="choose" @load-file="choose" @toggle-info="infoOpen = !infoOpen" @toggle-playlist="menu = ''; playlistOpen = !playlistOpen; wake()" />
       <div v-if="!active" class="soia-empty"><h1>{{ snapshot?.state === 'error' ? snapshot.error : t('playerEmpty') }}</h1><button @click="choose">{{ t('selectFile') }}</button></div>
       <ContentLoading v-else-if="snapshot?.state === 'loading'" class="soia-loading" :label="t('loadingVideo')" />
