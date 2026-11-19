@@ -206,7 +206,7 @@ onUnmounted(() => {scanScheduler.stop();if(scanTimer)clearInterval(scanTimer);if
             <Button variant="ghost" size="icon" :aria-label="t('settings')" :title="t('settings')" @click="run(() => openWindow('settings'))"><Settings :size="18" /></Button>
             <Button v-if="!collapsed" variant="ghost" size="icon" :aria-label="t('account')" @click="showAccounts=true"><CircleUserRound :size="18" /></Button>
           </div>
-          <button v-if="!collapsed" class="pro-card" @click="showBoxPlayerAccount=true"><span><small>{{ membership.membership?.isPro ? t('account') : t('upgradeTo') }}</small><strong>{{ membership.label }}</strong></span><ChevronRight :size="18" /></button>
+          <button v-if="!collapsed" class="pro-card" @click="showBoxPlayerAccount=true"><span><small>{{ membership.membership?.isPro ? t('account') : t('upgradeTo') }}</small><strong>BoxPlayer Pro</strong></span><ChevronRight :size="18" /></button>
         </footer>
       </aside>
       <main class="main-content">
