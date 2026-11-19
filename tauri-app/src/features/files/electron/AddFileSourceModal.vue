@@ -13,6 +13,7 @@ import { MediaScanner } from '../adapters/sourceServices'
 import { useMediaLibraryStore } from '../adapters/sourceServices'
 import {message,chooseLocal,cancelLocal} from '../adapters/sourceServices'
 import { t } from './i18n'
+import { nativeCall, asAppError } from '@/platform/native'
 
 const props = defineProps<{ visible: boolean; deviceName: string; sources: Array<{ id: string; name: string; icon?: string; favorite?: boolean; driveServerId?: string; server?: MediaServerConfig; folder: IAliGetFileModel; drives?: Array<{ label: string; folder: IAliGetFileModel }> }> }>()
 const emit = defineEmits<{ 'toggle-root': [id: string]; close: []; connected: [] }>()
@@ -24,11 +25,17 @@ const authorizing = ref(false)
 const sourceName = ref('')
 const localPath = ref('')
 const savingLocal = ref(false)
+const cloud139Pending = ref('')
 const selectedSource = computed(() => props.sources.find(s => s.id === selected.value))
 const clouds = ['google', 'dropbox', 'onedrive', 'box', 'aliyun', 'cloud123', '115', 'baidu', 'pikpak', 'quark', '139', '189', 'guangya'].map(getDriveProviderMeta)
 const detailLabel = computed(() => detail.value?.kind === 'cloud' ? getDriveProviderMeta(detail.value.provider).label : detail.value?.kind === 'local' ? t('source.folder') : '')
 const remote = computed(() => detail.value?.kind === 'cloud' && ['smb', 'ftp', 'nfs', 'webdav', 'alist'].includes(detail.value.provider))
-function resetDetail() { void cancelLocal(); detail.value = undefined; authorizing.value = false; sourceName.value = ''; localPath.value = '' }
+function cancelCloud139() {
+  const requestId = cloud139Pending.value
+  cloud139Pending.value = ''
+  if (requestId) void nativeCall('auth_cancel', { requestId }).catch(() => {})
+}
+function resetDetail() { cancelCloud139(); void cancelLocal(); detail.value = undefined; authorizing.value = false; sourceName.value = ''; localPath.value = '' }
 function selectSource(id: string) { if (savingLocal.value) return; resetDetail(); selected.value = id }
 function openCloud(provider: string) {
   resetDetail()
@@ -36,11 +43,31 @@ function openCloud(provider: string) {
   sourceName.value = t('source.defaultName', { type: getDriveProviderMeta(provider).label })
 }
 function connected() { resetDetail(); emit('connected') }
+async function connectSource() {
+  const target = detail.value
+  if (target?.kind === 'local') return saveLocalFolder()
+  if (target?.kind !== 'cloud') return
+  if (target.provider !== '139') { authorizing.value = true; return }
+  if (cloud139Pending.value) return
+  const requestId = crypto.randomUUID()
+  cloud139Pending.value = requestId
+  try {
+    await nativeCall('cloud139_web_login', { requestId, name: sourceName.value.trim() || t('source.defaultName', { type: detailLabel.value }) })
+    if (cloud139Pending.value === requestId) {
+      cloud139Pending.value = ''
+      connected()
+    }
+  } catch (cause) {
+    if (cloud139Pending.value === requestId) message.error(asAppError(cause).message)
+  } finally {
+    if (cloud139Pending.value === requestId) cloud139Pending.value = ''
+  }
+}
 async function chooseLocalFolder() {
   try { const selection=await chooseLocal();if(!selection)return;localPath.value=selection.path;if(!sourceName.value.trim())sourceName.value=selection.name }
   catch(error){message.error(String(error))}
 }
-onUnmounted(()=>{void cancelLocal()})
+onUnmounted(()=>{cancelCloud139();void cancelLocal()})
 async function saveLocalFolder() {
   if (!localPath.value || savingLocal.value || useMediaLibraryStore().isScanning) return
   savingLocal.value = true
@@ -73,11 +100,11 @@ watch(() => props.visible, () => { if (!savingLocal.value) { showTransfers.value
           </header>
           <FileSourceBrowser v-if="selected !== 'add'" :device="selected === 'device'" :source="selectedSource" @toggle-root="emit('toggle-root', selected)" />
           <UserLogin v-else-if="detail?.kind === 'cloud' && (authorizing || remote)" :key="detail.provider" embedded :provider="detail.provider" :source-name="sourceName.trim() || t('source.defaultName', { type: detailLabel })" @connected="connected" @cancel="resetDetail" />
-          <form v-else-if="detail" class="source-connection-form" @submit.prevent="detail.kind === 'local' ? saveLocalFolder() : authorizing = true">
+          <form v-else-if="detail" class="source-connection-form" @submit.prevent="connectSource">
             <div class="source-field"><label for="source-name">{{ t('mediaServer.name') }}</label><input id="source-name" v-model="sourceName" :disabled="savingLocal" :placeholder="t('source.defaultName', { type: detailLabel })" autocomplete="off" /></div>
             <div class="source-field"><label>{{ t('mediaServer.protocol') }}</label><span>{{ detail.kind === 'local' ? deviceName : detailLabel }}</span></div>
             <div v-if="detail.kind === 'local'" class="source-field source-local-path"><label>{{ t('source.folder') }}</label><div><span>{{ localPath }}</span><button type="button" :disabled="savingLocal" @click="chooseLocalFolder">{{ t('source.chooseFolder') }}</button></div></div>
-            <div class="source-actions"><button type="submit" :disabled="savingLocal || (detail.kind === 'local' && (!localPath || useMediaLibraryStore().isScanning))">{{ detail.kind === 'local' ? t('common.save') : t('mediaServer.connect') }}</button></div>
+            <div class="source-actions"><button type="submit" :disabled="savingLocal || !!cloud139Pending || (detail.kind === 'local' && (!localPath || useMediaLibraryStore().isScanning))">{{ detail.kind === 'local' ? t('common.save') : t('mediaServer.connect') }}</button></div>
           </form>
           <div v-else class="source-picker">
             <h3>{{ t('source.local') }}</h3>
