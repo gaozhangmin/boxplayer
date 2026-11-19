@@ -1,9 +1,9 @@
 /* Shared by local/library and server details, including their header actions. */
 .media-detail {
-  --detail-glass-fill: rgba(155, 155, 165, .18);
+  --detail-glass-fill: rgba(95, 95, 105, .12);
   --detail-glass-hover: rgba(255, 255, 255, .38);
   --detail-glass-selected: rgba(255, 255, 255, .46);
-  --detail-glass-edge: rgba(100, 100, 110, .22);
+  --detail-glass-edge: rgba(80, 80, 95, .24);
   --detail-glass-shine: rgba(255, 255, 255, .92);
   --detail-glass-shadow: rgba(25, 25, 35, .1);
   --detail-glass-ink: #252528;
@@ -24,15 +24,56 @@ body .media-detail.media-detail :is(.play-button, .action-button, .version-butto
   box-sizing: border-box;
   border: 1px solid var(--detail-glass-edge);
   border-radius: 999px;
-  background: var(--detail-glass-fill);
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, .32), transparent 42%, rgba(255, 255, 255, .06) 70%, rgba(255, 255, 255, .22)),
+    var(--detail-glass-fill);
   color: var(--detail-glass-ink);
   box-shadow:
-    inset 0 1px 1px var(--detail-glass-shine),
-    inset 0 -1px 1px rgba(255, 255, 255, .28),
-    0 1px 2px var(--detail-glass-shadow);
-  backdrop-filter: blur(22px) saturate(145%);
-  -webkit-backdrop-filter: blur(22px) saturate(145%);
+    inset 0 1px 0 var(--detail-glass-shine),
+    inset 0 -1px 1px rgba(255, 255, 255, .62),
+    inset 1px 0 2px rgba(255, 255, 255, .3),
+    inset -1px 0 2px rgba(40, 40, 55, .08),
+    0 2px 5px var(--detail-glass-shadow);
+  backdrop-filter: blur(8px) saturate(180%) brightness(1.04);
+  -webkit-backdrop-filter: blur(8px) saturate(180%) brightness(1.04);
   transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+/* A narrow reflective rim, rather than an opaque white stroke or frosted disk. */
+body .media-detail.media-detail :is(.play-button, .action-button, .version-button)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(150deg, rgba(255, 255, 255, .98) 4%, rgba(255, 255, 255, .22) 32%, rgba(35, 35, 55, .14) 52%, rgba(255, 255, 255, .76) 78%, rgba(255, 255, 255, .34));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.media-detail .version-button { position: relative; overflow: hidden; }
+
+/* Keep the controls anchored to the viewport edge, independently of title width. */
+.media-detail .detail-header { box-sizing: border-box; padding-right: 8px; }
+.media-detail .detail-header-actions { position: absolute; right: 8px; top: 0; bottom: 0; gap: 8px; }
+.media-detail .detail-back { max-width: calc(100% - 128px); min-width: 0; }
+/* The trigger's 60px intrinsic width must agree with its child's flex basis. */
+body .media-detail.media-detail .detail-header-actions .action-button:has(> svg + svg) {
+  width: 60px;
+  min-width: 60px;
+  flex: 0 0 60px;
+  gap: 3px;
+}
+
+/* The previous double white fade left no artwork for the glass to transmit. */
+body:not([arco-theme='dark']) .media-detail .hero-section::before {
+  background: linear-gradient(180deg, transparent 30%, rgba(250, 250, 250, .12) 58%, rgba(250, 250, 250, .68) 85%, #fafafa 100%) !important;
+}
+body:not([arco-theme='dark']) .media-detail .hero-section::after {
+  background: linear-gradient(180deg, transparent 40%, #fafafa 100%) !important;
 }
 
 .media-detail .action-buttons {
@@ -45,13 +86,12 @@ body .media-detail.media-detail :is(.play-button, .action-button, .version-butto
 }
 
 body .media-detail.media-detail :is(.play-button, .action-button, .version-button):hover:not(:disabled) {
-  background: var(--detail-glass-hover);
+  background-color: var(--detail-glass-hover);
   color: var(--detail-glass-ink);
-  box-shadow: inset 0 1px 1px var(--detail-glass-shine), 0 2px 5px var(--detail-glass-shadow);
 }
 
 body .media-detail.media-detail :is(.action-button.active, .action-button[aria-pressed='true']) {
-  background: var(--detail-glass-selected);
+  background-color: var(--detail-glass-selected);
   color: var(--primary);
 }
 
