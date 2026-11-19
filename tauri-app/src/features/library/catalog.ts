@@ -8,7 +8,7 @@ import type {PlayerSnapshot} from '@/platform/contracts'
 import {mediaFileNormalizer} from './mediaFileNormalizer'
 import {tmdbCertification} from './tmdbCertification'
 import type {TmdbRankedEntry} from './recommendations'
-export interface VideoItem {originalMetadata?:import('@/features/files/electron/mediaTypes').MediaLibraryItem;id:string;sourceId:string;fileId:string;fileName:string;name:string;type:'movie'|'tv'|'unmatched';local:boolean;addedAt:string;year?:string;releaseDate?:string;rating?:number;genres:string[];certification?:string;overview?:string;poster?:string;backdrop?:string;duration?:number;mediaSubtype?:string;isMiniseries?:boolean;networks?:string[];watched?:boolean;favorite?:boolean;progress?:number;lastWatched?:string;size:number;height?:number;tmdbId?:number;collectionMovies?:VideoItem[];seriesId?:string;seriesName?:string;seasonNumber?:number;episodeNumber?:number;folderPath?:string;folderAncestors?:string[];catalogRoots?:string[];personalRating?:number;continueHidden?:boolean;continueAdded?:boolean;collectionId?:number;collectionName?:string;metadataSource?:'tmdb'|'manual'|'filename'|'server';scrapeRetrying?:boolean}
+export interface VideoItem {tracks?:import('@/features/servers/workspace').StreamSelection;originalMetadata?:import('@/features/files/electron/mediaTypes').MediaLibraryItem;id:string;sourceId:string;fileId:string;fileName:string;name:string;type:'movie'|'tv'|'unmatched';local:boolean;addedAt:string;year?:string;releaseDate?:string;rating?:number;genres:string[];certification?:string;overview?:string;poster?:string;backdrop?:string;duration?:number;mediaSubtype?:string;isMiniseries?:boolean;networks?:string[];watched?:boolean;favorite?:boolean;progress?:number;lastWatched?:string;size:number;height?:number;tmdbId?:number;collectionMovies?:VideoItem[];seriesId?:string;seriesName?:string;seasonNumber?:number;episodeNumber?:number;folderPath?:string;folderAncestors?:string[];catalogRoots?:string[];personalRating?:number;continueHidden?:boolean;continueAdded?:boolean;collectionId?:number;collectionName?:string;metadataSource?:'tmdb'|'manual'|'filename'|'server';scrapeRetrying?:boolean}
 interface Snapshot{schemaVersion:1;revision:number;items:VideoItem[];playlists:Record<string,string[]>;series:Record<string,string[]>}
 const blank=():Snapshot=>({schemaVersion:1,revision:0,items:[],playlists:{},series:{}})
 export const useVideoCatalog=defineStore('video-catalog',()=>{
@@ -82,7 +82,7 @@ export const useVideoCatalog=defineStore('video-catalog',()=>{
  async function playMany(items:VideoItem[],mode:'play'|'loop'|'shuffle'='play'){
   const rows=[...items];if(!rows.length)throw new Error('没有可播放的视频');if(rows.length>1000)throw new Error('播放列表超过1000项，请缩小范围')
   if(mode==='shuffle')for(let index=rows.length-1;index>0;index--){const target=Math.floor(Math.random()*(index+1));[rows[index],rows[target]]=[rows[target]!,rows[index]!]}
-  await nativeCall('player_open_catalog_queue',{entries:rows.map(item=>({sourceId:item.sourceId,fileId:item.fileId,title:item.seriesName?`${item.seriesName} · ${item.name}`:item.name,local:item.local})),index:0,loopPlayback:mode==='loop'})
+  await nativeCall('player_open_catalog_queue',{entries:rows.map(item=>({sourceId:item.sourceId,fileId:item.fileId,title:item.seriesName?`${item.seriesName} · ${item.name}`:item.name,local:item.local,tracks:item.tracks})),index:0,loopPlayback:mode==='loop'})
  }
  let lastProgressKey='',lastProgressTime=0
  async function recordProgress(snapshot:PlayerSnapshot){

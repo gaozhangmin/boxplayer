@@ -11,19 +11,30 @@ import ServerArtwork from '../ServerArtwork.vue'
 import MediaPosterMenu from './MediaPosterMenu.vue'
 import MediaSourceRatings from '../../library/electron/MediaSourceRatings.vue'
 import ElectronTrigger from './ElectronTrigger.vue'
-import type {ServerItem,ServerPerson} from '../workspace'
+import type {ServerItem,ServerPerson,StreamKind,StreamSelection,MediaInfoCard} from '../workspace'
 import type {Account} from '../../sources/contracts'
 import {setServerPlaybackSource,getServerPlaybackSource} from '../../sources/serverVersions'
 import {generalPreferences} from '../../library/displayPreferences'
 const props=defineProps<{item:ServerItem;account:Account;children:ServerItem[];episodes?:ServerItem[];selectedSeasonId?:string;similar:ServerItem[];busy?:boolean;menuEntries:{id:string;label:string;disabled?:boolean}[]}>()
-const emit=defineEmits<{back:[];play:[item:ServerItem];action:[action:string,item:ServerItem];select:[item:ServerItem];person:[person:ServerPerson];facet:[kind:'genre'|'studio',value:string];season:[item:ServerItem]}>()
+const emit=defineEmits<{back:[];play:[item:ServerItem,tracks?:StreamSelection];action:[action:string,item:ServerItem];select:[item:ServerItem];person:[person:ServerPerson];facet:[kind:'genre'|'studio',value:string];season:[item:ServerItem]}>()
 const mediaInfo=ref<import('../workspace').MediaInfoCard>()
 const selectedEpisode=ref<ServerItem>(),selectedVersion=ref('')
+const displayed=computed(()=>selectedEpisode.value||props.item)
 const versions=computed(()=>displayed.value.versions||[])
 const selectedSourceOption=computed(()=>versions.value.find(v=>v.id===selectedVersion.value)||versions.value[0])
+const selectedCards=ref<Partial<Record<StreamKind,string>>>({})
+watch([()=>displayed.value.id,()=>selectedSourceOption.value?.id],()=>{selectedCards.value={}},{flush:'post'})
+const streamCards=computed(()=>(selectedSourceOption.value?.mediaInfoCards||[]).map(card=>({
+ ...card,selected:selectedCards.value[card.kind] ? selectedCards.value[card.kind]===card.id : card.selected
+})))
+function selectStream(card:MediaInfoCard){selectedCards.value={...selectedCards.value,[card.kind]:card.id}}
+function playDetail(){
+ const tracks:StreamSelection={}
+ for(const card of streamCards.value)if(selectedCards.value[card.kind]===card.id)tracks[card.kind]=card.choice
+ emit('play',displayed.value,tracks)
+}
 function selectVersion(id:string){selectedVersion.value=id;setServerPlaybackSource(props.account.id,displayed.value.id,id)}
 
-const displayed=computed(()=>selectedEpisode.value||props.item)
 const detailBackdropUrl=computed(()=>props.item.backdropPath),detailLogoUrl=computed(()=>props.item.logoPath)
 const detailIsWatched=computed(()=>displayed.value.watched),detailIsFavorite=computed(()=>displayed.value.favorite)
 const playable=computed(()=>displayed.value.playable||props.children.some(i=>i.playable)||props.children.some(i=>['season','show','series'].includes(i.kind)))
@@ -50,7 +61,7 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
 <template>
   <MediaDetailPage :item-key="item.id" :title="item.name" :play-label="detailPlayLabel"
     :progress="detailPlayResume?.percent" :play-disabled="busy || !playable"
-    :has-version="versions.length > 1" @back="emit('back')" @play="emit('play', displayed)">
+    :has-version="versions.length > 1" @back="emit('back')" @play="playDetail">
     <template #header-actions>
       <button type="button" class="action-button" title="播放列表" @click="emit('action','playlist',displayed)">
         <ListPlus :size="20" />
@@ -214,7 +225,7 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
         <button v-for="studio in item.studios" :key="studio" class="tag-item clickable" @click="emit('facet','studio',studio)">{{studio}}</button>
       </div>
     </section>
-    <section v-if="displayed.externalLinks?.length" class="tags-section">
+    <section v-if="displayed.externalLinks?.length" class="tags-section server-detail-links">
       <div class="section-header">
         <h3>链接</h3>
       </div>
@@ -224,9 +235,9 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
       </div>
       <p v-if="linkError" role="alert">{{linkError}}</p>
     </section>
-    <MediaDetailInfo v-if="selectedSourceOption" :cards="selectedSourceOption.mediaInfoCards"
+    <MediaDetailInfo v-if="selectedSourceOption" :cards="streamCards"
       :file="{ source: account.name, path: selectedSourceOption.filePath, name: selectedSourceOption.fileLabel }"
-      interactive @inspect="mediaInfo = $event" />
+      interactive selectable @select="selectStream" @inspect="mediaInfo = $event" />
     <slot />
 
     <template #dialogs>
@@ -244,6 +255,8 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
 </template>
 
 <style>
+.media-detail .server-detail-links{align-items:center;gap:12px}
+.media-detail .server-detail-links .section-header,.media-detail .server-detail-links .tag-list{margin:0}
 .server-detail-menu {
   display: grid;
   padding: 6px;

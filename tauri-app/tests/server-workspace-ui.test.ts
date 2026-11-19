@@ -243,3 +243,33 @@ it('appends near the bottom and retries failed pages without resetting the list'
   vi.unstubAllGlobals()
  }
 })
+
+it('displays stream metadata and forwards each selected stream to the playback queue', async () => {
+ const item = normalizeItem({
+  Id: 'tracks', Name: 'Track fixture', Type: 'Movie',
+  MediaSources: [{ Id: 'version', MediaStreams: [
+   { Type: 'Video', Index: 0, DisplayTitle: 'HDR video', VideoRange: 'HDR10', RealFrameRate: 24 },
+   { Type: 'Audio', Index: 1, DisplayTitle: 'Stereo', IsDefault: true },
+   { Type: 'Audio', Index: 2, DisplayTitle: 'Surround', SampleRate: 48000, ChannelLayout: '5.1' },
+   { Type: 'Subtitle', Index: 3, DisplayTitle: 'English', IsForced: true }
+  ] }]
+ }, false)
+ vi.mocked(serverDetail).mockResolvedValue(item)
+ const wrapper = mount(ServerWorkspace, { props: { account, initialRoute: { kind: 'detail', id: item.id, title: item.name } }, global: { stubs } })
+ await flushPromises()
+ const cards = wrapper.findAll('.detail-media-card')
+ expect(cards.map(card => card.text()).join(' ')).toContain('48000 Hz')
+ expect(cards[0]?.text()).toContain('HDR10')
+ await cards[0]!.trigger('click')
+ await cards[2]!.trigger('click')
+ await cards[3]!.trigger('keydown', { key: 'Enter' })
+ expect(cards[1]?.attributes('aria-pressed')).toBe('false')
+ expect(cards[2]?.attributes('aria-pressed')).toBe('true')
+ await button(wrapper, '播放').trigger('click')
+ await flushPromises()
+ expect(playMany).toHaveBeenCalledWith([expect.objectContaining({
+  fileId: item.id,
+  tracks: { video: { index: 0, ordinal: 0 }, audio: { index: 2, ordinal: 1 }, subtitle: { index: 3, ordinal: 0 } }
+ })], 'play')
+ wrapper.unmount()
+})

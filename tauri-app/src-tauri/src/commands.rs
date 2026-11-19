@@ -351,6 +351,7 @@ fn local_item(path: &Path, source_id: &str) -> Result<PlayItem, AppError> {
             .to_string_lossy()
             .into_owned(),
         subtitles,
+        tracks: None,
     })
 }
 async fn start(app: tauri::AppHandle, queue: Vec<PlayItem>, index: usize) -> Result<(), AppError> {
@@ -470,6 +471,7 @@ pub async fn player_open_remote(
             media,
             title,
             subtitles,
+            tracks: None,
         }],
         0,
     )
@@ -537,6 +539,7 @@ pub async fn player_open_source_queue(
                 expires_at: None,
             },
             title: entry.title,
+            tracks: None,
             subtitles: vec![],
         });
     }
@@ -545,7 +548,7 @@ pub async fn player_open_source_queue(
 }
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CatalogQueueEntry { source_id: String, file_id: String, title: String, local: bool }
+pub struct CatalogQueueEntry { source_id: String, file_id: String, title: String, local: bool, tracks: Option<player::StreamSelection> }
 #[tauri::command]
 pub async fn player_open_catalog_queue(app: tauri::AppHandle, entries: Vec<CatalogQueueEntry>, index: usize, loop_playback: bool) -> Result<(), AppError> {
     if entries.is_empty() || entries.len() > 1000 || index >= entries.len() { return Err(AppError::new("QUEUE_INVALID", "播放列表无效或超过1000项", false)); }
@@ -558,9 +561,9 @@ pub async fn player_open_catalog_queue(app: tauri::AppHandle, entries: Vec<Catal
             local_item(&backend.library.resolve(&entry.source_id,&entry.file_id)?,&entry.source_id)?
         } else {
             if !accounts.iter().any(|account| account.id==entry.source_id && account.provider_id!="boxplayer") { return Err(AppError::new("ACCOUNT_MISSING", "来源账号不存在", false)); }
-            PlayItem { media: ResolvedMedia { schema_version:1,source_id:entry.source_id.clone(),account_id:entry.source_id,file_id:entry.file_id,url:"boxplayer-queue:".into(),headers:Default::default(),expires_at:None },title:String::new(),subtitles:vec![] }
+            PlayItem { media: ResolvedMedia { schema_version:1,source_id:entry.source_id.clone(),account_id:entry.source_id,file_id:entry.file_id,url:"boxplayer-queue:".into(),headers:Default::default(),expires_at:None },title:String::new(),subtitles:vec![],tracks:None }
         };
-        item.title=entry.title;queue.push(item);
+        item.title=entry.title;item.tracks=entry.tracks;queue.push(item);
     }
     drop(backend);
     start(app.clone(),queue,index).await?;

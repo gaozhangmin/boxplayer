@@ -167,7 +167,7 @@ const searchSections=computed(()=>!route.value.query?.trim()?[{key:'suggestions'
 const detailMenuEntries=computed(()=>detail.value?videoPosterMenu(toVideo(detail.value,props.account),true,false,true):[])
 function detailAction(action:string,item:ServerItem){if(action==='download-season'||action==='download-series'){void downloadCollection(action==='download-season'?'season':'series');return}if(action==='menu'){openMenu(itemRoute(item),item);return}if(action==='watched'||action==='favorite'){void updateItem(item,action);return}if(action==='rating'){ratingItem.value=item;return}if(action==='share'){shareItem.value=item;return}if(action==='download'){void download(item);return}if(action==='playlist'){void openPlaylists(item);return}if(['play','loop','shuffle'].includes(action)){void play(itemRoute(item),action as 'play'|'loop'|'shuffle',item);return}if(action==='refresh'){void load();return}if(action==='delete')prompt.value={kind:'delete',route:itemRoute(item),item,value:item.name}}
 function toVideo(item: ServerItem, account: Account): VideoItem { return { id: JSON.stringify([account.id, item.id]), sourceId: account.id, fileId: item.id, fileName: item.name, name: item.name, type: item.kind === 'movie' ? 'movie' : 'tv', local: false, addedAt: '', genres: item.genres, size: item.size, year: item.year, watched: item.watched, favorite: item.favorite } }
-async function play(target: BrowseRoute, mode: 'play' | 'loop' | 'shuffle' = 'play', item?: ServerItem) {
+async function play(target: BrowseRoute, mode: 'play' | 'loop' | 'shuffle' = 'play', item?: ServerItem, tracks?: import('./workspace').StreamSelection) {
   const account = { ...props.account }, scope = generation
   await safely(async () => {
     let queue = item?.playable ? [item] : await collectPlayable(account, item?.isDirectory ? { kind: 'children', id: item.id, title: item.name } : target.kind === 'detail' ? { ...target, kind: 'children' } : target.kind === 'person' ? { ...target, kind: 'category', category: 'all', id: target.libraryId } : target, options.value)
@@ -177,7 +177,7 @@ async function play(target: BrowseRoute, mode: 'play' | 'loop' | 'shuffle' = 'pl
       if (index >= 0) queue = mode === 'play' ? siblings.slice(index) : [...siblings.slice(index), ...siblings.slice(0,index)]
     }
     if (scope !== generation || !isCurrentAccount(account)) return
-    await useVideoCatalog().playMany(queue.map(row => toVideo(row, account)), mode)
+    await useVideoCatalog().playMany(queue.map(row => ({ ...toVideo(row, account), tracks: row.id === item?.id ? tracks : undefined })), mode)
   })
 }
 async function playServerCategory(accountId: string, category: string, mode: 'play' | 'loop' | 'shuffle' = 'play') { if (accountId !== props.account.id) throw new Error('请先切换到所属服务器'); const match = categories.find(c => c.id === category); if (!match) throw new Error('未知服务器分类'); await play(categoryRoute(match.id, match.title), mode) }
@@ -284,7 +284,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
   <ServerDetail v-else-if="route.kind === 'detail' && detail"
     :item="detail" :account="account" :children="detailChildren" :episodes="seasonEpisodes"
     :selected-season-id="selectedSeasonId" :similar="similar" :busy="working" :menu-entries="detailMenuEntries"
-    @back="goBack" @play="item => play(itemRoute(item), 'play', item)" @action="detailAction"
+    @back="goBack" @play="(item, tracks) => play(itemRoute(item), 'play', item, tracks)" @action="detailAction"
     @select="select" @person="openPerson" @season="loadSeason"
     @facet="(facet, value) => navigate({ kind: 'category', category: 'all', id: route.libraryId, libraryId: route.libraryId, facet, value, title: value })">
     <section v-if="childrenOffset != null || detailError || status" class="tags-section">

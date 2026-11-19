@@ -1,6 +1,4 @@
-<script setup lang="ts">
-import IconFont from '@/features/files/electron/IconFont.vue'
-
+<script lang="ts">
 interface DetailCard {
   id: string
   kind: string
@@ -9,12 +7,17 @@ interface DetailCard {
   rows: { label: string; value: string }[]
 }
 
+</script>
+<script setup lang="ts" generic="Card extends DetailCard">
+import IconFont from '@/features/files/electron/IconFont.vue'
+
 defineProps<{
-  cards: DetailCard[]
+  cards: Card[]
   file?: { source: string; name?: string; path?: string; summary?: string }
   interactive?: boolean
+  selectable?: boolean
 }>()
-const emit = defineEmits<{ inspect: [card: DetailCard] }>()
+const emit = defineEmits<{ inspect: [card: Card]; select: [card: Card] }>()
 </script>
 
 <template>
@@ -36,10 +39,13 @@ const emit = defineEmits<{ inspect: [card: DetailCard] }>()
         class="detail-media-card"
         :class="[{ selected: card.selected }, `detail-media-card-${card.kind}`]"
         :data-media-kind="card.kind"
+        :aria-pressed="selectable ? !!card.selected : undefined"
         :role="interactive ? 'button' : undefined"
         :tabindex="interactive ? 0 : undefined"
-        @click="interactive && emit('inspect', card)"
-        @keydown.enter="interactive && emit('inspect', card)"
+        @click="selectable ? emit('select', card) : interactive && emit('inspect', card)"
+        @dblclick="selectable && emit('inspect', card)"
+        @keydown.enter="selectable ? emit('select', card) : interactive && emit('inspect', card)"
+        @keydown.space.prevent="selectable ? emit('select', card) : interactive && emit('inspect', card)"
       >
         <div v-if="card.selected" class="detail-media-card-selected-badge">
           <IconFont name="iconcheck" />

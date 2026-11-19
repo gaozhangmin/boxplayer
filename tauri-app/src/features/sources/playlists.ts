@@ -10,11 +10,11 @@ export function mediaServerAccount(account: Account) {
   if (account.providerId !== 'plex' && !account.userId) throw new Error('服务器账号缺少用户标识，请重新登录')
 }
 export function serverItemId(value: string) { const id = value.startsWith('playlist:') ? value.slice(9) : value;if (!id.trim()) throw new Error('服务器媒体标识不能为空');return id }
-async function allItems(account: Account, path: string, params: Record<string, string> = {}) {
+async function allItems(account: Account, path: string, params: Record<string, string> = {}, signal?: AbortSignal) {
   mediaServerAccount(account)
   const plex = account.providerId === 'plex';const result: Item[] = [];let offset = 0;let previous = ''
   for (let page = 0; page < 100; page++) {
-    const data = await json<Record<string, unknown>>(account, 'GET', endpoint(account, `${path}?${query({ ...params, [plex ? 'X-Plex-Container-Start' : 'StartIndex']: String(offset), [plex ? 'X-Plex-Container-Size' : 'Limit']: '100' })}`))
+    const data = await json<Record<string, unknown>>(account, 'GET', endpoint(account, `${path}?${query({ ...params, [plex ? 'X-Plex-Container-Start' : 'StartIndex']: String(offset), [plex ? 'X-Plex-Container-Size' : 'Limit']: '100' })}`), undefined, JSON.parse, {}, signal)
     const container = (plex ? data.MediaContainer : data) as Record<string, unknown> | undefined
     if (!container || typeof container !== 'object' || !plex && !Array.isArray(container.Items)) throw new Error('服务器播放列表响应无效')
     const rows = container[plex ? 'Metadata' : 'Items'] ?? []
@@ -27,13 +27,13 @@ async function allItems(account: Account, path: string, params: Record<string, s
   }
   throw new Error('服务器播放列表过多，请缩小范围后重试')
 }
-export async function listServerPlaylists(account: Account): Promise<ServerPlaylist[]> {
+export async function listServerPlaylists(account: Account, signal?: AbortSignal): Promise<ServerPlaylist[]> {
   const plex = account.providerId === 'plex'
-  const rows = await allItems(account, plex ? 'playlists' : `Users/${segment(account.userId || '')}/Items`, plex ? { playlistType: 'video', smart: '0' } : { IncludeItemTypes: 'Playlist', Recursive: 'true', Fields: 'ChildCount' })
+  const rows = await allItems(account, plex ? 'playlists' : `Users/${segment(account.userId || '')}/Items`, plex ? { playlistType: 'video', smart: '0' } : { IncludeItemTypes: 'Playlist', Recursive: 'true', Fields: 'ChildCount' }, signal)
   return rows.filter(row => row[plex ? 'ratingKey' : 'Id'] != null).map(row => ({ id: String(row[plex ? 'ratingKey' : 'Id']), title: String(row[plex ? 'title' : 'Name'] || ''), count: Number(row[plex ? 'leafCount' : 'ChildCount'] || 0) }))
 }
-function entries(account: Account, playlistId: string) { const id = segment(serverItemId(playlistId));return allItems(account, account.providerId === 'plex' ? `playlists/${id}/items` : `Playlists/${id}/Items`, account.providerId === 'plex' ? {} : { UserId: account.userId || '' }) }
-export async function serverPlaylistMembership(account: Account, playlistId: string, itemId: string) { const id = serverItemId(itemId);return (await entries(account, playlistId)).some(row => String(row[account.providerId === 'plex' ? 'ratingKey' : 'Id']) === id) }
+function entries(account: Account, playlistId: string, signal?: AbortSignal) { const id = segment(serverItemId(playlistId));return allItems(account, account.providerId === 'plex' ? `playlists/${id}/items` : `Playlists/${id}/Items`, account.providerId === 'plex' ? {} : { UserId: account.userId || '' }, signal) }
+export async function serverPlaylistMembership(account: Account, playlistId: string, itemId: string, signal?: AbortSignal) { const id = serverItemId(itemId);return (await entries(account, playlistId, signal)).some(row => String(row[account.providerId === 'plex' ? 'ratingKey' : 'Id']) === id) }
 async function plexURI(account: Account, itemId: string) {
   const data = await json<{ MediaContainer?: { machineIdentifier?: string } }>(account, 'GET', endpoint(account, ''))
   const machine = data.MediaContainer?.machineIdentifier;if (!machine) throw new Error('Plex 未返回服务器标识')

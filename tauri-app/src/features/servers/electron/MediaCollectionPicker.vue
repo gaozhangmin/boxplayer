@@ -12,6 +12,7 @@ defineProps<{
   editing: string | null
   name: string
   busy?: boolean
+  loading?: boolean
   error?: string
   hint?: string
   removable?: boolean
@@ -31,7 +32,7 @@ defineEmits<{
 </script>
 
 <template>
-  <ElectronModal v-if="visible" :title="itemTitle" :width="660" :busy="busy" class="media-collection-picker" @close="$emit('done')">
+  <ElectronModal v-if="visible" :title="itemTitle" :width="660" :busy="busy" :dismiss-while-busy="loading" class="media-collection-picker" @close="$emit('done')">
     <div class="collection-body">
       <button class="collection-create" :disabled="busy" @click="$emit('create')"><Plus :size="18" />{{ heading === '系列' ? '创建自定义系列' : '创建播放列表' }}</button>
       <div class="collection-list">
@@ -43,7 +44,7 @@ defineEmits<{
           <button v-if="renamable !== false" :disabled="busy" :aria-label="`${row.title}：重命名`" @click="$emit('rename', row.id)"><Pencil :size="18" /></button>
           <button v-if="removable" :disabled="busy" :aria-label="`${row.title}：删除`" @click="$emit('remove', row.id)"><Trash2 :size="18" /></button>
         </div>
-        <p v-if="!rows.length" class="collection-hint">暂无{{ heading }}，请先创建一个</p>
+        <p v-if="!rows.length && !busy && !error" class="collection-hint">暂无{{ heading }}，请先创建一个</p>
       </div>
       <p v-if="error" role="alert">{{ error }}</p><ContentLoading v-if="busy"/>
     </div>
@@ -136,4 +137,4 @@ p[role=alert] { color: rgb(var(--danger-6)) }
 }
 </style>
 
-<style>.media-collection-picker .electron-modal{height:720px;border-radius:28px;display:flex;flex-direction:column}.media-collection-picker .electron-modal-body{flex:1;min-height:0;padding:0;overflow:auto}.media-collection-picker .electron-modal-header{flex:0 0 56px;justify-content:center;border:0}.media-collection-picker .electron-modal-header>button{position:absolute;left:10px}.collection-name-form input{height:32px;background:var(--secondary);padding:4px 12px}.collection-name-form>button{height:32px;background:var(--secondary);border-radius:4px}</style>
+<style>.media-collection-picker .electron-modal{height:720px;border-radius:28px;display:flex;flex-direction:column}.media-collection-picker .electron-modal-body{flex:1;min-height:0;padding:0;overflow:auto}.media-collection-picker .electron-modal-header{position:relative;flex:0 0 56px;justify-content:center;border:0}.media-collection-picker .electron-modal-header>button{position:absolute;left:10px;top:9px;width:38px;height:38px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--control-border)}.collection-name-form input{height:32px;background:var(--secondary);padding:4px 12px}.collection-name-form>button{height:32px;background:var(--secondary);border-radius:4px}</style>

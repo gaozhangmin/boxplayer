@@ -3,9 +3,67 @@ import type { Account, SourceEntry } from '../sources/contracts'
 import { endpoint, json, request } from '../sources/transport'
 import { mediaServerAccount, serverItemId } from '../sources/playlists'
 
-export interface MediaInfoCard {id:string;kind:string;title:string;rows:{label:string;value:string}[];selected?:boolean}
+export type StreamKind = 'video' | 'audio' | 'subtitle'
+export interface StreamChoice { index?: number; ordinal: number; externalId?: string }
+export type StreamSelection = Partial<Record<StreamKind, StreamChoice>>
+export interface MediaInfoCard { id: string; kind: StreamKind; title: string; rows: {label:string;value:string}[]; selected?: boolean; choice: StreamChoice }
 export interface ServerVersion {id:string;title:string;filePath?:string;fileLabel?:string;mediaInfoCards:MediaInfoCard[]}
-function mediaVersions(row:Record<string,any>,plex:boolean):ServerVersion[]{return (plex?row.Media||[]:row.MediaSources||[]).map((source:any,index:number)=>{const path=plex?source.Part?.[0]?.file:source.Path;return {id:String(plex?source.id??index:source.Id),title:source.Name||[source.videoResolution?source.videoResolution+'p':'',source.Container||source.container,source.videoCodec].filter(Boolean).join(' · ')||'版本 '+(index+1),filePath:path,fileLabel:path?.split(/[\\/]/).at(-1),mediaInfoCards:(plex?source.Part?.[0]?.Stream||[]:source.MediaStreams||[]).map((stream:any,i:number)=>({id:String(stream.Id||stream.id||stream.Index||i),kind:plex?stream.streamType===1?'video':stream.streamType===2?'audio':'subtitle':String(stream.Type).toLowerCase(),title:stream.DisplayTitle||stream.displayTitle||stream.Codec||stream.codec||'媒体轨道',rows:[['编码',stream.Codec||stream.codec],['分辨率',stream.Width||stream.width?`${stream.Width||stream.width} × ${stream.Height||stream.height}`:''],['语言',stream.Language||stream.language],['声道',stream.Channels||stream.channels],['码率',stream.BitRate||stream.bitrate]].filter((row:any)=>row[1]!=null&&row[1]!=='').map((row:any)=>({label:row[0],value:String(row[1])}))}))}})}
+
+function streamCards(source: Record<string, any>, plex: boolean): MediaInfoCard[] {
+  const streams = plex ? source.Part?.[0]?.Stream || [] : source.MediaStreams || []
+  const kinds = ['video', 'audio', 'subtitle'] as const
+  return kinds.flatMap((kind, type) => {
+    let embeddedCount = 0
+    return streams.filter((stream: any) => plex ? Number(stream.streamType) === type + 1 : stream.Type?.toLowerCase() === kind).map((stream: any, i: number) => {
+      const index = stream.Index ?? stream.index
+      const external = kind === 'subtitle' && (plex ? !!stream.key : stream.IsExternal === true)
+      const externalId = plex ? stream.id : index
+      const choice: StreamChoice = external
+        ? { ordinal: 0, externalId: externalId == null ? '' : String(externalId) }
+        : { ordinal: embeddedCount++, index: Number.isInteger(index) && index >= 0 ? index : undefined }
+      const flag = (value: unknown) => typeof value === 'boolean' ? value ? '是' : '否' : undefined
+      const width = stream.Width ?? stream.width, height = stream.Height ?? stream.height
+      const frameRate = Number(stream.RealFrameRate || stream.AverageFrameRate || stream.frameRate)
+      const bitrate = stream.BitRate ?? (stream.bitrate == null ? undefined : Number(stream.bitrate) * 1000) ?? (kind === 'video' ? source.Bitrate : undefined)
+      const sampleRate = stream.SampleRate ?? stream.samplingRate
+      const rows = [
+        ['序号', index], ['语言', stream.Language ?? stream.language], ['Codec', stream.Codec ?? stream.codec],
+        ...(kind === 'video' ? [
+          ['分辨率', width && height ? `${width} × ${height}` : undefined],
+          ['帧率', frameRate > 0 ? frameRate.toFixed(3) : undefined],
+          ['Video range', stream.VideoRange ?? stream.videoRange], ['配置', stream.Profile ?? stream.profile],
+          ['Level', stream.Level ?? stream.level], ['Bit depth', stream.BitDepth ?? stream.bitDepth],
+          ['Pixel format', stream.PixelFormat ?? stream.pixelFormat], ['Aspect ratio', stream.AspectRatio ?? stream.aspectRatio],
+          ['Interlaced', flag(stream.IsInterlaced)], ['Color primaries', stream.ColorPrimaries ?? stream.colorPrimaries],
+          ['Color space', stream.ColorSpace ?? stream.colorSpace], ['Color transfer', stream.ColorTransfer ?? stream.colorTrc]
+        ] : kind === 'audio' ? [
+          ['布局', stream.ChannelLayout ?? stream.audioChannelLayout], ['Channels', stream.Channels ?? stream.channels],
+          ['Audio sample', sampleRate ? `${sampleRate} Hz` : undefined]
+        ] : [['强制', flag(stream.IsForced ?? stream.forced)]]),
+        ['比特率', bitrate > 0 ? `${(bitrate / 1000).toFixed(0)} kbps` : undefined],
+        ['默认', flag(stream.IsDefault ?? stream.default)], ['外部', flag(stream.IsExternal ?? (plex ? external : undefined))]
+      ].filter(([, value]) => value != null && value !== '').map(([label, value]) => ({ label: String(label), value: String(value) }))
+      return {
+        id: `${kind}:${i}`, kind, choice, rows,
+        title: stream.DisplayTitle || stream.displayTitle || stream.Title || stream.title || stream.Codec || stream.codec || '媒体轨道',
+        selected: kind === 'video' ? i === 0 : !!(stream.IsDefault ?? stream.default ?? stream.selected)
+      }
+    })
+  })
+}
+
+function mediaVersions(row: Record<string, any>, plex: boolean): ServerVersion[] {
+  const sources = plex ? row.Media || [] : row.MediaSources || []
+  const fallback = !plex && sources.length <= 1 && ['Movie','Episode','Video','MusicVideo'].includes(row.Type) && typeof row.Path === 'string' && row.Path.trim() ? row.Path : undefined
+  return (sources.length ? sources : fallback ? [{ Id: '' }] : []).map((source: any, index: number) => {
+    const path = plex ? source.Part?.[0]?.file : source.Path?.trim() || fallback
+    return {
+      id: String(plex ? source.id ?? index : source.Id),
+      title: source.Name || [source.videoResolution ? source.videoResolution + 'p' : '', source.Container || source.container, source.videoCodec].filter(Boolean).join(' · ') || '版本 ' + (index + 1),
+      filePath: path, fileLabel: path?.split(/[\\/]/).at(-1), mediaInfoCards: streamCards(source, plex)
+    }
+  })
+}
 export interface ServerItem extends SourceEntry {
   externalLinks?:{title:string;url:string}[];
   birthday?:string;birthPlace?:string;deathDate?:string;

@@ -598,6 +598,7 @@ function finishFavoritePointer(event: PointerEvent) {
 .file-source-card.source-drop-target .file-source-art{outline:2px solid #ff8700;outline-offset:3px}
 @keyframes source-card-wiggle{from{transform:rotate(-.7deg)}to{transform:rotate(.7deg)}}
 @media(prefers-reduced-motion:reduce){.is-reordering:not(.file-source-list) .file-source-card,.favorite-page-wrap.is-reordering .favorite-shortcut{animation:none;outline:1px dashed #ff8700;outline-offset:4px}}
+.favorite-page-wrap{min-height:0;overflow:auto;padding:24px 28px}
 .favorite-page-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,220px));gap:30px 24px}
 .favorite-page-grid .favorite-shortcut{width:100%}
 .source-shortcuts .row-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}

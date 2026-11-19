@@ -32,6 +32,45 @@ pub struct PlayItem {
     pub media: ResolvedMedia,
     pub title: String,
     pub subtitles: Vec<Subtitle>,
+    pub tracks: Option<StreamSelection>,
+}
+#[derive(Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct StreamChoice {
+    index: Option<i64>,
+    ordinal: usize,
+    external_id: Option<String>,
+}
+#[derive(Clone, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StreamSelection {
+    video: Option<StreamChoice>,
+    audio: Option<StreamChoice>,
+    subtitle: Option<StreamChoice>,
+}
+impl StreamSelection {
+    fn apply_embedded(&self, mpv: &mut ffi::Mpv) -> Result<(), AppError> {
+        let Some(list) = mpv.json("track-list") else { return Ok(()) };
+        let Some(list) = list.as_array() else { return Ok(()) };
+        for (property, kind, selection) in [
+            ("vid", "video", &self.video), ("aid", "audio", &self.audio), ("sid", "sub", &self.subtitle),
+        ] {
+            let Some(selection) = selection else { continue };
+            if selection.external_id.is_some() { continue }
+            let candidates = list.iter().filter(|track| {
+                track["type"].as_str() == Some(kind) && track["external"].as_bool() != Some(true)
+            });
+            let track = match selection.index {
+                Some(index) => candidates.clone().find(|track| track["ff-index"].as_i64() == Some(index))
+                    .or_else(|| candidates.clone().all(|track| track["ff-index"].as_i64().is_none()).then(|| candidates.clone().nth(selection.ordinal)).flatten()),
+                None => candidates.clone().nth(selection.ordinal),
+            };
+            if let Some(id) = track.and_then(|track| track["id"].as_i64()) {
+                mpv.set(property, &id.to_string())?;
+            }
+        }
+        Ok(())
+    }
 }
 #[derive(Clone, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -353,6 +392,9 @@ fn load(
     snapshot.error = None;
     mpv.set("pause", "yes")?;
     mpv.set("start", &resume.to_string())?;
+    for property in ["vid", "aid", "sid"] {
+        mpv.set(property, "auto")?;
+    }
     mpv.command(&["loadfile", &url, "replace"])?;
     Ok(())
 }
@@ -588,6 +630,10 @@ fn run_worker(
                         if !fresh.is_empty() {
                             remote_subtitles = fresh
                         }
+                        let selection = queue[index].tracks.as_ref();
+                        let selected_subtitle = selection.and_then(|tracks| tracks.subtitle.as_ref());
+                        let external_id = selected_subtitle.and_then(|track| track.external_id.as_ref())
+                            .map(|id| format!("{}:subtitle:{id}", queue[index].media.file_id));
                         for (subtitle_index, subtitle) in queue[index]
                             .subtitles
                             .iter()
@@ -612,7 +658,7 @@ fn run_worker(
                             mpv.command(&[
                                 "sub-add",
                                 &url,
-                                if subtitle_index == 0 {
+                                if external_id.as_ref().map_or(selected_subtitle.is_none() && subtitle_index == 0, |id| *id == subtitle.media.file_id) {
                                     "select"
                                 } else {
                                     "auto"
@@ -622,6 +668,8 @@ fn run_worker(
                         }
                         if let Some(selection) = recovery_tracks.take() {
                             selection.restore(&mut mpv)?
+                        } else if let Some(selection) = selection {
+                            selection.apply_embedded(&mut mpv)?;
                         }
                         mpv.set("pause", if want_paused { "yes" } else { "no" })?;
                         state.state = "playing".into();
@@ -868,7 +916,7 @@ mod integration_tests;
 mod identity_tests {
     use super::*;
     fn media(source:&str,id:&str)->ResolvedMedia {ResolvedMedia{schema_version:1,source_id:source.into(),account_id:source.into(),file_id:id.into(),url:"https://example.invalid/old".into(),headers:Default::default(),expires_at:Some(1)}}
-    fn item(source:&str,id:&str)->PlayItem {PlayItem{media:media(source,id),title:format!("Title {id}"),subtitles:vec![Subtitle{title:"Custom subtitle".into(),media:media(source,"sub")}]}}
+    fn item(source:&str,id:&str)->PlayItem {PlayItem{media:media(source,id),title:format!("Title {id}"),tracks:None,subtitles:vec![Subtitle{title:"Custom subtitle".into(),media:media(source,"sub")}]}}
     fn resolve(value:&ResolvedMedia)->Result<ResolvedMedia,AppError>{let mut next=value.clone();if next.source_id=="ali" {next.file_id=format!("mapped-{}",next.file_id);next.url="boxplayer-queue:".into();next.headers.clear();next.expires_at=None;}Ok(next)}
     #[test]
     fn remaps_active_queue_and_subtitles_without_restarting_or_losing_controls(){
