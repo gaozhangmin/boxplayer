@@ -51,7 +51,7 @@ async function playFolder(mode:'play'|'loop'|'shuffle'){
  try{await catalog.playMany(items,mode)}catch(cause){error.value=asAppError(cause).message}
 }
 const filePorts=useFilesPorts((event:string,...args:unknown[])=>{if(event==='selectSource')emit('selectSource',args[0] as string)})
-function currentFolderAction(action:string){const card=sources.cards.find(card=>card.id===(currentBookmark.value?.id||props.source?.sourceId));if(card)void filePorts.action((card.favorite||card.local?'folder:':card.server?'server:':'root:')+card.id,action)}
+function currentFolderAction(action:string){if(!manageCurrentFavorite.value)return;const card=sources.cards.find(card=>card.id===(currentBookmark.value?.id||props.source?.sourceId));if(card)void filePorts.action((card.favorite||card.local?'folder:':card.server?'server:':'root:')+card.id,action)}
 const downloading=ref<string>()
 async function download(entry:SourceEntry){const account=remoteAccount.value;if(!account||downloading.value)return;downloading.value=entry.id;try{await nativeCall<boolean>('source_download',{accountId:account.id,fileId:entry.id,name:entry.name})}catch(cause){error.value=asAppError(cause).message}finally{downloading.value=undefined}}
 const bookmarkBusy=ref(false)
@@ -67,7 +67,7 @@ function isBookmarked(path:string){return sources.preferences.favorites.some(f=>
 const localEntries=computed(()=>sortedFiles((listing.value?.entries||[]).filter(e=>(!currentBookmark.value||e.isDirectory||e.playable)&&(!props.searchQuery||e.name.toLowerCase().includes(props.searchQuery.toLowerCase()))),sources.preferences.sort,sources.preferences.descending))
 const presentationIndex=computed(()=>{
  const files=new Map<string,typeof catalog.items[number]>(),folders=new Map<string,typeof catalog.items[number]>()
- for(const item of catalog.items||[]){files.set(JSON.stringify([item.sourceId,item.fileId]),item);for(const path of new Set(['',...(item.folderAncestors||[]),...(item.folderPath===undefined?[]:[item.folderPath])])){const key=JSON.stringify([item.sourceId,path]);if(!folders.has(key)||(!folders.get(key)?.poster&&item.poster))folders.set(key,item)}}
+ for(const item of catalog.items||[]){files.set(JSON.stringify([item.sourceId,item.fileId]),item);if(item.type==='unmatched')continue;for(const path of new Set(['',...(item.folderAncestors||[]),...(item.folderPath===undefined?[]:[item.folderPath])])){const key=JSON.stringify([item.sourceId,path]);if(!folders.has(key)||(!folders.get(key)?.poster&&item.poster))folders.set(key,item)}}
  return {files,folders}
 })
 function metadataFor(path:string,directory=false,sourceId=props.source?.sourceId){return (directory?presentationIndex.value.folders:presentationIndex.value.files).get(JSON.stringify([sourceId,path]))}
@@ -128,6 +128,11 @@ watch([() => listing.value?.relativePath, remotePath], () => {
  const container = directoryElement.value?.closest<HTMLElement>('.content-body')
  if (container) container.scrollTop = 0
 }, { flush: 'post' })
+const manageCurrentFavorite = computed(() => {
+ const bookmark = currentBookmark.value
+ return !!bookmark && (canBrowse.value ? listing.value?.relativePath === bookmark.path
+   : remotePath.value === bookmark.path && !remoteQuery.value)
+})
 const folderTitle=computed(()=>{const root=currentBookmark.value?.path||'',path=listing.value?.relativePath||'';return !props.source?t('files'):canBrowse.value?(path&&path!==root?path.split(/[\\/]/).at(-1)||props.source.title:props.source.title):remoteTitle.value||props.source.title})
 const error = ref('')
 const loading = ref(false)
@@ -170,7 +175,7 @@ function size(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3
 </script>
 <template>
   <section ref="directoryElement" class="files-browser" :aria-label="t('files')">
-    <Teleport v-if="toolbarReady" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><FilesFolderToolbar :mode="gridView?'grid':'list'" :descending="sources.preferences.descending" :selection="selection" @mode="gridView=$event==='grid'" @direction="sources.preferences.descending=!sources.preferences.descending" @selection="selection=!selection;selected=[]" @play="playFolder" @remove="currentFolderAction('removeFavoriteFolder')" @rename="currentFolderAction('renameCollection')"/></Teleport>
+    <Teleport v-if="toolbarReady" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><FilesFolderToolbar :mode="gridView?'grid':'list'" :descending="sources.preferences.descending" :selection="selection" :manage-favorite="manageCurrentFavorite" @mode="gridView=$event==='grid'" @direction="sources.preferences.descending=!sources.preferences.descending" @selection="selection=!selection;selected=[]" @play="playFolder" @remove="currentFolderAction('removeFavoriteFolder')" @rename="currentFolderAction('renameCollection')"/></Teleport>
     <div v-if="selection" class="poster-selection-bar"><span>已选择 {{selected.length}} 项</span><button @click="selection=false;selected=[]">取消</button></div><p v-if="error" role="alert">{{error}}</p>
     <ContentLoading v-if="loading" :label="t('loadingFiles')" />
     <MediaEmptyFolder v-else-if="!browserFiles.length"/><MediaPanRight v-else :files="browserFiles" :media="browserMedia" :posters="browserPosters" :selected="browserSelected" :favorite-ids="browserFavorites" :favorite-browse="!!currentBookmark||canBrowse" :browse-mode="gridView?'grid':'list'" :browse-selection="selection" :descending="sources.preferences.descending" @enter-folder="openBrowserFile" @open-file="openBrowserFile" @open-media="item=>catalog.play(item)" @select="selectBrowserFiles" @file-action="browserAction"/>

@@ -2,7 +2,7 @@
 import {computed} from 'vue'
 import {Grid2X2,List,ArrowDown,ArrowUp,Ellipsis,ChevronDown,SquareCheck,ListFilter,Play,RefreshCw,Shuffle,Star,Pencil} from 'lucide-vue-next'
 import {t} from './i18n'
-const props=defineProps<{mode:'grid'|'list';descending:boolean;selection:boolean}>()
+const props=defineProps<{mode:'grid'|'list';descending:boolean;selection:boolean;manageFavorite?:boolean}>()
 const emit=defineEmits<{mode:[value:'grid'|'list'];direction:[];selection:[];play:[kind:'play'|'loop'|'shuffle'];remove:[];rename:[]}>()
 const collectionMode=computed({get:()=>props.mode,set:value=>emit('mode',value)})
 const folderDescending=computed({get:()=>props.descending,set:()=>emit('direction')})
