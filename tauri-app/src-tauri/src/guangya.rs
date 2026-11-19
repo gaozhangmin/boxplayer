@@ -256,23 +256,23 @@ impl Sessions {
             return Err(error("短信会话已过期，请重新获取"));
         }
         let client = client()?;
-        let verified=post(gateway,"/v1/auth/verification/verify",account_headers(&session.device,&client),Some(json!({"verification_id":session.verification,"verification_code":code,"client_id":client}))).await?;
+        let verified=post(gateway,"/v1/auth/verification/verify",account_headers(&session.device,&client),Some(json!({"verification_id":session.verification,"verification_code":code,"client_id":client}))).await
+            .map_err(|cause| login_stage("短信验证码校验失败", cause))?;
         let verification_token =
             string(raw(&verified), &["verification_token", "verificationToken"])
                 .ok_or_else(|| error("短信验证码校验失败，请重新获取"))?;
         let mut headers = account_headers(&session.device, &client);
         headers.insert("x-captcha-token".into(), session.captcha);
-        let token=post(gateway,"/v1/auth/signin",headers,Some(json!({"verification_code":code,"verification_token":verification_token,"username":session.phone,"client_id":client}))).await?;
+        let token=post(gateway,"/v1/auth/signin",headers,Some(json!({"verification_code":code,"verification_token":verification_token,"username":session.phone,"client_id":client}))).await
+            .map_err(|cause| login_stage("光鸭账号登录失败", cause))?;
         let credentials = credentials(&token, &session.device, None)?;
         let mut headers = account_headers(&session.device, &client);
         headers.insert(
             "Authorization".into(),
             credentials.headers["Authorization"].clone(),
         );
-        let profile = post(gateway, "/v1/user/me", headers, None).await?;
-        let user_id = subject(&profile)
-            .or_else(|| subject(&token))
-            .ok_or_else(|| error("光鸭缺少稳定账号标识，未保存账号"))?;
+        let profile = post(gateway, "/v1/user/me", headers, None).await;
+        let user_id = login_subject(&token, profile)?;
         let name = if session.name.trim().is_empty() {
             "光鸭云盘".into()
         } else {
@@ -292,6 +292,20 @@ impl Sessions {
         )
     }
 }
+fn login_stage(stage: &str, mut cause: AppError) -> AppError {
+    cause.message = format!("{stage}：{}", cause.message);
+    cause
+}
+
+fn login_subject(token: &Value, profile: Result<Value, AppError>) -> Result<String, AppError> {
+    match profile {
+        Ok(profile) => subject(&profile)
+            .or_else(|| subject(token))
+            .ok_or_else(|| error("光鸭缺少稳定账号标识，未保存账号")),
+        Err(cause) => subject(token).ok_or_else(|| login_stage("无法读取光鸭账号身份", cause)),
+    }
+}
+
 pub async fn refresh(
     accounts: &Accounts,
     gateway: &Arc<Gateway>,
@@ -326,6 +340,14 @@ pub async fn refresh(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn signed_in_account_can_use_token_identity_when_profile_request_fails() {
+        let token = json!({"data":{"user_id":"stable-account"}});
+        assert_eq!(login_subject(&token, Err(error("fixture timeout"))).unwrap(), "stable-account");
+        assert!(login_subject(&json!({}), Err(error("fixture timeout"))).is_err());
+        assert_eq!(login_subject(&token, Ok(json!({"uid":"profile-account"}))).unwrap(), "profile-account");
+    }
+
     #[test]
     fn phone_and_token_keep_identity_and_secrets_native() {
         for phone_number in ["13812345678", "+86 13812345678", "0086-13812345678"] {
