@@ -503,7 +503,7 @@ function finishFavoritePointer(event: PointerEvent) {
           <button class="round-button more-button server-sort-button" :aria-label="t('unified.sortLabel')"><span>{{ t(`unified.sort.${browseSort}`) }}</span><ArrowDown v-if="browseSortDescending" :size="16" /><ArrowUp v-else :size="16" /></button>
           <template #content>
             <div class="server-sort-menu" role="menu">
-              <button v-for="sort in (['title', 'fileName', 'addedAt', 'premiereDate'] as MediaBrowseSort[])" :key="sort" role="menuitemradio" :aria-checked="browseSort === sort" @click="selectBrowseSort(sort)"><ArrowDown v-if="browseSortDescending" :size="13" :style="{opacity:browseSort===sort?1:0.4}"/><ArrowUp v-else :size="13" :style="{opacity:browseSort===sort?1:0.4}"/><span>{{ t(`unified.sort.${sort}`) }}</span></button>
+              <button v-for="sort in (['title', 'fileName', 'addedAt', 'premiereDate'] as MediaBrowseSort[])" :key="sort" role="menuitemradio" :aria-checked="browseSort === sort" @click="selectBrowseSort(sort)"><ArrowDown v-if="browseSortDescending" :size="13" :style="{visibility:browseSort===sort?'visible':'hidden'}"/><ArrowUp v-else :size="13" :style="{visibility:browseSort===sort?'visible':'hidden'}"/><span>{{ t(`unified.sort.${sort}`) }}</span></button>
             </div>
           </template>
         </a-dropdown>
