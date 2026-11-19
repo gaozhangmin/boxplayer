@@ -117,7 +117,7 @@ fn complete_callback(state:&CallbackState,query:Callback)->(axum::http::StatusCo
         "Authorization received. Return to BoxPlayer.",
     )
 }
-fn registered_redirect(provider:&str)->Option<&'static str>{match provider{"dropbox"|"box"=>Some("xbyboxplayer-oauth://callback"),"onedrive"=>Some("boxplayer-onedriveoauth://callback"),_=>None}}
+fn registered_redirect(provider:&str)->Option<&'static str>{match provider{"123"|"dropbox"|"box"=>Some("xbyboxplayer-oauth://callback"),"onedrive"=>Some("boxplayer-onedriveoauth://callback"),_=>None}}
 static CUSTOM_CALLBACKS:OnceLock<Mutex<HashMap<String,(String,CallbackState)>>>=OnceLock::new();
 fn custom_callbacks()->&'static Mutex<HashMap<String,(String,CallbackState)>>{CUSTOM_CALLBACKS.get_or_init(Default::default)}
 struct CustomCallbackGuard{state:String,_route:crate::oauth_route::Route}
@@ -471,6 +471,7 @@ fn verify_refresh_identity(expected: &str, actual: &str) -> Result<(), AppError>
 mod tests {
     #[test]
     fn registered_provider_redirects_match_electron() {
+        assert_eq!(registered_redirect("123"), Some("xbyboxplayer-oauth://callback"));
         assert_eq!(registered_redirect("dropbox"), Some("xbyboxplayer-oauth://callback"));
         assert_eq!(registered_redirect("box"), Some("xbyboxplayer-oauth://callback"));
         assert_eq!(registered_redirect("onedrive"), Some("boxplayer-onedriveoauth://callback"));
