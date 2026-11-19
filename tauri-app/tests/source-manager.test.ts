@@ -149,16 +149,16 @@ it('PikPak submits password login natively without cloud advanced configuration'
  expect(wrapper.emitted('saved')?.[0]).toEqual([account]);expect(view.get<HTMLInputElement>('input[type="password"]').element.value).toBe('')
 })
 
-it('139 passes Authorization only to its native login and clears it after saving',async()=>{
+it('139 uses the official login window without an Authorization field',async()=>{
  const account={id:'139-a',providerId:'139',name:'移动云盘',baseUrl:'https://personal.yun.139.com/hcy',authOrigins:['https://personal.yun.139.com','https://yun.139.com']}
- vi.mocked(nativeCall).mockImplementation(async(command:string)=>command==='cloud139_login'?account:true)
+ vi.mocked(nativeCall).mockImplementation(async(command:string)=>command==='cloud139_web_login'?account:true)
  wrapper=mount(SourceManager,{attachTo:document.body,global:{plugins:[createPinia()]}});await flushPromises();const view=new DOMWrapper(document.body)
  await selectProvider(view,'移动云盘');await flushPromises()
- expect(view.text()).toContain('Authorization');expect(view.text()).not.toMatch(/Client ID|Client Secret|高级/)
- expect(view.findAll('input')).toHaveLength(2)
- await view.get('input[type="password"]').setValue('synthetic-authorization');await view.get('form').trigger('submit');await flushPromises()
- expect(nativeCall).toHaveBeenCalledWith('cloud139_login',expect.objectContaining({name:'',authorization:'synthetic-authorization'}))
- expect(view.get<HTMLInputElement>('input[type="password"]').element.value).toBe('');expect(wrapper.emitted('saved')?.[0]).toEqual([account])
+ expect(view.text()).toContain('打开官方登录');expect(view.text()).not.toMatch(/Authorization|Client ID|Client Secret|高级/)
+ expect(view.findAll('input')).toHaveLength(1)
+ await view.get('form').trigger('submit');await flushPromises()
+ expect(nativeCall).toHaveBeenCalledWith('cloud139_web_login',expect.objectContaining({name:''}))
+ expect(wrapper.emitted('saved')?.[0]).toEqual([account])
 })
 
 it('Tianyi creates QR locally from its own native session and cancels on close',async()=>{

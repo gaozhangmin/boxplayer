@@ -1360,14 +1360,18 @@ pub async fn pikpak_login(
 }
 
 #[tauri::command]
-pub async fn cloud139_login(
+pub async fn cloud139_web_login(
+    app: tauri::AppHandle,
     state: State<'_, Backend>,
     request_id: String,
     name: String,
-    authorization: String,
 ) -> Result<crate::accounts::Account, AppError> {
     let job = AuthJob::start(&state, request_id)?;
-    tokio::select! {result=crate::cloud139::login(&state.accounts,&state.gateway,name,authorization)=>result,_=job.cancel.cancelled()=>Err(AppError::new("LOGIN_CANCELLED","登录已取消",false))}
+    tokio::select! {
+        biased;
+        _ = job.cancel.cancelled() => Err(AppError::new("LOGIN_CANCELLED", "登录已取消", false)),
+        result = crate::cloud139_web::login(&app, &state.accounts, &state.gateway, name) => result,
+    }
 }
 
 #[tauri::command]

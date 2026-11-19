@@ -5,7 +5,7 @@ import {t} from './i18n'
 import {useNativeLogin} from '../adapters/nativeLogin'
 const props=defineProps<{embedded?:boolean;provider?:string;sourceName?:string}>()
 const emit=defineEmits<{connected:[];cancel:[]}>()
-const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLoginProviderMeta,loginCur,loginStatus,loginLoading,qrCodeUrl,qrCodeStatusType,qrCodeStatusTips,drive115Tips,drive115Loading,cloud139Authorization,cloud139Loading,cloud189QrStatusType,cloud189Tips,cloud189Loading,guangyaPhone,guangyaCode,guangyaLoading,guangyaSmsState,pikpakUsername,pikpakPassword,pikpakLoading,quarkQrImageUrl,quarkQrStatusType,quarkTips,quarkLoading,dropboxLoading,onedriveLoading,boxLoading,googleLoading,remoteDriveForm,remoteDriveLoading,handleModalOpen,handleClose,handleRefreshQrCodeUrl,handleRefresh115Qr,submitCloud139Login,handleOpen189,sendGuangyaSmsCode,submitGuangyaLogin,handleReopenCloud123,handleReopenBaidu,submitPikPakLogin,handleOpenQuark,handleReopenDropbox,handleReopenOneDrive,handleReopenBox,handleReopenGoogle,submitRemoteDrive}=useNativeLogin(props,emit)
+const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLoginProviderMeta,loginCur,loginStatus,loginLoading,qrCodeUrl,qrCodeStatusType,qrCodeStatusTips,drive115Tips,drive115Loading,cloud139Loading,cloud189QrStatusType,cloud189Tips,cloud189Loading,guangyaPhone,guangyaCode,guangyaLoading,guangyaSmsState,pikpakUsername,pikpakPassword,pikpakLoading,quarkQrImageUrl,quarkQrStatusType,quarkTips,quarkLoading,dropboxLoading,onedriveLoading,boxLoading,googleLoading,remoteDriveForm,remoteDriveLoading,handleModalOpen,handleClose,handleRefreshQrCodeUrl,handleRefresh115Qr,openCloud139Login,handleOpen189,sendGuangyaSmsCode,submitGuangyaLogin,handleReopenCloud123,handleReopenBaidu,submitPikPakLogin,handleOpenQuark,handleReopenDropbox,handleReopenOneDrive,handleReopenBox,handleReopenGoogle,submitRemoteDrive}=useNativeLogin(props,emit)
 </script>
 <template>
   <SourceFormSurface :embedded="embedded" :visible="loginVisible" :title="embedded ? undefined : t('login.driveAccount')" :closable="!embedded" modal-class="userloginmodal" @update:visible="loginVisible = $event" @before-open="handleModalOpen" @close="handleClose">
@@ -112,8 +112,7 @@ const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLogi
         <div id='logindiv'>
           <div class='logincontent'>
             <div class="pikpak-login-form">
-              <a-textarea v-model="cloud139Authorization" placeholder="粘贴 139 云盘 Authorization（Basic 后面的完整值也可以）" :auto-size="{ minRows: 4, maxRows: 6 }" allow-clear />
-              <a-button type="primary" long :loading="cloud139Loading" @click="submitCloud139Login">登录 139 云盘</a-button>
+              <a-button type="primary" long :loading="cloud139Loading" @click="openCloud139Login">打开官方登录</a-button>
             </div>
           </div>
         </div>

@@ -180,3 +180,7 @@ Standalone CLI + MCP server for agent-driven cloud-drive operations. Docs: `clou
 ## CLI 操作规则
 
 使用 clouddrive-cli 时，先运行 `clouddrive-cli list --format json` 发现命令，再用 `clouddrive-cli providers capabilities --format json` 检查能力。破坏性操作先 dry-run；文件 ID 必须来自实际 list/walk/search/tree 结果，不能猜测；大结果用 `--output <file.json>`。
+
+### 139 云盘官方登录
+
+Tauri 支持在独立登录窗口使用 139 官网提供的认证方式。网页登录完成后，从成功的官方文件列表请求接收云盘凭据，再通过原生路由校验和账号存储保存来源。密码和短信验证码由官网处理。

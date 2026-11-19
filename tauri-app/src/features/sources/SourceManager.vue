@@ -114,8 +114,8 @@ async function save() {
     if(provider.value==='local'){if(!localChoice.value)return;const source=savedLocal.value||await nativeCall<{id:string;name:string}>('local_save_chosen_source',{selectionId:localChoice.value.id,name:name.value.trim()});savedLocal.value=source;await sources.refresh();if(props.folderCatalog)await props.folderCatalog.scanFolder(source.id,'');else await catalog.scan(source.id);localChoice.value=undefined;savedLocal.value=undefined;emit('close');return}
     if (provider.value === '139') {
       const generation=qrGeneration
-      const account=await nativeCall<Account>('cloud139_login',{requestId,name:name.value.trim(),authorization:secret.value.trim()})
-      secret.value='';if(alive && generation===qrGeneration)emit('saved',account)
+      const account=await nativeCall<Account>('cloud139_web_login',{requestId,name:name.value.trim()})
+      if(alive && generation===qrGeneration)emit('saved',account)
       return
     }
     if (provider.value === 'pikpak') {
@@ -219,7 +219,7 @@ async function save() {
           <template v-if="authenticationForm">
           <label v-if="!['guangya','pikpak','139','plex'].includes(provider) && !oauthProviders.includes(provider) && !qrProviders.includes(provider)">地址<input v-model="url" :disabled="busy" :placeholder="['jellyfin','emby','plex'].includes(provider) ? 'iMac.local' : 'https://server.example/dav/'" required autocomplete="off" /></label>
           <label v-if="!['guangya','139','nfs'].includes(provider) && !oauthProviders.includes(provider) && provider !== 'plex' && !qrProviders.includes(provider) && (provider !== 'alist' || !alistToken)">用户名<input v-model="username" :disabled="busy" placeholder="johnappleseed" autocomplete="off" /></label>
-          <label v-if="!['guangya','nfs'].includes(provider) && !oauthProviders.includes(provider) && provider !== 'plex' && !qrProviders.includes(provider)">{{ provider === '139' ? 'Authorization' : provider === 'alist' && alistToken ? '访问令牌' : '密码' }}<input v-model="secret" :disabled="busy" :placeholder="provider==='139'?'Authorization':'密码'" type="password" autocomplete="off" /></label>
+          <label v-if="!['guangya','139','nfs'].includes(provider) && !oauthProviders.includes(provider) && provider !== 'plex' && !qrProviders.includes(provider)">{{ provider === 'alist' && alistToken ? '访问令牌' : '密码' }}<input v-model="secret" :disabled="busy" placeholder="密码" type="password" autocomplete="off" /></label>
           <template v-if="provider === 'alist'"><label v-if="!alistToken">二步验证码<input v-model="otpCode" :disabled="busy" placeholder="可选" inputmode="numeric" autocomplete="one-time-code" /></label><button type="button" class="advanced-toggle" :disabled="busy" @click="alistToken=!alistToken;secret=''">{{ alistToken ? '使用用户名和密码' : '使用访问令牌' }}</button></template>
           <template v-if="['webdav','alist','jellyfin','emby'].includes(provider)">
             <button class="advanced-toggle" type="button" :aria-expanded="advanced" @click="advanced=!advanced">高级<ChevronDown :size="16" :style="{transform:advanced?'rotate(180deg)':undefined}"/></button>
@@ -231,7 +231,7 @@ async function save() {
           <p v-if="error" class="source-error" role="alert">{{ error }}</p>
           <button v-if="provider==='alipan-open'" class="advanced-toggle" type="button" :disabled="busy" @click="webLogin">使用网页登录</button>
           </template>
-          <div class="source-buttons"><Button type="submit" :disabled="busy||(provider==='local'&&!localChoice)||(['jellyfin','emby','webdav','alist'].includes(provider)&&!url.trim())">{{provider==='local'?'保存':!authenticationForm?'连接': busy ? '正在连接…' : provider === 'guangya' ? (smsSession ? '登录' : '获取短信验证码') : qrProviders.includes(provider) ? '生成二维码' : provider==='plex'?'连接':oauthProviders.includes(provider) ? '在浏览器登录' : '新增' }}</Button></div>
+          <div class="source-buttons"><Button type="submit" :disabled="busy||(provider==='local'&&!localChoice)||(['jellyfin','emby','webdav','alist'].includes(provider)&&!url.trim())">{{provider==='local'?'保存':!authenticationForm?'连接': busy ? '正在连接…' : provider === '139' ? '打开官方登录' : provider === 'guangya' ? (smsSession ? '登录' : '获取短信验证码') : qrProviders.includes(provider) ? '生成二维码' : provider==='plex'?'连接':oauthProviders.includes(provider) ? '在浏览器登录' : '新增' }}</Button></div>
           </form>
         </div>
       </DialogContent>

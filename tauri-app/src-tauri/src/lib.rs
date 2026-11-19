@@ -15,6 +15,7 @@ mod catalog_migration;
 mod boxplayer;
 mod trakt;
 mod cloud139;
+mod cloud139_web;
 mod cloud189;
 mod commands;
 mod cookie_sessions;
@@ -407,7 +408,7 @@ pub fn run() {
             commands::guangya_cancel,
             commands::pikpak_login,
             commands::pikpak_create_share,
-            commands::cloud139_login,
+            commands::cloud139_web_login,
             commands::cloud189_begin,
             commands::cloud189_poll,
             commands::cloud189_cancel,
