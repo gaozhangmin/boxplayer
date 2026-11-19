@@ -1258,6 +1258,7 @@ pub async fn account_remove(app: tauri::AppHandle, account_id: String) -> Result
     backend.prepared_media.revoke_account(&account_id);
     backend.gateway.revoke_account(&account_id).await;
     backend.accounts.remove(&account_id)?;
+    let _ = app.emit("boxplayer:account-changed", ());
     app.state::<crate::artwork_cache::ArtworkCache>().remove_account(&account_id);
     let catalog = crate::catalog::remove_source(&backend.library, &account_id)?;
     let _ = app.emit("catalog:changed", catalog.revision);
@@ -1479,13 +1480,18 @@ pub async fn boxplayer_begin(
 }
 #[tauri::command]
 pub async fn boxplayer_poll(
+    app: tauri::AppHandle,
     state: State<'_, Backend>,
     session_id: String,
 ) -> Result<crate::boxplayer_account::LoginStatus, AppError> {
-    state
+    let status = state
         .boxplayer_sessions
         .poll(&state.gateway, &state.accounts, &session_id)
-        .await
+        .await?;
+    if status.account.is_some() {
+        let _ = app.emit("boxplayer:account-changed", ());
+    }
+    Ok(status)
 }
 #[tauri::command]
 pub fn boxplayer_cancel(state: State<'_, Backend>, session_id: String) -> bool {

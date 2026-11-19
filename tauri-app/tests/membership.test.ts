@@ -17,3 +17,22 @@ it('discards a former account response and clears membership on logout',async()=
  vi.mocked(nativeCall).mockResolvedValue({accountId:'b',isPro:true,entitlementScope:'android'});await store.refresh();expect(store.tier).toBe('android')
  sources.accounts=[];await nextTick();expect(store.membership).toBeUndefined();expect(store.selectedId).toBe('')
 })
+
+it('hydrates an independent window from saved accounts and refreshes Pro after account changes', async () => {
+ const pinia=createPinia(),sources=useFileSourcesStore(pinia),store=useMembershipStore(pinia)
+ const account={id:'existing-pro',providerId:'boxplayer',name:'Fixture',baseUrl:'https://site.test',authOrigins:['https://site.test']}
+ vi.mocked(nativeCall).mockResolvedValueOnce([account]).mockResolvedValueOnce({accountId:account.id,isPro:true,entitlementScope:'all'})
+ await store.syncAccounts()
+ expect(store.selectedId).toBe(account.id)
+ expect(store.tier).toBe('all')
+ expect(nativeCall).toHaveBeenCalledWith('boxplayer_subscription',{accountId:account.id})
+ vi.mocked(nativeCall).mockRejectedValueOnce(new Error('Account lookup unavailable'))
+ await store.syncAccounts()
+ expect(store.accountsError).toBe('Account lookup unavailable')
+ expect(store.selectedId).toBe(account.id)
+ vi.mocked(nativeCall).mockResolvedValueOnce([])
+ await store.syncAccounts()
+ expect(sources.accounts).toEqual([])
+ expect(store.selectedId).toBe('')
+ expect(store.membership).toBeUndefined()
+})
