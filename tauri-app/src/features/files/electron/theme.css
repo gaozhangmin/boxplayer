@@ -15,7 +15,7 @@
 .library-browser .category-art{background:var(--secondary);border-color:var(--border)}
 .video-workspace .source-shortcuts .row-heading button,.video-workspace .source-reorder-hint button{color:var(--primary)!important}
 .video-workspace .favorite-shortcut:not(.favorite-movies):not(.favorite-tv):not(.favorite-other):not(.favorite-folder):not(.favorite-server) .favorite-shortcut-art{background:linear-gradient(90deg,var(--primary),#61b883)}
-.home-management .confirm,.media-detail .play-button,.personal-rating__actions .arco-btn-primary{background:var(--primary)!important}
+.home-management .confirm,.personal-rating__actions .arco-btn-primary{background:var(--primary)!important}
 .library-settings-option input{accent-color:var(--primary)}
 
 .media-detail .detail-more-action-item:disabled{opacity:.45;cursor:not-allowed}

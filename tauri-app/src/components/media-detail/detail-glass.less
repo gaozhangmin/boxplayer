@@ -1,0 +1,83 @@
+/* Shared by local/library and server details, including their header actions. */
+.media-detail {
+  --detail-glass-fill: rgba(155, 155, 165, .18);
+  --detail-glass-hover: rgba(255, 255, 255, .38);
+  --detail-glass-selected: rgba(255, 255, 255, .46);
+  --detail-glass-edge: rgba(100, 100, 110, .22);
+  --detail-glass-shine: rgba(255, 255, 255, .92);
+  --detail-glass-shadow: rgba(25, 25, 35, .1);
+  --detail-glass-ink: #252528;
+}
+
+[arco-theme='dark'] .media-detail {
+  --detail-glass-fill: rgba(65, 65, 72, .32);
+  --detail-glass-hover: rgba(100, 100, 110, .4);
+  --detail-glass-selected: rgba(125, 125, 135, .46);
+  --detail-glass-edge: rgba(255, 255, 255, .22);
+  --detail-glass-shine: rgba(255, 255, 255, .48);
+  --detail-glass-shadow: rgba(0, 0, 0, .22);
+  --detail-glass-ink: #f5f5f7;
+}
+
+/* Repeated root specificity beats the legacy body:not([arco-theme]) fills. */
+body .media-detail.media-detail :is(.play-button, .action-button, .version-button) {
+  box-sizing: border-box;
+  border: 1px solid var(--detail-glass-edge);
+  border-radius: 999px;
+  background: var(--detail-glass-fill);
+  color: var(--detail-glass-ink);
+  box-shadow:
+    inset 0 1px 1px var(--detail-glass-shine),
+    inset 0 -1px 1px rgba(255, 255, 255, .28),
+    0 1px 2px var(--detail-glass-shadow);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.media-detail .action-buttons {
+  grid-template-columns: none;
+}
+
+.media-detail .action-buttons .action-button {
+  height: auto;
+  aspect-ratio: 1;
+}
+
+body .media-detail.media-detail :is(.play-button, .action-button, .version-button):hover:not(:disabled) {
+  background: var(--detail-glass-hover);
+  color: var(--detail-glass-ink);
+  box-shadow: inset 0 1px 1px var(--detail-glass-shine), 0 2px 5px var(--detail-glass-shadow);
+}
+
+body .media-detail.media-detail :is(.action-button.active, .action-button[aria-pressed='true']) {
+  background: var(--detail-glass-selected);
+  color: var(--primary);
+}
+
+body .media-detail.media-detail :is(.play-button, .action-button, .version-button):active:not(:disabled) {
+  transform: scale(.96);
+}
+
+body .media-detail.media-detail :is(.play-button, .action-button, .version-button):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+.media-detail .play-button .play-button-label {
+  color: inherit;
+}
+
+.media-detail .play-button-progress {
+  background: color-mix(in srgb, var(--detail-glass-ink) 12%, transparent);
+  border-right-color: var(--detail-glass-shine);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body .media-detail.media-detail :is(.play-button, .action-button, .version-button) { transition: none; }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .media-detail { --detail-glass-fill: rgba(235, 235, 239, .9); }
+  [arco-theme='dark'] .media-detail { --detail-glass-fill: rgba(55, 55, 62, .92); }
+}
