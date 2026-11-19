@@ -87,7 +87,7 @@ export const useVideoCatalog=defineStore('video-catalog',()=>{
  let lastProgressKey='',lastProgressTime=0
  async function recordProgress(snapshot:PlayerSnapshot){
   if(!Number.isFinite(snapshot.duration)||!Number.isFinite(snapshot.position)||snapshot.duration<=0||snapshot.position<0||!['playing','paused','ended'].includes(snapshot.state))return
-  const item=data.value.items.find(item=>item.sourceId===snapshot.sourceId&&(item.fileId===snapshot.itemId||item.id===JSON.stringify([snapshot.sourceId,snapshot.itemId])));if(!item)return
+  const item=data.value.items.find(item=>item.sourceId===snapshot.sourceId&&(item.fileId===snapshot.itemId||item.id===JSON.stringify([snapshot.sourceId,snapshot.itemId])));sources.recordPlayback(snapshot,[item?.folderPath||'',...(item?.folderAncestors||[])]);if(!item)return
   const now=Date.now(),key=snapshot.sessionId+':'+snapshot.state
   if(key===lastProgressKey&&now-lastProgressTime<15000)return
   lastProgressKey=key;lastProgressTime=now

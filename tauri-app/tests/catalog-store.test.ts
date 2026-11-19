@@ -6,7 +6,7 @@ const state=vi.hoisted(()=>({snapshot:{schemaVersion:1,revision:0,items:[] as an
 vi.mock('@/platform/native',()=>({isNative:()=>true,nativeCall:vi.fn(async(command:string,args:any)=>{if(command==='catalog_load')return structuredClone(state.snapshot);if(command==='catalog_save'){state.snapshot={...structuredClone(args.catalog),revision:state.snapshot.revision+1};return structuredClone(state.snapshot)}return undefined}),localList:vi.fn(),localSources:vi.fn(async()=>[])}))
 vi.mock('@/features/sources/transport',()=>({accountsList:vi.fn(async()=>[]),json:vi.fn(),request:vi.fn(),endpoint:vi.fn()}))
 const video=(id:string,patch:Partial<VideoItem>={}):VideoItem=>({id:JSON.stringify(['s',id]),sourceId:'s',fileId:id,fileName:id,name:id,type:'movie',local:true,addedAt:'2026',genres:[],size:0,...patch})
-beforeEach(()=>{setActivePinia(createPinia());state.snapshot={schemaVersion:1,revision:0,items:[],playlists:{},series:{}};vi.clearAllMocks()})
+beforeEach(()=>{const values=new Map<string,string>();vi.stubGlobal('localStorage',{getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value)});setActivePinia(createPinia());state.snapshot={schemaVersion:1,revision:0,items:[],playlists:{},series:{}};vi.clearAllMocks()})
 it('preserves media covered by another root when removing a folder favorite',async()=>{
  const covered=video('covered',{folderPath:'shows/one',folderAncestors:['','shows'],catalogRoots:['','shows']})
  const exclusive=video('exclusive',{folderPath:'shows/two',folderAncestors:['shows'],catalogRoots:['shows']})

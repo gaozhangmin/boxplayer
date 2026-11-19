@@ -39,7 +39,6 @@ import TraktAccount from './electron/TraktAccountModal.vue'
 import TraktAvatar from './electron/TraktAvatar.vue'
 import {traktAccount} from '@/features/trakt/client'
 import {Ellipsis,Move,House,Pencil,SquareCheck,Shuffle,ListFilter} from 'lucide-vue-next'
-import {nextMediaBrowseSort} from './electron/mediaBrowseSort'
 import {loadTraktStatus,traktStatus,syncTrakt,type PlaybackProgress} from '@/features/trakt/client'
 import {playbackPatches} from '@/features/trakt/progress'
 import {libraryCategoryIcon as originalLibraryCategoryIcon} from './electron/libraryCategoryIcon'
@@ -135,6 +134,8 @@ async function syncPersonal(items:VideoItem[],action:'watchlist-add'|'watchlist-
 const context=ref<{x:number;y:number;route:string;item?:VideoItem;toolbar?:boolean;detailMenu?:boolean}>()
 const favoriteTitleSort=ref(localStorage.getItem('boxplayer:favorite-cards-sort-title')==='true')
 function setFavoriteTitleSort(value:boolean){favoriteTitleSort.value=value;localStorage.setItem('boxplayer:favorite-cards-sort-title',String(value))}
+const favoriteTitleDescending=ref(localStorage.getItem('boxplayer:favorite-cards-sort-descending')==='true')
+function chooseFavoriteTitleSort(){if(favoriteTitleSort.value)favoriteTitleDescending.value=!favoriteTitleDescending.value;else setFavoriteTitleSort(true);localStorage.setItem('boxplayer:favorite-cards-sort-descending',String(favoriteTitleDescending.value))}
 const favoriteReordering=ref(false),draggedFavorite=ref('')
 function dropFavorite(key:string){if(!draggedFavorite.value||draggedFavorite.value===key)return;const keys=favoriteCards.value.map(card=>card.key),from=keys.indexOf(draggedFavorite.value),to=keys.indexOf(key);if(from<0||to<0)return;keys.splice(to,0,keys.splice(from,1)[0]!);void run(async()=>{await placement.reorderFavorites(keys);syncSourceOrder(keys)});draggedFavorite.value=''}
 const reorderRoute=ref(''),traktVisible=ref(false)
@@ -164,7 +165,7 @@ async function refreshLibrary(){
 }
 function showSource(id:string,visible:boolean){void run(()=>placement.applyHome({...home.$state,hidden:visible?home.hidden.filter(v=>v!==id):[...new Set([...home.hidden,id])]}))}
 async function menuAction(action:string){const target=context.value;if(!target)return;context.value=undefined;const item=target.item,items=item?(videoGroups(catalog.items).find(g=>g.files.some(i=>i.id===item.id))?.files||[item]):filter(target.route);
- if(action==='favoriteTitle'){setFavoriteTitleSort(!favoriteTitleSort.value);return}if(action==='hideFavorites'){void run(()=>placement.applyHome({...home.$state,hidden:[...new Set([...home.hidden,'sources'])]}));return}if(action==='renameFavorites'){prompt.value={kind:'homeTitle',value:home.titles.sources||'收藏夹',route:'sources'};return}if(action==='nextSort'){const values=['title','fileName','addedAt','premiereDate'];selectSort(values[(values.indexOf(sort.value)+1)%values.length]!);return}if(action==='favoriteOrder'){setFavoriteTitleSort(false);favoriteReordering.value=true;return}
+ if(action==='favoriteTitle'){chooseFavoriteTitleSort();return}if(action==='hideFavorites'){void run(()=>placement.applyHome({...home.$state,hidden:[...new Set([...home.hidden,'sources'])]}));return}if(action==='renameFavorites'){prompt.value={kind:'homeTitle',value:home.titles.sources||'收藏夹',route:'sources'};return}if(action==='nextSort'){selectSort(sort.value);return}if(action==='favoriteOrder'){setFavoriteTitleSort(false);favoriteReordering.value=true;return}
  if(['play','loop','shuffle'].includes(action)){void run(()=>playItems(items,action as 'play'|'loop'|'shuffle'));return}
  if(action==='select'&&target.toolbar){selectionMode.value=true;selected.value=[];return}
  if(action==='select'){selectionMode.value=true;const destination=item&&props.route==='home'?(item.type==='tv'?'tv/all':'movies/all'):target.route;if(props.route!==destination){pendingSelection.value=items.map(i=>i.id);emit('navigate',destination)}else selected.value=items.map(i=>i.id);return}
@@ -257,7 +258,7 @@ async function refreshWorkspace(){await catalog.load();if(props.route==='home')w
 const favoriteRoutes=computed(()=>placement.orderFavoriteCards(placement.favoriteRoutes.filter(route=>!['music','books'].includes(route)).map(key=>({key}))).map(card=>card.key))
 const homeServerAccounts=computed(()=>sources.accounts.filter(account=>!home.hidden.includes('source:'+account.id)&&!home.hidden.includes('source:server:'+account.id)))
 interface FavoriteCard {key:string;title:string;route?:string;source?:typeof sources.cards[number];account?:Account;serverFavorite?:Favorite;cover?:string}
-const favoriteCards=computed(()=>{void serverPreferenceRevision.value;const cards:FavoriteCard[]=[...favoriteRoutes.value.map(route=>({key:route,title:routeLabel(route),route})),...sources.favoriteCards.map(source=>({key:sourceCardKey(source),title:source.name,source,cover:source.cover,...(source.serverFavorite?{account:sources.accounts.find(account=>account.id===source.sourceId),serverFavorite:source.serverFavorite}:{})}))];return favoriteTitleSort.value?[...cards].sort((a,b)=>a.title.localeCompare(b.title,undefined,{numeric:true})):placement.orderFavoriteCards(cards)})
+const favoriteCards=computed(()=>{void serverPreferenceRevision.value;const cards:FavoriteCard[]=[...favoriteRoutes.value.map(route=>({key:route,title:routeLabel(route),route})),...sources.favoriteCards.map(source=>({key:sourceCardKey(source),title:source.name,source,cover:source.cover,...(source.serverFavorite?{account:sources.accounts.find(account=>account.id===source.sourceId),serverFavorite:source.serverFavorite}:{})}))];return favoriteTitleSort.value?[...cards].sort((a,b)=>a.title.localeCompare(b.title,undefined,{numeric:true})*(favoriteTitleDescending.value?-1:1)):placement.orderFavoriteCards(cards)})
 watch(()=>favoriteCards.value.map(card=>card.key).join('\0'),()=>{void placement.setFavoriteCatalog(favoriteCards.value.map(card=>card.key))},{immediate:true})
 watch(()=>sources.preferences.order.join('\0'),()=>{const cards=sources.favoriteCards.map(source=>sourceCardKey(source));void placement.reorderFavorites(reorderSourceSlots(favoriteCards.value.map(card=>card.key),cards))})
 const homeFavoriteCards=computed(()=>favoriteCards.value.filter(card=>card.route?!home.hidden.includes(card.route):card.source?!card.source.hiddenOnHome&&!home.hidden.includes('source:'+card.source.sourceId)&&!home.hidden.includes('source:folder:'+card.source.id)&&!home.hidden.includes('source:server:'+card.source.sourceId):!card.serverFavorite?.hiddenOnHome&&!home.hidden.includes('source:'+card.account?.id)))
@@ -502,27 +503,27 @@ function finishFavoritePointer(event: PointerEvent) {
           <button class="round-button more-button server-sort-button" :aria-label="t('unified.sortLabel')"><span>{{ t(`unified.sort.${browseSort}`) }}</span><ArrowDown v-if="browseSortDescending" :size="16" /><ArrowUp v-else :size="16" /></button>
           <template #content>
             <div class="server-sort-menu" role="menu">
-              <button v-for="sort in (['title', 'fileName', 'addedAt', 'premiereDate'] as MediaBrowseSort[])" :key="sort" role="menuitemradio" :aria-checked="browseSort === sort" @click="selectBrowseSort(sort)"><ArrowDown v-if="browseSort === sort && browseSortDescending" :size="13" /><ArrowUp v-else-if="browseSort === sort" :size="13" /><span v-else class="sort-menu-spacer" /><span>{{ t(`unified.sort.${sort}`) }}</span></button>
+              <button v-for="sort in (['title', 'fileName', 'addedAt', 'premiereDate'] as MediaBrowseSort[])" :key="sort" role="menuitemradio" :aria-checked="browseSort === sort" @click="selectBrowseSort(sort)"><ArrowDown v-if="browseSortDescending" :size="13" :style="{opacity:browseSort===sort?1:0.4}"/><ArrowUp v-else :size="13" :style="{opacity:browseSort===sort?1:0.4}"/><span>{{ t(`unified.sort.${sort}`) }}</span></button>
             </div>
           </template>
         </a-dropdown>
 <a-dropdown v-if="section!=='home'&&!isLibrarySettingsPage&&!isSearchPage" trigger="click" position="br"><button class="round-button more-button" :aria-label="t('media.manager')"><Ellipsis :size="18"/><ChevronDown :size="10"/></button><template #content>            <template v-if="isCatalogPage && selectedHomeRowKey === 'catalog:favorites'">
-              <a-doption class="unified-action-option server-root-option" @click="favoritesSortByTitle = !favoritesSortByTitle"><template #icon><ListFilter :size="14" /></template>{{ t('unified.sortLabel') }}: {{ t('unified.sort.title') }}</a-doption>
+              <a-doption class="unified-action-option server-root-option" @click="chooseFavoriteTitleSort()"><template #icon><ArrowDown v-if="favoriteTitleDescending" :size="14"/><ArrowUp v-else :size="14"/></template>{{ t('unified.sortLabel') }}: {{ t('unified.sort.title') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="hideFavoritesShelf"><template #icon><House :size="14" /></template>{{ t('unified.removeHome') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="renameCurrentHomeMenu"><template #icon><Pencil :size="14" /></template>{{ t('unified.renameCollection') }}</a-doption>
               <a-doption class="unified-action-option server-root-option" @click="startFavoriteReordering"><template #icon><Move :size="14" /></template>{{ t('unified.sourceReorder') }}</a-doption>
             </template>
             <template v-else-if="isCatalogPage">
-              <a-doption v-if="isCatalogMediaPage" class="unified-action-option browse-sort-option" @click="browseSort = nextMediaBrowseSort(browseSort)"><template #icon><ListFilter :size="14" /></template>{{ t('unified.sortLabel') }}: {{ t(`unified.sort.${browseSort}`) }}</a-doption>
+              <a-doption v-if="isCatalogMediaPage" class="unified-action-option browse-sort-option" @click="selectBrowseSort(browseSort)"><template #icon><ArrowDown v-if="browseSortDescending" :size="14"/><ArrowUp v-else :size="14"/></template>{{ t('unified.sortLabel') }}: {{ t(`unified.sort.${browseSort}`) }}</a-doption>
               <LibraryObjectActions :route="selectedHomeRowKey.slice(8)" toolbar />
             </template>
             <template v-else-if="selectedHomeRowKey.startsWith('custom-series:') && section === 'collection'">
-              <a-doption class="unified-action-option browse-sort-option" @click="browseSort = nextMediaBrowseSort(browseSort)"><template #icon><ListFilter :size="14" /></template>{{ t('unified.sortLabel') }}: {{ t(`unified.sort.${browseSort}`) }}</a-doption>
+              <a-doption class="unified-action-option browse-sort-option" @click="selectBrowseSort(browseSort)"><template #icon><ArrowDown v-if="browseSortDescending" :size="14"/><ArrowUp v-else :size="14"/></template>{{ t('unified.sortLabel') }}: {{ t(`unified.sort.${browseSort}`) }}</a-doption>
               <LibraryObjectActions :route="'custom-series/' + selectedHomeRowKey.slice('custom-series:'.length)" toolbar />
             </template>
             <template v-else-if="isCategoryPage">
               <a-doption v-if="!isGenreIndexPage" class="unified-action-option" :disabled="section !== 'video'" @click="browseSelection = !browseSelection"><template #icon><SquareCheck :size="14" /></template>{{ t('unified.selectItems') }}</a-doption>
-              <a-doption v-if="section !== 'collection' || !['local:playlist', 'custom-series'].includes(selectedHomeRowKey) && !isGenreIndexPage" class="unified-action-option browse-sort-option" @click="browseSort = nextMediaBrowseSort(browseSort)"><template #icon><ListFilter :size="14" /></template>{{ t('unified.sortLabel') }}: {{ t(`unified.sort.${browseSort}`) }}</a-doption>
+              <a-doption v-if="section !== 'collection' || !['local:playlist', 'custom-series'].includes(selectedHomeRowKey) && !isGenreIndexPage" class="unified-action-option browse-sort-option" @click="selectBrowseSort(browseSort)"><template #icon><ArrowDown v-if="browseSortDescending" :size="14"/><ArrowUp v-else :size="14"/></template>{{ t('unified.sortLabel') }}: {{ t(`unified.sort.${browseSort}`) }}</a-doption>
               <a-doption v-if="!isGenreIndexPage" class="unified-action-option" :disabled="section !== 'video'" @click="videoView?.playBrowse('play')"><template #icon><Play :size="14" /></template>{{ t('unified.play') }}</a-doption>
               <a-doption v-if="!isGenreIndexPage" class="unified-action-option" :disabled="section !== 'video'" @click="videoView?.playBrowse('loop')"><template #icon><RefreshCw :size="14" /></template>{{ t('unified.loopPlay') }}</a-doption>
               <a-doption v-if="!isGenreIndexPage" class="unified-action-option" :disabled="section !== 'video'" @click="videoView?.playBrowse('shuffle')"><template #icon><Shuffle :size="14" /></template>{{ t('unified.shufflePlay') }}</a-doption>

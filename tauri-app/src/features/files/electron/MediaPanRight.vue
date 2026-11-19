@@ -82,7 +82,7 @@ const handleOpenFile = (event: Event, file: BrowserFile | undefined) => {
     </div>
     <div v-if="menuFile" class="file-browser-context-menu" :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" role="menu"><button v-for="action in fileMenuActions" :key="action.id" type="button" role="menuitem" :disabled="action.disabled" @click="runFileAction(action.id)"><component :is="action.icon" :size="16" /><span>{{ t(action.label) }}</span></button></div></div></template>
 <style scoped>
-.folder-browser{display:grid;grid-template-columns:repeat(auto-fill,174px);gap:24px 20px;padding:20px;align-content:start}
+.folder-browser{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(174px,100%),1fr));gap:24px 20px;padding:20px;align-content:start}
 .folder-browser-list{display:flex;flex-direction:column;gap:0;padding:0 16px}
 .file-browser-context-menu{position:fixed;z-index:2100;padding:5px;min-width:174px;background: var(--app-overlay-bg);border:1px solid var(--color-border-2);border-radius:12px;box-shadow:0 8px 24px #0004}.file-browser-context-menu button{display:flex;align-items:center;gap:7px;width:100%;border:0;border-radius:5px;background:transparent;padding:5px 9px;text-align:left;color:var(--color-text-1);font-size:13px;cursor:pointer}.file-browser-context-menu button svg{color:#ff8b25}.file-browser-context-menu button:hover:not(:disabled){background:var(--color-fill-2)}.file-browser-context-menu button:disabled{opacity:.4;cursor:not-allowed}body[arco-theme=dark] .file-browser-context-menu{background: var(--app-overlay-bg)}
 </style>

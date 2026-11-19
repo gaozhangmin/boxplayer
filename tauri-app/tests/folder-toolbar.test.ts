@@ -1,4 +1,4 @@
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises,DOMWrapper } from '@vue/test-utils'
 import { expect, it } from 'vitest'
 import FilesFolderToolbar from '@/features/files/electron/FilesFolderToolbar.vue'
 
@@ -28,6 +28,11 @@ it('uses one toolbar button for name and direction and omits sorting from More',
   const sort = wrapper.get('.files-name-sort')
   expect(sort.attributes('aria-label')).toMatch(/名称.*升序/)
   await sort.trigger('click')
+  await flushPromises()
+  const menu=new DOMWrapper(document.body)
+  expect(menu.find('[data-file-direction]').exists()).toBe(false)
+  expect(['name','modified','added','watched'].every(value=>menu.find(`[data-file-sort="${value}"]`).exists())).toBe(true)
+  await menu.get('[data-file-sort="name"]').trigger('click')
   expect(wrapper.emitted('direction')).toHaveLength(1)
   await wrapper.setProps({ descending: true })
   expect(sort.attributes('aria-label')).toMatch(/名称.*降序/)

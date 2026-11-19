@@ -29,6 +29,8 @@ export function useFilesPorts(emit:{(event:'selectSource',id:string):void;(event
  onUnmounted(()=>{artworkGeneration++;clearCovers()})
  const favoriteCover=(id:string)=>{const card=find(id);return card?.serverFavorite&&card.cover&&!card.cover.startsWith('data:')?resolvedCovers.value[card.id]:card?.cover}
  const descending=computed(()=>sources.preferences.descending)
+ const sort=computed(()=>sources.preferences.sourceSort)
+ const compareSources=(a:string,b:string)=>{const ranks=new Map(sources.cards.map((card,index)=>[key(card),index]));return (ranks.get(a)??9999)-(ranks.get(b)??9999)}
  function commitOrder(ids:string[]){sources.reorder(ids.map(id=>find(id)?.id).filter((id):id is string=>!!id))}
  const dialog=ref<{key:string;action:string;name:string;url:string;username:string;password:string;rootPath:string}>(),error=ref(''),busy=ref(false)
  const dialogAccount=computed(()=>sources.accounts.find(account=>account.id===find(dialog.value?.key||'')?.sourceId))
@@ -69,6 +71,6 @@ export function useFilesPorts(emit:{(event:'selectSource',id:string):void;(event
  const savedSources=computed<SavedSource[]>(()=>sources.accounts.filter(a=>a.providerId!=='boxplayer').map(account=>({id:account.id,name:account.name,icon:providerIcon(account.providerId),driveServerId:account.providerId,drives:account.providerId==='google'?[{label:'我的硬盘',folder:{file_id:'google_root',drive_id:account.id,user_id:account.id,name:'我的硬盘',path:'google_root',isDir:true,size:0}},{label:'共享硬盘',folder:{file_id:'google_shared',drive_id:account.id,user_id:account.id,name:'共享硬盘',path:'google_shared',isDir:true,size:0}}]:undefined,server:['jellyfin','emby','plex'].includes(account.providerId)?{id:account.id,name:account.name,type:account.providerId as 'jellyfin'|'emby'|'plex',baseUrl:account.baseUrl,createdAt:0,updatedAt:0}:undefined,folder:{file_id:'',drive_id:account.id,user_id:account.id,name:account.name,path:'',isDir:true,size:0}})))
  async function refresh(){await sources.refresh()}
  onMounted(()=>{if(options.loadCatalog!==false)void catalog.load()})
- return {originalModel,sourceOverrides,collectionMode,connectedFileRoots,rootIsFavorite,favoriteCover,section,app,descending,commitOrder,toggleDirection:()=>{sources.preferences.descending=!sources.preferences.descending},action,removeSelected,dialog,dialogAccount,error,busy,saveDialog,savedSources,refresh,deviceName:/Mac/i.test(navigator.platform)?'Mac':'PC'}
+ return {originalModel,sourceOverrides,collectionMode,connectedFileRoots,rootIsFavorite,favoriteCover,section,app,descending,sort,compareSources,selectSort:sources.selectSourceSort,commitOrder,toggleDirection:()=>{sources.preferences.descending=!sources.preferences.descending},action,removeSelected,dialog,dialogAccount,error,busy,saveDialog,savedSources,refresh,deviceName:/Mac/i.test(navigator.platform)?'Mac':'PC'}
 }
 export type FilesPorts=ReturnType<typeof useFilesPorts>

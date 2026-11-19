@@ -1,0 +1,158 @@
+--- a/tauri-app/src/features/media/electron/layout/PageBookLibrary.vue
++++ b/tauri-app/src/features/media/electron/layout/PageBookLibrary.vue
+@@ -1,4 +1,5 @@
+ <script setup lang='ts'>
++import SortMenuButton from '@/features/files/SortMenuButton.vue'
+ import {chooseLocalBooks} from '../../chooseLocalBooks'
+ import MediaEmptyFolder from '../components/MediaEmptyFolder.vue'
+ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+@@ -298,8 +299,10 @@
+   }
+ }
+ 
+-const effectiveSortMode = computed<BookManagerSortMode>(() => activeManagerView.value === 'recent' ? 'recent' : bookStore.sortMode)
+-const effectiveSortOrder = computed<BookManagerSortOrder>(() => activeManagerView.value === 'recent' ? 'desc' : bookStore.sortOrder)
++const bookSortExplicit=ref(false)
++watch(activeManagerView,()=>{bookSortExplicit.value=false})
++const effectiveSortMode = computed<BookManagerSortMode>(() => activeManagerView.value === 'recent'&&!bookSortExplicit.value ? 'recent' : bookStore.sortMode)
++const effectiveSortOrder = computed<BookManagerSortOrder>(() => activeManagerView.value === 'recent'&&!bookSortExplicit.value ? 'desc' : bookStore.sortOrder)
+ 
+ const readerVisibleBooks = computed(() => {
+   const statusFiltered = filterBooksByReadingStatus(searchedBooks.value, readingStatusFilter.value)
+@@ -596,10 +599,14 @@
+ 
+ function handleSortModeChange(value: unknown) {
+   bookStore.setSortMode(value as BookManagerSortMode)
++  bookSortExplicit.value=true
+ }
+ 
+ function toggleSortOrder() {
+-  bookStore.setSortOrder(bookStore.sortOrder === 'asc' ? 'desc' : 'asc')
++  const mode=effectiveSortMode.value,order=effectiveSortOrder.value
++  bookStore.setSortMode(mode)
++  bookStore.setSortOrder(order==='asc'?'desc':'asc')
++  bookSortExplicit.value=true
+ }
+ 
+ const sortModeOptions = [
+@@ -1493,34 +1500,7 @@
+             <option value='finished'>{{ t('book.finished') }}</option>
+           </select>
+           <div class='book-header-divider' />
+-          <a-dropdown trigger='click'>
+-            <a-button size='small' class='book-sort-btn'>
+-              {{ sortModeLabel(bookStore.sortMode) }} · {{ bookStore.sortOrder === 'asc' ? t('book.asc') : t('book.desc') }}
+-            </a-button>
+-            <template #content>
+-              <div class='book-sort-dropdown'>
+-                <div class='book-sort-section-title'>{{ t('book.sortMode') }}</div>
+-                <div
+-                  v-for='opt in sortModeOptions'
+-                  :key='opt.value'
+-                  :class="['book-sort-item', bookStore.sortMode === opt.value ? 'active' : '']"
+-                  @click='handleSortModeChange(opt.value)'
+-                >
+-                  {{ t(opt.labelKey) }}
+-                </div>
+-                <div class='book-sort-divider' />
+-                <div class='book-sort-section-title'>{{ t('book.sortOrder') }}</div>
+-                <div
+-                  :class="['book-sort-item', bookStore.sortOrder === 'asc' ? 'active' : '']"
+-                  @click="bookStore.setSortOrder('asc')"
+-                >{{ t('book.asc') }}</div>
+-                <div
+-                  :class="['book-sort-item', bookStore.sortOrder === 'desc' ? 'active' : '']"
+-                  @click="bookStore.setSortOrder('desc')"
+-                >{{ t('book.desc') }}</div>
+-              </div>
+-            </template>
+-          </a-dropdown>
++          <SortMenuButton :sort="effectiveSortMode" :descending="effectiveSortOrder==='desc'" :options="sortModeOptions.map(option=>({value:option.value,label:t(option.labelKey)}))" :label="t('book.sortMode')" @select="handleSortModeChange" @toggle="toggleSortOrder"/>
+           <a-radio-group
+             :model-value='bookStore.viewMode'
+             type='button'
+@@ -1746,10 +1726,7 @@
+               <option value=''>{{ t('book.allBooksOption') }}</option>
+               <option v-for='book in annotationBookOptions' :key='book.value' :value='book.value'>{{ book.label }}</option>
+             </select>
+-            <select :value='annotationSortMode' class='book-annotation-select' @change='handleAnnotationSortModeChange'>
+-              <option v-for='opt in annotationSortModeOptions' :key='opt.value' :value='opt.value'>{{ opt.label }}</option>
+-            </select>
+-            <a-button size='mini' @click='toggleAnnotationSortOrder'>{{ annotationSortOrder === 'asc' ? t('book.asc') : t('book.desc') }}</a-button>
++            <SortMenuButton :sort="annotationSortMode" :descending="annotationSortOrder==='desc'" :options="annotationSortModeOptions" :label="t('book.sortMode')" @select="value=>annotationSortMode=value as BookAnnotationSortMode" @toggle="toggleAnnotationSortOrder"/>
+             <a-button v-if='selectedAnnotationTags.length || selectedAnnotationBookId' size='mini' @click='clearAnnotationFilters'>{{ t('book.clear') }}</a-button>
+             <a-button size='mini' class='btn-tag-manage' :type="tagEditMode ? 'primary' : 'outline'" @click='toggleTagEditor'>
+               <Tag :size='14' :stroke-width='1.8' /> {{ tagEditMode ? t('book.collapseTagManager') : t('book.manageTags') }}
+@@ -1855,10 +1832,7 @@
+               <option value=''>{{ t('book.allBooksOption') }}</option>
+               <option v-for='book in annotationBookOptions' :key='book.value' :value='book.value'>{{ book.label }}</option>
+             </select>
+-            <select :value='annotationSortMode' class='book-annotation-select' @change='handleAnnotationSortModeChange'>
+-              <option v-for='opt in annotationSortModeOptions' :key='opt.value' :value='opt.value'>{{ opt.label }}</option>
+-            </select>
+-            <a-button size='mini' @click='toggleAnnotationSortOrder'>{{ annotationSortOrder === 'asc' ? t('book.asc') : t('book.desc') }}</a-button>
++            <SortMenuButton :sort="annotationSortMode" :descending="annotationSortOrder==='desc'" :options="annotationSortModeOptions" :label="t('book.sortMode')" @select="value=>annotationSortMode=value as BookAnnotationSortMode" @toggle="toggleAnnotationSortOrder"/>
+             <a-button v-if='selectedAnnotationTags.length || selectedAnnotationBookId' size='mini' @click='clearAnnotationFilters'>{{ t('book.clear') }}</a-button>
+             <a-button size='mini' class='btn-tag-manage' :type="tagEditMode ? 'primary' : 'outline'" @click='toggleTagEditor'>
+               <Tag :size='14' :stroke-width='1.8' /> {{ tagEditMode ? t('book.collapseTagManager') : t('book.manageTags') }}
+--- a/tauri-app/src/features/media/electron/layout/PageGlobalSearch.vue
++++ b/tauri-app/src/features/media/electron/layout/PageGlobalSearch.vue
+@@ -1,4 +1,7 @@
+ <script setup lang="ts">
++import SortMenuButton from '@/features/files/SortMenuButton.vue'
++import {useLocale as useSortLocale} from '@/features/files/electron/i18n'
++import {fileLabels} from '@/features/files/fileLabels'
+ import ContentLoading from '@/features/files/electron/ContentLoading.vue'
+ import {intelligenceFetch as fetch} from '@/features/intelligence/streamFetch'
+ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+@@ -143,6 +146,11 @@
+ const phTotal = ref(0); const phMerged = ref<PanHubMergedLinks>({})
+ const phError = ref(''); const phFilterPlatform = ref('all')
+ const phSortType = ref<'default'|'date-desc'|'date-asc'|'name-asc'|'name-desc'>('default')
++const sortLocale=useSortLocale()
++const phSortField=computed(()=>phSortType.value==='default'?'default':phSortType.value.split('-')[0]!)
++const phSortOptions=computed(()=>[{value:'default',label:t('search.defaultSort'),directional:false},{value:'date',label:fileLabels(sortLocale.value).modified},{value:'name',label:fileLabels(sortLocale.value).name}])
++function choosePhSort(value:string){phSortType.value=value==='default'?'default':(value+'-'+(phSortType.value.endsWith('-desc')?'desc':'asc')) as typeof phSortType.value}
++function togglePhSort(){if(phSortType.value!=='default')phSortType.value=(phSortField.value+'-'+(phSortType.value.endsWith('-desc')?'asc':'desc')) as typeof phSortType.value}
+ const phElapsedMs = ref(0); let phController: AbortController|null = null
+ const phTmdbItems = ref<TmdbMediaResult[]>([])
+ const phTmdbLoading = ref(false)
+@@ -642,7 +650,7 @@
+         <div v-if="phSearched && !phLoading" class="ph-stats-bar">
+           <div class="ph-stats-main"><span class="ph-stat-item"><span class="ph-stat-label">{{ t('search.results') }}</span><span class="ph-stat-value">{{ phTotal }}</span></span><span class="ph-stat-item"><span class="ph-stat-label">{{ t('search.elapsed') }}</span><span class="ph-stat-value">{{ phFmt(phElapsedMs) }}</span></span></div>
+           <div v-if="phTotal>0" class="ph-stats-filters"><button :class="['ph-filter-pill',{active:phFilterPlatform==='all'}]" type="button" @click="phFilterPlatform='all'">{{ t('search.all') }} ({{phTotal}})</button><button v-for="p in phPlatforms" :key="p.key" :class="['ph-filter-pill',{active:phFilterPlatform===p.key}]" type="button" @click="phFilterPlatform=phFilterPlatform===p.key?'all':p.key">{{p.name}}({{p.count}})</button></div>
+-          <div v-if="phTotal>0" class="ph-stats-sort"><select v-model="phSortType" class="ph-sort-select"><option value="default">{{ t('search.defaultSort') }}</option><option value="date-desc">{{ t('search.latest') }}</option><option value="date-asc">{{ t('search.oldest') }}</option><option value="name-asc">{{ t('search.nameAsc') }}</option><option value="name-desc">{{ t('search.nameDesc') }}</option></select></div>
++          <div v-if="phTotal>0" class="ph-stats-sort"><SortMenuButton :sort="phSortField" :descending="phSortType.endsWith('-desc')" :options="phSortOptions" @select="choosePhSort" @toggle="togglePhSort"/></div>
+ 
+         </div>
+         <ContentLoading v-if="phLoading" class="ph-status-msg" :label="t('search.searchingPanHub')" />
+--- a/tauri-app/src/features/media/electron/upstream.json
++++ b/tauri-app/src/features/media/electron/upstream.json
+@@ -634,11 +634,12 @@
+       "source": "src/layout/PageBookLibrary.vue",
+       "target": "src/features/media/electron/layout/PageBookLibrary.vue",
+       "sourceSha256": "6e8fb2c6c058e0558d7ad7d047247229e6959c904e96e424042386733f83f90c",
+-      "targetSha256": "550b188589149ca39e1056c301733edc20a2db2f60881df8e1e12ca65d4fbc42",
++      "targetSha256": "44fce64d075773a551a09fd8e9fca5f469213e3d3792bc37e9c0ece62645eecc",
+       "changes": [
+         "Tauri native transport, credentials and persistence boundaries; original renderer behavior retained except the explicit adaptations below.",
+         "Book records never invoke physical deletion; disabled delete-original option.",
+-        "User requested removal of independent scan/import/clear panel; unified source folder scraping indexes music and books."
++        "User requested removal of independent scan/import/clear panel; unified source folder scraping indexes music and books.",
++        "User-requested app-wide repeated field clicks toggle direction; shared arrow menu replaces independent direction rows for books and notes."
+       ],
+       "templatePolicy": "native-adaptation"
+     },
+--- a/tauri-app/src/features/intelligence/upstream.json
++++ b/tauri-app/src/features/intelligence/upstream.json
+@@ -236,8 +236,8 @@
+       "source": "src/layout/PageGlobalSearch.vue",
+       "target": "src/features/media/electron/layout/PageGlobalSearch.vue",
+       "sourceSha256": "c62a73984ee1ca56f0e4dfcdb61b6d4af531f417b676da813531c0e8cc93a20d",
+-      "targetSha256": "84365ff27ffa2dd5360b87497cfe9f88932cc06a615eb9afe8ab1b2abee1266d",
+-      "adaptations": "M8 native search/HTTP/account route ports; legacy standalone aria2/magnet download UI is excluded by #26, cloud acquisition retained. M8 document action opens the document panel directly and does not navigate to the excluded AI workspace. 2026-11-15: Search failures use inline, theme-aware structured source status and retry; retain successful results and suppress false no-results; no raw backend error toast. Public-search keyword/mode cancellation rejects late stream and TMDB responses; network details stay out of user-facing messages."
++      "targetSha256": "89f0e1cd721d10a63bbf4059fddea0b800e4386782563f50da071c43d6e0af5a",
++      "adaptations": "M8 native search/HTTP/account route ports; legacy standalone aria2/magnet download UI is excluded by #26, cloud acquisition retained. M8 document action opens the document panel directly and does not navigate to the excluded AI workspace. 2026-11-15: Search failures use inline, theme-aware structured source status and retry; retain successful results and suppress false no-results; no raw backend error toast. Public-search keyword/mode cancellation rejects late stream and TMDB responses; network details stay out of user-facing messages. User-requested repeat-click sort fields replace duplicated direction choices; provider-default relevance remains non-directional."
+     },
+     {
+       "source": "src/layout/PanHubResultGroup.vue",

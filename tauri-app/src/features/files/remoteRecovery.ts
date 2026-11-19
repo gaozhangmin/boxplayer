@@ -19,7 +19,7 @@ export {canonical as preferencesFingerprint}
 function preferences(value:unknown):value is FilePreferences {
  if(!value||typeof value!=='object'||Array.isArray(value))return false
  const row=value as FilePreferences
- return typeof row.grid==='boolean'&&typeof row.showPreviews==='boolean'&&typeof row.descending==='boolean'&&['name','size','modified'].includes(row.sort)&&
+ return typeof row.grid==='boolean'&&typeof row.showPreviews==='boolean'&&typeof row.descending==='boolean'&&['name','size','modified','added','watched'].includes(row.sort)&&
   ['names','covers','hiddenOnHome','hiddenLocalRoots'].every(k=>{const v=(row as unknown as Record<string,unknown>)[k];return !!v&&typeof v==='object'&&!Array.isArray(v)&&Object.values(v).every(item=>typeof item===(['names','covers'].includes(k)?'string':'boolean'))})&&Array.isArray(row.order)&&row.order.every(v=>typeof v==='string')&&Array.isArray(row.favorites)&&row.favorites.every(v=>v&&typeof v.id==='string'&&typeof v.sourceId==='string'&&typeof v.path==='string'&&typeof v.name==='string'&&typeof v.local==='boolean')
 }
 /** Recover a committed native transition only; never replay the remote move.

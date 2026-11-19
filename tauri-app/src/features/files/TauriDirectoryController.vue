@@ -19,6 +19,7 @@ import type { BrowseRoute } from '@/features/servers/workspace'
 import { useFileBrowseMode } from './browseMode'
 import { toggleFolderFavorite } from './folderFavorites'
 import { sortedFiles } from './preferences'
+import {matchesFileFilter,entryTimes,timestamp} from './fileSorting'
 import { nativeCall } from '@/platform/native'
 import { driver, playSource } from '@/features/sources/drivers'
 import type { SourceEntry } from '@/features/sources/contracts'
@@ -64,7 +65,16 @@ async function changeBookmark(sourceId:string,path:string,name:string,local:bool
 }
 function toggleFolder(path:string,name:string,local:boolean){if(props.source?.sourceId)void changeBookmark(props.source.sourceId,path,name,local)}
 function isBookmarked(path:string){return sources.preferences.favorites.some(f=>f.sourceId===props.source?.sourceId&&f.path===path)}
-const localEntries=computed(()=>sortedFiles((listing.value?.entries||[]).filter(e=>(!currentBookmark.value||e.isDirectory||e.playable)&&(!props.searchQuery||e.name.toLowerCase().includes(props.searchQuery.toLowerCase()))),sources.preferences.sort,sources.preferences.descending))
+function sortedVisible<T extends LocalEntry|SourceEntry>(rows:T[]):T[]{
+ const sourceId=props.source?.sourceId||''
+ return sortedFiles(rows.filter(row=>matchesFileFilter(row,sources.preferences.filter)).map(row=>{
+  const id='relativePath'in row?row.relativePath:row.id
+  const item=catalog.items.find(item=>item.sourceId===sourceId&&item.fileId===id)
+  const times=entryTimes(row)
+  return {...row,added:timestamp(item?.addedAt)||times.added,watched:sources.preferences.watchedFiles[JSON.stringify([sourceId,id])]||timestamp(item?.lastWatched)}
+ }),sources.preferences.sort,sources.preferences.descending)
+}
+const localEntries=computed(()=>sortedVisible((listing.value?.entries||[]).filter(row=>!props.searchQuery||row.name.toLowerCase().includes(props.searchQuery.toLowerCase()))))
 const presentationIndex=computed(()=>{
  const files=new Map<string,typeof catalog.items[number]>(),folders=new Map<string,typeof catalog.items[number]>()
  for(const item of catalog.items||[]){files.set(JSON.stringify([item.sourceId,item.fileId]),item);if(item.type==='unmatched')continue;for(const path of new Set(['',...(item.folderAncestors||[]),...(item.folderPath===undefined?[]:[item.folderPath])])){const key=JSON.stringify([item.sourceId,path]);if(!folders.has(key)||(!folders.get(key)?.poster&&item.poster))folders.set(key,item)}}
@@ -89,7 +99,7 @@ const collectionRows=computed(()=>assignment.value?Object.entries(catalog.data[a
 async function toggleCollection(name:string){const value=assignment.value;if(!value)return;value.names=value.names.includes(name)?value.names.filter(entry=>entry!==name):[...value.names,name];await saveAssignmentSelection(false)}
 async function saveAssignmentSelection(close:boolean){const target=assignment.value;if(!target)return;const items=selectedFolderItems();await catalog.update(draft=>{for(const item of items)if(!draft.items.some(row=>row.id===item.id))draft.items.push(item);for(const [name,ids] of Object.entries(draft[target.kind]))draft[target.kind][name]=target.names.includes(name)?[...new Set([...ids,...items.map(item=>item.id)])]:ids.filter(id=>!items.some(item=>item.id===id))});if(close)assignment.value=undefined}
 async function createCollection(){const target=assignment.value,name=collectionName.value.trim();if(!target||!name)return;await catalog.update(draft=>{draft[target.kind][name]||=[]});collectionName.value='';collectionEditing.value=null}
-const orderedRemoteEntries=computed(()=>sortedFiles(remoteEntries.value.filter(e=>!currentBookmark.value||e.isDirectory||e.playable),sources.preferences.sort,sources.preferences.descending))
+const orderedRemoteEntries=computed(()=>sortedVisible(remoteEntries.value))
 
 function closeDetail(){}
 onUnmounted(()=>{requestSequence++})
@@ -175,7 +185,7 @@ function size(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3
 </script>
 <template>
   <section ref="directoryElement" class="files-browser" :aria-label="t('files')">
-    <Teleport v-if="toolbarReady" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><FilesFolderToolbar :mode="gridView?'grid':'list'" :descending="sources.preferences.descending" :selection="selection" :manage-favorite="manageCurrentFavorite" @mode="gridView=$event==='grid'" @direction="sources.preferences.descending=!sources.preferences.descending" @selection="selection=!selection;selected=[]" @play="playFolder" @remove="currentFolderAction('removeFavoriteFolder')" @rename="currentFolderAction('renameCollection')"/></Teleport>
+    <Teleport v-if="toolbarReady" :to="toolbarTarget||'body'" :disabled="!toolbarTarget"><FilesFolderToolbar :mode="gridView?'grid':'list'" :descending="sources.preferences.descending" :sort="sources.preferences.sort" :filter="sources.preferences.filter" @sort="sources.preferences.sort=$event" @filter="sources.preferences.filter=$event;selected=[]" :selection="selection" :manage-favorite="manageCurrentFavorite" @mode="gridView=$event==='grid'" @direction="sources.preferences.descending=!sources.preferences.descending" @selection="selection=!selection;selected=[]" @play="playFolder" @remove="currentFolderAction('removeFavoriteFolder')" @rename="currentFolderAction('renameCollection')"/></Teleport>
     <div v-if="selection" class="poster-selection-bar"><span>已选择 {{selected.length}} 项</span><button @click="selection=false;selected=[]">取消</button></div><p v-if="error" role="alert">{{error}}</p>
     <ContentLoading v-if="loading" :label="t('loadingFiles')" />
     <MediaEmptyFolder v-else-if="!browserFiles.length"/><MediaPanRight v-else :files="browserFiles" :media="browserMedia" :posters="browserPosters" :selected="browserSelected" :favorite-ids="browserFavorites" :favorite-browse="!!currentBookmark||canBrowse" :browse-mode="gridView?'grid':'list'" :browse-selection="selection" :descending="sources.preferences.descending" @enter-folder="openBrowserFile" @open-file="openBrowserFile" @open-media="item=>catalog.play(item)" @select="selectBrowserFiles" @file-action="browserAction"/>

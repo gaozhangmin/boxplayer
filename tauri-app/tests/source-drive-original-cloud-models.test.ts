@@ -2,7 +2,7 @@ import {beforeEach,expect,it,vi} from 'vitest'
 import {mount,flushPromises} from '@vue/test-utils'
 import {createPinia} from 'pinia'
 import {defineComponent,h} from 'vue'
-import {Dropdown} from '@arco-design/web-vue'
+import SortMenuButton from '@/features/files/SortMenuButton.vue'
 import SourceDriveManager from '@/features/files/drive/SourceDriveManager.vue'
 import {getDrivePane} from '@/features/files/drive/ports'
 import {useFileSourcesStore} from '@/stores/fileSources'
@@ -32,10 +32,10 @@ it.each(providers)('feeds original %s metadata into all six original dropdown so
   await flushPromises();const pane=getDrivePane(),a=pane.store.ListDataRaw.find(row=>row.file_id==='a')!
   expect(a).toMatchObject({name:'a.mkv',time:Date.parse(newer),timeStr:expect.any(String),sizeStr:'10.00B',icon:'iconfile_video',category:'video',drive_id:account.id})
   expect(a.timeStr).not.toBe('');if(provider!=='dropbox')expect(a.thumbnail).toBe('https://fixture.test/a')
-  const sort=wrapper.findAllComponents(Dropdown).find(node=>node.text().includes('名称'))!
-  expect(sort).toBeTruthy();expect(sort.props('trigger')).toBe('hover')
+  const sort=wrapper.getComponent(SortMenuButton)
+  expect(sort.props('sort')).toBe('name')
   const orders=[['name asc',['Folder','a.mkv','b.mkv']],['name desc',['Folder','b.mkv','a.mkv']],['updated_at asc',['Folder','b.mkv','a.mkv']],['updated_at desc',['Folder','a.mkv','b.mkv']],['size asc',['Folder','a.mkv','b.mkv']],['size desc',['Folder','b.mkv','a.mkv']]] as const
-  for(const [order,expected] of orders){sort.vm.$emit('select',order);await flushPromises();expect(pane.store.ListDataShow.map(row=>row.name)).toEqual(expected);expect(wrapper.findAll('.fileitem').map(row=>row.text()).map(text=>expected.find(name=>text.includes(name)))).toEqual([...expected])}
+  for(const [order,expected] of orders){const [field,direction]=order.split(' ');if(sort.props('sort')!==field){sort.vm.$emit('select',field);await flushPromises()}if(sort.props('descending')!==(direction==='desc')){sort.vm.$emit('toggle');await flushPromises()}expect(pane.store.ListDataShow.map(row=>row.name)).toEqual(expected);expect(wrapper.findAll('.fileitem').map(row=>row.text()).map(text=>expected.find(name=>text.includes(name)))).toEqual([...expected])}
   expect(json).toHaveBeenCalledTimes(1)
   const request=vi.mocked(json).mock.calls[0]!,url=new URL(request[2])
   if(provider==='onedrive')expect(url.searchParams.get('$expand')).toBe('thumbnails')

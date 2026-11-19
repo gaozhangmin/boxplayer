@@ -2,7 +2,7 @@ import {beforeEach,expect,it,vi} from 'vitest'
 import {mount,flushPromises,DOMWrapper} from '@vue/test-utils'
 import {createPinia} from 'pinia'
 import {defineComponent,h} from 'vue'
-import {Dropdown} from '@arco-design/web-vue'
+import SortMenuButton from '@/features/files/SortMenuButton.vue'
 import SourceDriveManager from '@/features/files/drive/SourceDriveManager.vue'
 import {getDrivePane} from '@/features/files/drive/ports'
 import {useFileSourcesStore} from '@/stores/fileSources'
@@ -22,8 +22,8 @@ it('uses original 123 metadata in all six dropdown sorts and preserves it across
  const wrapper=mount(SourceDriveManager,{props:{sourceId:account.id,name:account.name},global:{plugins:[pinia],stubs:{AList:list}},attachTo:document.body})
  try{
   await flushPromises();const pane=getDrivePane();expect(pane.store.ListDataRaw.find(row=>row.file_id==='3')).toMatchObject({drive_id:account.id,parent_file_id:'',time:Date.parse(newer),sizeStr:'10.00B',icon:'iconfile_video',thumbnail:'https://fixture.test/a'})
-  const sort=wrapper.findAllComponents(Dropdown).find(node=>node.text().includes('名称'))!
-  for(const [order,expected] of [['name asc',['Folder','a.mkv','b.mkv']],['name desc',['Folder','b.mkv','a.mkv']],['updated_at asc',['Folder','b.mkv','a.mkv']],['updated_at desc',['Folder','a.mkv','b.mkv']],['size asc',['Folder','a.mkv','b.mkv']],['size desc',['Folder','b.mkv','a.mkv']]] as const){sort.vm.$emit('select',order);await flushPromises();expect(pane.store.ListDataShow.map(row=>row.name)).toEqual([...expected]);expect(wrapper.findAll('.fileitem').map(row=>row.text()).map(text=>expected.find(name=>text.includes(name)))).toEqual([...expected])}
+  const sort=wrapper.getComponent(SortMenuButton)
+  for(const [order,expected] of [['name asc',['Folder','a.mkv','b.mkv']],['name desc',['Folder','b.mkv','a.mkv']],['updated_at asc',['Folder','b.mkv','a.mkv']],['updated_at desc',['Folder','a.mkv','b.mkv']],['size asc',['Folder','a.mkv','b.mkv']],['size desc',['Folder','b.mkv','a.mkv']]] as const){const [field,direction]=order.split(' ');if(sort.props('sort')!==field){sort.vm.$emit('select',field);await flushPromises()}if(sort.props('descending')!==(direction==='desc')){sort.vm.$emit('toggle');await flushPromises()}expect(pane.store.ListDataShow.map(row=>row.name)).toEqual([...expected]);expect(wrapper.findAll('.fileitem').map(row=>row.text()).map(text=>expected.find(name=>text.includes(name)))).toEqual([...expected])}
   await pane.load(account.id,'refresh',false);await flushPromises();expect(pane.store.ListDataShow.map(row=>row.name)).toEqual(['Folder','b.mkv','a.mkv'])
   for(const layout of ['image','bigimage','list']){pane.settings.updateStore({uiFileListMode:layout});await flushPromises();expect(wrapper.text()).toContain('a.mkv');expect(pane.store.ListDataRaw.find(row=>row.file_id==='3')!.time).toBe(Date.parse(newer))}
  }finally{wrapper.unmount()}

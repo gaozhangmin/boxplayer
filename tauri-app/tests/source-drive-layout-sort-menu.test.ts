@@ -10,20 +10,14 @@ vi.mock('@/platform/native',()=>({nativeCall:vi.fn(),isNative:()=>false,asAppErr
 const list=defineComponent({props:['data'],setup(props,{slots,expose}){expose({scrollIntoView:vi.fn()});return()=>h('div',(props.data||[]).map((item:unknown,index:number)=>slots.item?.({item,index})))}})
 beforeEach(()=>{vi.resetAllMocks();const values=new Map<string,string>();vi.stubGlobal('localStorage',{getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value)});vi.stubGlobal('ResizeObserver',class{observe(){}disconnect(){}});vi.mocked(nativeCall).mockResolvedValue({sourceId:'local-sort',relativePath:'',parentPath:null,entries:[{id:'folder',name:'Folder',relativePath:'Folder',isDirectory:true,size:0,modified:1,playable:false},{id:'b',name:'b.mkv',relativePath:'b.mkv',isDirectory:false,size:10,modified:2,playable:true},{id:'a',name:'a.mkv',relativePath:'a.mkv',isDirectory:false,size:20,modified:3,playable:true}]})})
 async function browser(){const wrapper=mount(SourceDriveManager,{props:{sourceId:'local-sort',local:true,name:'Fixture'},global:{plugins:[createPinia()],stubs:{AList:list}},attachTo:document.body});await flushPromises();return wrapper}
-it.each([[0,['Folder','a.mkv','b.mkv']],[1,['Folder','b.mkv','a.mkv']],[2,['Folder','b.mkv','a.mkv']],[3,['Folder','a.mkv','b.mkv']],[4,['Folder','b.mkv','a.mkv']],[5,['Folder','a.mkv','b.mkv']]] as const)('selects original sort menu option %i with original ordering and selection reset',async(index,expected)=>{
+it.each([['name',1,['Folder','b.mkv','a.mkv']],['name',2,['Folder','a.mkv','b.mkv']],['updated_at',1,['Folder','b.mkv','a.mkv']],['updated_at',2,['Folder','a.mkv','b.mkv']],['size',1,['Folder','b.mkv','a.mkv']],['size',2,['Folder','a.mkv','b.mkv']]] as const)('repeats %s %i times to switch direction and clear stale selection',async(field,clicks,expected)=>{
  const wrapper=await browser()
  try{
   await wrapper.findAll('.fileitem')[1]!.trigger('click')
-  const sort=wrapper.get('.fileorder').findAll('button').find(row=>row.text().includes('名称'))!
-  await sort.trigger('mouseenter');const body=new DOMWrapper(document.body)
-  const labels=(['pan.sortNameAsc','pan.sortNameDesc','pan.sortTimeAsc','pan.sortTimeDesc','pan.sortSizeAsc','pan.sortSizeDesc'] as const).map(key=>t(key))
-  const options=()=>body.findAll('.arco-dropdown-option').filter(row=>labels.includes(row.text().trim()))
-  await vi.waitFor(()=>expect(options()).toHaveLength(6))
-  await options().find(row=>row.text().trim()===labels[index])!.trigger('click');await flushPromises()
+  const sort=wrapper.get('.fileorder button'),body=new DOMWrapper(document.body)
+  for(let count=0;count<clicks;count++){await sort.trigger('click');await flushPromises();await vi.waitFor(()=>expect(body.findAll('[data-sort-field]')).toHaveLength(3));await body.get(`[data-sort-field="${field}"]`).trigger('click');await flushPromises()}
   expect(getDrivePane().store.ListDataShow.map(row=>row.name)).toEqual(expected)
-  expect([...getDrivePane().store.ListSelected]).toEqual(index===0?['a.mkv']:[])
-  expect(wrapper.findAll('.fileitem.selected')).toHaveLength(index===0?1:0)
-  expect(wrapper.find('.drive-error').exists()).toBe(false)
+  expect([...getDrivePane().store.ListSelected]).toEqual([]);expect(wrapper.findAll('.fileitem.selected')).toHaveLength(0);expect(wrapper.find('.drive-error').exists()).toBe(false)
  }finally{wrapper.unmount()}
 })
 it('switches all original view buttons while preserving rows and selection',async()=>{

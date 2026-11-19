@@ -106,7 +106,10 @@
       "sha256": "d5b484d45b5ac356387e8b611d9b6ff6f775ebb11c68c604491edd97407a3d7b",
       "extraction": "Files state machine, contextOptions, source menu, grid/list, selection bar, toolbar dropdown, source CSS; native side effects injected via filesPorts",
       "snapshot": "src/vendor/electron-files/upstream/views__UnifiedMediaLibraryView.vue.source",
-      "targetSha256": "4e695929a3b304b6997bae98ca3547a25cb179bb0c5e28b880503be77bce0339"
+      "targetSha256": "4a817203c41e26e0af1b8b1a4326f63225b63294daf8f6c0099a0f5ffa59cd4a",
+      "nativeExtensions": [
+        "User-requested repeat-click sort direction, real time/name sorting, More submenu file filtering and responsive grid columns (2026-11-19)."
+      ]
     },
     {
       "source": "src/components/AddFileSourceModal.vue",
@@ -312,8 +315,11 @@
       "sha256": "cf40512373f95128862048a3537270269e8f80e0ee427e6f5a98c13eae5ef768",
       "extraction": "unifiedFiles template, original fileMenuActions/runFileAction, select/open handlers, folder/menu CSS. Data store and metadata enter as typed native props.",
       "snapshot": "src/vendor/electron-files/upstream/components__MediaPanRight.vue.source",
-      "targetSha256": "fead53afb0a386fab6fc03b36789c8b5540005f0e115c1f57fe596a106397847",
-      "m5Adaptation": "Use unchanged Electron selection helpers via pane adapter; preserve parent ordering instead of re-sorting every view by name. Capture original pointer modifiers at the pane boundary because the unchanged local card emits an argumentless open event."
+      "targetSha256": "e5c3df0dd7486a1ed53a021cf7fa2a39cd634171327326c6978616f9313bfa53",
+      "m5Adaptation": "Use unchanged Electron selection helpers via pane adapter; preserve parent ordering instead of re-sorting every view by name. Capture original pointer modifiers at the pane boundary because the unchanged local card emits an argumentless open event.",
+      "nativeExtensions": [
+        "User-requested repeat-click sort direction, real time/name sorting, More submenu file filtering and responsive grid columns (2026-11-19)."
+      ]
     },
     {
       "source": "src/types/media.ts",
@@ -501,7 +507,10 @@
         "Folder toolbar and dropdown subtree extracted; native events"
       ],
       "snapshot": "src/vendor/electron-files/upstream/views__UnifiedMediaLibraryView.vue.source",
-      "targetSha256": "c33243fe650ffb1a81cd685ce9e605b3d8854e98f2e1e7a6f0f863b6e1b0e248"
+      "targetSha256": "46139da90e00cd0790b276a9167658ec61abd816c753d0a42c18c41c21f503fa",
+      "nativeExtensions": [
+        "User-requested repeat-click sort direction, real time/name sorting, More submenu file filtering and responsive grid columns (2026-11-19)."
+      ]
     },
     {
       "source": "src/views/UnifiedMediaLibraryView.vue",
@@ -715,7 +724,7 @@
       "target": "src/features/files/drive/electron/pan/PanRight.vue",
       "snapshot": "src/vendor/electron-files/upstream/pan__PanRight.vue.source",
       "sha256": "aa9ab53389d6c10db9d7534b4523dfd33091c81f68ebcd72f53adbf448d9e97e",
-      "targetSha256": "0e37d210b68f83c4be5d2edf23aa600a03ae2c9ec0941e7f986b3bf44b766c51",
+      "targetSha256": "9da0900792521228145556578b6b331c6c120f03fccfa50f0f70a250b980afe3",
       "sourceCommit": "fd241a090ca3518764cb21fc910334596fe802fd",
       "changes": [],
       "adaptation": "Imports redirected to Tauri native/state ports; business methods/template/styles retained. Integration in progress. Folder favorite star invokes existing FileSourceBrowser naming/removal flow, the retained #99 scan entry. ResizeObserver cleanup, native-only drop path boundary, Cmd selection modifier, excluded shortcuts removed, narrow-pane grid column minima adjusted. Match modified new-folder shortcut before Ctrl/Cmd+N so it is not intercepted by text creation. User requested All Files favorite row pinned inside the list region below original toolbar. Added one named list-header slot; no synthetic file IDs or selection/count/sort mutations.",
@@ -746,7 +755,14 @@
         {
           "from": "    <a-skeleton v-if='panfileStore.ListLoading && panfileStore.ListDataCount == 0'",
           "to": "    <slot name='list-header' />\n    <a-skeleton v-if='panfileStore.ListLoading && panfileStore.ListDataCount == 0'"
+        },
+        {
+          "from": "      <a-dropdown trigger='hover' position='bl' @select='(val:any)=>handleFileListOrder(val as string)'>\n        <a-button type='text' size='small' tabindex='-1' :disabled='panfileStore.ListLoading'>\n          <IconFont name=\"iconpaixu1\" />\n          {{ panfileStore.FileOrderDesc }}\n          <IconFont name=\"icondown\" />\n        </a-button>\n        <template #content>\n          <a-doption value='name asc'>\n            <template #default>　{{ t('pan.sortNameAsc') }}　</template>\n          </a-doption>\n          <a-doption value='name desc'>\n            <template #default>　{{ t('pan.sortNameDesc') }}　</template>\n          </a-doption>\n          <a-doption value='updated_at asc'>\n            <template #default>　{{ t('pan.sortTimeAsc') }}　</template>\n          </a-doption>\n          <a-doption value='updated_at desc'>\n            <template #default>　{{ t('pan.sortTimeDesc') }}　</template>\n          </a-doption>\n          <a-doption value='size asc'>\n            <template #default>　{{ t('pan.sortSizeAsc') }}　</template>\n          </a-doption>\n          <a-doption value='size desc'>\n            <template #default>　{{ t('pan.sortSizeDesc') }}　</template>\n          </a-doption>\n        </template>\n      </a-dropdown>",
+          "to": "      <SortMenuButton :sort=\"panfileStore.ListOrderKey.split(' ')[0]||'name'\" :descending=\"panfileStore.ListOrderKey.endsWith(' desc')\" :options=\"sourceSortOptions\" :disabled=\"panfileStore.ListLoading\" @select=\"chooseSourceOrder\" @toggle=\"toggleSourceOrder\"/>"
         }
+      ],
+      "nativeExtensions": [
+        "User-requested repeat-click sort direction, real time/name sorting, More submenu file filtering and responsive grid columns (2026-11-19)."
       ]
     },
     {

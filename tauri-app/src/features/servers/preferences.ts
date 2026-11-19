@@ -1,6 +1,6 @@
 import { validServerCover } from './cover'
 import type { BrowseRoute } from './workspace'
-export interface Favorite { key: string; title: string; route: BrowseRoute; hiddenOnHome?: boolean; cover?: string; content?: boolean }
+export interface Favorite { key: string; title: string; route: BrowseRoute; hiddenOnHome?: boolean; cover?: string; content?: boolean; addedAt?:number; updatedAt?:number }
 export interface ServerPreferences { version: 1; favorites: Favorite[]; home: string[]; layout: 'grid' | 'list'; portrait: boolean; libraryMode?:boolean }
 export const preferenceKey = (accountId: string) => `boxplayer:server-workspace:v1:${encodeURIComponent(accountId)}`
 export const routeKey = (route: BrowseRoute) => JSON.stringify([route.kind, route.id || '', route.category || '', route.favoriteType || '', route.facet || '', route.value || ''])
@@ -16,5 +16,5 @@ export function writePreferences(accountId: string, preferences: ServerPreferenc
 export function putFavorite(preferences: ServerPreferences, route: BrowseRoute, title: string, content = false): ServerPreferences {
   title = title.trim(); if (!title) throw new Error('请输入收藏夹名称')
   const key = routeKey(route), existing = preferences.favorites.find(f => f.key === key)
-  return { ...preferences, favorites: [...preferences.favorites.filter(f => f.key !== key), { ...existing, key, title, route: { ...route }, content }] }
+  return { ...preferences, favorites: [...preferences.favorites.filter(f => f.key !== key), { ...existing,addedAt:existing?existing.addedAt:Date.now(),updatedAt:existing?.title===title?existing.updatedAt:Date.now(), key, title, route: { ...route }, content }] }
 }

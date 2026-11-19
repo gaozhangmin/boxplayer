@@ -1,5 +1,8 @@
 <!-- eslint-disable no-irregular-whitespace -->
 <script setup lang='ts'>
+import SortMenuButton from '@/features/files/SortMenuButton.vue'
+import {useLocale as useSortLocale} from '@/features/files/electron/i18n'
+import {fileLabels} from '@/features/files/fileLabels'
 import IconFont from '@/features/files/electron/IconFont.vue'
 import { IAliGetFileModel } from '../aliapi/alimodels'
 import {
@@ -483,6 +486,11 @@ const handleRightClick = (e: { event: MouseEvent; node: any }) => {
 }
 
 
+const sortLocale=useSortLocale()
+const sortLabels=computed(()=>fileLabels(sortLocale.value))
+const sourceSortOptions=computed(()=>[{value:'name',label:sortLabels.value.name},{value:'updated_at',label:sortLabels.value.modified},{value:'size',label:sortLabels.value.size}])
+function chooseSourceOrder(field:string){const current=panfileStore.ListOrderKey.split(' ');panfileStore.mOrderListData(field+' '+(current[1]||'asc'))}
+function toggleSourceOrder(){const current=panfileStore.ListOrderKey.split(' ');panfileStore.mOrderListData(current[0]+' '+(current[1]==='desc'?'asc':'desc'))}
 const handleFileListOrder = (order: string) => {
   panfileStore.mOrderListData(order)
 }
@@ -982,33 +990,7 @@ const onPanDragEnd = (ev: any) => {
     </div>
     <div style='flex-grow: 1'></div>
     <div class='fileorder' v-if='!["pic", "video"].includes(panfileStore.SelectDirType)'>
-      <a-dropdown trigger='hover' position='bl' @select='(val:any)=>handleFileListOrder(val as string)'>
-        <a-button type='text' size='small' tabindex='-1' :disabled='panfileStore.ListLoading'>
-          <IconFont name="iconpaixu1" />
-          {{ panfileStore.FileOrderDesc }}
-          <IconFont name="icondown" />
-        </a-button>
-        <template #content>
-          <a-doption value='name asc'>
-            <template #default>　{{ t('pan.sortNameAsc') }}　</template>
-          </a-doption>
-          <a-doption value='name desc'>
-            <template #default>　{{ t('pan.sortNameDesc') }}　</template>
-          </a-doption>
-          <a-doption value='updated_at asc'>
-            <template #default>　{{ t('pan.sortTimeAsc') }}　</template>
-          </a-doption>
-          <a-doption value='updated_at desc'>
-            <template #default>　{{ t('pan.sortTimeDesc') }}　</template>
-          </a-doption>
-          <a-doption value='size asc'>
-            <template #default>　{{ t('pan.sortSizeAsc') }}　</template>
-          </a-doption>
-          <a-doption value='size desc'>
-            <template #default>　{{ t('pan.sortSizeDesc') }}　</template>
-          </a-doption>
-        </template>
-      </a-dropdown>
+      <SortMenuButton :sort="panfileStore.ListOrderKey.split(' ')[0]||'name'" :descending="panfileStore.ListOrderKey.endsWith(' desc')" :options="sourceSortOptions" :disabled="panfileStore.ListLoading" @select="chooseSourceOrder" @toggle="toggleSourceOrder"/>
     </div>
     <div>
       <AntdTooltip :title="t('pan.listMode')" placement='bottom'>

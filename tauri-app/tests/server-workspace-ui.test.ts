@@ -273,3 +273,9 @@ it('displays stream metadata and forwards each selected stream to the playback q
  })], 'play')
  wrapper.unmount()
 })
+it('repeats the active server sort field to reverse direction without separate direction rows',async()=>{
+ const wrapper=mount(ServerWorkspace,{props:{account,initialRoute:{kind:'category',category:'movies',title:'Movies'}},global:{stubs}});await flushPromises()
+ await wrapper.get('.server-sort-button').trigger('click');await flushPromises()
+ const options=wrapper.findAll('.server-sort-menu [role=menuitemradio]');expect(options.length).toBeGreaterThan(0);expect(options.some(row=>['升序','降序'].includes(row.text()))).toBe(false)
+ await options.find(row=>row.attributes('aria-checked')==='true')!.trigger('click');await flushPromises();expect(vi.mocked(browseServer).mock.calls.at(-1)?.[2]?.descending).toBe(true);wrapper.unmount()
+})

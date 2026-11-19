@@ -1,3 +1,4 @@
+import {sortSources,type SourceSort,type FileTimes} from './fileSorting'
 import type { BrowseRoute } from '@/features/servers/workspace'
 import { providerIcon } from './sourcePresentation'
 export interface SavedFolder { id: string; name: string }
@@ -8,7 +9,7 @@ export interface FileSourcesSnapshot {
   drives: SavedDrive[]
   mediaServers: SavedFolder[]
   serverFavorites?: {sourceId:string;favoriteId:string;name:string;route:BrowseRoute}[]
-  presentation?: { hiddenLocalRoots?:Record<string,boolean>; order:string[]; names:Record<string,string>; providerIds:Record<string,string>; descending:boolean }
+  presentation?: { hiddenLocalRoots?:Record<string,boolean>; order:string[]; names:Record<string,string>; providerIds:Record<string,string>; descending:boolean; sort?:SourceSort; times?:Record<string,FileTimes> }
   hasDirectURLs: boolean
 }
 export type FileSidebarEntry = {
@@ -39,6 +40,6 @@ export function buildFileSidebarEntries(snapshot: FileSourcesSnapshot, directURL
   if (snapshot.hasDirectURLs) entries.push({ id: entryId('directURL'), title: directURLTitle, kind: 'directURL' })
   const presentation=snapshot.presentation
   const result=entries.map(entry=>{const cardId=entry.favoriteId||entry.sourceId||entry.id;return {...entry,cardId,title:presentation?.names[cardId]||entry.title,icon:entry.icon||(entry.kind!=='favorite'?providerIcon(presentation?.providerIds[entry.sourceId||'']):undefined)}})
-  if(presentation)result.sort((a,b)=>{const ai=presentation.order.indexOf(a.cardId),bi=presentation.order.indexOf(b.cardId);return (ai<0?9999:ai)-(bi<0?9999:bi)||a.title.localeCompare(b.title)*(presentation.descending?-1:1)})
+  if(presentation)return sortSources(result.map(entry=>({...entry,sortId:entry.id,id:entry.cardId,name:entry.title})),presentation.sort||'manual',presentation.descending,presentation.order,presentation.times||{}).map(({sortId,name,...entry})=>({...entry,id:sortId}))
   return result
 }
