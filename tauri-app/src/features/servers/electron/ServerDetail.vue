@@ -59,7 +59,7 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
 </script>
 
 <template>
-  <MediaDetailPage :item-key="item.id" :title="item.name" :play-label="detailPlayLabel"
+  <MediaDetailPage class="server-media-detail" :item-key="item.id" :title="item.name" :play-label="detailPlayLabel"
     :progress="detailPlayResume?.percent" :play-disabled="busy || !playable"
     :has-version="versions.length > 1" @back="emit('back')" @play="playDetail">
     <template #header-actions>
@@ -134,21 +134,7 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
           >
           <component :is="detailIsWatched ? EyeOff : Eye" :size="20" />
         </button>
-        <ElectronTrigger v-if="['show','series','season'].includes(item.kind)">
-          <button class="action-button" title="下载">
-            <Download :size="20"/>
-          </button>
-          <template #content>
-            <div class="server-detail-menu">
-              <button class="detail-version-option" :disabled="!displayed.playable" @click="emit('action','download',displayed)">下载当前集</button>
-              <button class="detail-version-option" @click="emit('action','download-season',displayed)">{{item.kind==='season'?'下载本季':'下载当前季'}}</button>
-              <button v-if="item.kind!=='season'" class="detail-version-option" @click="emit('action','download-series',displayed)">下载整部剧集</button>
-            </div>
-          </template>
-        </ElectronTrigger>
-        <button v-else class="action-button" title="下载" :disabled="!displayed.playable" @click="emit('action','download',displayed)">
-          <Download :size="20"/>
-        </button>
+        <button type="button" class="action-button" title="下载" :disabled="busy" @click="emit('action','download',displayed)"><Download :size="20"/></button>
         <button
           class="action-button"
           :disabled="['season','playlist'].includes(displayed.kind)"
@@ -177,7 +163,7 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
       </div>
       <div class="episodes-grid">
         <div v-for="episode in episodeItems" :key="episode.id" class="episode-card" :class="{active:selectedEpisode?.id===episode.id}" role="button" tabindex="0" @click="selectedEpisode=episode" @keydown.enter="selectedEpisode=episode" @contextmenu.prevent="emit('action','menu',episode)">
-          <div class="episode-thumbnail">
+          <div class="episode-thumbnail"><WatchedIndicator corner :watched="episode.watched"/>
             <ServerArtwork :account="account" :path="episode.backdropPath||episode.imagePath||primaryArtwork(episode.id)" :alt="episode.name"/>
             <button type="button" class="episode-play-overlay" :aria-label="'播放 '+episode.name" @click.stop="emit('play',episode)">
               <Play :size="20" fill="currentColor"/>
@@ -279,3 +265,5 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
   margin: 8px 0;
 }
 </style>
+
+<style scoped>.server-media-detail :deep(.action-buttons){grid-auto-columns:minmax(0,1fr)}.server-media-detail :deep(.detail-header-actions .action-button){width:40px;height:40px;flex:0 0 40px}.server-media-detail :deep(.detail-header-actions .electron-trigger .action-button){width:60px;gap:3px}</style>

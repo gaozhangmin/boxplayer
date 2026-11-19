@@ -294,3 +294,11 @@ it('updates detail membership after persistence without reloading the detail or 
  vi.mocked(serverFavorite).mockRejectedValueOnce(new Error('save failed'));detail.vm.$emit('action','favorite',detail.props('item'));await flushPromises()
  expect(detail.props('item').favorite).toBe(true);expect(wrapper.get('[role=alert]').text()).toContain('save failed');wrapper.unmount()
 })
+
+it('opens the TV download dialog and downloads only unwatched episodes when requested',async()=>{
+ const show=normalizeItem({Id:'show',Type:'Series',Name:'Show'},false),episode=normalizeItem({Id:'e1',Type:'Episode',Name:'Episode',UserData:{Played:false}},false),watched=normalizeItem({Id:'e2',Type:'Episode',Name:'Watched',UserData:{Played:true}},false)
+ vi.mocked(serverDetail).mockResolvedValue(show);vi.mocked(collectPlayable).mockResolvedValue([episode,watched]);vi.mocked(nativeCall).mockResolvedValue(1)
+ const view=mount(ServerWorkspace,{props:{account,initialRoute:{kind:'detail',id:show.id,title:'Show'}},global:{stubs}});await flushPromises();view.getComponent({name:'ServerDetail'}).vm.$emit('action','download',episode);await flushPromises()
+ const dialog=view.get('[role=dialog]');expect(dialog.findAll('button').map(button=>button.text())).toEqual(['下载单个剧集','下载未观看剧集','下载全部剧集','取消']);expect(nativeCall).not.toHaveBeenCalledWith('server_download_collection',expect.anything())
+ await dialog.findAll('button')[1]!.trigger('click');await flushPromises();expect(nativeCall).toHaveBeenCalledWith('server_download_collection',{accountId:account.id,files:[{fileId:'e1',name:'Episode.mkv'}]});view.unmount()
+})

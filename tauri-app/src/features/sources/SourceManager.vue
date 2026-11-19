@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import SavedSourceEditor from './SavedSourceEditor.vue'
+import OperationProgressDialog from '@/features/library/detailDialogs/OperationProgressDialog.vue'
+import ConnectionFailureDialog from '@/features/library/detailDialogs/ConnectionFailureDialog.vue'
+import {testHttpConnection} from './testConnection'
 import {toast} from 'vue-sonner'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import {readPreferences,writePreferences} from '@/features/servers/preferences'
@@ -7,7 +11,7 @@ import {useVideoCatalog} from '@/features/library/catalog'
 import type { FolderCatalog } from '@/features/files/folderFavorites'
 import { providerIcon } from '@/features/files/sourcePresentation'
 import QRCode from 'qrcode'
-import { X, ChevronLeft, ChevronRight, ChevronDown, Plus, Folder, Cloud, Server, HardDrive, Monitor, Network } from 'lucide-vue-next'
+import { X, ChevronLeft, ChevronRight, ChevronDown, Plus, Folder, Cloud, Server, HardDrive, Monitor, Network, Pencil } from 'lucide-vue-next'
 import { useFileSourcesStore } from '@/stores/fileSources'
 import { DialogRoot, DialogPortal, DialogOverlay, DialogContent, DialogTitle, DialogDescription } from 'reka-ui'
 import { Button } from '@/components/ui/button'
@@ -21,8 +25,12 @@ const plexDiscovery=ref<PlexDiscovery>(),plexSelected=ref<string[]>([])
 let plexGeneration=0
 async function clearPlex(){plexGeneration++;const pending=plexDiscovery.value;plexDiscovery.value=undefined;plexSelected.value=[];if(pending)await nativeCall('plex_cancel_resources',{sessionId:pending.sessionId}).catch(()=>{})}
 async function savePlex(){if(busy.value||!plexDiscovery.value||!plexSelected.value.length)return;busy.value=true;error.value='';try{const result=await nativeCall<{accounts:Account[];failed:number}>('plex_save_resources',{sessionId:plexDiscovery.value.sessionId,selected:plexSelected.value,name:name.value.trim()});plexDiscovery.value=undefined;toast.success(result.failed?'已添加 '+result.accounts.length+' 个 Plex 服务器，'+result.failed+' 个无法连接':'已添加 '+result.accounts.length+' 个 Plex 服务器');for(const account of result.accounts)emit('saved',account)}catch(cause){error.value=(cause as Error).message}finally{busy.value=false}}
+const editingAccountId=ref(''),connectionCancelled=ref(false);let httpTest:AbortController|undefined
+const editingAccount=computed(()=>sources.accounts.find(account=>account.id===editingAccountId.value))
+function cancelConnection(){connectionCancelled.value=true;httpTest?.abort();void nativeCall('auth_cancel',{requestId}).catch(()=>{})}
 const browsing=ref('')
 async function selectSaved(id:string){await back();browsing.value=id}
+async function editSaved(id:string){await back();editingAccountId.value=id}
 const emit = defineEmits<{ saved: [account: Account]; close: []; local: []; select: [id: string] }>()
 const options = [['smb','SMB'], ['nfs','NFS'], ['ftp','FTP'], ['webdav', 'WebDAV'], ['alist', 'AList'], ['jellyfin', 'Jellyfin'], ['emby', 'Emby'], ['plex', 'Plex'], ['alipan-open','阿里云盘'], ['baidu','百度网盘'], ['123','123网盘'], ['115', '115网盘'], ['quark', '夸克网盘'], ['guangya', '光鸭云盘'], ['pikpak', 'PikPak'], ['139', '139云盘'], ['189', '天翼云盘'], ['onedrive', 'OneDrive'], ['google', 'Google Drive'], ['dropbox', 'Dropbox'], ['box', 'Box']] as const
 const provider = ref<string>('')
@@ -45,7 +53,7 @@ async function back() {
  await clearLocal()
  await clearPlex()
  if (busy.value) await nativeCall('auth_cancel', { requestId }).catch(() => {})
- provider.value = '';browsing.value='';authorizing.value=false
+ provider.value = '';browsing.value='';editingAccountId.value='';authorizing.value=false
 }
 
 const oauthProviders = ['onedrive', 'google', 'dropbox', 'box','baidu','123']
@@ -109,7 +117,7 @@ async function webLogin() {
 async function save() {
   if (busy.value) return
   if(!['local','139'].includes(provider.value)&&!authenticationForm.value){authorizing.value=true;return}
-  busy.value = true; error.value = ''
+  busy.value = true; error.value = '';connectionCancelled.value=false;httpTest=new AbortController()
   try {
     if(provider.value==='local'){if(!localChoice.value)return;const source=savedLocal.value||await nativeCall<{id:string;name:string}>('local_save_chosen_source',{selectionId:localChoice.value.id,name:name.value.trim()});savedLocal.value=source;await sources.refresh();if(props.folderCatalog)await props.folderCatalog.scanFolder(source.id,'');else await catalog.scan(source.id);localChoice.value=undefined;savedLocal.value=undefined;emit('close');return}
     if (provider.value === '139') {
@@ -179,9 +187,9 @@ async function save() {
       const bytes = new TextEncoder().encode(`${username.value}:${secret.value}`)
       headers = { Authorization: `Basic ${btoa(Array.from(bytes, b => String.fromCharCode(b)).join(''))}` }
     } else headers = secret.value ? { Authorization: secret.value } : {}
-    const saved = await accountSave({ id: '', providerId: provider.value as 'webdav' | 'alist', name: name.value.trim() || '我的 '+title.value, baseUrl: base.href, authOrigins: [base.origin] }, { headers })
+    const draft:Account={ id:'',providerId:provider.value as 'webdav'|'alist',name:name.value.trim()||'我的 '+title.value,baseUrl:base.href,authOrigins:[base.origin] };await testHttpConnection(draft,headers,httpTest?.signal);if(connectionCancelled.value||!alive)return;const saved=await accountSave(draft,{headers})
     secret.value = ''; emit('saved', saved)
-  } catch (e) { if (qrProviders.includes(provider.value)) await clearQr(); error.value = e instanceof Error ? e.message : (e as { message?: string })?.message || '无法保存来源' }
+  } catch (e) { if (qrProviders.includes(provider.value)) await clearQr(); if(!connectionCancelled.value)error.value = e instanceof Error ? e.message : (e as { message?: string })?.message || '无法保存来源' }
   finally { busy.value = false }
 }
 </script>
@@ -196,15 +204,18 @@ async function save() {
           <button class="saved-source" :class="{ active: !browsing }" type="button" @click="back"><Plus :size="18" />添加…</button>
           <button class="saved-source" :class="{active:browsing==='device'}" type="button" @click="selectSaved('device')"><Monitor :size="20"/><span>{{deviceName}}</span></button>
 
-          <button v-for="account in sources.accounts.filter(a => a.providerId !== 'boxplayer')" :key="account.id" class="saved-source" type="button" @click="selectSaved(account.id)"><img v-if="providerIcon(account.providerId)" class="provider-icon" :src="providerIcon(account.providerId)" alt=""/><Cloud v-else :size="18" /><span>{{ sources.preferences.names[account.id]||account.name }}</span></button>
+          <div v-for="account in sources.accounts.filter(a=>a.providerId!=='boxplayer')" :key="account.id" class="saved-source-row"><button class="saved-source" type="button" @click="selectSaved(account.id)"><img v-if="providerIcon(account.providerId)" class="provider-icon" :src="providerIcon(account.providerId)" alt=""/><Cloud v-else :size="18"/><span>{{sources.preferences.names[account.id]||account.name}}</span></button><button type="button" class="saved-source-pencil" :aria-label="'编辑 '+account.name" @click="editSaved(account.id)"><Pencil :size="15"/></button></div>
         </aside>
-        <div class="source-main">
-          <header class="source-header" :class="{ catalog: !provider&&!browsing }">
+<OperationProgressDialog v-if="busy&&['smb','nfs','ftp','webdav','alist','emby','jellyfin'].includes(provider)" kind="connection" cancelable @close="cancelConnection"/><ConnectionFailureDialog v-if="error&&['smb','nfs','ftp','webdav','alist','emby','jellyfin'].includes(provider)" :message="error" @close="error=''"/>
+        <div class="source-main" :class="{'is-editing-source':!!editingAccount}">
+          <DialogTitle v-if="editingAccount" class="sr-only">{{editingAccount.name}}</DialogTitle>
+          <header v-if="!editingAccount" class="source-header" :class="{ catalog: !provider&&!browsing }">
             <button v-if="provider||browsing" class="source-back" type="button" aria-label="返回来源列表" @click="back"><ChevronLeft :size="22" /></button>
             <DialogTitle class="source-title">{{plexDiscovery?'选择 Plex 服务器':browsing==='device'?deviceName:browsing?(sources.accounts.find(a=>a.id===browsing)?.name||sources.snapshot.localFolders.find(f=>f.id===browsing)?.name):provider==='local'?'添加本地文件夹':provider?'添加 '+title:'添加共享'}}</DialogTitle>
             <DialogDescription class="sr-only">选择文件来源，连接网盘或服务器，或添加本地文件夹。</DialogDescription>
           </header>
-          <SavedSourceBrowser v-if="browsing" :key="browsing" :device="browsing==='device'" :source-id="browsing==='device'?undefined:browsing" :folder-catalog="folderCatalog"/>
+          <SavedSourceEditor v-if="editingAccount" :key="editingAccount.id" :account="editingAccount" @saved="sources.refresh()" @removed="editingAccountId=''"/>
+          <SavedSourceBrowser v-else-if="browsing" :key="browsing" :device="browsing==='device'" :source-id="browsing==='device'?undefined:browsing" :folder-catalog="folderCatalog"/>
           <div v-else-if="!provider" class="source-catalog">
             <section><h3>本地共享</h3><div class="provider-group"><button class="provider-row" type="button" @click="chooseProvider('local')"><Folder :size="25" /><span>添加本地文件夹</span><ChevronRight :size="17" /></button></div></section>
             <section v-for="group in groups" :key="group.title"><h3>{{ group.title }}</h3><div class="provider-group">
@@ -286,3 +297,5 @@ async function save() {
 </style>
 
 <style scoped>.plex-actions>button{height:32px;padding:4px 15px;border-radius:4px}</style>
+
+<style scoped>.saved-source-row{display:flex;align-items:center}.saved-source-row>.saved-source{flex:1;min-width:0}.saved-source-pencil{width:30px;flex:none;display:grid;place-items:center;border:0;background:transparent;color:var(--muted-foreground);cursor:pointer}.source-main.is-editing-source{padding:0}</style>

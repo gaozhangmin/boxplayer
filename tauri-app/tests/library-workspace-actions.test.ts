@@ -223,3 +223,13 @@ it('preserves selected season when watched or favorite data for the same detail 
  await wrapper.setProps({mediaItem:originalItem({...first,watched:true,favorite:true},[first,second])});await flushPromises()
  expect(wrapper.get('.season-tabs .arco-btn-primary').text()).toBe('第 2 季')
 })
+it('requires Trakt for the detail watchlist and persists its state only after sync',async()=>{
+ const {default:Detail}=await import('@/features/library/electron/MediaDetail.vue'),{originalItem}=await import('@/features/library/adapters/libraryData')
+ const target=item('watchlist',{tmdbId:99});fixture.catalog.data.items=[target]
+ fixture.native.mockImplementation(async command=>command==='trakt_status'?{configured:true,connected:true,settings:{enabled:true,range:-1}}:undefined)
+ const view=mount(Detail,{props:{mediaItem:originalItem(target)},attachTo:document.body});wrappers.push(view);await flushPromises()
+ await view.findAll('[title="加入待看列表"]')[0]!.trigger('click');await flushPromises()
+ expect(fixture.native).toHaveBeenCalledWith('trakt_sync',{identity:{type:'movie',tmdbId:99},action:'watchlist-add',rating:null});expect(fixture.catalog.data.items[0].continueAdded).toBe(true)
+ fixture.catalog.update.mockClear();fixture.native.mockClear();fixture.native.mockImplementation(async command=>command==='trakt_status'?{connected:false,settings:{enabled:true,range:-1}}:undefined)
+ await view.findAll('[title="从待看列表移除"]')[0]!.trigger('click');await flushPromises();expect(fixture.catalog.update).not.toHaveBeenCalled();expect(fixture.native.mock.calls.some(([command])=>command==='trakt_sync')).toBe(false)
+})

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import DownloadChoiceDialog from '../detailDialogs/DownloadChoiceDialog.vue'
+import OperationProgressDialog from '../detailDialogs/OperationProgressDialog.vue'
+import {nativeItems} from '../adapters/libraryData'
 import MediaDetailPage from '@/components/media-detail/MediaDetailPage.vue'
 import MediaDetailInfo from '@/components/media-detail/MediaDetailInfo.vue'
 import { seriesPreferences, orderedVersions, playbackVersions, generalPreferences, displayScopeAllows } from './seriesVersionPreferences'
@@ -491,10 +494,14 @@ const detailHeading = computed(() => {
 
 const currentCollectionTarget = computed(() => detailCollectionTarget(activeMediaItem.value, currentEpisode.value))
 const currentPlaylistItemId = computed(() => currentCollectionTarget.value?.id || '')
+const detailMenuOpen=ref(false),downloadChoices=ref(false),watchlistFeedback=ref(false)
+const canDownloadCurrent=computed(()=>{const file=currentDownloadFile.value;return !!file&&nativeItems([activeMediaItem.value]).some(item=>item.id===file.id&&!item.local)})
 const isWatchlisted = computed(() => mediaStore.continueWatching.some(entry => isContinueWatchingMember(entry, activeMediaItem.value)))
 async function toggleWatchlist() {
-  try { await toggleContinueWatching(mediaStore, activeMediaItem.value) }
+  watchlistFeedback.value=true
+  try { await toggleContinueWatching(mediaStore, activeMediaItem.value, true) }
   catch (error) { message.error(error instanceof Error ? error.message : String(error)) }
+  finally{watchlistFeedback.value=false}
 }
 
 // 方法
@@ -667,6 +674,12 @@ const playMovie = (loop = false) => {
   }
 }
 
+function requestDetailDownload(){if(!canDownloadCurrent.value)return;if(activeMediaItem.value.type==='tv')downloadChoices.value=true;else void handleDownloadCurrent()}
+async function chooseDetailDownload(scope:'single'|'unwatched'|'all'){
+ downloadChoices.value=false;if(scope==='single'){await handleDownloadCurrent();return}
+ const rows=nativeItems([activeMediaItem.value]).filter(item=>!item.local&&(scope!=='unwatched'||!item.watched))
+ try{for(const item of rows)await downloadFile(item.id);if(rows.length)message.success('成功创建下载任务')}catch(error){message.error(error instanceof Error?error.message:String(error))}
+}
 const handleDownloadCurrent = async () => {
   const driveFile = currentDownloadFile.value
   if (!driveFile) {
@@ -806,14 +819,14 @@ const getCastInitial = (name?: string): string => {
 </script>
 
 <template>
-  <MediaDetailPage :item-key="String(activeMediaItem.id)" :title="activeMediaItem.name"
+  <MediaDetailPage class="library-media-detail" :item-key="String(activeMediaItem.id)" :title="activeMediaItem.name"
     :backdrop-style="backgroundStyle" :play-label="playButtonLabel" :progress="playProgressPercent"
     :has-version="detailVersionFiles.length > 1" @back="handleBackClick" @play="playMainContent">
     <template #header-actions>
       <button class="action-button" :title="isWatchlisted ? '从待看列表移除' : '加入待看列表'" @click="toggleWatchlist"><Bookmark :size="20" :fill="isWatchlisted ? 'currentColor' : 'none'" /></button>
-      <a-dropdown trigger="click" position="br" :auto-fit-popup-width="false" popup-class="detail-more-action-popup">
+      <a-dropdown v-model:popup-visible="detailMenuOpen" trigger="click" position="br" :auto-fit-popup-width="false" popup-class="detail-more-action-popup">
         <button class="action-button" title="更多操作"><Ellipsis :size="20" /><ChevronDown :size="12" /></button>
-        <template #content><div class="detail-more-action-menu">
+        <template #content><div class="detail-more-action-menu" @click="detailMenuOpen=false">
           <button class="detail-more-action-item" @click="activeMediaItem.type === 'tv' && currentEpisode ? playEpisode(currentEpisode, true) : playMovie(true)"><Repeat :size="20" /><span>循环播放</span></button>
           <button v-if="activeMediaItem.type === 'tv'" class="detail-more-action-item" @click="playShuffledEpisodes"><Shuffle :size="20" /><span>随机播放</span></button>
           <button class="detail-more-action-item" @click="toggleWatched"><component :is="isWatched ? EyeOff : Eye" :size="20" /><span>{{ isWatched ? '标记未观看' : '标记已观看' }}</span></button>
@@ -825,7 +838,7 @@ const getCastInitial = (name?: string): string => {
           <button class="detail-more-action-item" @click="openPersonalRating(activeMediaItem)"><Star :size="20" /><span>评分</span></button>
           <button class="detail-more-action-item" @click="metadataEditorVisible = true"><IconFont name="iconedit-square" /><span>编辑元数据</span></button>
           <button class="detail-more-action-item" @click="openMediaShare({ id: activeMediaItem.id, title: activeMediaItem.name, year: activeMediaItem.year, files: activeMediaItem.driveFiles })"><Share :size="20" /><span>分享</span></button>
-          <button class="detail-more-action-item" @click="handleDownloadCurrent"><IconFont name="icondownload" /><span>下载</span></button>
+          <button v-if="canDownloadCurrent" class="detail-more-action-item" @click="requestDetailDownload"><IconFont name="icondownload" /><span>下载</span></button>
         </div></template>
       </a-dropdown>
     </template>
@@ -914,11 +927,13 @@ const getCastInitial = (name?: string): string => {
         <button
           type="button"
           class="action-button"
+          v-if="canDownloadCurrent"
           title="下载"
-          @click="handleDownloadCurrent"
+          @click="requestDetailDownload"
         >
           <IconFont name="icondownload" />
         </button>
+        <button class="action-button" title="评分" @click="openPersonalRating(activeMediaItem)"><Star :size="20" /></button>
         <button
           type="button"
           class="action-button"
@@ -928,8 +943,8 @@ const getCastInitial = (name?: string): string => {
         >
           <Bookmark :size="20" :fill="isWatchlisted ? 'currentColor' : 'none'" />
         </button>
-        <button class="action-button" title="评分" @click="openPersonalRating(activeMediaItem)"><Star :size="20" /></button>
         <button class="action-button" title="加入系列" :disabled="!currentCollectionTarget" @click="addToCustomSeries"><GalleryVerticalEnd :size="20" /></button>
+        <button class="action-button" title="播放列表" @click="togglePlaylist"><ListPlus :size="20"/></button>
       </div>
     </template>
 
@@ -1072,6 +1087,7 @@ const getCastInitial = (name?: string): string => {
       name: selectedDriveFile.name, summary: detailFileSummary
     } : undefined" />
     <template #dialogs>
+      <DownloadChoiceDialog v-if="downloadChoices" :single-disabled="!canDownloadCurrent" @close="downloadChoices=false" @choose="chooseDetailDownload"/><OperationProgressDialog v-if="watchlistFeedback" kind="watchlist" @close="watchlistFeedback=false"/>
       <MediaMetadataEditorModal
         :defaults-to-whole-tv-series="false"
         :initial-episode-number="selectedEpisode"
@@ -1274,3 +1290,7 @@ body:not([arco-theme='dark']) .playlist-modal.detail-media-modal .arco-modal-clo
   color: rgba(17, 24, 39, 0.94) !important;
 }
 </style>
+
+<style scoped>.library-media-detail :deep(.action-buttons){grid-auto-columns:minmax(0,1fr)}.library-media-detail :deep(.detail-header-actions>.action-button){width:40px;height:40px;flex:0 0 40px}.library-media-detail :deep(.detail-header-actions .arco-trigger-popup){min-width:190px}</style>
+
+<style>.detail-more-action-popup .detail-more-action-item{display:grid!important;grid-template-columns:20px minmax(0,1fr);align-items:center;column-gap:8px;text-align:left}.detail-more-action-popup .detail-more-action-item>svg{width:20px;height:20px;justify-self:center}</style>

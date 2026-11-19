@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import OperationProgressDialog from '@/features/library/detailDialogs/OperationProgressDialog.vue'
+import ConnectionFailureDialog from '@/features/library/detailDialogs/ConnectionFailureDialog.vue'
 import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import SourceFormSurface from './SourceFormSurface.vue'
 import {t} from './i18n'
 import {useNativeLogin} from '../adapters/nativeLogin'
 const props=defineProps<{embedded?:boolean;provider?:string;sourceName?:string}>()
 const emit=defineEmits<{connected:[];cancel:[]}>()
-const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLoginProviderMeta,loginCur,loginStatus,loginLoading,qrCodeUrl,qrCodeStatusType,qrCodeStatusTips,drive115Tips,drive115Loading,cloud139Loading,cloud189QrStatusType,cloud189Tips,cloud189Loading,guangyaPhone,guangyaCode,guangyaLoading,guangyaSmsState,pikpakUsername,pikpakPassword,pikpakLoading,quarkQrImageUrl,quarkQrStatusType,quarkTips,quarkLoading,dropboxLoading,onedriveLoading,boxLoading,googleLoading,remoteDriveForm,remoteDriveLoading,handleModalOpen,handleClose,handleRefreshQrCodeUrl,handleRefresh115Qr,openCloud139Login,handleOpen189,sendGuangyaSmsCode,submitGuangyaLogin,handleReopenCloud123,handleReopenBaidu,submitPikPakLogin,handleOpenQuark,handleReopenDropbox,handleReopenOneDrive,handleReopenBox,handleReopenGoogle,submitRemoteDrive}=useNativeLogin(props,emit)
+const {connectionFailure,cancelRemoteConnection,loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLoginProviderMeta,loginCur,loginStatus,loginLoading,qrCodeUrl,qrCodeStatusType,qrCodeStatusTips,drive115Tips,drive115Loading,cloud139Loading,cloud189QrStatusType,cloud189Tips,cloud189Loading,guangyaPhone,guangyaCode,guangyaLoading,guangyaSmsState,pikpakUsername,pikpakPassword,pikpakLoading,quarkQrImageUrl,quarkQrStatusType,quarkTips,quarkLoading,dropboxLoading,onedriveLoading,boxLoading,googleLoading,remoteDriveForm,remoteDriveLoading,handleModalOpen,handleClose,handleRefreshQrCodeUrl,handleRefresh115Qr,openCloud139Login,handleOpen189,sendGuangyaSmsCode,submitGuangyaLogin,handleReopenCloud123,handleReopenBaidu,submitPikPakLogin,handleOpenQuark,handleReopenDropbox,handleReopenOneDrive,handleReopenBox,handleReopenGoogle,submitRemoteDrive}=useNativeLogin(props,emit)
 </script>
 <template>
   <SourceFormSurface :embedded="embedded" :visible="loginVisible" :title="embedded ? undefined : t('login.driveAccount')" :closable="!embedded" modal-class="userloginmodal" @update:visible="loginVisible = $event" @before-open="handleModalOpen" @close="handleClose">
@@ -266,6 +268,7 @@ const {loginVisible,loginProviders,loginProvider,getLoginProviderMeta,activeLogi
       </template>
       </section>
     </div>
+    <OperationProgressDialog v-if="remoteDriveLoading&&['smb','nfs','ftp','webdav','alist'].includes(loginProvider)" kind="connection" cancelable @close="cancelRemoteConnection"/><ConnectionFailureDialog v-if="connectionFailure" :message="connectionFailure" @close="connectionFailure=''"/>
   </SourceFormSurface>
 </template>
 <style lang="less" scoped>

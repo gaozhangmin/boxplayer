@@ -184,3 +184,9 @@ Standalone CLI + MCP server for agent-driven cloud-drive operations. Docs: `clou
 ### 139 云盘官方登录
 
 Tauri 支持在独立登录窗口使用 139 官网提供的认证方式。网页登录完成后，从成功的官方文件列表请求接收云盘凭据，再通过原生路由校验和账号存储保存来源。密码和短信验证码由官网处理。
+
+## 已添加来源编辑与连接测试（2026-11-19）
+
+Tauri 添加来源的已保存共享列表与旧来源管理入口均提供独立铅笔入口。编辑页复用原 accountId 更新名称/连接，不创建重复账号；密码留空沿用安全存储中的凭据，不回显密码。右上角“移除此共享”经过确认后仅移除本机账号，底部保存/网速测试/端点按钮等宽对齐；媒体服务器网速测试与端点管理复用既有实现。
+
+添加共享时先显示连接测试反馈；SMB/NFS/FTP 和媒体服务器沿用原生连接/鉴权成功后保存的链路，WebDAV 改为使用尚未保存的草稿凭据执行根路径 PROPFIND（Depth 0），成功且返回有效 multistatus 后才 account_save。AList 令牌方式验证根目录列表后才保存。失败不生成账号，保留表单并用确认弹窗提示；取消中断原生 auth job 或前端 HTTP 测试，测试被取消后不继续 account_save。独立原生来源窗口使用 NativeServerRegistry/useNativeLogin 的同一反馈路径。

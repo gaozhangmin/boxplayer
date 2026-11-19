@@ -120,7 +120,7 @@
         "User requested iOS network icons and SMB/NFS/FTP provider entries; native adapters own connections."
       ],
       "snapshot": "src/vendor/electron-files/upstream/components__AddFileSourceModal.vue.source",
-      "targetSha256": "6f36630ff364fd6dd0b0558b32f351a76a14837d1025f38397c2fadb1b32218e",
+      "targetSha256": "46a27daa2aa0483be44f3940c2e3f7d4ff68edd41503e10753d5c936bdadd7bb",
       "templatePolicy": "extended",
       "templateSha256": "4723a1dc6baa42a739fc315e8bec87b197e89ac4d004a0f0ccce6e99cb0b0e3e",
       "templateReplacements": [
@@ -139,11 +139,29 @@
         {
           "from": "<Network :size=\"28\" />",
           "to": "<img :src=\"getDriveProviderMeta(provider).icon\" alt=\"\" />"
+        },
+        {
+          "from": "          <button v-for=\"source in sources\" :key=\"source.id\" :disabled=\"savingLocal\" :class=\"{ selected: selected === source.id }\" @click=\"selectSource(source.id)\"><img v-if=\"source.icon\" :src=\"source.icon\" alt=\"\" /><Folder v-else :size=\"20\" /><span>{{ source.name }}</span></button>\n",
+          "to": "          <div v-for=\"source in sources\" :key=\"source.id\" class=\"saved-source-row\" :class=\"{selected:selected===source.id}\"><button :aria-label=\"source.name\" :disabled=\"savingLocal\" @click=\"selectSource(source.id)\"><img v-if=\"source.icon\" :src=\"source.icon\" alt=\"\"/><Folder v-else :size=\"20\"/><span>{{source.name}}</span></button><button class=\"saved-source-edit\" :disabled=\"savingLocal\" :aria-label=\"t('mediaServer.editServer',{type:source.name})\" @click=\"selectSource(source.id);editingId=source.id\"><Pencil :size=\"15\"/></button></div>\n"
+        },
+        {
+          "from": "        <ServerRegistry v-if=\"selected === 'add' && detail?.kind === 'server'\" :key=\"detail.type\" form-only embedded :default-type=\"detail.type\" @close=\"resetDetail\" @saved=\"connected\" />\n",
+          "to": "        <SavedSourceEditor v-if=\"editingAccount\" :key=\"editingAccount.id\" :account=\"editingAccount\" @saved=\"emit('connected')\" @removed=\"editingId='';selectSource('add');emit('connected')\"/>\n        <ServerRegistry v-else-if=\"selected === 'add' && detail?.kind === 'server'\" :key=\"detail.type\" form-only embedded :default-type=\"detail.type\" @close=\"resetDetail\" @saved=\"connected\" />\n"
+        },
+        {
+          "from": "@submit.prevent=\"detail.kind === 'local' ? saveLocalFolder() : authorizing = true\"",
+          "to": "@submit.prevent=\"connectSource\""
+        },
+        {
+          "from": "savingLocal || (detail.kind === 'local' && (!localPath || useMediaLibraryStore().isScanning))",
+          "to": "savingLocal || !!cloud139Pending || (detail.kind === 'local' && (!localPath || useMediaLibraryStore().isScanning))"
         }
       ],
       "nativeExtensions": [
         "M5 row99: transfer-task entry opens original four-page shell; no production engine installed.",
-        "Network share protocol surface: SMB, NFSv3, FTP; no Electron main changes."
+        "Network share protocol surface: SMB, NFSv3, FTP; no Electron main changes.",
+        "2026-11-19 user requested detail action alignment, download/watchlist dialogs and saved-source editing with validated connections.",
+        "Record the already committed 139 direct-connect handler and pending guard when reviewing this edited source template; no change to that login behavior."
       ]
     },
     {
@@ -279,12 +297,13 @@
         "Original template and styles retained; nativeLogin owns auth calls and lifecycle; Electron Webview removed for native QR; custom client-id field removed per user instruction."
       ],
       "snapshot": "src/vendor/electron-files/upstream/user__UserLogin.vue.source",
-      "targetSha256": "bcc3c5b69ade97de1ffd1141c58a0fc4bfcd58f7ceaf6ed5712cd840d4fda90a",
+      "targetSha256": "0dddd0c1cad212f6994b49382c088172d328b1f1d6c5d470ac2b06774e590074",
       "templatePolicy": "native-auth-surface",
       "templateSha256": "890b99442637f40aaa4c3ceb7f6a16461a9894c3f8562022bec22116b0df392f",
       "nativeExtensions": [
         "Network share protocol surface: SMB, NFSv3, FTP; no Electron main changes.",
-        "Aliyun two-stage native web login followed by OpenAPI QR; publish only after both authorizations."
+        "Aliyun two-stage native web login followed by OpenAPI QR; publish only after both authorizations.",
+        "2026-11-19 user requested detail action alignment, download/watchlist dialogs and saved-source editing with validated connections."
       ]
     },
     {

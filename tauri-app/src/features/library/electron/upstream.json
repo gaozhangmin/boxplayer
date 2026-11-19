@@ -1480,7 +1480,7 @@
       ],
       "snapshot": "src/vendor/electron-library/upstream/src__components__MediaDetail.vue.source",
       "sha256": "85cb8cd45aba6b35ad5cdfd9c572f9364c70a3f07068fc04cea31c257edae1a1",
-      "targetSha256": "984f5eec090d0a433f190d6492768a3bd8763faa838a6d6957c6ae3860f1d537",
+      "targetSha256": "9c8a54dfa4cd276542c1fb36832f4df0cf33dc24ed06394936dafea954e6bacb",
       "templatePolicy": "native-detail",
       "nativeExceptions": [
         "Original acquisition/tracking entries retained but disabled: Electron boxplayer backend has not been migrated; no fake endpoint or success state introduced",
@@ -1488,7 +1488,8 @@
         "Native download destination selection and opaque file identity"
       ],
       "nativeExtensions": [
-        "Preserve season, episode and version selections on watched/favorite state changes; reload collection members only when detail identity changes (2026-11-19)."
+        "Preserve season, episode and version selections on watched/favorite state changes; reload collection members only when detail identity changes (2026-11-19).",
+        "2026-11-19 user requested detail action alignment, download/watchlist dialogs and saved-source editing with validated connections."
       ]
     },
     {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import SavedSourceEditor from '@/features/sources/SavedSourceEditor.vue'
+import {useFileSourcesStore} from '@/stores/fileSources'
 import { computed, ref, watch, onUnmounted } from 'vue'
-import { Folder, Network, ChevronRight, ChevronLeft, Plus, Monitor, X, ArrowDownUp } from 'lucide-vue-next'
+import { Folder, Network, ChevronRight, ChevronLeft, Plus, Monitor, X, ArrowDownUp, Pencil } from 'lucide-vue-next'
 import FileSourceBrowser from './FileSourceBrowser.vue'
 import TransferWorkspaceModal from '../drive/TransferWorkspaceModal.vue'
 import UserLogin from './UserLogin.vue'
@@ -17,6 +19,8 @@ import { nativeCall, asAppError } from '@/platform/native'
 
 const props = defineProps<{ visible: boolean; deviceName: string; sources: Array<{ id: string; name: string; icon?: string; favorite?: boolean; driveServerId?: string; server?: MediaServerConfig; folder: IAliGetFileModel; drives?: Array<{ label: string; folder: IAliGetFileModel }> }> }>()
 const emit = defineEmits<{ 'toggle-root': [id: string]; close: []; connected: [] }>()
+const editingId=ref(''),sourceStore=useFileSourcesStore()
+const editingAccount=computed(()=>sourceStore.accounts.find(account=>account.id===editingId.value))
 const selected = ref('add')
 const showTransfers=ref(false)
 type Detail = { kind: 'cloud'; provider: string } | { kind: 'server'; type: MediaServerType } | { kind: 'local' }
@@ -36,7 +40,7 @@ function cancelCloud139() {
   if (requestId) void nativeCall('auth_cancel', { requestId }).catch(() => {})
 }
 function resetDetail() { cancelCloud139(); void cancelLocal(); detail.value = undefined; authorizing.value = false; sourceName.value = ''; localPath.value = '' }
-function selectSource(id: string) { if (savingLocal.value) return; resetDetail(); selected.value = id }
+function selectSource(id: string) { editingId.value=''; if (savingLocal.value) return; resetDetail(); selected.value = id }
 function openCloud(provider: string) {
   resetDetail()
   detail.value = { kind: 'cloud', provider }
@@ -88,11 +92,12 @@ watch(() => props.visible, () => { if (!savingLocal.value) { showTransfers.value
           <p>{{ t('source.saved') }}</p>
           <button :disabled="savingLocal" :class="{ selected: selected === 'add' }" @click="selectSource('add')"><Plus :size="20" /><span>{{ t('source.addShare') }}</span></button>
           <button :disabled="savingLocal" :class="{ selected: selected === 'device' }" @click="selectSource('device')"><Monitor :size="20" /><span>{{ deviceName }}</span></button>
-          <button v-for="source in sources" :key="source.id" :disabled="savingLocal" :class="{ selected: selected === source.id }" @click="selectSource(source.id)"><img v-if="source.icon" :src="source.icon" alt="" /><Folder v-else :size="20" /><span>{{ source.name }}</span></button>
+          <div v-for="source in sources" :key="source.id" class="saved-source-row" :class="{selected:selected===source.id}"><button :aria-label="source.name" :disabled="savingLocal" @click="selectSource(source.id)"><img v-if="source.icon" :src="source.icon" alt=""/><Folder v-else :size="20"/><span>{{source.name}}</span></button><button class="saved-source-edit" :disabled="savingLocal" :aria-label="t('mediaServer.editServer',{type:source.name})" @click="selectSource(source.id);editingId=source.id"><Pencil :size="15"/></button></div>
         </div>
       </aside>
       <main class="file-source-main">
-        <ServerRegistry v-if="selected === 'add' && detail?.kind === 'server'" :key="detail.type" form-only embedded :default-type="detail.type" @close="resetDetail" @saved="connected" />
+        <SavedSourceEditor v-if="editingAccount" :key="editingAccount.id" :account="editingAccount" @saved="emit('connected')" @removed="editingId='';selectSource('add');emit('connected')"/>
+        <ServerRegistry v-else-if="selected === 'add' && detail?.kind === 'server'" :key="detail.type" form-only embedded :default-type="detail.type" @close="resetDetail" @saved="connected" />
         <template v-else>
           <header class="file-source-heading">
             <button v-if="detail" class="file-source-back" :disabled="savingLocal" :aria-label="t('unified.back')" @click="resetDetail"><ChevronLeft :size="20" /></button>
@@ -148,3 +153,5 @@ watch(() => props.visible, () => { if (!savingLocal.value) { showTransfers.value
 .add-file-source-modal .file-source-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--app-overlay-bg)}
 @media(max-width:600px){.add-file-source-modal .file-source-layout{grid-template-columns:130px minmax(0,1fr)}.add-file-source-modal .file-source-sidebar{padding-inline:8px}}
 </style>
+
+<style scoped>.saved-source-row{display:flex;align-items:center;border-radius:7px}.saved-source-row.selected{background:var(--secondary)}.saved-source-row>button{display:flex;align-items:center;gap:10px;min-height:36px;padding:7px 8px;border:0;background:transparent;color:inherit;cursor:pointer}.saved-source-row>button:first-child{flex:1;min-width:0;text-align:left}.saved-source-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.saved-source-row img{width:20px;height:20px;object-fit:contain}.saved-source-row .saved-source-edit{flex:none;width:32px;padding:8px;color:var(--muted-foreground)}</style>

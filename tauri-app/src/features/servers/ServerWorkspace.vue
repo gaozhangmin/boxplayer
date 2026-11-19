@@ -30,6 +30,8 @@ import { browseServer, serverHomeStatistics, serverDetail, setWatched, collectPl
 import { readPreferences, writePreferences, putFavorite, routeKey, type ServerPreferences, type Favorite } from './preferences'
 import { isLocalCoverData, validServerCover } from './cover'
 import ServerArtwork from './ServerArtwork.vue'
+import DownloadChoiceDialog from '@/features/library/detailDialogs/DownloadChoiceDialog.vue'
+import OperationProgressDialog from '@/features/library/detailDialogs/OperationProgressDialog.vue'
 import ServerRating from './ServerRating.vue'
 import ServerShare from './ServerShare.vue'
 import { useServerBrowseMode } from './layout'
@@ -58,6 +60,7 @@ const menuAnchor=ref({x:0,y:0})
 function captureMenu(event:MouseEvent){const box=(event.target as HTMLElement).closest('button')?.getBoundingClientRect();menuAnchor.value=event.type==='contextmenu'?{x:event.clientX,y:event.clientY}:box?{x:box.right-220,y:box.bottom+4}:{x:event.clientX,y:event.clientY}}
 const menu = ref<{ item?: ServerItem; target: BrowseRoute; favorite?: Favorite;toolbar?:boolean }>()
 const prompt = ref<{ kind: 'favorite' | 'rename' | 'cover' | 'delete'; route: BrowseRoute; value: string; item?: ServerItem; favorite?: Favorite;toolbar?:boolean }>()
+const downloadChoice=ref<ServerItem>(),favoritePending=ref(false),favoriteFeedbackClosed=ref(false)
 const favoriteQueue = ref<BrowseRoute[]>([]), playlistDialog = ref(false), playlistItem = ref<ServerItem>(), playlists = ref<ServerPlaylist[]>([]), membership = ref<Record<string, boolean>>({}), originalMembership = ref<Record<string, boolean>>({}), playlistName = ref('')
 const { layout, setLayout } = useServerBrowseMode()
 const coverChoices = ref<{ path: string; title: string }[]>([])
@@ -165,7 +168,7 @@ const serverSearch=ref(props.searchQuery||'')
 watch(()=>props.searchQuery,value=>serverSearch.value=value||'')
 const searchSections=computed(()=>!route.value.query?.trim()?[{key:'suggestions',title:'推荐剧集',items:visibleItems.value}]:[{key:'series',title:'电视剧',items:visibleItems.value.filter(i=>['series','show'].includes(i.kind))},{key:'movie',title:'电影',items:visibleItems.value.filter(i=>i.kind==='movie')},{key:'episode',title:'剧集',items:visibleItems.value.filter(i=>i.kind==='episode')},{key:'person',title:'演职人员',items:visibleItems.value.filter(i=>i.kind==='person')},{key:'other',title:'其他',items:visibleItems.value.filter(i=>!['series','show','movie','episode','person'].includes(i.kind))}].filter(s=>s.items.length))
 const detailMenuEntries=computed(()=>detail.value?videoPosterMenu(toVideo(detail.value,props.account),true,false,true):[])
-function detailAction(action:string,item:ServerItem){if(action==='download-season'||action==='download-series'){void downloadCollection(action==='download-season'?'season':'series');return}if(action==='menu'){openMenu(itemRoute(item),item);return}if(action==='watched'||action==='favorite'){void updateItem(item,action);return}if(action==='rating'){ratingItem.value=item;return}if(action==='share'){shareItem.value=item;return}if(action==='download'){void download(item);return}if(action==='playlist'){void openPlaylists(item);return}if(['play','loop','shuffle'].includes(action)){void play(itemRoute(item),action as 'play'|'loop'|'shuffle',item);return}if(action==='refresh'){void load();return}if(action==='delete')prompt.value={kind:'delete',route:itemRoute(item),item,value:item.name}}
+function detailAction(action:string,item:ServerItem){if(action==='download-season'||action==='download-series'){void downloadCollection(action==='download-season'?'season':'series');return}if(action==='menu'){openMenu(itemRoute(item),item);return}if(action==='watched'||action==='favorite'){void updateItem(item,action);return}if(action==='rating'){ratingItem.value=item;return}if(action==='share'){shareItem.value=item;return}if(action==='download'){if(['show','series','season','episode'].includes(item.kind)||['show','series','season'].includes(detail.value?.kind||''))downloadChoice.value=item;else void download(item);return}if(action==='playlist'){void openPlaylists(item);return}if(['play','loop','shuffle'].includes(action)){void play(itemRoute(item),action as 'play'|'loop'|'shuffle',item);return}if(action==='refresh'){void load();return}if(action==='delete')prompt.value={kind:'delete',route:itemRoute(item),item,value:item.name}}
 function toVideo(item: ServerItem, account: Account): VideoItem { return { id: JSON.stringify([account.id, item.id]), sourceId: account.id, fileId: item.id, fileName: item.name, name: item.name, type: item.kind === 'movie' ? 'movie' : 'tv', local: false, addedAt: '', genres: item.genres, size: item.size, year: item.year, watched: item.watched, favorite: item.favorite } }
 async function play(target: BrowseRoute, mode: 'play' | 'loop' | 'shuffle' = 'play', item?: ServerItem, tracks?: import('./workspace').StreamSelection) {
   const account = { ...props.account }, scope = generation
@@ -217,10 +220,11 @@ async function updateItem(item: ServerItem, action: 'watched' | 'favorite', watc
   const account = { ...props.account }
   const value=action==='favorite'?!item.favorite:watched??!item.watched
   await safely(async () => {
-   if(action==='favorite')await serverFavorite(account,item.id,value);else await setWatched(account,item.id,value)
+   if(action==='favorite'){favoritePending.value=true;favoriteFeedbackClosed.value=false;try{await serverFavorite(account,item.id,value)}finally{favoritePending.value=false}}else await setWatched(account,item.id,value)
    if(!isCurrentAccount(account))return
    const rows=[item,...items.value,...libraries.value,...detailChildren.value,...(seasonEpisodes.value||[]),...similar.value,...homeRows.value.flatMap(row=>row.items),...(detail.value?[detail.value]:[])]
-   for(const row of rows)if(row.id===item.id){if(action==='favorite')row.favorite=value;else{row.watched=value;row.progress=value?100:0}}
+   const descendantIds=new Set<string>();if(action==='watched'&&['show','series','season'].includes(item.kind)){descendantIds.add(item.id);for(let pass=0;pass<rows.length;pass++)for(const row of rows)if(row.parentId&&descendantIds.has(row.parentId))descendantIds.add(row.id);if(detail.value?.id===item.id){for(const row of [...detailChildren.value,...(seasonEpisodes.value||[])])descendantIds.add(row.id)}}
+   for(const row of rows)if(row.id===item.id||descendantIds.has(row.id)){if(action==='favorite')row.favorite=value;else{row.watched=value;row.progress=value?100:0}}
    menu.value=undefined
    window.dispatchEvent(new CustomEvent('boxplayer:server-home-changed',{detail:account.id}))
   })
@@ -228,6 +232,13 @@ async function updateItem(item: ServerItem, action: 'watched' | 'favorite', watc
 async function toggleContentFavorite() { const target = menu.value; if (!target) return; if (target.item) { await updateItem(target.item, 'favorite'); return } const account = { ...props.account }; await safely(async () => { const item = await serverDetail(account, target.target.id!); await serverFavorite(account, item.id, !item.favorite); if (isCurrentAccount(account)) menu.value = undefined }) }
 async function download(item: ServerItem) { const account = { ...props.account }; await safely(async () => { const result = await nativeCall<boolean>('source_download', { accountId: account.id, fileId: item.id, name:item.versions?.find(version=>version.id===getServerPlaybackSource(account.id,item.id))?.fileLabel||item.name,...(getServerPlaybackSource(account.id,item.id)?{preferredSourceId:getServerPlaybackSource(account.id,item.id)}:{}) }); if (result && isCurrentAccount(account)) { status.value = '下载完成'; emit('download-complete', item.id) } }) }
 async function downloadCollection(scope:'season'|'series'){const id=scope==='series'?detail.value?.id:selectedSeasonId.value||detail.value?.id;if(!id)return;const account={...props.account};await safely(async()=>{const rows=await collectPlayable(account,{kind:'children',id,title:detail.value?.name||''});const count=await nativeCall<number>('server_download_collection',{accountId:account.id,files:rows.map(item=>({fileId:item.id,name:item.versions?.[0]?.fileLabel||item.name+'.mkv'}))});if(isCurrentAccount(account))status.value=count?'已下载 '+count+' 个文件':'已取消下载'})}
+async function chooseDetailDownload(scope:'single'|'unwatched'|'all'){
+ const target=downloadChoice.value;if(!target)return;downloadChoice.value=undefined
+ if(scope==='single'){await download(target);return}
+ const root=detail.value,account={...props.account},id=root&&['show','series','season'].includes(root.kind)?root.id:target.parentId
+ if(!id){error.value='服务器未提供剧集所属目录';return}
+ await safely(async()=>{const rows=(await collectPlayable(account,{kind:'children',id,title:root?.name||target.name})).filter(row=>scope!=='unwatched'||!row.watched);if(!rows.length){status.value='没有可下载的剧集';return}const count=await nativeCall<number>('server_download_collection',{accountId:account.id,files:rows.map(row=>({fileId:row.id,name:row.versions?.[0]?.fileLabel||row.name+'.mkv'}))});if(isCurrentAccount(account))status.value=count?'已加入下载任务':'已取消下载'})
+}
 function openPlaylists(item:ServerItem){playlistItem.value=item;playlistDialog.value=true;menu.value=undefined}
 function setHome(key: string, visible: boolean) { changePreference({ home: visible ? [...new Set([...preferences.value.home, key])] : preferences.value.home.filter(k => k !== key) }); if (route.value.kind === 'home') void load() }
 function moveHome(key: string, delta: number) { const keys = [...preferences.value.home], index = keys.indexOf(key), to = index + delta; if (index < 0 || to < 0 || to >= keys.length) return; [keys[index], keys[to]] = [keys[to]!, keys[index]!]; changePreference({ home: keys }); if (route.value.kind === 'home') void load() }
@@ -327,6 +338,7 @@ defineExpose({ goBack, navigate, refresh: load, openLibraryRoot: () => navigate(
   </AnchoredMenu>
   <ServerHomeManager v-if="manager" :choices="choices" :visible="preferences.home" @close="manager=false" @save="keys=>{changePreference({home:keys});manager=false;if(route.kind==='home')void load()}"/>
   <ElectronModal v-if="prompt" :title="prompt.kind==='delete'?'确认删除':prompt.kind==='cover'?'选择封面':prompt.kind==='rename'?'重命名收藏夹':'添加到收藏夹'" :busy="working" @close="prompt=undefined;favoriteQueue=[]" @submit.prevent="submitPrompt"><form class="server-prompt-form" :aria-label="prompt.kind === 'delete' ? '确认删除' : '收藏夹设置'"><p v-if="prompt.kind === 'delete'">{{ prompt.value }}：此操作会删除服务器中的内容。</p><div v-if="prompt.kind === 'cover'"><button type="button" :disabled="working" @click="chooseCoverImage">选择图片</button><button type="button" :disabled="working" @click="prompt.value = ''">恢复默认封面</button><span v-if="prompt.value" class="cover-choice"><ServerArtwork :account="account" :path="prompt.value" alt="封面预览" /></span></div><label v-if="prompt.kind !== 'delete' && !isLocalCoverData(prompt.value)">{{ prompt.kind === 'cover' ? '或使用服务器图片相对路径' : '名称' }}<input v-model="prompt.value" :required="prompt.kind !== 'cover'" /></label><div v-if="prompt.kind === 'cover'" class="cover-grid"><button v-for="cover in coverChoices" :key="cover.path" type="button" :aria-pressed="prompt.value === cover.path" @click="prompt.value = cover.path"><span class="cover-choice"><ServerArtwork :account="account" :path="cover.path" :alt="cover.title" /></span>{{ cover.title }}</button></div><div class="server-prompt-footer"><button type="button" @click="prompt=undefined;favoriteQueue=[]">取消</button><button :disabled="working" class="primary">保存</button></div></form></ElectronModal>
+  <DownloadChoiceDialog v-if="downloadChoice" :single-disabled="!downloadChoice.playable" @close="downloadChoice=undefined" @choose="chooseDetailDownload"/><OperationProgressDialog v-if="favoritePending&&!favoriteFeedbackClosed" kind="favorite" @close="favoriteFeedbackClosed=true"/>
   <ServerPlaylistPicker v-if="playlistDialog&&playlistItem" :account="account" :item="playlistItem" @close="playlistDialog=false"/>
   <ServerRating v-if="ratingItem" :item="ratingItem" :account-id="account.id" @close="ratingItem = undefined" @rated="status = '个人评分已保存'" /><ServerShare v-if="shareItem" :item="shareItem" @close="shareItem = undefined" />
 
