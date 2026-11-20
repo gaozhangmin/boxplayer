@@ -18,6 +18,6 @@ Tauri CLI 2.12.4 的 dev 通过 cargo run 执行裸二进制，单设 APPLE_SIGN
 
 ## 边界
 
-未完成原生 UI 中 Emby 内容加载验收；原生裸进程未被当前应用自动化库存正确识别，避免另启动旧 .app 冒充本次开发验证。运行中的 Vite 曾报告并行修改 PageGlobalSearch.vue 的编译错误，不属于本次签名改动。未执行跨平台运行或正式发布。已有锁定钥匙串或其他身份创建的条目仍可能要求用户操作。
+未完成原生 UI 中 Emby 内容加载验收；原生裸进程未被当前应用自动化库存正确识别，避免另启动旧 .app 冒充本次开发验证。Vite 报告 PageGlobalSearch.vue 存在 button 嵌套 button 的 HTML 警告，未阻断开发启动；该页面不属于本次签名改动。未执行跨平台运行或正式发布。已有锁定钥匙串或其他身份创建的条目仍可能要求用户操作。
 
 本机临时证据：/tmp/tauri-signed-dev-final.log、/tmp/tauri-dev-signing-typecheck.log、/tmp/tauri-dev-signing-cargo-fixture.json；不作为发布附件。
