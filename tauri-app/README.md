@@ -30,6 +30,14 @@ Rust alone persists versioned settings using atomic file replacement. A stale wr
 
 The default data directory is Tauri's application-data directory for the development identifier. Set an absolute `BOXPLAYER_DEV_DATA_DIR` before starting to use another development-only location. Alternatively place an absolute path as plain text in `userdir.config` under that default development directory. Resolution precedes settings and logs initialization. Never point this at the existing Electron user-data directory. The WebView's own storage remains under the isolated development identifier; Rust persists business settings, sources and positions.
 
+### Stable macOS development identity
+
+Use `pnpm tauri dev` rather than launching `target/debug/boxplayer-tauri-dev` directly. On macOS the wrapper requires `APPLE_SIGNING_IDENTITY`, or the existing ignored `.local/macos-signing.json` (`{"identity":"<existing development identity>"}`). Reuse the identity that signed your development bundle; do not create a new certificate to repair existing Keychain access.
+
+Cargo's Darwin target runner signs and verifies the executable after linking, before every launch and Rust hot reload. It reads the bundle identifier from the JSON base/macOS configuration plus Tauri's effective `TAURI_CONFIG` patch (normally `com.boxplayer.migration.dev`). This keeps the development executable's designated requirement consistent with the signed development `.app`. Missing identity, signing failure, custom runners, forwarded Cargo `--config`, and unsupported JSON5/TOML config stop startup. Tauri JSON `--config` remains supported. Paths and application arguments retain their original quoting.
+
+This does not change Keychain ACLs, stored credentials, production identifiers, release signing, or non-macOS startup. An already locked Keychain or credentials created by a different identity can still need user action. Development `.app` URL/file association testing still requires bundling.
+
 A local macOS development bundle can be generated with:
 
 ```sh

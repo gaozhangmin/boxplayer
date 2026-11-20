@@ -1,0 +1,1 @@
+export function signDevelopmentExecutable(options:{root:string;executable:string;env?:Record<string,string|undefined>;run?:(command:string,args:string[],options:{env:Record<string,string|undefined>;stdio:'inherit'})=>{status:number|null;error?:Error}}):void
