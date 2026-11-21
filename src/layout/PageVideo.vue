@@ -522,10 +522,14 @@ const getHlsControlPlugin = (art: Artplayer) => {
 }
 
 const safeRemoveArtControl = (art: Artplayer, name: string) => {
+  const controls = art.controls as typeof art.controls & { cache?: Map<string, unknown> }
+  // Artplayer throws on an absent entry. First play and single-quality sources
+  // legitimately have no quality control to remove.
+  if (controls.cache?.has(name) === false) return
   try {
-    art.controls.remove(name)
+    controls.remove(name)
   } catch (error) {
-    if ((art.controls as any).cache?.has?.(name)) console.warn(`移除播放器控件失败: ${name}`, error)
+    if (controls.cache?.has(name)) console.warn(`移除播放器控件失败: ${name}`, error)
   }
 }
 
@@ -2712,7 +2716,7 @@ const getVideoInfo = async (art: Artplayer) => {
     return
   }
   // Do not retain a previous video's quality control while querying this source.
-  art.controls.remove('quality')
+  safeRemoveArtControl(art, 'quality')
   // 获取视频链接
   const data: string | IRawUrl = await getRawUrl(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, pageVideo.encType, pageVideo.password, false, 'video', '', 'thirdParty', pageVideo.tokenfrom)
   if (typeof data != 'string' && data.qualities.length > 0) {

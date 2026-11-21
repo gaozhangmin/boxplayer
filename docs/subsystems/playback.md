@@ -61,3 +61,5 @@ Subtitle rules:
 Apple iOS/iPadOS/tvOS 复用 MusicParticleSceneControls；macOS 在控制台常用预设中提供同一入口并保存模式/撤销状态。Android Phone/Pad/TV 复用 MusicReferenceSettings.particleScenes；手机存档同时保存界面模式，TV 移除旧 showInterfaceChoices 子页。原有 GPU 场景编号不变，清爽不是新的 shader 编号。
 
 Electron 与 Tauri 的现有视觉选项中同样新增清爽卡片；配置保存 playerInterface，旧配置缺少字段仍按粒子界面读取。清爽显示原生图片和标题，保留 DOM 歌词列表，停止创建 WebGL renderer；切回任一原有预设恢复粒子。DIY 简化/完整配置面板开关不是播放器界面切换，继续保留。
+
+Electron 云视频在解析新地址前清除上个视频的清晰度控件。只有 Artplayer 已注册该控件时才移除，首次播放及单画质切片可直接继续地址解析。
