@@ -3319,6 +3319,29 @@ const handleDetailAction = async (action: 'watched' | 'favorite') => {
   }
 }
 
+const resolveDetailPlaybackPlaylist = async (
+  server: MediaServerConfig,
+  item: MediaServerItemDetail,
+  episodes: MediaServerLibraryNode[],
+  seasonTitle?: string
+) => {
+  const episodePlaylist = episodes.map((episode) => ({ id: episode.id, title: episode.title }))
+  const playlistLabel = seasonTitle || '当前季剧集'
+  if (item.kind !== 'episode' || episodePlaylist.length > 0) return { playlistLabel, episodePlaylist }
+
+  // Continue Watching can open an episode detail without a season panel.
+  // Reuse the episode route's series lookup so selecting Play still has siblings.
+  try {
+    const target = await resolveHomePlaybackTarget(server, item)
+    if (target.episodePlaylist.some((episode) => episode.id === item.id)) {
+      return { playlistLabel: target.playlistLabel || playlistLabel, episodePlaylist: target.episodePlaylist }
+    }
+  } catch (error) {
+    console.warn('媒体服务器选集列表加载失败', error)
+  }
+  return { playlistLabel, episodePlaylist }
+}
+
 const handleDetailPlay = async () => {
   const server = registry.currentServer
   const item = detailDisplayedItem.value
@@ -3346,7 +3369,7 @@ const handleDetailPlay = async () => {
         streamIndex: card.streamIndex as number,
         label: card.title
       }))
-    await openMediaServerPlayback(item, {
+    const options = {
       sourceId: selectedSourceOption.value?.id || detailSourceOptions.value[0]?.id || '',
       sourceLabel: selectedSourceOption.value?.title || detailSourceOptions.value[0]?.title || '',
       sourceOptions: detailSourceOptions.value.map((source) => ({
@@ -3362,13 +3385,13 @@ const handleDetailPlay = async () => {
       audioLabel: selectedAudioCard?.title || '',
       subtitleLabel: selectedSubtitleCard?.title || '',
       audioOptions,
-      subtitleOptions,
-      playlistLabel: detailSeasonTitle.value || '当前季剧集',
-      episodePlaylist: detailEpisodeItems.value.map((episode) => ({
-        id: episode.id,
-        title: episode.title
-      }))
-    })
+      subtitleOptions
+    }
+    const route = currentRoute.value
+    const playlist = await resolveDetailPlaybackPlaylist(server, item, detailEpisodeItems.value, detailSeasonTitle.value)
+    if (registry.currentServer?.id !== server.id || currentRoute.value !== route ||
+        detailDisplayedItem.value.id !== item.id) return
+    await openMediaServerPlayback(item, { ...options, ...playlist, server })
   } catch (error: any) {
     console.error('媒体服务器播放失败:', error)
     message.error(error?.message || '媒体服务器播放失败')
