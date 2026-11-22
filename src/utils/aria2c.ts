@@ -15,7 +15,7 @@ import fs from 'fs'
 import { getProxyUrl, getRawUrl } from './proxyhelper'
 import { isBaiduUser, isDrive115User, isQuarkUser } from '../aliapi/utils'
 import { callAriaClient, getAriaAddUriGid, isAriaDuplicateGidError } from './aria2Rpc'
-import { buildAriaAddOptions, resolveProviderDownloadSplit, shouldCheckExistingDownloadTarget } from '../down/integration/aria2AddOptions'
+import { buildAriaAddOptions, resolveProviderDownloadSplit, shouldCheckExistingDownloadTarget, shouldReuseAriaDownloadUrl } from '../down/integration/aria2AddOptions'
 import { DRIVE115_DOWN_AGENT } from '../cloud115/constants'
 import { QUARK_DOWNLOAD_AGENT } from '../quark/auth'
 
@@ -406,6 +406,7 @@ export async function AriaAddUrl(file: IStateDownFile): Promise<string> {
 
     const info = file.Info
     const accountToken = UserDAL.GetUserToken(info.user_id)
+    const isBaiduAccountDownload = info.drive_id === 'baidu' || isBaiduUser(accountToken || '')
     const sourceType = info.sourceType || ''
     const isExternalSource = sourceType === 'url' || sourceType === 'magnet' || sourceType === 'torrent' || sourceType === 'torrent-url'
     const isBtSource = sourceType === 'magnet' || sourceType === 'torrent' || sourceType === 'torrent-url'
@@ -488,6 +489,11 @@ export async function AriaAddUrl(file: IStateDownFile): Promise<string> {
       }
       let downloadUrl = typeof file.Down.DownUrl === 'string' ? file.Down.DownUrl : ''
       downloadUrl = downloadUrl.trim()
+      const reuseStoredUrl = shouldReuseAriaDownloadUrl(isBaiduAccountDownload, isExternalSource)
+      if (!reuseStoredUrl) {
+        downloadUrl = ''
+        file.Down.DownUrl = ''
+      }
       let resolvedDownloadHeaders: Record<string, string> = {}
       if (downloadUrl && !isBtSource && downloadUrl.includes('x-oss-expires=')) {
         const expires = downloadUrl.split('x-oss-expires=')[1].split('&')[0]
@@ -511,7 +517,7 @@ export async function AriaAddUrl(file: IStateDownFile): Promise<string> {
         if (durl.headers) {
           resolvedDownloadHeaders = durl.headers
         }
-        file.Down.DownUrl = downloadUrl
+        if (reuseStoredUrl) file.Down.DownUrl = downloadUrl
       }
       if (sourceType === 'torrent') {
         downloadUrl = ''

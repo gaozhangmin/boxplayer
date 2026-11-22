@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { buildAriaAddOptions, resolveProviderDownloadSplit, shouldCheckExistingDownloadTarget } from './aria2AddOptions'
+import { buildAriaAddOptions, resolveProviderDownloadSplit, shouldCheckExistingDownloadTarget, shouldReuseAriaDownloadUrl } from './aria2AddOptions'
+
+describe('shouldReuseAriaDownloadUrl', () => {
+  it('resolves a fresh link for a recreated Baidu account task', () => {
+    expect(shouldReuseAriaDownloadUrl(true, false)).toBe(false)
+  })
+
+  it('preserves explicit links and the existing cache policy for other providers', () => {
+    expect(shouldReuseAriaDownloadUrl(true, true)).toBe(true)
+    expect(shouldReuseAriaDownloadUrl(false, false)).toBe(true)
+    expect(shouldReuseAriaDownloadUrl(false, true)).toBe(true)
+  })
+})
 
 describe('buildAriaAddOptions', () => {
   it('keeps HTTP-only options on URI downloads', () => {
