@@ -15,7 +15,7 @@ describe('PanHub main-process request proxy', () => {
     const events: any[] = []
 
     await requestPanHubStream(
-      { url: 'https://api.xbyvideohub.com/api/search/stream', method: 'POST', body: '{}' },
+      { url: 'https://api.boxplayer.cc/api/search/stream', method: 'POST', body: '{}' },
       (event) => events.push(event),
       undefined,
       fetchImpl
@@ -27,7 +27,7 @@ describe('PanHub main-process request proxy', () => {
   it('allows only the configured PanHub HTTPS origin', async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ status: 'ok' }), { status: 200 }))
 
-    await expect(requestPanHub({ url: 'https://api.xbyvideohub.com/api/health' }, fetchImpl)).resolves.toEqual({
+    await expect(requestPanHub({ url: 'https://api.boxplayer.cc/api/health' }, fetchImpl)).resolves.toEqual({
       ok: true,
       status: 200,
       data: { status: 'ok' }

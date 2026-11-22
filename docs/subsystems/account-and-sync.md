@@ -23,3 +23,7 @@
 ## 验证与维护
 
 先读 [开发与执行约束](../agent-development.md) 和 [代码标准](../code-standards.md)。验证按本次用户要求及平台限制执行；未运行的测试、构建和真实设备检查要明确标注。契约改变时同步本文，并核对旧调用者。
+
+## BoxPlayer 服务域名
+
+Electron 的网页登录、购买、设备码、订阅和兑换都使用 `https://boxplayer.cc`。发布配置无需提供 `BOXPLAYER_SITE_URL`。搜索、刮削与 BoxPlayer 托管 AI 使用 `https://api.boxplayer.cc`。Supabase 项目、应用回调 scheme 和已保存会话的存储键沿用原协议。

@@ -10,12 +10,12 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('BoxPlayer Cloud AI error mapping', () => {
   it('defaults resource and AI requests to the unified Worker', () => {
-    expect(Config.BOXPLAYER_API_URL).toBe('https://api.xbyvideohub.com')
-    expect(Config.BOXPLAYER_AI_API_URL).toBe('https://api.xbyvideohub.com')
+    expect(Config.BOXPLAYER_API_URL).toBe('https://api.boxplayer.cc')
+    expect(Config.BOXPLAYER_AI_API_URL).toBe('https://api.boxplayer.cc')
   })
 
   it('routes media scraping through the BoxPlayer resource API', () => {
-    expect(getBoxPlayerMediaScrapeUrl()).toBe('https://api.xbyvideohub.com/v2/media-scrape')
+    expect(getBoxPlayerMediaScrapeUrl()).toBe('https://api.boxplayer.cc/v2/media-scrape')
   })
 
   it('passes the caller abort signal through to the media scrape request', async () => {

@@ -2372,7 +2372,7 @@ defineExpose({
                 <div class='manager-setting-actions' style='margin-top:16px'>
                   <a-button size='mini' @click="message.info(t('book.latestVersion'))">{{ t('book.checkUpdates') }}</a-button>
                   <a-button size='mini' @click="openExternalLink('https://github.com/gaozhangmin/boxplayer')">GitHub</a-button>
-                  <a-button size='mini' @click="openExternalLink('https://xbyvideohub.com/')">{{ t('book.website') }}</a-button>
+                  <a-button size='mini' @click="openExternalLink('https://boxplayer.cc/')">{{ t('book.website') }}</a-button>
                   <a-button size='mini' @click="copyContactEmail">{{ t('book.contactEmail') }}</a-button>
                 </div>
               </div>

@@ -1,7 +1,8 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { BOXPLAYER_SITE_URL as GENERATED_BOXPLAYER_SITE_URL, BOXPLAYER_SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '../secrets.generated'
+import { BOXPLAYER_SITE_ORIGIN } from '../../shared/boxplayerApi'
+import { BOXPLAYER_SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '../secrets.generated'
 
-export const BOXPLAYER_SITE_URL = GENERATED_BOXPLAYER_SITE_URL
+export const BOXPLAYER_SITE_URL = BOXPLAYER_SITE_ORIGIN
 export const BOXPLAYER_AUTH_CALLBACK = 'boxplayer-auth://callback'
 const BOXPLAYER_APP_ACCESS_TOKEN_KEY = 'boxplayer_app_access_token'
 

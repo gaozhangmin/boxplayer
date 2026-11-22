@@ -301,7 +301,7 @@ const handleUpdateLog = () => {
 }
 
 function openSupport() {
-  openExternal('https://xbyvideohub.com/support/')
+  openExternal('https://boxplayer.cc/support/')
 }
 
 </script>

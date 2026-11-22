@@ -3,7 +3,7 @@ import { buildSettingsSupportMailto, SETTINGS_FOLLOW_URL, SETTINGS_HELP_URL } fr
 describe('settings support destinations', () => {
   it('uses the requested social profile and existing website guide route', () => {
     expect(SETTINGS_FOLLOW_URL).toBe('https://xhslink.cn/m/1hvKIte6Cly')
-    expect(SETTINGS_HELP_URL).toBe('https://www.xbyvideohub.com/guides/')
+    expect(SETTINGS_HELP_URL).toBe('https://boxplayer.cc/guides/')
   })
   it('creates a prefilled draft with the specified recipient and real technical details', () => {
     const draft = new URL(buildSettingsSupportMailto('2.0 (123)', 'Windows 11 x64'))
