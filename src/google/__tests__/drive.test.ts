@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildGoogleAuthUrl } from '../auth'
-import { buildGoogleDownloadUrl, buildGoogleExportUrl, buildGoogleFilesListPath, buildGoogleSharedWithMeListPath, mapGoogleFileToAliModel, resolveGoogleTokenForRequest } from '../dirfilelist'
+import { buildGoogleDownloadUrl, buildGoogleExportUrl, buildGoogleFilesListPath, buildGoogleSharedWithMeListPath, mapGoogleFileToAliModel } from '../dirfilelist'
 import { googleRootVirtualItems } from '../adapter'
-import { buildGoogleContentRange, buildGoogleMultipartUploadBody } from '../upload'
+import { GOOGLE_DRIVE_SCOPE } from '../accessPolicy'
 import { buildGoogleChangesPath, buildGoogleStartPageTokenPath } from '../changes'
 import { buildGoogleDownloadPath, buildGoogleOperationPath } from '../download'
 
@@ -39,22 +39,14 @@ describe('Google Drive v3 request builders', () => {
     expect(folder.isDir).toBe(true)
   })
 
-  it('does not borrow another Google account when the requested user is invalid', async () => {
-    const token = await resolveGoogleTokenForRequest('aliyun_user', {
-      getUserToken: () => ({ tokenfrom: 'aliyun', access_token: 'aliyun-access' }),
-      getUserTokenFromDB: async () => ({ tokenfrom: 'google', user_id: 'google_other', access_token: 'google-access' })
-    })
-    expect(token).toBeUndefined()
-  })
-
-  it('uses PKCE desktop redirect and valid content range', async () => {
+  it('uses PKCE desktop redirect and requests Drive read-only access', async () => {
     const redirectUri = 'http://127.0.0.1:43127/oauth2callback'
     const url = new URL(await buildGoogleAuthUrl('client', 'a'.repeat(64), redirectUri, 'state'))
     expect(url.searchParams.get('redirect_uri')).toBe(redirectUri)
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
     expect(url.searchParams.get('state')).toBe('state')
-    expect(buildGoogleContentRange(8, 4, 20)).toBe('bytes 8-11/20')
-    expect(buildGoogleMultipartUploadBody('google_root', 'note.txt', 'text/plain', new Uint8Array([1]), 'test')).toBeInstanceOf(Blob)
+    expect(url.searchParams.get('scope')).toBe(GOOGLE_DRIVE_SCOPE)
+    expect(url.searchParams.get('include_granted_scopes')).toBeNull()
   })
 
   it('uses Drive changes pagination with shared-drive context', () => {

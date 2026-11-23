@@ -1,9 +1,10 @@
 import type { IDownloadUrl } from '../aliapi/models'
 import { apiGoogleFileDetail, apiGoogleFileListPage, apiGoogleSearch, apiGoogleSharedDriveFileList, apiGoogleSharedDrives, apiGoogleSharedWithMeList, apiGoogleTrashList, buildGoogleDownloadUrl, buildGoogleExportUrl, getGoogleSharedDriveIdForFile, getGoogleToken, mapGoogleFileToAliModel, parseGoogleSearchId } from './dirfilelist'
 import { apiGoogleResolveDownload } from './download'
+import { GOOGLE_DRIVE_RECONNECT_MESSAGE } from './accessPolicy'
 import { apiGoogleShareCreate } from './share'
 import { apiGoogleUploadBuffer } from './upload'
-import { apiGoogleCopyBatch, apiGoogleDeleteBatch, apiGoogleMkdir, apiGoogleMoveBatch, apiGoogleRename, apiGoogleTrashBatch, apiGoogleTrashRestoreBatch } from './filecmd'
+import { apiGoogleCopyBatch, apiGoogleDeleteBatch, apiGoogleMkdir, apiGoogleMoveBatch, apiGoogleTrashBatch, apiGoogleTrashRestoreBatch } from './filecmd'
 
 export const googleRootVirtualItems = () => [
   { id: 'google_shared', name: '共享云端硬盘', mimeType: 'application/vnd.google-apps.folder' }
@@ -11,7 +12,7 @@ export const googleRootVirtualItems = () => [
 
 export const getGoogleDownloadUrl = async (userId: string, driveId: string, fileId: string): Promise<IDownloadUrl | string> => {
   const token = await getGoogleToken(userId)
-  if (!token?.access_token) return '未登录 Google Drive'
+  if (!token?.access_token) return GOOGLE_DRIVE_RECONNECT_MESSAGE
   const detail = await apiGoogleFileDetail(userId, fileId)
   const headers = { Authorization: `Bearer ${token.access_token}` }
   if (detail?.mimeType === 'application/vnd.google-apps.vid') {
@@ -49,14 +50,7 @@ export const deleteGoogleFiles = (userId: string, fileIds: string[]) => apiGoogl
 export const restoreGoogleTrashFiles = (userId: string, fileIds: string[]) => apiGoogleTrashRestoreBatch(userId, fileIds)
 export const moveGoogleFiles = (userId: string, fileIds: string[], parentFileId: string) => apiGoogleMoveBatch(userId, fileIds, parentFileId.includes('root') ? 'google_root' : parentFileId)
 export const copyGoogleFiles = (userId: string, fileIds: string[], parentFileId: string) => apiGoogleCopyBatch(userId, fileIds, parentFileId.includes('root') ? 'google_root' : parentFileId)
-export const renameGoogleFiles = async (userId: string, fileIds: string[], names: string[]) => {
-  const results: { file_id: string; parent_file_id: string; name: string; isDir: boolean }[] = []
-  for (let index = 0; index < fileIds.length; index++) {
-    const file = await apiGoogleRename(userId, fileIds[index], names[index] || '')
-    if (file) results.push({ file_id: file.file_id, parent_file_id: file.parent_file_id, name: file.name, isDir: file.isDir })
-  }
-  return results
-}
+export const renameGoogleFiles = async (_userId: string, _fileIds: string[], _names: string[]): Promise<{ file_id: string; parent_file_id: string; name: string; isDir: boolean }[]> => []
 
 export const listGoogleItems = async (userId: string, driveId: string, dirId: string, includeFiles: boolean, pageToken = '', strict = false) => {
   const search = parseGoogleSearchId(dirId)

@@ -7,6 +7,7 @@ export interface ITokenInfo {
 
   access_token: string
   refresh_token: string
+  google_drive_scope?: string
 
   session_expires_in: number
   open_api_token_type: string

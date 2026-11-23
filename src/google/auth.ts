@@ -2,6 +2,7 @@ import type { ITokenInfo } from '../user/userstore'
 import message from '../utils/message'
 import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET } from '../secrets.generated'
 import { tokenRefreshKey, withTokenRefreshLock } from '../user/tokenRefresh'
+import { GOOGLE_DRIVE_RECONNECT_MESSAGE, GOOGLE_DRIVE_SCOPE, hasGoogleDriveReadOnlyScope, hasVerifiedGoogleDriveGrant } from './accessPolicy'
 
 export { GOOGLE_CLIENT_ID }
 
@@ -9,7 +10,7 @@ const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_ABOUT_URL = 'https://www.googleapis.com/drive/v3/about?fields=user%28permissionId%2CdisplayName%2CemailAddress%2CphotoLink%29%2CstorageQuota%28limit%2Cusage%29'
 export const GOOGLE_AUTH_REQUEST_TIMEOUT_MS = 15_000
-export const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive'
+export { GOOGLE_DRIVE_SCOPE }
 
 const base64UrlEncode = (bytes: Uint8Array) => {
   let value = ''
@@ -83,6 +84,7 @@ const applyGoogleAccount = async (token: ITokenInfo) => {
 
 const applyTokenResponse = (data: any, clientId: string, previous?: ITokenInfo) => {
   const token = previous || emptyToken()
+  token.google_drive_scope = GOOGLE_DRIVE_SCOPE
   token.access_token = data.access_token
   token.refresh_token = data.refresh_token || token.refresh_token || ''
   token.expires_in = Number(data.expires_in || 3600)
@@ -96,24 +98,35 @@ const applyTokenResponse = (data: any, clientId: string, previous?: ITokenInfo) 
 export const exchangeGoogleCodeForToken = async (code: string, clientId: string, verifier: string, redirectUri: string) => {
   const data = await googleTokenRequest(new URLSearchParams({ grant_type: 'authorization_code', code, client_id: clientId.trim(), client_secret: GOOGLE_CLIENT_SECRET.trim(), redirect_uri: redirectUri, code_verifier: verifier }), '获取 Google Drive access_token 失败')
   if (!data) return null
+  if (!hasGoogleDriveReadOnlyScope(data.scope)) {
+    message.error(GOOGLE_DRIVE_RECONNECT_MESSAGE)
+    return null
+  }
   const token = applyTokenResponse(data, clientId)
   await applyGoogleAccount(token)
   if (!token.user_id) return null
   const { default: UserDAL } = await import('../user/userdal')
+  const previous = await UserDAL.GetUserTokenFromDB(token.user_id)
+  if (previous?.source_name) token.source_name = previous.source_name
   UserDAL.SaveUserToken(token)
   return token
 }
 
 export const refreshGoogleAccessToken = async (token: ITokenInfo) => withTokenRefreshLock(tokenRefreshKey('google', token.user_id || token.refresh_token), async () => {
-  if (!token.refresh_token || !token.device_id || !GOOGLE_CLIENT_SECRET.trim()) return null
+  if (!hasVerifiedGoogleDriveGrant(token) || !token.refresh_token || !token.device_id || !GOOGLE_CLIENT_SECRET.trim()) return null
   const data = await googleTokenRequest(new URLSearchParams({ grant_type: 'refresh_token', refresh_token: token.refresh_token, client_id: token.device_id, client_secret: GOOGLE_CLIENT_SECRET.trim() }), '刷新 Google Drive access_token 失败')
   if (!data) return null
+  if (!hasGoogleDriveReadOnlyScope(data.scope)) {
+    message.error(GOOGLE_DRIVE_RECONNECT_MESSAGE)
+    return null
+  }
   const refreshed = applyTokenResponse(data, token.device_id, token)
   await applyGoogleAccount(refreshed)
   return refreshed
 })
 
 export const applyGoogleQuota = async (token: ITokenInfo) => {
+  if (!hasVerifiedGoogleDriveGrant(token)) return false
   await applyGoogleAccount(token)
   return !!token.user_id
 }

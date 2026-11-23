@@ -1,4 +1,6 @@
 <script setup lang='ts'>
+import { GOOGLE_DRIVE_RECONNECT_MESSAGE, hasVerifiedGoogleDriveGrant } from '../google/accessPolicy'
+import { isGoogleUser } from '../utils/driveIdentity'
 import message from '../utils/message'
 import UserDAL, { UserTokenMap } from '../user/userdal'
 import { ITokenInfo, useSettingStore, useUserStore } from '../store'
@@ -72,6 +74,12 @@ const handlerAccountImport = () => {
           }
         }
         if (userList.length > 0) {
+          // Never replace an already migrated Drive account with an old backup.
+          for (const [index, token] of userList.entries()) {
+            if (!isGoogleUser(token) || hasVerifiedGoogleDriveGrant(token)) continue
+            const existing = await UserDAL.GetUserTokenFromDB(token.user_id)
+            if (existing && hasVerifiedGoogleDriveGrant(existing)) userList[index] = existing
+          }
           // 设置UserTokenMap
           for (let token of userList) {
             if (token.user_id) {
@@ -83,6 +91,10 @@ const handlerAccountImport = () => {
             window.WinMsgToUpload({ cmd: 'ClearUserToken' })
             window.WinMsgToDownload({ cmd: 'ClearUserToken' })
           }).catch()
+          if (isGoogleUser(userList[0]) && !hasVerifiedGoogleDriveGrant(userList[0])) {
+            message.warning(GOOGLE_DRIVE_RECONNECT_MESSAGE)
+            return
+          }
           await UserDAL.UserLogin(userList[0])
           message.success(t('settings.account.importSuccess'))
         } else {

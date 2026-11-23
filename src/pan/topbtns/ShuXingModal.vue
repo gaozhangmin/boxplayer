@@ -27,8 +27,8 @@ import { apiGuangyaFileDetail, getGuangyaFileId, mapGuangyaFileToAliModel } from
 import { apiQuarkFileDetail, mapQuarkFileToAliModel } from '../../quark/dirfilelist'
 import { apiBoxFileDetail, mapBoxItemToAliModel } from '../../box/dirfilelist'
 import { apiBoxDeleteVersion, apiBoxListVersions, apiBoxPromoteVersion, BoxFileVersion } from '../../box/revisions'
-import { apiGoogleDeleteRevision, apiGoogleListRevisions, apiGoogleUpdateRevision, GoogleRevision } from '../../google/revisions'
-import { apiGoogleDeletePermission, apiGoogleListPermissions } from '../../google/share'
+import { apiGoogleListRevisions, GoogleRevision } from '../../google/revisions'
+import { apiGoogleListPermissions } from '../../google/share'
 import { resolveDriveFileToken } from '../../drive/account'
 
 const props = defineProps({
@@ -512,7 +512,7 @@ const handleLoadGoogleRevisions = async () => {
   googleRevisionLoading.value = true
   try {
     googleRevisions.value = await apiGoogleListRevisions(activeUserId.value, fileId)
-    if (!googleRevisions.value.length) message.info('没有可管理的历史版本')
+    if (!googleRevisions.value.length) message.info('没有历史版本')
   } finally { googleRevisionLoading.value = false }
 }
 
@@ -521,38 +521,6 @@ const handleLoadGooglePermissions = async () => {
   if (!fileId || !activeUserId.value) return
   googlePermissionLoading.value = true
   try { googlePermissions.value = await apiGoogleListPermissions(activeUserId.value, fileId) } finally { googlePermissionLoading.value = false }
-}
-
-const handleRevokeGooglePermission = (permissionId: string) => {
-  const fileId = fileInfo.value?.file_id || ''
-  if (!fileId || !permissionId || !activeUserId.value) return
-  Modal.confirm({ title: '撤销 Google Drive 分享', content: '确认撤销此公开分享权限？持有链接的用户将无法继续访问。', okText: '撤销', cancelText: '取消', onOk: async () => {
-    if (await apiGoogleDeletePermission(activeUserId.value, fileId, permissionId)) {
-      googlePermissions.value = googlePermissions.value.filter((item) => item.id !== permissionId)
-      message.success('分享权限已撤销')
-    }
-  } })
-}
-
-const handleGoogleRevisionPinned = async (revision: GoogleRevision, keepForever: boolean) => {
-  const fileId = fileInfo.value?.file_id || ''
-  if (!fileId || !revision.id || !activeUserId.value) return
-  const updated = await apiGoogleUpdateRevision(activeUserId.value, fileId, revision.id, keepForever)
-  if (updated) {
-    revision.keepForever = keepForever
-    message.success(keepForever ? '版本已固定' : '已取消固定版本')
-  }
-}
-
-const handleDeleteGoogleRevision = (revision: GoogleRevision) => {
-  const fileId = fileInfo.value?.file_id || ''
-  if (!fileId || !revision.id || !activeUserId.value) return
-  Modal.confirm({ title: '删除 Google Drive 版本', content: '确认永久删除这个历史版本？此操作无法撤销。', okText: '删除', cancelText: '取消', onOk: async () => {
-    if (await apiGoogleDeleteRevision(activeUserId.value, fileId, revision.id || '')) {
-      googleRevisions.value = googleRevisions.value.filter((item) => item.id !== revision.id)
-      message.success('历史版本已删除')
-    }
-  } })
 }
 
 </script>
@@ -778,8 +746,6 @@ const handleDeleteGoogleRevision = (revision: GoogleRevision) => {
         <div v-if='googleRevisions.length > 0' class='dropboxrevisionlist'>
           <div v-for='revision in googleRevisions' :key='revision.id || revision.modifiedTime' class='dropboxrevisionitem'>
             <span>{{ humanDateTimeDateStr(revision.modifiedTime) }}</span><span>{{ humanSize(Number(revision.size || 0)) }}</span>
-            <a-button type='outline' size='mini' @click='() => handleGoogleRevisionPinned(revision, !revision.keepForever)'>{{ revision.keepForever ? '取消固定' : '固定' }}</a-button>
-            <a-button status='danger' type='outline' size='mini' @click='() => handleDeleteGoogleRevision(revision)'>删除</a-button>
           </div>
         </div>
       </div>
@@ -790,7 +756,6 @@ const handleDeleteGoogleRevision = (revision: GoogleRevision) => {
         <div v-if='googlePermissions.length > 0' class='dropboxrevisionlist'>
           <div v-for='permission in googlePermissions' :key='permission.id' class='dropboxrevisionitem'>
             <span>{{ permission.type === 'anyone' ? '持有链接的任何人' : permission.type }}</span><span>{{ permission.role }}</span>
-            <a-button v-if="permission.type === 'anyone'" status='danger' type='outline' size='mini' @click='() => handleRevokeGooglePermission(permission.id || "")'>撤销链接</a-button>
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ import { supportsAliyunAutoSign } from './autoSignPolicy'
 import { getStoredTokenProvider } from '../utils/driveProvider'
 import { captureProviderLogin } from '../analytics/posthog'
 import { recoverLateStartupTask, withStartupTimeout } from '../utils/startupTask'
+import { GOOGLE_DRIVE_RECONNECT_MESSAGE, hasVerifiedGoogleDriveGrant } from '../google/accessPolicy'
 import { loadInitialProviderRoot, selectInitialAliyunRoot, shouldRetryInitialRootLoad } from './startupProviderRootLoad'
 
 export const UserTokenMap = new Map<string, ITokenInfo>()
@@ -48,6 +49,7 @@ export default class UserDAL {
       token: {
         access_token: token.access_token,
         refresh_token: token.refresh_token,
+        ...(isGoogleUser(token) ? { google_drive_scope: token.google_drive_scope } : {}),
         token_type: token.token_type || 'Bearer',
         expires_in: token.expires_in,
         expire_time: token.expire_time,
@@ -73,7 +75,7 @@ export default class UserDAL {
     if (!window.TvBoxInvoke) return null
     const userList = await DB.getUserAll()
     const accounts = userList
-      .filter((token) => token.user_id && !isRemoteDriveUser(token))
+      .filter((token) => token.user_id && !isRemoteDriveUser(token) && (!isGoogleUser(token) || hasVerifiedGoogleDriveGrant(token)))
       .map((token) => this.toCliAccount(token))
     return await window.TvBoxInvoke('ExportCliTokens', { accounts }) as { ok?: boolean; exported?: number; path?: string; error?: string } | null
   }
@@ -378,6 +380,7 @@ export default class UserDAL {
 
 
   static async UserLogin(token: ITokenInfo, isInteractive: boolean = false, sourceName?: string, waitForPanData = false) {
+    if (isGoogleUser(token) && !hasVerifiedGoogleDriveGrant(token)) throw new Error(GOOGLE_DRIVE_RECONNECT_MESSAGE)
     const keepFileSourcesPage = useUserStore().loginFromFileSources
     ++this.loginRevision
     const loadingKey = 'userlogin_' + Date.now().toString()
@@ -563,7 +566,8 @@ export default class UserDAL {
       return false
     }
     if (!token) {
-      message.warning('该账号验证失败，请检查网络或重新登录[' + accountName + ']')
+      const storedToken = UserTokenMap.get(user_id)
+      message.warning(storedToken && isGoogleUser(storedToken) && !hasVerifiedGoogleDriveGrant(storedToken) ? GOOGLE_DRIVE_RECONNECT_MESSAGE : '该账号验证失败，请检查网络或重新登录[' + accountName + ']')
       return false
     }
     try {

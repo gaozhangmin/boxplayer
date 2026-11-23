@@ -7,6 +7,7 @@ import { applyDropboxQuota, refreshDropboxAccessToken } from '../dropbox/auth'
 import { applyOneDriveQuota, refreshOneDriveAccessToken } from '../onedrive/auth'
 import { applyBoxQuota, refreshBoxAccessToken } from '../box/auth'
 import { applyGoogleQuota, refreshGoogleAccessToken } from '../google/auth'
+import { hasVerifiedGoogleDriveGrant } from '../google/accessPolicy'
 import { applyGuangyaQuota } from '../guangya/auth'
 import { refreshQuarkAccountInfo } from '../quark/auth'
 import { refreshCloud189Token } from '../cloud189/auth'
@@ -18,6 +19,7 @@ import { resolveDriveProvider } from '../utils/driveProvider'
 export const ensureProviderAccessToken = async (token: ITokenInfo, force = false): Promise<ITokenInfo | null | undefined> => {
   const provider = resolveDriveProvider(token.user_id, token.default_drive_id, token.tokenfrom).provider
   if (!['cloud123', 'baidu', 'pikpak', 'dropbox', 'onedrive', 'box', 'google'].includes(provider)) return undefined
+  if (provider === 'google' && !hasVerifiedGoogleDriveGrant(token)) return null
   const expireTime = new Date(token.expire_time || 0).getTime()
   if (!force && token.access_token && (!expireTime || expireTime > Date.now())) return token
   const refreshed = provider === 'cloud123' ? await refreshCloud123AccessToken(token.refresh_token)

@@ -10,7 +10,7 @@ describe('permanent delete capabilities', () => {
   it('only offers direct permanent deletion where the provider command supports it', () => {
     expect(supportsDirectPermanentDelete('aliyun_user', 'unknown-drive')).toBe(true)
     expect(supportsDirectPermanentDelete('', 'pikpak')).toBe(true)
-    expect(supportsDirectPermanentDelete('', 'google')).toBe(true)
+    expect(supportsDirectPermanentDelete('', 'google')).toBe(false)
 
     expect(supportsDirectPermanentDelete('', 'cloud123')).toBe(false)
     expect(supportsDirectPermanentDelete('', 'drive115')).toBe(false)

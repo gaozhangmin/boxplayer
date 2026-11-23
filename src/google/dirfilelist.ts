@@ -1,8 +1,10 @@
+import type { ITokenInfo } from '../user/userstore'
 import type { IAliGetFileModel } from '../aliapi/alimodels'
 import getFileIcon from '../aliapi/fileicon'
 import { humanDateTimeDateStr, humanSize } from '../utils/format'
 import { HanToPin } from '../utils/utils'
 import message from '../utils/message'
+import { GOOGLE_DRIVE_READ_ONLY_MESSAGE, GOOGLE_DRIVE_RECONNECT_MESSAGE, hasVerifiedGoogleDriveGrant, isGoogleDriveReadRequest } from './accessPolicy'
 
 const GOOGLE_DRIVE_API = 'https://www.googleapis.com/drive/v3'
 const GOOGLE_FILE_FIELDS = 'nextPageToken,files(id,name,mimeType,size,parents,createdTime,modifiedTime,thumbnailLink,webContentLink,md5Checksum,resourceKey,trashed,shortcutDetails)'
@@ -28,39 +30,30 @@ export type GoogleDriveFile = {
 type GoogleListResponse = { files?: GoogleDriveFile[]; nextPageToken?: string }
 type GoogleDrivesResponse = { drives?: Array<{ id: string; name: string }>; nextPageToken?: string }
 
-type GoogleTokenReader = {
-  getUserToken: (userId: string) => any
-  getUserTokenFromDB: (userId: string) => Promise<any>
-}
-
-const isGoogleToken = (token: any) => token?.tokenfrom === 'google' && !!token.access_token
-const isGoogleTokenForUser = (token: any, userId: string) => isGoogleToken(token) && token.user_id === userId
-
-export const resolveGoogleTokenForRequest = async (userId: string, reader: GoogleTokenReader) => {
-  let token = reader.getUserToken(userId)
-  if (!isGoogleTokenForUser(token, userId)) token = await reader.getUserTokenFromDB(userId)
-  return isGoogleTokenForUser(token, userId) ? token : undefined
-}
+const isGoogleTokenForUser = (token: ITokenInfo | null, userId: string) =>
+  token?.tokenfrom === 'google' && token.user_id === userId && !!token.access_token && hasVerifiedGoogleDriveGrant(token)
 
 export const getGoogleToken = async (userId: string) => {
   const { default: UserDAL } = await import('../user/userdal')
   const readyToken = await UserDAL.EnsureUserTokenReady(userId)
-  if (isGoogleToken(readyToken)) return readyToken
-  const token = await resolveGoogleTokenForRequest(userId, {
-    getUserToken: UserDAL.GetUserToken.bind(UserDAL),
-    getUserTokenFromDB: UserDAL.GetUserTokenFromDB.bind(UserDAL)
-  })
-  return token?.user_id ? await UserDAL.EnsureUserTokenReady(token.user_id) : token
+  return isGoogleTokenForUser(readyToken, userId) ? readyToken : null
 }
 
 export const googleDriveRequest = async <T>(userId: string, path: string, init: RequestInit, fallback: string, silent = false, strict = false): Promise<T | null> => {
-  const token = await getGoogleToken(userId)
-  if (!token?.access_token) {
-    if (!silent) message.error('未登录 Google Drive')
-    if (strict) throw new Error('未登录 Google Drive')
+  if (!isGoogleDriveReadRequest(path, init.method)) {
+    if (!silent) message.error(GOOGLE_DRIVE_READ_ONLY_MESSAGE)
+    if (strict) throw new Error(GOOGLE_DRIVE_READ_ONLY_MESSAGE)
     return null
   }
-  const response = await fetch(path.startsWith('https://') ? path : `${GOOGLE_DRIVE_API}${path}`, { ...init, headers: { Authorization: `Bearer ${token.access_token}`, ...(init.headers as Record<string, string> || {}) } })
+  const token = await getGoogleToken(userId)
+  if (!token?.access_token) {
+    if (!silent) message.error(GOOGLE_DRIVE_RECONNECT_MESSAGE)
+    if (strict) throw new Error(GOOGLE_DRIVE_RECONNECT_MESSAGE)
+    return null
+  }
+  const headers = new Headers(init.headers)
+  headers.set('Authorization', `Bearer ${token.access_token}`)
+  const response = await fetch(`${GOOGLE_DRIVE_API}${path}`, { ...init, headers })
   const data = await response.json().catch(() => undefined)
   if (!response.ok || data?.error) {
     const errorText = data?.error?.message || fallback

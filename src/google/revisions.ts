@@ -22,12 +22,3 @@ export const apiGoogleListRevisions = async (userId: string, fileId: string) => 
   } while (pageToken)
   return revisions
 }
-
-export const apiGoogleUpdateRevision = async (userId: string, fileId: string, revisionId: string, keepForever: boolean) => {
-  return await googleDriveRequest<GoogleRevision>(userId, buildGoogleRevisionPath(fileId, revisionId), { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ keepForever }) }, '更新 Google Drive 文件版本失败')
-}
-
-export const apiGoogleDeleteRevision = async (userId: string, fileId: string, revisionId: string) => {
-  const result = await googleDriveRequest<any>(userId, buildGoogleRevisionPath(fileId, revisionId), { method: 'DELETE' }, '删除 Google Drive 文件版本失败')
-  return result !== null
-}
