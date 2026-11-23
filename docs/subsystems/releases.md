@@ -31,3 +31,7 @@ Manual trigger only (`workflow_dispatch`) via `.github/workflows/release.yml`. B
 - 定位官网仓库时核对 git remote；本机可有 `boxplayer-site`、`boxplayer-site-release-ci`、`boxplayer-site-changelog` 等工作区，不覆盖其他任务的脏文件。官网数据在 `src/content/changelog/releases.json`，字段与流程见 `docs/changelog.md`。运行 `node scripts/upsert-changelog.mjs <confirmed-release.json>`，按平台/版本/targets 幂等更新，保留其他端记录。
 - 完成正式发布后，提交并推送官网这一条版本记录，等待官网部署成功并检查对应公开页面；交付时分别报告客户端发布、官网提交和官网部署状态。不能仅改本地数据就声称官网已更新。如部署或权限受阻，完成可做步骤并明确报告，不能漏掉官网同步。
 - 用户说“触发 TF”时，Agent 先根据版本差异生成并保存文案供后续商店流程复用；该动作本身不触发官网正式发布记录。用户说“触发 App Store”时复用指定构建说明，待真正上架再同步官网；审核提交成功不等于上架。
+
+### 百度网盘真实账号验证
+
+发布矩阵及单平台真实播放诊断可读取仓库的 `BOXPLAYER_E2E_BAIDU_ACCOUNT_JSON`。该 Secret 只含一个百度账号，存在时替换共享测试配置中的百度条目，继续使用原有目标目录和文件。更新通过标准输入写入 GitHub Secret。
