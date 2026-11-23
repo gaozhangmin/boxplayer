@@ -14,7 +14,7 @@ import message from './message'
 import { modalArchive, modalArchivePassword, modalSelectPanDir, modalSelectVideoQuality } from './modal'
 import PlayerUtils from './playerhelper'
 import { getEncType, getProxyUrl, getRawUrl } from './proxyhelper'
-import { getLocalVideoProgress } from './videoProgress'
+import { directVideoPosition, getLocalVideoProgress } from './videoProgress'
 import { isVideoFile } from './videoFile'
 import { isAliyunUser, isBaiduUser, isBoxUser, isCloud123User, isCloud139User, isCloud189User, isDrive115User, isDropboxUser, isGoogleUser, isGuangyaUser, isOneDriveUser, isPikPakUser, isQuarkUser } from '../aliapi/utils'
 import { resolveDriveFileToken } from '../drive/account'
@@ -22,8 +22,8 @@ import { parseBookMeta } from './bookFilenameMeta'
 import { isReaderFormat, normalizeBookExt } from './bookReaderCapabilities'
 import type { IBookItem } from '../types/book'
 
-async function resolveTokenForFile(file: IAliGetFileModel): Promise<ITokenInfo | undefined> {
-  return resolveDriveFileToken(file as IAliGetFileModel & { user_id?: string }, useUserStore().user_id)
+async function resolveTokenForFile(file: IAliGetFileModel, requireFileAccount = false): Promise<ITokenInfo | undefined> {
+  return resolveDriveFileToken(file as IAliGetFileModel & { user_id?: string }, requireFileAccount ? '' : useUserStore().user_id)
 }
 
 function buildSiblingVideoPlaylist(file: IAliGetFileModel, userId: string, tokenfrom: string, provided?: IPageVideoPlaylistEntry[]): IPageVideoPlaylistEntry[] {
@@ -112,6 +112,8 @@ export async function menuOpenFile(
     customPlaylistLabel?: string
     customPlaylist?: IPageVideoPlaylistEntry[]
     playlistLoop?: boolean
+    libraryPlayback?: boolean
+    requireFileAccount?: boolean
   }
 ): Promise<void> {
   if (clickWait('menuOpenFile', 500)) return
@@ -191,7 +193,7 @@ export async function menuOpenFile(
       await openVideoPage({ page: 'PageVideo', data: { ...buildLocalVideoPage(file.file_id), custom_playlist: options?.customPlaylist, playlist_loop: options?.playlistLoop }, theme: 'dark' })
       return
     }
-    const token = await resolveTokenForFile(file)
+    const token = await resolveTokenForFile(file, options?.requireFileAccount)
     if (!token || !token.access_token) {
       message.error('在线预览失败 账号失效，操作取消')
       return
@@ -294,6 +296,7 @@ async function Video(
     customPlaylistLabel?: string
     customPlaylist?: IPageVideoPlaylistEntry[]
     playlistLoop?: boolean
+    libraryPlayback?: boolean
   }
 ): Promise<void> {
   if (file.icon == 'iconweifa') {
@@ -320,14 +323,19 @@ async function Video(
     AliFileCmd.ApiFileColorBatch(token.user_id, file.drive_id, file.description, 'ce74c3c', [file.file_id])
   }
   if (uiVideoPlayer == 'web' || uiVideoPlayer === 'mpv') {
+    const directFilePlayback = !options?.libraryPlayback
     let play_cursor = 0
-    let playCursorInfo = await PlayerUtils.getPlayCursor(token.user_id, file.drive_id, file.file_id)
+    const playCursorInfo = await PlayerUtils.getPlayCursor(token.user_id, file.drive_id, file.file_id)
     if (playCursorInfo) {
       play_cursor = playCursorInfo.play_cursor
     } else {
       play_cursor = file.media_play_cursor ? parseInt(file.media_play_cursor) : 0
     }
     play_cursor = Math.max(play_cursor, Number(file.media_play_cursor) || 0, getLocalVideoProgress(token.user_id, file.drive_id, file.file_id))
+    if (directFilePlayback) {
+      play_cursor = directVideoPosition({ user_id: token.user_id, drive_id: file.drive_id,
+        file_id: file.file_id, parent_file_id: file.parent_file_id, file_name: file.name })
+    }
     // 获取文件夹信息
     const info = await AliFile.ApiFileInfo(token.user_id, file.drive_id, file.parent_file_id)
     let parent_file_name = ''
@@ -343,6 +351,7 @@ async function Video(
       ext: subtitle.name?.split('.').pop()
     }))
     const pageVideo: IPageVideo = {
+      direct_file_playback: directFilePlayback,
       user_id: token.user_id,
       tokenfrom: token.tokenfrom === 'unknown' ? 'aliyun' : token.tokenfrom,
       file_name: file.name,

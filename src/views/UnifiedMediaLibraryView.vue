@@ -4,6 +4,10 @@ import { seriesPreferences, movieVersionItems, generalPreferences, displayScopeA
 import { mediaWatchProgressPercent } from '../utils/mediaWatchProgress'
 import { homeRequests } from '../utils/homeRequestCoordinator'
 import UserDAL from '../user/userdal'
+import AliFile from '../aliapi/file'
+import AliDirFileList from '../aliapi/dirfilelist'
+import { menuOpenFile } from '../utils/openfile'
+import { directVideoHistoryKey, readDirectVideoHistory, type DirectVideoResume } from '../utils/videoProgress'
 import AddFileSourceModal from '../components/AddFileSourceModal.vue'
 import { useUserStore } from '../store'
 import SidebarProBadge from '../components/SidebarProBadge.vue'
@@ -17,8 +21,10 @@ import { libraryCategoryIcon, librarySidebarCategoryIcon } from '../utils/librar
 
 type ConnectedFileRoot = ScanSourceTarget & { drives?: ScanSourceTarget[]; providerIcon?: string }
 const connectedFileRoots = ref<ConnectedFileRoot[]>([])
+const connectedVideoAccountIDs = ref(new Set<string>())
 async function loadConnectedFileRoots() {
   const users = await UserDAL.GetUserListFromDB()
+  connectedVideoAccountIDs.value = new Set(users.map(user => user.user_id))
   const roots: ConnectedFileRoot[] = users.flatMap(token => {
     const accountRoots = tokenRootScanFolders(token)
     const providerIcon = getDriveProviderIcon(token.tokenfrom)
@@ -1220,8 +1226,37 @@ const remoteRows = computed<Row[]>(() => {
   }
   return result
 })
+const directVideoHistory = ref(readDirectVideoHistory())
+
+async function resumeDirectVideo(entry: DirectVideoResume) {
+  const metadata = await AliFile.ApiFileInfo(entry.user_id, entry.drive_id, entry.file_id)
+  if (!metadata || typeof metadata !== 'object') {
+    message.error(t('video.getVideoUrlFailed'))
+    return
+  }
+  const file = AliDirFileList.getFileInfo(entry.user_id, {
+    ...metadata, file_id: entry.file_id, drive_id: entry.drive_id,
+    name: metadata.name || entry.file_name,
+    parent_file_id: metadata.parent_file_id || entry.parent_file_id,
+    type: 'file'
+  }, '', entry.drive_id)
+  const accountFile = { ...file, user_id: entry.user_id }
+  await menuOpenFile(accountFile, '', { requireFileAccount: true })
+}
+
 const resumeRows = computed<Row[]>(() => {
-  const resume = (generalPreferences.recentlyPlayed ? media.continueWatching : []).filter(item => mediaWatchProgressPercent(item) < 100).map(item => ({ ...localCard(item, true), action: () => { void videoView.value?.resumeMedia(item) } }))
+  const resume: Card[] = (generalPreferences.recentlyPlayed ? media.continueWatching : []).filter(item => mediaWatchProgressPercent(item) < 100).map(item => ({ ...localCard(item, true), action: () => { void videoView.value?.resumeMedia(item) } }))
+  if (generalPreferences.recentlyPlayed) {
+    resume.unshift(...directVideoHistory.value.filter(entry =>
+      connectedVideoAccountIDs.value.has(entry.user_id) || getWebDavConnections().some(connection => entry.drive_id === `webdav:${connection.id}`)
+    ).map(entry => ({
+      key: 'direct-file:' + JSON.stringify([entry.user_id, entry.drive_id, entry.file_id]),
+      title: entry.file_name,
+      progress: 100 * entry.position / entry.duration,
+      sortValues: { title: entry.file_name, addedAt: entry.updatedAt },
+      action: () => { void resumeDirectVideo(entry).catch(() => message.error(t('video.getVideoUrlFailed'))) }
+    })))
+  }
   for (const server of registry.servers.filter(server => !homePreferences.hidden.includes('source:server:' + server.id))) resume.push(...content.currentHomeData(server.id).resume.map(item => ({ ...serverCard(item, true), action: () => { void serverPosterAction(item, 'play') } })))
   if (resume.length) return [{ key: 'resume', title: t('media.continueWatching'), cards: resume, landscape: true, more: () => showHomeRow('resume') }]
   return []
@@ -1562,6 +1597,7 @@ let refreshQueuedForce = false
 let disposed = false
 let lastPlaybackSnapshot = ''
 function syncPlayback() {
+  directVideoHistory.value = readDirectVideoHistory()
   void loadConnectedFileRoots().catch(() => undefined)
   try {
     const raw = localStorage.getItem('MediaLibrary_ContinueWatching') || '[]'
@@ -1578,6 +1614,7 @@ function syncPlayback() {
   } catch { /* Keep the current library when a stored snapshot is unavailable. */ }
 }
 function handleStorage(event: StorageEvent) {
+  if (event.key === directVideoHistoryKey) directVideoHistory.value = readDirectVideoHistory()
   if (event.key === 'MediaLibrary_ContinueWatching' || event.key === null) syncPlayback()
 }
 async function refresh(force = true) {

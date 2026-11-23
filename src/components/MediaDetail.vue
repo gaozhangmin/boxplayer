@@ -618,7 +618,7 @@ const playShuffledEpisodes = () => {
   const first = episodes[0]
   if (!first) return
   const playlist = episodes.map(episode => buildPlaylistEntry(buildAliFileModel(playbackVersions(episode.driveFiles)[0]), `${activeMediaItem.value.name} · S${episode.seasonNumber}E${episode.episodeNumber}`))
-  void menuOpenFile(buildAliFileModel(playbackVersions(first.driveFiles)[0]), '', { customPlaylistLabel: activeMediaItem.value.name, customPlaylist: playlist })
+  void menuOpenFile(buildAliFileModel(playbackVersions(first.driveFiles)[0]), '', { libraryPlayback: true, customPlaylistLabel: activeMediaItem.value.name, customPlaylist: playlist })
 }
 
 const buildAliFileModel = (driveFile: DriveFileItem): IAliGetFileModel => {
@@ -706,7 +706,7 @@ const playEpisode = (episode: MediaEpisode, loop = false) => {
   if (episode.driveFiles && episode.driveFiles.length > 0) {
     const driveFile = (manuallySelectedVersion.value ? episode.driveFiles.find(file => file.id === selectedDriveFileId.value) : orderedVersions(episode.driveFiles, seriesPreferences.playbackVersion === 'auto' ? seriesPreferences.defaultVersion : seriesPreferences.playbackVersion)[0]) || episode.driveFiles[0]
     const aliFile = buildAliFileModel(driveFile)
-    menuOpenFile(aliFile, '', {
+    menuOpenFile(aliFile, '', { libraryPlayback: true,
       customPlaylistLabel: props.activePlaylistName || '',
       customPlaylist: currentPlaylistEntries.value,
       playlistLoop: loop
@@ -718,7 +718,7 @@ const playMovie = (loop = false) => {
   if (activeMediaItem.value.driveFiles && activeMediaItem.value.driveFiles.length > 0) {
     const driveFile = (manuallySelectedVersion.value ? activeMediaItem.value.driveFiles.find(file => file.id === selectedDriveFileId.value) : orderedVersions(activeMediaItem.value.driveFiles, seriesPreferences.playbackVersion === 'auto' ? seriesPreferences.defaultVersion : seriesPreferences.playbackVersion)[0]) || activeMediaItem.value.driveFiles[0]
     const aliFile = buildAliFileModel(driveFile)
-    menuOpenFile(aliFile, '', {
+    menuOpenFile(aliFile, '', { libraryPlayback: true,
       customPlaylistLabel: props.activePlaylistName || '',
       customPlaylist: currentPlaylistEntries.value,
       playlistLoop: loop

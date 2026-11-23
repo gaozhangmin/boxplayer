@@ -1540,7 +1540,7 @@ const handleBrowserFileAction = async (action: string, file: IAliGetFileModel) =
   }
   if (['play', 'loop', 'shuffle'].includes(action)) {
     if (file.isDir) { const folder = mediaStore.folders.find(folder => folder.fileId === file.file_id); if (folder) await playBrowse(action as 'play' | 'loop' | 'shuffle', folder.id); else message.warning(t('mediaLibrary.noPlayableVideo')); }
-    else await menuOpenFile(file, '', { playlistLoop: action === 'loop' })
+    else await menuOpenFile(file, '', { libraryPlayback: true, playlistLoop: action === 'loop' })
     return
   }
   if (action === 'series') { openCustomSeries({ id: target?.id || JSON.stringify([mediaPanTreeStore.user_id, file.drive_id, file.file_id]), title: target?.name || file.name }); return }
@@ -2021,7 +2021,7 @@ async function resumeMedia(item: MediaLibraryItem) {
     })
     : [file]
   const playlist = playlistFiles.map(entry => buildPlaylistEntry(buildAliFileModel(entry), entry.name || item.name))
-  await menuOpenFile(resumeFile, '', {
+  await menuOpenFile(resumeFile, '', { libraryPlayback: true,
     customPlaylistLabel: item.name,
     customPlaylist: playlist
   })
@@ -2061,7 +2061,7 @@ const playPlaylist = async (playlistName: string, loop = false, shuffle = false)
   }
 
   if (shuffle) shuffleInPlace(playable)
-  await menuOpenFile(playable[0].aliFile, '', {
+  await menuOpenFile(playable[0].aliFile, '', { libraryPlayback: true,
     playlistLoop: loop,
     customPlaylistLabel: playlistName,
     customPlaylist: playable.map((item) => item.entry)
@@ -2079,7 +2079,7 @@ const playFromMenu = async (loop = false, shuffle = false) => {
       .filter((item): item is NonNullable<ReturnType<typeof resolvePlayablePlaylistItem>> => !!item)
     if (shuffle) shuffleInPlace(playable)
     if (!playable.length) message.warning(t('mediaLibrary.noPlayablePlaylist'))
-    else await menuOpenFile(playable[0].aliFile, '', {
+    else await menuOpenFile(playable[0].aliFile, '', { libraryPlayback: true,
       playlistLoop: loop,
       customPlaylistLabel: selectedPlaylist.value,
       customPlaylist: playable.map(item => item.entry)
@@ -2102,7 +2102,7 @@ const playFromMenu = async (loop = false, shuffle = false) => {
   if (shuffle) shuffleInPlace(episodes)
   const firstEntry = episodes[0]
   const firstFile = firstEntry ? { ...playable.aliFile, user_id: firstEntry.user_id, drive_id: firstEntry.drive_id, file_id: firstEntry.file_id, parent_file_id: firstEntry.parent_file_id, name: firstEntry.file_name, description: firstEntry.description } as IAliGetFileModel : playable.aliFile
-  await menuOpenFile(firstFile, '', { playlistLoop: loop, ...(episodes.length ? { customPlaylistLabel: contextMenuItem.value.name, customPlaylist: episodes } : {}) })
+  await menuOpenFile(firstFile, '', { libraryPlayback: true, playlistLoop: loop, ...(episodes.length ? { customPlaylistLabel: contextMenuItem.value.name, customPlaylist: episodes } : {}) })
   handleContextMenuClose()
 }
 
@@ -2123,7 +2123,7 @@ async function playItems(items: MediaLibraryItem[], mode: 'play' | 'loop' | 'shu
     for (let i = playable.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [playable[i], playable[j]] = [playable[j], playable[i]] }
   }
   if (!playable.length) { message.warning(t('mediaLibrary.noPlayableVideo')); return }
-  await menuOpenFile(playable[0].aliFile, '', { customPlaylistLabel: title, customPlaylist: playable.map(item => item.entry), playlistLoop: mode === 'loop' })
+  await menuOpenFile(playable[0].aliFile, '', { libraryPlayback: true, customPlaylistLabel: title, customPlaylist: playable.map(item => item.entry), playlistLoop: mode === 'loop' })
 }
 
 // 显示文件夹文件列表

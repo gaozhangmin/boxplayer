@@ -57,7 +57,7 @@ import { updateSettingPreservingActivePanel } from '../utils/artplayerSetting'
 import message from '../utils/message'
 import { captureVideoQualitySwitchPlaybackState } from '../utils/videoQualitySwitch'
 import { hasPlaybackHeaders, mergeMpvPlaybackHeaders, mergePlaybackHeaders, resolveMpvPlaybackTransport } from '../utils/playbackHeaders'
-import { getLocalVideoProgress, saveLocalVideoProgress } from '../utils/videoProgress'
+import { directVideoPosition, getLocalVideoProgress, saveDirectVideoProgress, saveLocalVideoProgress } from '../utils/videoProgress'
 import { isVideoFile } from '../utils/videoFile'
 import { simpleToTradition, traditionToSimple } from 'chinese-simple2traditional'
 import path from 'path'
@@ -100,6 +100,10 @@ const appStore = useAppStore()
 const mediaStore = useMediaLibraryStore()
 const mediaServerRegistry = useMediaServerRegistryStore()
 const pageVideo = appStore.pageVideo!
+const storedVideoPosition = () => pageVideo.direct_file_playback
+  ? directVideoPosition(pageVideo)
+  : getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
+
 const locale = useLocale()
 const isTop = ref(false)
 let autoPlayNumber = 0
@@ -1171,7 +1175,7 @@ onMounted(async () => {
   window.addEventListener('keydown', onKeyDown, true)
   pageVideo.play_cursor = Math.max(
     Number(pageVideo.play_cursor || 0),
-    getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
+    storedVideoPosition()
   )
   const name = pageVideo.file_name || t('video.onlinePreview')
   document.body.setAttribute('arco-theme', 'dark')
@@ -1312,6 +1316,7 @@ const initEvent = (art: Artplayer) => {
   })
   // 视频播放完毕
   art.on('video:ended', async () => {
+    if (pageVideo.direct_file_playback) saveDirectVideoProgress(pageVideo, 0, 0, true)
     if (pageVideo.playlist_loop && playList.length === 1) { art.seek = 0; await art.play(); return }
     if (pageVideo.drive_id === 'media_server') {
       await sendMediaServerStopReport(art.currentTime || 0)
@@ -1503,8 +1508,8 @@ const getSubtitleFileList = async (includeSubfolders = false): Promise<selectorI
 const refreshSetting = async (art: Artplayer, item: any) => {
   // 刷新文件
   pageVideo.html = item.html
-  pageVideo.play_cursor = item.play_cursor
-  pageVideo.file_name = item.html
+  pageVideo.play_cursor = pageVideo.direct_file_playback ? 0 : item.play_cursor
+  pageVideo.file_name = item.name || item.html
   pageVideo.file_id = item.file_id || ''
   if (item.user_id) pageVideo.user_id = item.user_id
   if (item.tokenfrom) pageVideo.tokenfrom = item.tokenfrom
@@ -2521,7 +2526,7 @@ const loadMpvEmbeddedCurrentVideo = async (resumePosition = pageVideo.play_curso
   ++mpvSubtitleDiscovery
   mpvEmbeddedSubtitleFiles.value = []
   mpvEmbeddedSubtitleSources.value = []
-  const storedProgress = getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
+  const storedProgress = storedVideoPosition()
   resumePosition = Math.max(Number(resumePosition) || 0, storedProgress)
   pageVideo.play_cursor = Math.max(Number(pageVideo.play_cursor) || 0, storedProgress)
   const source = await resolvePageVideoMpvSource()
@@ -2567,11 +2572,11 @@ const handleMpvEmbeddedQualitySelect = async (quality: string) => {
     Number(status?.status?.position || 0),
     Number(mpvEmbeddedStatus.value?.position || 0),
     Number(pageVideo.play_cursor || 0),
-    getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
+    storedVideoPosition()
   )
   pageVideo.play_cursor = Number.isFinite(position) && position > 0 ? Math.floor(position) : 0
   const resumePosition = pageVideo.play_cursor
-  saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, pageVideo.play_cursor)
+  if (!pageVideo.direct_file_playback) saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, pageVideo.play_cursor)
   console.info('[播放][MPV] 切换清晰度前保存进度', {
     quality,
     position: pageVideo.play_cursor,
@@ -2583,7 +2588,7 @@ const handleMpvEmbeddedQualitySelect = async (quality: string) => {
 
 const applyPlaylistItemToPageVideo = (item: selectorItem) => {
   pageVideo.html = item.html
-  pageVideo.play_cursor = item.play_cursor || 0
+  pageVideo.play_cursor = pageVideo.direct_file_playback ? 0 : item.play_cursor || 0
   pageVideo.file_name = item.name || item.html
   pageVideo.file_id = item.file_id || ''
   if (item.user_id) pageVideo.user_id = item.user_id
@@ -3017,7 +3022,9 @@ const getVideoCursor = async (art: Artplayer, play_cursor?: number) => {
   if (art.storage.get('autoJumpCursor')) {
     let cursor = 0
     // 进度
-    if (play_cursor) {
+    if (pageVideo.direct_file_playback) {
+      cursor = storedVideoPosition()
+    } else if (play_cursor) {
       cursor = play_cursor
     } else {
       const info = await PlayerUtils.getPlayCursor(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id)
@@ -3030,7 +3037,7 @@ const getVideoCursor = async (art: Artplayer, play_cursor?: number) => {
         }
       }
     }
-    cursor = Math.max(cursor, getLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id))
+    cursor = Math.max(cursor, storedVideoPosition())
     // 防止无效跳转
     if (cursor >= art.duration) {
       cursor = art.duration - 60
@@ -3468,6 +3475,10 @@ const getSubTitleList = async (art: Artplayer, autoLoad = true) => {
 
 const updateVideoTime = async (positionSeconds = ArtPlayerRef?.currentTime || 0, durationSeconds = ArtPlayerRef?.duration || 0) => {
   if (pageVideo.drive_id === 'media_server') return
+  if (pageVideo.direct_file_playback) {
+    saveDirectVideoProgress(pageVideo, positionSeconds, durationSeconds)
+    return
+  }
   updateContinueWatching(positionSeconds, durationSeconds)
   if (isQuarkUser(pageVideo.user_id) || pageVideo.drive_id === 'quark') return
   await AliFile.ApiUpdateVideoTime(
@@ -3491,7 +3502,7 @@ const persistVideoProgress = async (positionSeconds: number, durationSeconds: nu
     lastVideoProgressSaveSecond = -1
   }
   const second = Math.floor(position)
-  saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, position)
+  if (!pageVideo.direct_file_playback) saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, position)
   if (!force && second < 10) return
   if (!force && second === lastVideoProgressSaveSecond) return
   lastVideoProgressSaveSecond = second
@@ -3609,7 +3620,11 @@ onBeforeUnmount(() => {
   } else if (ArtPlayerRef?.currentTime > 0) {
     // BrowserWindow may be closed by the system window button without going
     // through handleHideClick. Keep the shared progress synchronous.
-    saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, ArtPlayerRef.currentTime)
+    if (pageVideo.direct_file_playback) {
+      saveDirectVideoProgress(pageVideo, ArtPlayerRef.currentTime, ArtPlayerRef.duration, ArtPlayerRef.video.ended)
+    } else {
+      saveLocalVideoProgress(pageVideo.user_id, pageVideo.drive_id, pageVideo.file_id, ArtPlayerRef.currentTime)
+    }
   }
   if (onlineSubData.dataUrl) {
     URL.revokeObjectURL(onlineSubData.dataUrl)

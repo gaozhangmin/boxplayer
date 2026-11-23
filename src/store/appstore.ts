@@ -97,6 +97,7 @@ export interface IPageVideoSubtitleFile {
 }
 
 export interface IPageVideo {
+  direct_file_playback?: boolean
   user_id: string
   tokenfrom?: string
   drive_id: string
