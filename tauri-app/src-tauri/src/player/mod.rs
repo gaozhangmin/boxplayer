@@ -29,6 +29,7 @@ pub struct Subtitle {
 }
 #[derive(Clone)]
 pub struct PlayItem {
+    pub direct_file: bool,
     pub media: ResolvedMedia,
     pub title: String,
     pub subtitles: Vec<Subtitle>,
@@ -323,6 +324,22 @@ impl Player {
     }
 }
 fn save(library: &Library, item: &PlayItem, snapshot: &Snapshot) {
+    if item.direct_file {
+        if snapshot.state == "loading" { return; }
+        let entry = crate::storage::DirectVideoResume {
+            source_id: item.media.source_id.clone(),
+            file_id: item.media.file_id.clone(),
+            title: item.title.clone(),
+            position: snapshot.position,
+            duration: snapshot.duration,
+            updated_at: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64,
+        };
+        if library.save_direct_video(&entry, snapshot.state == "ended").is_err() {
+            log::error!("Unable to persist direct video progress");
+        }
+        return;
+    }
     if snapshot.duration > 0.0 {
         if library
             .save_position(&Position {
@@ -347,6 +364,7 @@ fn load(
     let mut current=item.clone();
     current.media=gateway.canonical_media(&current.media)?;
     for subtitle in &mut current.subtitles {subtitle.media=gateway.canonical_media(&subtitle.media)?;}
+    let original_media = &item.media;
     let item=&current;
     for url in proxies.drain(..) {
         tauri::async_runtime::block_on(gateway.revoke(&url));
@@ -373,8 +391,13 @@ fn load(
     } else {
         item.title.clone()
     };
-    let resume = library
-        .position(&item.media.key())?
+    let saved_position = if item.direct_file {
+        library.direct_video_position(&original_media.source_id, &original_media.file_id)?
+            .map(|(position, duration)| Position { key: String::new(), position, duration })
+    } else {
+        library.position(&item.media.key())?
+    };
+    let resume = saved_position
         .filter(|p| p.duration > 0.0 && p.position < p.duration * 0.95)
         .map(|p| p.position)
         .unwrap_or(0.0);
@@ -916,7 +939,7 @@ mod integration_tests;
 mod identity_tests {
     use super::*;
     fn media(source:&str,id:&str)->ResolvedMedia {ResolvedMedia{schema_version:1,source_id:source.into(),account_id:source.into(),file_id:id.into(),url:"https://example.invalid/old".into(),headers:Default::default(),expires_at:Some(1)}}
-    fn item(source:&str,id:&str)->PlayItem {PlayItem{media:media(source,id),title:format!("Title {id}"),tracks:None,subtitles:vec![Subtitle{title:"Custom subtitle".into(),media:media(source,"sub")}]}}
+    fn item(source:&str,id:&str)->PlayItem {PlayItem{direct_file:false,media:media(source,id),title:format!("Title {id}"),tracks:None,subtitles:vec![Subtitle{title:"Custom subtitle".into(),media:media(source,"sub")}]}}
     fn resolve(value:&ResolvedMedia)->Result<ResolvedMedia,AppError>{let mut next=value.clone();if next.source_id=="ali" {next.file_id=format!("mapped-{}",next.file_id);next.url="boxplayer-queue:".into();next.headers.clear();next.expires_at=None;}Ok(next)}
     #[test]
     fn remaps_active_queue_and_subtitles_without_restarting_or_losing_controls(){

@@ -48,3 +48,7 @@ Subtitle rules:
 - The subtitle proxy must identify the account with `user_id` and the provider with `drive_id`; do not use a global/current-account token when an account-specific token is available.
 - Video streams remain direct URLs unless encryption requires the proxy. DLNA behavior is separate and must not be changed as part of subtitle or direct-play fixes.
 - Any provider download-header change requires regression coverage for both the video/download URL contract and same-directory subtitle loading.
+
+## 网盘文件直播放进度
+
+原生网盘文件队列使用本机 SQLite 独立的文件续播记录，按账号和文件 ID 写入断点和时长。首页「继续观看」读取当前来源的记录，并通过原生来源队列重新解析取流。媒体库队列仍读取原播放进度，完成的直播放文件从续播列表移除。

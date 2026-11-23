@@ -353,6 +353,7 @@ pub fn run() {
             commands::player_open_file,
             commands::player_open_remote,
             commands::player_open_source_queue,
+            commands::player_direct_video_history,
             commands::player_open_catalog_queue,
             commands::player_state,
             commands::player_show_main,

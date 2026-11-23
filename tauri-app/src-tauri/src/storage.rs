@@ -71,6 +71,17 @@ pub struct MigrationBundle {
     pub sha256: String,
     pub payload: MigrationPayload,
 }
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectVideoResume {
+    pub source_id: String,
+    pub file_id: String,
+    pub title: String,
+    pub position: f64,
+    pub duration: f64,
+    pub updated_at: u64,
+}
+
 impl Library {
     pub fn open(directory: &Path) -> Result<Self, AppError> {
         fs::create_dir_all(directory).map_err(AppError::io)?;
@@ -78,6 +89,13 @@ impl Library {
             path: directory.join("library.sqlite3"),
         };
         lib.connect()?.execute_batch("PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS sources(id TEXT PRIMARY KEY, name TEXT NOT NULL, path TEXT NOT NULL UNIQUE); CREATE TABLE IF NOT EXISTS positions(key TEXT PRIMARY KEY, position REAL NOT NULL, duration REAL NOT NULL); CREATE TABLE IF NOT EXISTS imports(sha256 TEXT PRIMARY KEY);") .map_err(db_error)?;
+        lib.connect()?.execute_batch(
+            "CREATE TABLE IF NOT EXISTS direct_video_resume(
+                source_id TEXT NOT NULL, file_id TEXT NOT NULL, title TEXT NOT NULL,
+                position REAL NOT NULL, duration REAL NOT NULL, updated_at INTEGER NOT NULL,
+                PRIMARY KEY(source_id, file_id)
+            );"
+        ).map_err(db_error)?;
         Ok(lib)
     }
     pub fn connect(&self) -> Result<Connection, AppError> {
@@ -245,6 +263,56 @@ impl Library {
         tx.commit().map_err(db_error)?;
         Ok(())
     }
+    pub fn direct_video_position(&self, source_id: &str, file_id: &str) -> Result<Option<(f64, f64)>, AppError> {
+        self.connect()?.query_row(
+            "SELECT position,duration FROM direct_video_resume WHERE source_id=?1 AND file_id=?2",
+            params![source_id, file_id], |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional().map_err(db_error)
+    }
+
+    pub fn save_direct_video(&self, entry: &DirectVideoResume, finished: bool) -> Result<(), AppError> {
+        if !entry.position.is_finite() || !entry.duration.is_finite() || entry.duration <= 0.0 {
+            return Ok(());
+        }
+        if !finished && entry.position <= 0.0 {
+            return Ok(());
+        }
+        let mut db = self.connect()?;
+        let tx = db.transaction().map_err(db_error)?;
+        if finished || entry.position / entry.duration >= 0.95 {
+            tx.execute(
+                "DELETE FROM direct_video_resume WHERE source_id=?1 AND file_id=?2",
+                params![entry.source_id, entry.file_id],
+            ).map_err(db_error)?;
+        } else {
+            tx.execute(
+                "INSERT INTO direct_video_resume VALUES (?1,?2,?3,?4,?5,?6)
+                 ON CONFLICT(source_id,file_id) DO UPDATE SET title=excluded.title,
+                 position=excluded.position,duration=excluded.duration,updated_at=excluded.updated_at",
+                params![entry.source_id, entry.file_id, entry.title, entry.position, entry.duration, entry.updated_at],
+            ).map_err(db_error)?;
+            tx.execute(
+                "DELETE FROM direct_video_resume WHERE rowid IN
+                 (SELECT rowid FROM direct_video_resume ORDER BY updated_at DESC,rowid DESC LIMIT -1 OFFSET 100)",
+                [],
+            ).map_err(db_error)?;
+        }
+        tx.commit().map_err(db_error)
+    }
+
+    pub fn direct_video_history(&self) -> Result<Vec<DirectVideoResume>, AppError> {
+        let db = self.connect()?;
+        let mut stmt = db.prepare(
+            "SELECT source_id,file_id,title,position,duration,updated_at FROM direct_video_resume
+             ORDER BY updated_at DESC,rowid DESC"
+        ).map_err(db_error)?;
+        let rows = stmt.query_map([], |row| Ok(DirectVideoResume {
+            source_id: row.get(0)?, file_id: row.get(1)?, title: row.get(2)?,
+            position: row.get(3)?, duration: row.get(4)?, updated_at: row.get(5)?,
+        })).map_err(db_error)?;
+        rows.collect::<Result<_, _>>().map_err(db_error)
+    }
+
     pub fn export_bundle(&self) -> Result<MigrationBundle, AppError> {
         let db = self.connect()?;
         let mut stmt = db

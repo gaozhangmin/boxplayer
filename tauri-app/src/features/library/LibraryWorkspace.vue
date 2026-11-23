@@ -415,6 +415,38 @@ function localRow(items: MediaLibraryItem[], row: Omit<Row, 'cards'>, card: (ite
 const homeRows=computed<UnifiedLibraryRow[]>(()=>shelves.value.map(shelf=>{if(shelf.grouped)return {key:libraryHomeId(shelf.route),title:shelf.title,grouped:true,landscape:true,count:shelf.groups.length,cards:shelf.groups.map(group=>({key:group.route,title:group.title,image:cover(group.route),contextMenu:(event:MouseEvent)=>openContext(event,group.route),action:()=>emit('navigate',group.route)})),more:()=>navigateHome(shelf.route)};const grouped=videoGroups(homeItemsFor(shelf.route)).map(group=>originalItem(group.item,group.files));const row=localRow(grouped,{key:libraryHomeId(shelf.route),title:shelf.title,more:()=>navigateHome(shelf.route)});return {key:row.key,title:row.title,landscape:row.landscape,grouped:row.grouped,count:Math.min(row.count??row.cards.length,24),get cards(){return row.preview?row.preview():row.cards.slice(0,24)},more:row.more}}))
 const homeResumeItems = computed(() => generalPreferences.recentlyPlayed
  ? homeItemsFor('continue').filter(item=>(item.progress??0)<100 && (!item.watched || item.continueAdded)) : [])
+type DirectVideoResume = {
+ sourceId: string
+ fileId: string
+ title: string
+ position: number
+ duration: number
+ updatedAt: number
+}
+const directVideoHistory = ref<DirectVideoResume[]>([])
+async function refreshDirectVideoHistory() {
+ try {
+  directVideoHistory.value = await nativeCall<DirectVideoResume[]>('player_direct_video_history')
+ } catch { /* Keep the last available history. */ }
+}
+onMounted(() => {
+ void refreshDirectVideoHistory()
+ window.addEventListener('focus', refreshDirectVideoHistory)
+})
+onActivated(() => { void refreshDirectVideoHistory() })
+onUnmounted(() => window.removeEventListener('focus', refreshDirectVideoHistory))
+const directResumeCards = computed<UnifiedLibraryCard[]>(() => generalPreferences.recentlyPlayed
+ ? directVideoHistory.value.map(entry => ({
+  key: 'direct-file:' + JSON.stringify([entry.sourceId, entry.fileId]),
+  title: entry.title,
+  progress: 100 * entry.position / entry.duration,
+  duration: entry.duration,
+  playbackPosition: entry.position,
+  sortValues: { title: entry.title, addedAt: entry.updatedAt },
+  action: () => void run(() => nativeCall('player_open_source_queue', {
+   accountId: entry.sourceId, entries: [{ fileId: entry.fileId, title: entry.title }], index: 0
+  }))
+ })) : [])
 const leadKind = ref<'resume'|'latest'>('latest')
 function homeCardTimestamp(card: UnifiedLibraryCard) {
  const value = card.sortValues?.addedAt
@@ -424,7 +456,7 @@ function homeCardTimestamp(card: UnifiedLibraryCard) {
 function homeLead(kind: 'resume'|'latest', remoteCards: UnifiedLibraryCard[]): UnifiedLibraryRow {
  const resume = kind === 'resume'
  const localItems = (resume ? homeResumeItems.value : homeItemsFor('recent')).slice(0,24)
- const cards = [...remoteCards, ...localItems.map(item=>({
+ const cards = [...remoteCards, ...(resume ? directResumeCards.value : []), ...localItems.map(item=>({
   ...mediaCard(item,resume?'continue':'recent',resume),
   sortValues: { title:item.name, addedAt:resume?item.lastWatched:item.addedAt },
   duration: item.duration || Number(item.originalMetadata?.lastPlayedDurationSeconds),
@@ -434,7 +466,7 @@ function homeLead(kind: 'resume'|'latest', remoteCards: UnifiedLibraryCard[]): U
  return { key:resume?'resume':'home-latest',title:resume?'继续观看':'最近添加',cards,landscape:resume,more:()=>navigateHome(resume?'continue':'recent') }
 }
 const homeLayout=computed(()=>orderedHomeItems(withFixedHomeMenus([{id:'sources',title:home.titles.sources||'收藏夹',sourceId:'local',available:true},...routes.value]),home.$state).filter(item=>isHomeItemEnabled(item,home.$state)).map(item=>({item:{...item,title:home.titles[item.id]||item.title},row:homeRows.value.find(row=>row.key===item.id)})).filter(entry=>entry.item.id==='sources'?homeFavoriteCards.value.length:!!(entry.row?.count??entry.row?.cards.length)))
-const homeIsEmpty=computed(()=>!homeServerContent.value&&!homeLayout.value.length&&!homeResumeItems.value.length&&!homeItemsFor('recent').length)
+const homeIsEmpty=computed(()=>!homeServerContent.value&&!homeLayout.value.length&&!homeResumeItems.value.length&&!directResumeCards.value.length&&!homeItemsFor('recent').length)
 const visibleHomeShelves=new Set<string>()
 function homeRowVisibility(id:string,visible:boolean){if(visible)visibleHomeShelves.add(id);else visibleHomeShelves.delete(id)}
 function openHomeMenu(id:string){if(id==='sources')navigateHome('favorites');else navigateHome(categoryRouteForHomeId(id))}
@@ -547,7 +579,7 @@ function finishFavoritePointer(event: PointerEvent) {
         </section>
       <div v-if="section === 'home' || (section === 'collection' && selectedHomeRowKey === 'sources')" class="unified-home" :class="{ 'source-screen-empty': section === 'home' && homeIsEmpty }" ref="homeElement" @scroll="section === 'home' && (homeScrollTop = ($event.target as HTMLElement).scrollTop)">
         <ServerHomeSections v-if="section==='home'" :accounts="homeServerAccounts" hide-favorites unified-lead
-          :has-local-resume="homeResumeItems.length > 0" @lead-kind="leadKind=$event"
+          :has-local-resume="homeResumeItems.length > 0 || directResumeCards.length > 0" @lead-kind="leadKind=$event"
           @loading="homeServerLoading=$event" @content="homeServerContent=$event" @items="serverManagementItems=$event" @navigate="(id,route)=>emit('server',id,route)">
           <template #lead="{ kind, cards }">
             <UnifiedMediaRow v-for="row in [homeLead(kind, cards)].filter(row=>row.cards.length)" :key="row.key" :row="row" :show-more-action="false" />

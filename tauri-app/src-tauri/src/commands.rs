@@ -344,6 +344,7 @@ fn local_item(path: &Path, source_id: &str) -> Result<PlayItem, AppError> {
         }
     }
     Ok(PlayItem {
+        direct_file: false,
         media,
         title: path
             .file_name()
@@ -468,6 +469,7 @@ pub async fn player_open_remote(
     start(
         app,
         vec![PlayItem {
+            direct_file: false,
             media,
             title,
             subtitles,
@@ -515,20 +517,17 @@ pub async fn player_open_source_queue(
         ));
     }
     let backend = app.state::<Backend>();
-    if !backend
-        .accounts
-        .list()?
-        .iter()
-        .any(|a| a.id == account_id && a.provider_id != "boxplayer")
-    {
-        return Err(AppError::new("ACCOUNT_MISSING", "来源账号不存在", false));
-    }
+    let account = backend.accounts.list()?.into_iter()
+        .find(|account| account.id == account_id && account.provider_id != "boxplayer")
+        .ok_or_else(|| AppError::new("ACCOUNT_MISSING", "来源账号不存在", false))?;
+    let direct_file = !matches!(account.provider_id.as_str(), "jellyfin" | "emby" | "plex");
     let mut queue = Vec::with_capacity(entries.len());
     for entry in entries {
         if entry.file_id.is_empty() || entry.file_id.len() > 4096 || entry.title.len() > 2048 {
             return Err(AppError::new("QUEUE_INVALID", "播放列表条目无效", false));
         }
         queue.push(PlayItem {
+            direct_file,
             media: ResolvedMedia {
                 schema_version: 1,
                 source_id: account_id.clone(),
@@ -561,7 +560,7 @@ pub async fn player_open_catalog_queue(app: tauri::AppHandle, entries: Vec<Catal
             local_item(&backend.library.resolve(&entry.source_id,&entry.file_id)?,&entry.source_id)?
         } else {
             if !accounts.iter().any(|account| account.id==entry.source_id && account.provider_id!="boxplayer") { return Err(AppError::new("ACCOUNT_MISSING", "来源账号不存在", false)); }
-            PlayItem { media: ResolvedMedia { schema_version:1,source_id:entry.source_id.clone(),account_id:entry.source_id,file_id:entry.file_id,url:"boxplayer-queue:".into(),headers:Default::default(),expires_at:None },title:String::new(),subtitles:vec![],tracks:None }
+            PlayItem { direct_file: false, media: ResolvedMedia { schema_version:1,source_id:entry.source_id.clone(),account_id:entry.source_id,file_id:entry.file_id,url:"boxplayer-queue:".into(),headers:Default::default(),expires_at:None },title:String::new(),subtitles:vec![],tracks:None }
         };
         item.title=entry.title;item.tracks=entry.tracks;queue.push(item);
     }
@@ -570,6 +569,14 @@ pub async fn player_open_catalog_queue(app: tauri::AppHandle, entries: Vec<Catal
     if loop_playback { let backend=app.state::<Backend>();let snapshot=backend.player.snapshot();backend.player.control(player::Control { session_id:snapshot.session_id,action:"queueLoop".into(),value:Some(1.0),track_id:None })?; }
     Ok(())
 }
+#[tauri::command]
+pub fn player_direct_video_history(state: State<'_, Backend>) -> Result<Vec<crate::storage::DirectVideoResume>, AppError> {
+    let accounts = state.accounts.list()?;
+    let mut entries = state.library.direct_video_history()?;
+    entries.retain(|entry| accounts.iter().any(|account| account.id == entry.source_id));
+    Ok(entries)
+}
+
 #[tauri::command]
 pub fn player_state(state: State<'_, Backend>) -> Snapshot {
     state.player.snapshot()
