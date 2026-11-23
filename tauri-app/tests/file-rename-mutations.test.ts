@@ -18,15 +18,13 @@ describe('original rename protocols through account-bound transport',()=>{
   const account=selected('onedrive');vi.mocked(json).mockResolvedValue(receipt)
   await expect(renameRemoteFile(account,file,'New.mkv')).rejects.toThrow('标识或名称')
  })
- it('retains Google shared-drive parameters and rejects mismatched identities',async()=>{
-  const account=selected('google');vi.mocked(json).mockResolvedValue({id:file.file_id,name:'New.mkv'})
-  await renameRemoteFile(account,file,'New.mkv')
-  const call=vi.mocked(json).mock.calls[0]!;const url=new URL(call[2]);expect(url.pathname).toBe('/drive/v3/files/opaque%2Fid');expect(url.searchParams.get('supportsAllDrives')).toBe('true');expect(call[0]).toEqual(account);expect(call[3]).toEqual({name:'New.mkv'})
-  vi.mocked(json).mockResolvedValue({id:'other',name:'New.mkv'})
-  await expect(renameRemoteFile(account,file,'New.mkv')).rejects.toThrow('标识不匹配')
+ it('rejects Google Drive rename before network access',async()=>{
+  const account=selected('google')
+  await expect(renameRemoteFile(account,file,'New.mkv')).rejects.toThrow('重命名接口尚未接入')
+  expect(json).not.toHaveBeenCalled()
  })
  it('rejects invalid names and changed account identity before sending a write',async()=>{
-  const account=selected('google')
+  const account=selected('box')
   await expect(renameRemoteFile(account,file,'../escape')).rejects.toThrow('无效')
   await expect(renameRemoteFile({...account,providerId:'onedrive'},file,'New')).rejects.toThrow('来源不匹配')
   expect(json).not.toHaveBeenCalled()

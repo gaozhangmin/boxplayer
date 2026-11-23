@@ -52,10 +52,11 @@ describe('source-bound live file properties',()=>{
   pane('google');vi.mocked(json).mockResolvedValue({revisions:[{id:'v1'}],nextPageToken:'again'})
   const properties=createFileProperties();await expect(properties.command('googleListRevisions','s','movie')).rejects.toThrow('游标');expect(json).toHaveBeenCalledTimes(2);properties.dispose()
  })
- it('rejects wrong revision updates and blocks confirmation after a source context change',async()=>{
-  const port=pane('google');vi.mocked(json).mockResolvedValue({id:'wrong',keepForever:true})
-  const properties=createFileProperties();await expect(properties.command('googleUpdateRevision','s','movie','v1',true)).rejects.toThrow('不匹配')
-  port.context=2;await expect(properties.command('googleDeleteRevision','s','movie','v1')).rejects.toThrow('切换');expect(json).toHaveBeenCalledTimes(1);properties.dispose()
+ it('refuses Google revision and permission mutations and blocks actions after a context change',async()=>{
+  const port=pane('google')
+  const properties=createFileProperties();await expect(properties.command('googleUpdateRevision','s','movie','v1',true)).rejects.toThrow('尚未接入')
+  await expect(properties.command('googleDeletePermission','s','movie','p1')).rejects.toThrow('尚未接入')
+  port.context=2;await expect(properties.command('googleDeleteRevision','s','movie','v1')).rejects.toThrow('切换');expect(json).not.toHaveBeenCalled();properties.dispose()
  })
 
  it('reads Dropbox stable identity and restores only the path read from metadata',async()=>{

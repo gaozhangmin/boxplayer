@@ -427,6 +427,18 @@ impl Accounts {
         }
         let mut credentials: Credentials =
             serde_json::from_str(&self.vault.get(&slot)?).map_err(|_| invalid())?;
+        if account.provider_id == "google" {
+            if !matches!(request.method.as_str(), "GET" | "HEAD")
+                || request.body.is_some()
+                || request.headers.keys().any(|name|
+                    name.eq_ignore_ascii_case("x-http-method-override")
+                    || name.eq_ignore_ascii_case("x-method-override")
+                    || name.eq_ignore_ascii_case("x-http-method"))
+            {
+                return Err(AppError::new("GOOGLE_DRIVE_READONLY", "Google Drive 仅支持只读操作", false));
+            }
+            crate::oauth::google_readonly_credentials(&credentials)?;
+        }
         if crate::alipan::paired_open_request(request){credentials=serde_json::from_value(credentials.provider_data["openApi"].clone()).map_err(|_|AppError::new("ALIYUN_OPEN_AUTH","请完成阿里云盘第二次扫码授权",false))?;}
         if credentials.expires_at.is_some_and(|expires| {
             expires
@@ -724,6 +736,40 @@ mod tests {
         store.remove(&account.id).unwrap();
         assert!(store.save(account, creds()).is_err());
         assert!(store.list().unwrap().is_empty());
+    }
+    #[test]
+    fn google_drive_vault_only_accepts_verified_readonly_reads() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Accounts::with_vault(dir.path(), Box::<MemoryVault>::default()).unwrap();
+        let mut credentials = Credentials {
+            headers: [("Authorization".into(), "Bearer synthetic-fixture".into())].into(),
+            ..Default::default()
+        };
+        let account = store.save(Account {
+            id: String::new(), provider_id: "google".into(), name: "fixture".into(),
+            base_url: "https://www.googleapis.com".into(), user_id: "owner".into(),
+            device_id: String::new(), auth_origins: vec!["https://www.googleapis.com".into()],
+        }, credentials.clone()).unwrap();
+        let mut request = HttpRequest {
+            request_id: "fixture".into(), provider_id: "google".into(), account_id: account.id.clone(),
+            method: "GET".into(), url: "https://www.googleapis.com/drive/v3/files/f?alt=media".into(),
+            headers: Headers::new(), body: None, timeout_ms: None, proxy: None,
+        };
+        assert_eq!(store.authorize(&mut request).unwrap_err().code, "GOOGLE_DRIVE_REAUTHORIZE");
+        assert!(request.headers.is_empty());
+        credentials.provider_data = serde_json::json!({"googleDriveScope": crate::oauth::GOOGLE_DRIVE_READONLY_SCOPE});
+        store.save(account, credentials).unwrap();
+        for method in ["DELETE", "POST", "PATCH", "PUT"] {
+            request.method = method.into();
+            assert_eq!(store.authorize(&mut request).unwrap_err().code, "GOOGLE_DRIVE_READONLY");
+            assert!(request.headers.is_empty());
+        }
+        request.method = "GET".into();
+        request.headers.insert("x-http-method-override".into(), "DELETE".into());
+        assert_eq!(store.authorize(&mut request).unwrap_err().code, "GOOGLE_DRIVE_READONLY");
+        request.headers.clear();
+        store.authorize(&mut request).unwrap();
+        assert_eq!(request.headers["Authorization"], "Bearer synthetic-fixture");
     }
     #[test]
     fn dropbox_text_upload_uses_only_the_bound_accounts_vault_headers() {

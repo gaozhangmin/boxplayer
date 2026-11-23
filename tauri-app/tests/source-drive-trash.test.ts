@@ -93,12 +93,15 @@ describe('original source trash toolbar and commands',()=>{
   expect(getDrivePane().store.SelectDirType).toBe('trash');expect(wrapper.text()).toContain('清空回收站');expect(wrapper.text()).toContain('回收站中的项目可以还原或彻底删除')
   expect(wrapper.text()).not.toContain('30天');wrapper.unmount()
  })
- it('restores only confirmed Google items and keeps failed selections visible',async()=>{
+ it('lists Google Drive trash but does not offer restore or delete actions',async()=>{
   vi.mocked(driver).mockReturnValue({list:vi.fn().mockResolvedValue({entries:[]}),resolve:vi.fn()})
-  vi.mocked(json).mockImplementation(async(_account,method,url)=>{if(method==='GET')return {files:['a','b'].map(id=>({id,name:id+'.mkv',trashed:true,mimeType:'video/mp4',parents:['old']}))};if(url.includes('/a?'))return {id:'a',trashed:false};throw Error('fixture denied')})
-  const {wrapper}=await browser(google);await getDrivePane().load(google.id,'trash',true);await flushPromises();await wrapper.trigger('keydown',{key:'a',metaKey:true})
-  expect(wrapper.text()).toContain('还原选中');await getDrivePane().action('restore',[]);await flushPromises()
-  expect(getDrivePane().store.ListDataRaw.map(row=>row.file_id)).toEqual(['b']);expect(wrapper.get('[role=alert]').text()).toContain('fixture denied');wrapper.unmount()
+  vi.mocked(json).mockResolvedValue({files:['a','b'].map(id=>({id,name:id+'.mkv',trashed:true,mimeType:'video/mp4',parents:['old']}))})
+  const {wrapper}=await browser(google);await getDrivePane().load(google.id,'trash',true);await flushPromises()
+  expect(getDrivePane().store.ListDataRaw.map(row=>row.file_id)).toEqual(['a','b'])
+  expect(getDrivePane().operations.has('trash.list')).toBe(true)
+  expect(getDrivePane().operations.has('trash.restore')).toBe(false)
+  expect(getDrivePane().operations.has('trash.delete')).toBe(false)
+  wrapper.unmount()
  })
  it('aborts a cyclic empty-bin listing before issuing any delete',async()=>{
   vi.mocked(driver).mockReturnValue({list:vi.fn().mockResolvedValue({entries:[]}),resolve:vi.fn()});vi.mocked(json).mockResolvedValue({entries:[],next_marker:'again'})

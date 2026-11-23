@@ -25,6 +25,21 @@ struct Provider {
     api: &'static str,
     scope: &'static str,
 }
+pub(crate) const GOOGLE_DRIVE_READONLY_SCOPE: &str = "https://www.googleapis.com/auth/drive.readonly";
+
+fn google_readonly_scope(scope: &str) -> bool {
+    let mut scopes = scope.split_ascii_whitespace();
+    scopes.next() == Some(GOOGLE_DRIVE_READONLY_SCOPE) && scopes.next().is_none()
+}
+
+pub(crate) fn google_readonly_credentials(credentials: &Credentials) -> Result<(), AppError> {
+    if credentials.provider_data["googleDriveScope"].as_str().is_some_and(google_readonly_scope) {
+        Ok(())
+    } else {
+        Err(error("GOOGLE_DRIVE_REAUTHORIZE", "请重新连接 Google Drive，授予新的只读权限"))
+    }
+}
+
 fn provider(id: &str) -> Result<Provider, AppError> {
     Ok(match id {
         "alipan-open" => Provider {
@@ -61,7 +76,7 @@ fn provider(id: &str) -> Result<Provider, AppError> {
             auth: "https://accounts.google.com/o/oauth2/v2/auth",
             token: "https://oauth2.googleapis.com/token",
             api: "https://www.googleapis.com",
-            scope: "https://www.googleapis.com/auth/drive",
+            scope: GOOGLE_DRIVE_READONLY_SCOPE,
         },
         "dropbox" => Provider {
             auth: "https://www.dropbox.com/oauth2/authorize",
@@ -249,8 +264,20 @@ pub(crate) fn credentials(
     if provider_id == "123" {
         headers.insert("Platform".into(), "open_platform".into());
     }
+    let provider_data = if provider_id == "google" {
+        match data.get("scope") {
+            Some(scope) if scope.as_str().is_some_and(google_readonly_scope) => {}
+            // OAuth refresh may omit an unchanged scope. Callers only pass the old
+            // refresh token here once its saved read-only grant has been verified.
+            None if previous_refresh.is_some() => {}
+            _ => return Err(error("GOOGLE_DRIVE_REAUTHORIZE", "请重新连接 Google Drive，仅授予只读权限")),
+        }
+        serde_json::json!({"googleDriveScope": GOOGLE_DRIVE_READONLY_SCOPE})
+    } else {
+        Default::default()
+    };
     Ok(Credentials {
-        provider_data: Default::default(),
+        provider_data,
         query,
         cookie_store: None,
         oauth: Some(oauth),
@@ -337,7 +364,8 @@ pub async fn login(
         }
         if provider_id == "google" {
             q.append_pair("access_type", "offline")
-                .append_pair("prompt", "consent");
+                .append_pair("prompt", "consent")
+                .append_pair("include_granted_scopes", "false");
         }
         if provider_id == "dropbox" {
             q.append_pair("token_access_type", "offline");
@@ -419,6 +447,9 @@ pub async fn refresh(
         return crate::aliyun_web::refresh(accounts, gateway, account_id).await;
     }
     let mut old = accounts.credentials(account_id)?;
+    if account.provider_id == "google" {
+        google_readonly_credentials(&old)?;
+    }
     let oauth = old
         .oauth
         .take()
@@ -469,6 +500,27 @@ fn verify_refresh_identity(expected: &str, actual: &str) -> Result<(), AppError>
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn google_credentials_require_confirmed_readonly_scope() {
+        let oauth = OAuthSecret::default();
+        let data = serde_json::json!({"access_token":"synthetic","scope":GOOGLE_DRIVE_READONLY_SCOPE});
+        assert_eq!(provider("google").unwrap().scope, GOOGLE_DRIVE_READONLY_SCOPE);
+        let readonly = credentials("google", &data, oauth.clone(), None).unwrap();
+        assert!(google_readonly_credentials(&readonly).is_ok());
+        assert!(google_readonly_credentials(&Credentials::default()).is_err());
+        for scope in [
+            "https://www.googleapis.com/auth/drive",
+            "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file",
+            "",
+        ] {
+            let data = serde_json::json!({"access_token":"synthetic","scope":scope});
+            assert!(credentials("google", &data, oauth.clone(), None).is_err());
+            assert!(credentials("google", &data, oauth.clone(), Some("verified-refresh".into())).is_err());
+        }
+        let no_scope = serde_json::json!({"access_token":"synthetic"});
+        assert!(credentials("google", &no_scope, oauth.clone(), None).is_err());
+        assert!(credentials("google", &no_scope, oauth, Some("verified-refresh".into())).is_ok());
+    }
     #[test]
     fn registered_provider_redirects_match_electron() {
         assert_eq!(registered_redirect("123"), Some("xbyboxplayer-oauth://callback"));

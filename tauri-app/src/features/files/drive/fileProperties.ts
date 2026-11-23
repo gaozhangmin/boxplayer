@@ -168,24 +168,20 @@ export function createFileProperties(){
     dropboxListRevisions:{provider:'dropbox',run:dropboxVersions.apiDropboxListRevisions},dropboxRestoreRevision:{provider:'dropbox',run:dropboxVersions.apiDropboxRestoreRevision},
     oneDriveListVersions:{provider:'onedrive',run:(user,file)=>oneDriveVersions.apiOneDriveListVersions(user,file,check)},oneDriveRestoreVersion:{provider:'onedrive',run:oneDriveVersions.apiOneDriveRestoreVersion},
     boxListVersions:{provider:'box',run:(user,file)=>boxVersions.apiBoxListVersions(user,file,check)},boxPromoteVersion:{provider:'box',run:boxVersions.apiBoxPromoteVersion},boxDeleteVersion:{provider:'box',run:boxVersions.apiBoxDeleteVersion},
-    googleListRevisions:{provider:'google',run:(user,file)=>googleVersions.apiGoogleListRevisions(user,file,check)},googleUpdateRevision:{provider:'google',run:googleVersions.apiGoogleUpdateRevision},googleDeleteRevision:{provider:'google',run:googleVersions.apiGoogleDeleteRevision},
-    googleListPermissions:{provider:'google',run:(user,file)=>googlePermissions.apiGoogleListPermissions(user,file,check)},googleDeletePermission:{provider:'google',run:googlePermissions.apiGoogleDeletePermission}
+    googleListRevisions:{provider:'google',run:(user,file)=>googleVersions.apiGoogleListRevisions(user,file,check)},
+    googleListPermissions:{provider:'google',run:(user,file)=>googlePermissions.apiGoogleListPermissions(user,file,check)}
    }
    const operation=commands[name]
    if(!operation)throw Error('此来源版本或权限管理接口尚未接入')
    if(name==='dropboxRestoreRevision'&&(typeof args[1]!=='string'||!detailPaths.has(args[1])))throw Error('属性操作来源或文件不匹配')
    if(!['boxListVersions','googleListRevisions','googleListPermissions','oneDriveListVersions','dropboxListRevisions'].includes(name)&&(typeof args[2]!=='string'||!args[2]))throw Error('版本或权限标识无效')
-   if(name==='googleUpdateRevision'&&typeof args[3]!=='boolean')throw Error('版本固定状态无效')
    if(args[0]!==source||pane.account?.providerId!==operation.provider||typeof args[1]!=='string'||!pane.file?.(name==='dropboxRestoreRevision'?detailPaths.get(args[1])||'':args[1]))throw Error('属性操作来源或文件不匹配')
    const result=await operation.run(...args);check()
    if(name==='dropboxRestoreRevision'){
     const restored=result as {id?:unknown;rev?:unknown;'.tag'?:unknown}|null
     if(!restored||restored.id!==detailPaths.get(String(args[1]))||restored['.tag']!=='file')throw Error('Dropbox 版本恢复结果不匹配，请重新加载确认')
    }
-   if(name==='googleUpdateRevision'){
-    const revision=result as {id?:unknown;keepForever?:unknown}|null
-    if(!revision||revision.id!==args[2]||revision.keepForever!==args[3])throw Error('版本更新结果不匹配，请重新加载确认')
-   }
+
    return result as T
   }
  }

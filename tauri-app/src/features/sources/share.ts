@@ -4,7 +4,7 @@ import type { Account } from './contracts'
 import { nativeCall } from '@/platform/native'
 import { json, request, text } from './transport'
 
-const supported = new Set(['aliyun', '123', 'pikpak', 'guangya', 'dropbox', 'onedrive', 'box', 'google', 'quark'])
+const supported = new Set(['aliyun', '123', 'pikpak', 'guangya', 'dropbox', 'onedrive', 'box', 'quark'])
 export function supportsSourceShare(account: Account): boolean { return supported.has(account.providerId) }
 type Data = Record<string, any>
 function checked(data: Data): Data {

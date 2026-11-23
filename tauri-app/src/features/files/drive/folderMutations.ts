@@ -15,7 +15,7 @@ import {cloud123Id} from './cloud123FileTransport'
 import {createPikPakFolder} from './pikpakFileMutations'
 import {createDrive115Folder} from './drive115FileMutations'
 import {createAliFolder} from './aliFolderMutations'
-export function supportsRemoteFolderCreation(account:Account){return ['onedrive','dropbox','box','google','123','aliyun','alipan-open','115','pikpak','guangya','quark','baidu','139','189'].includes(account.providerId)}
+export function supportsRemoteFolderCreation(account:Account){return ['onedrive','dropbox','box','123','aliyun','alipan-open','115','pikpak','guangya','quark','baidu','139','189'].includes(account.providerId)}
 export async function createRemoteFolder(account:Account,parent:string,name:string,stillCurrent:()=>boolean=()=>true):Promise<{file_id:string;error:string}>{
  if(!supportsRemoteFolderCreation(account))throw Error('此来源的新建文件夹接口尚未接入')
  const selected=mutationAccount(account.id,account.providerId)

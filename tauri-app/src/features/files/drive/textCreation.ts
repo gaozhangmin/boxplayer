@@ -7,7 +7,7 @@ import type {Account} from '@/features/sources/contracts'
 import {request,text,json} from '@/features/sources/transport'
 import {checkTextCreation as mutationAccount,withTextCreationScope} from './textCreationScope'
 import {buildGoogleMultipartUploadBody} from './electron/providers/googleText'
-export const supportsRemoteTextCreation=(account:Account)=>['google','onedrive','dropbox','box','aliyun','guangya'].includes(account.providerId)
+export const supportsRemoteTextCreation=(account:Account)=>['onedrive','dropbox','box','aliyun','guangya'].includes(account.providerId)
 export async function createRemoteText(account:Account,parent:string,name:string,content:string,stillCurrent:()=>boolean=()=>true){
  if(!supportsRemoteTextCreation(account))throw Error('此来源新建文本接口尚未接入')
  return withTextCreationScope(account,stillCurrent,()=>createRemoteTextBody(account,parent,name,content))

@@ -9,7 +9,6 @@ import {toExpireDays} from './electron/providers/cloud123ShareExpiry'
 import {getDrivePane} from './ports'
 import {mutationAccount} from './providerTransport'
 import {apiOneDriveShareCreate} from './electron/providers/oneDriveShare'
-import {apiGoogleShareCreate} from './electron/providers/googleShare'
 import {apiBoxShareCreate} from './electron/providers/boxShare'
 import {createSourceShare} from '@/features/sources/share'
 import type {IAliGetFileModel} from './electron/aliapi/alimodels'
@@ -25,6 +24,7 @@ export function createDriveShare(files:IAliGetFileModel[]){
  }
  return {check,dispose(){closed=true},async create(ids:string[],title:string,expiration:string,password:string,transfer=false,paid?:PaidShareOptions){
   check();const account=pane.account;if(!account||pane.local)throw Error('本地来源不能创建网盘分享')
+  if(account.providerId==='google')throw Error('Google Drive 仅支持只读操作')
   mutationAccount(source,account.providerId)
   if(!ids.length||new Set(ids).size!==ids.length||ids.some(id=>!selected.has(id)||selected.get(id)!.drive_id!==source))throw Error('分享选择或来源不匹配')
   if(paid&&(account.providerId!=='123'||transfer))throw Error('当前来源不支持123付费分享')
@@ -76,7 +76,7 @@ export function createDriveShare(files:IAliGetFileModel[]){
    if(!/^[A-Za-z0-9_-]+$/.test(result.shareKey))throw Error('123 分享标识无效')
    return {url:getCloud123ShareUrl('cloud123_'+uid,result.shareKey),password:paid?'':password}
   }
-  if(['box','google','onedrive','guangya','dropbox'].includes(account.providerId)){
+  if(['box','onedrive','guangya','dropbox'].includes(account.providerId)){
    if(account.providerId==='onedrive'&&(expiration||password))throw Error('OneDrive 分享暂不支持提取码或有效期，请清空后重试')
    const result=account.providerId==='dropbox'
     ?await apiDropboxShareCreate(source,source,ids,expiration,password,title,check)
@@ -84,8 +84,6 @@ export function createDriveShare(files:IAliGetFileModel[]){
     ?await apiGuangyaShareCreate(source,expiration,password,title,ids)
     :account.providerId==='box'
     ?await apiBoxShareCreate(source,source,ids,title,selected.get(ids[0]!)!.isDir,expiration,password)
-    :account.providerId==='google'
-    ?await apiGoogleShareCreate(source,source,ids,title,expiration,password,check)
     :await apiOneDriveShareCreate(source,source,ids,title)
    check()
    if(result.error||!result.item)throw Error(result.error||'创建分享失败')

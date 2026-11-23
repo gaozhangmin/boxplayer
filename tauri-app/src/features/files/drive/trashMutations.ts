@@ -26,11 +26,11 @@ import {drive115Id,drive115Detail} from './drive115FileTransport'
 import {aliTrashPage} from './aliTrashListing'
 export type TrashOperation='trash'|'restore'|'purge'|'permanent'
 export const supportsRemoteTrash=(account:Account)=>['box','google','123','aliyun','115','pikpak','quark'].includes(account.providerId)
-export const supportsRemoteTrashRestore=(account:Account)=>account.providerId!=='quark'&&supportsRemoteTrash(account)
-export const supportsRemoteTrashDelete=(account:Account)=>['box','google','aliyun','115','pikpak'].includes(account.providerId)
+export const supportsRemoteTrashRestore=(account:Account)=>!['quark','google'].includes(account.providerId)&&supportsRemoteTrash(account)
+export const supportsRemoteTrashDelete=(account:Account)=>['box','aliyun','115','pikpak'].includes(account.providerId)
 export const supportsRemoteDirectDelete=(account:Account)=>account.providerId==='alipan-open'||supportsRemoteTrashDelete(account)&&!['box','115'].includes(account.providerId)
-export const supportsRemoteTrashEmpty=(account:Account)=>['box','google','aliyun','115','pikpak','123'].includes(account.providerId)
-export const supportsRemoteTrashMove=(account:Account)=>supportsRemoteTrash(account)||['dropbox','onedrive','123','aliyun','alipan-open','115','guangya','189','139','baidu'].includes(account.providerId)
+export const supportsRemoteTrashEmpty=(account:Account)=>['box','aliyun','115','pikpak','123'].includes(account.providerId)
+export const supportsRemoteTrashMove=(account:Account)=>(account.providerId!=='google'&&supportsRemoteTrash(account))||['dropbox','onedrive','123','aliyun','alipan-open','115','guangya','189','139','baidu'].includes(account.providerId)
 export interface TrashEntry extends SourceEntry{originalParent:string;modified?:number}
 function entry(id:unknown,name:unknown,isDir:boolean,size:unknown,parent:unknown,modified:unknown):TrashEntry{
  if(typeof id!=='string'||!id||typeof name!=='string'||!name)throw Error('回收站项目缺少标识或名称')

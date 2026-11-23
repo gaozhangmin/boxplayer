@@ -29,7 +29,7 @@ import {apiDrive115CopyBatch} from './electron/providers/drive115Copy'
 import {drive115Id,drive115Parent,drive115Detail} from './drive115FileTransport'
 import {relocateAliFile} from './aliRelocationMutations'
 import type {AliCrossDriveReceipt} from './aliRelocationTransport'
-export const supportsRemoteRelocation=(account:Account)=>['box','google','dropbox','onedrive','123','aliyun','alipan-open','115','pikpak','guangya','quark','baidu','139','189'].includes(account.providerId)
+export const supportsRemoteRelocation=(account:Account)=>['box','dropbox','onedrive','123','aliyun','alipan-open','115','pikpak','guangya','quark','baidu','139','189'].includes(account.providerId)
 export const supportsRemoteCopy=(account:Account)=>!['quark'].includes(account.providerId)&&supportsRemoteRelocation(account)
 export async function relocateRemoteFiles(account:Account,files:IAliGetFileModel[],destination:string,copy:boolean,stillCurrent:()=>boolean,ancestors?:ReadonlyArray<string>,synchronize?:(file:IAliGetFileModel,receipt:AliCrossDriveReceipt)=>Promise<void>):Promise<{success:string[];failures:string[];names?:Record<string,string>;baidu?:BaiduMoveResult[];identitySynced?:string[]}>{
  mutationAccount(account.id,account.providerId)

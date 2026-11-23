@@ -3,13 +3,17 @@ import { electronProviderCapabilities, fileOperationAvailable } from '@/features
 import { providers } from '@/features/sources/contracts'
 import type { DriveOperation } from '@/features/files/electron/drive/services/agent/providerCapabilityTypes'
 it('uses original declarations for retained providers without falling back to Aliyun for servers',()=>{
- for(const [providerId] of providers){const result=electronProviderCapabilities({providerId});expect(!!result).toBe(!['jellyfin','emby','plex','boxplayer'].includes(providerId))}
+ for(const [providerId] of providers){const result=electronProviderCapabilities({providerId});expect(!!result).toBe(!['jellyfin','emby','plex','boxplayer','smb','nfs','ftp'].includes(providerId))}
  expect(electronProviderCapabilities({providerId:'115'})!.operations['share.create']).toBe(false)
- expect(electronProviderCapabilities({providerId:'google'})!.operations['files.rename']).toBe(true)
+ const google=electronProviderCapabilities({providerId:'google'})!
+ expect(google.operations['files.rename']).toBe(false)
+ expect(google.capabilities.upload).toBe(false)
+ expect(google.agentTools).not.toContain('deleteFiles')
+ expect(google.agentTools).toContain('downloadFiles')
  expect(electronProviderCapabilities({providerId:'123'})!.platform).toBe('cloud123')
 })
 it('does not enable write menus just because Electron implements an operation',()=>{
- const implemented=new Set<DriveOperation>(['files.list','files.search'])
+ const implemented=new Set<DriveOperation>(['files.list','files.search','files.rename'])
  expect(fileOperationAvailable({providerId:'google'},'files.rename',implemented)).toBe(false)
  expect(fileOperationAvailable({providerId:'google'},'files.list',implemented)).toBe(true)
  expect(fileOperationAvailable({providerId:'webdav'},'files.search',implemented)).toBe(false)

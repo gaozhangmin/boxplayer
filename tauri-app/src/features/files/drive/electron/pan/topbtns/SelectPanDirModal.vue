@@ -2,7 +2,7 @@
 import { modalCloseAll } from '@/features/files/drive/creationPorts'
 import { computed, h, PropType, reactive, ref, onUnmounted } from 'vue'
 import IconFont from '@/features/files/electron/IconFont.vue'
-import { useSettingStore, useWinStore, message } from '@/features/files/drive/ports'
+import { useSettingStore, useWinStore, message, supportsCreateFolder } from '@/features/files/drive/ports'
 import { CheckFileName, ClearFileName } from '@/features/files/drive/creationPorts'
 import { Tree as AntdTree } from 'ant-design-vue'
 import AliFileCmd from '@/features/files/drive/fileCommands'
@@ -68,6 +68,7 @@ const treeHeight = computed(() => (winStore.height * 8) / 10 - 126)
 const title = ref('')
 const user_id = ref('')
 const drive_id = ref('')
+const canCreateFolder = () => props.selecttype !== 'select' && supportsCreateFolder(user_id.value, drive_id.value)
 const selectFile = ref({
   drive_id: pantreeStore.backup_drive_id,
   name: '备份盘',
@@ -383,6 +384,7 @@ const handleHide = () => {
   }
 }
 const handleCreatNew = () => {
+  if (!canCreateFolder()) return
   showCreatNewDir.value = true
   setTimeout(() => {
     if(dialogAlive.value)document.getElementById('SelectDirCreatNewDirInput')?.focus()
@@ -392,7 +394,7 @@ const handleHideNewDir = () => {
   showCreatNewDir.value = false
 }
 const handleOKNewDir = async () => {
-  if(okLoading.value||!dialogAlive.value)return
+  if(okLoading.value||!dialogAlive.value||!canCreateFolder())return
   okLoading.value=true
   try{
     if(await formRef.value.validate())return
@@ -478,7 +480,7 @@ const handleOK = () => {
     </div>
     <div id='selectdir'>已选择：{{ selectFile.name }}</div>
     <div class='modalfoot'>
-      <a-button v-if="selecttype !== 'select'" type='outline' size='small' @click='handleCreatNew'>新建文件夹</a-button>
+      <a-button v-if="canCreateFolder()" type='outline' size='small' @click='handleCreatNew'>新建文件夹</a-button>
       <div style='flex-grow: 1'></div>
       <a-button v-if='!okLoading' type='outline' size='small' tabindex='-1' @click='handleHide'>取消</a-button>
       <a-button type='primary' size='small' tabindex='-1' :loading='okLoading' @click='handleOK'>选择</a-button>

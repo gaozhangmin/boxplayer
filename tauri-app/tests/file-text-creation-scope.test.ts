@@ -7,7 +7,6 @@ import {withTextCreationScope,checkTextCreation} from '@/features/files/drive/te
 vi.mock('@/features/sources/transport',()=>({json:vi.fn(),request:vi.fn(),rawRequest:vi.fn(),text:vi.fn()}))
 beforeEach(()=>{vi.resetAllMocks();setActivePinia(createPinia())})
 const cases=[
- {providerId:'google' as const,parent:'',target:{id:'root-id',mimeType:'application/vnd.google-apps.folder'}},
  {providerId:'onedrive' as const,parent:'',target:{id:'root-id',folder:{}}},
  {providerId:'box' as const,parent:'',target:{id:'0',type:'folder'}},
  {providerId:'dropbox' as const,parent:'id:folder',target:{id:'id:folder','.tag':'folder',path_display:'/Folder'}}

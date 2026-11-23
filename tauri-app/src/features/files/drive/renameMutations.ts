@@ -13,7 +13,7 @@ import {apiDropboxRename} from './electron/providers/dropbox'
 import {renamePikPakFile} from './pikpakFileMutations'
 import {renameDrive115File} from './drive115FileMutations'
 import {renameAliFile} from './aliRenameMutations'
-export const supportsRemoteRename=(account:Account)=>['onedrive','google','box','dropbox','123','aliyun','alipan-open','115','pikpak','guangya','quark','baidu','139','189'].includes(account.providerId)
+export const supportsRemoteRename=(account:Account)=>['onedrive','box','dropbox','123','aliyun','alipan-open','115','pikpak','guangya','quark','baidu','139','189'].includes(account.providerId)
 export interface RemoteRenameResult {file_id:string;parent_file_id:string;name:string;isDir:boolean;path?:string;previousPath?:string;description?:string}
 export async function renameRemoteFile(account:Account,file:{file_id:string;parent_file_id:string;isDir:boolean;path?:string;name?:string},name:string,stillCurrent:()=>boolean=()=>true):Promise<RemoteRenameResult>{
  const selected=mutationAccount(account.id,account.providerId)

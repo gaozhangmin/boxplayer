@@ -13,8 +13,8 @@ function bound(a: Account) {
   for (const args of [...mock.mock.calls, ...vi.mocked(request).mock.calls]) expect(args[0]).toBe(a)
 }
 describe('account-bound source sharing protocols', () => {
-  it('supports exactly the nine Electron share providers without network or writes', async () => {
-    const supported = ['aliyun', '123', 'pikpak', 'guangya', 'dropbox', 'onedrive', 'box', 'google', 'quark']
+  it('supports only supported writable share providers without network or writes', async () => {
+    const supported = ['aliyun', '123', 'pikpak', 'guangya', 'dropbox', 'onedrive', 'box', 'quark']
     for (const [provider] of providers) {
       const a = account(provider)
       expect(supportsSourceShare(a)).toBe(supported.includes(provider))
@@ -92,15 +92,10 @@ describe('account-bound source sharing protocols', () => {
     expect(await createSourceShare(a, '42', '')).toEqual({ url })
     expect(json).toHaveBeenLastCalledWith(a, 'PUT', `https://api.box.com/2.0/${type === 'folder' ? 'folders' : 'files'}/42?fields=shared_link,id,name,type`, { shared_link: { access: 'open', permissions: { can_download: true } } }); bound(a)
   })
-  it.each([true, false])('Google reuses anyone permission if present (%s) then gets real webViewLink', async existing => {
+  it('rejects Google Drive share creation without issuing requests', async () => {
     const a = account('google')
-    mock.mockResolvedValueOnce({ permissions: existing ? [{ id: 'p', type: 'anyone' }] : [] })
-    if (!existing) mock.mockResolvedValueOnce({ id: 'p' })
-    mock.mockResolvedValueOnce({ webViewLink: url })
-    expect(await createSourceShare(a, 'f/1', '')).toEqual({ url })
-    expect(mock.mock.calls[0]?.[2]).toBe('https://www.googleapis.com/drive/v3/files/f%2F1/permissions?supportsAllDrives=true&fields=permissions(id,type,role,allowFileDiscovery)')
-    if (!existing) expect(mock.mock.calls[1]).toEqual([a, 'POST', 'https://www.googleapis.com/drive/v3/files/f%2F1/permissions?supportsAllDrives=true', { type: 'anyone', role: 'reader' }])
-    expect(mock.mock.calls.at(-1)?.[2]).toBe('https://www.googleapis.com/drive/v3/files/f%2F1?fields=id,name,webViewLink&supportsAllDrives=true'); bound(a)
+    await expect(createSourceShare(a, 'f/1', 'name')).rejects.toThrow('当前来源不支持创建分享链接')
+    expect(mock).not.toHaveBeenCalled()
   })
   it('Quark polls its task then requests password info instead of inventing a link', async () => {
     const a = account('quark')
@@ -118,7 +113,7 @@ describe('account-bound source sharing protocols', () => {
     await expect(createSourceShare(account('quark'), 'f', '')).rejects.toThrow('任务失败')
     expect(json).toHaveBeenCalledTimes(2)
   })
-  it.each(['aliyun', 'pikpak', 'guangya', 'onedrive', 'box', 'google', 'quark'] as const)('fails closed on %s business errors', async provider => {
+  it.each(['aliyun', 'pikpak', 'guangya', 'onedrive', 'box', 'quark'] as const)('fails closed on %s business errors', async provider => {
     mock.mockResolvedValue({ code: 401, error: 'private server details' })
     vi.mocked(nativeCall).mockResolvedValue({ error: 'private server details' })
     await expect(createSourceShare(account(provider), provider === 'aliyun' ? '{"driveId":"d","fileId":"f"}' : 'f', '')).rejects.toThrow('创建分享链接失败')

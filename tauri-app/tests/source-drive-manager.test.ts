@@ -49,7 +49,7 @@ describe('direct Electron PanRight in the Tauri source browser',()=>{
   wrapper.unmount();update.mockRestore()
  })
  it('renames loaded nested entries without requiring them in the top-level visible list',async()=>{
-  const source={id:'batch-nested',providerId:'google' as const,name:'Fixture',baseUrl:'',authOrigins:[]}
+  const source={id:'batch-nested',providerId:'onedrive' as const,name:'Fixture',baseUrl:'',authOrigins:[]}
   useFileSourcesStore(global.plugins[0]).accounts=[source]
   vi.mocked(driver).mockReturnValue({list:vi.fn().mockImplementation(async(_account,parent)=>({entries:parent==='folder'?[{id:'child',name:'Old.mkv',isDirectory:false,size:1,playable:true}]:[{id:'folder',name:'Folder',isDirectory:true,size:0,playable:false}]})),resolve:vi.fn()})
   const update=vi.spyOn(useVideoCatalog(global.plugins[0]),'update').mockResolvedValue(undefined)

@@ -17,6 +17,8 @@
 
 ## 失败与兼容边界
 
+Tauri Google Drive 仅请求 `drive.readonly`。已确认的授权保存在原生凭据库；没有保存只读授权证明的旧账号应重新连接，不沿用此前的完整 Drive 权限，也不撤销 Google 端的授权。浏览、搜索、媒体读取和下载仍可用；文件夹创建、上传、重命名、移动、复制、删除、清空回收站与创建分享链接不可用，原生请求层也会拒绝写入。
+
 Tauri 沿用 iOS 的 Emby 兼容 User-Agent 匹配规则：`drivemby.com` 与其子域，或主机名包含 `younoyes`、`onatoshi`。这些地址的 Emby 登录/API/封面，以及匹配的媒体播放、字幕和文件下载使用 `SenPlayer`。网关按每次跳转的目标主机重新判定，跨源凭据限制照常生效。
 
 下方从旧入口迁移的 15 步 checklist 属于 Electron 接入参考。Tauri 应映射到自己的真实实现，不照抄 Electron IPC 命令或把旧测试作为原生通过。

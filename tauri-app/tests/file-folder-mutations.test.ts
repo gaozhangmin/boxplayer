@@ -18,15 +18,13 @@ describe('original provider folder recipes through native account transport',()=
   await createRemoteFolder(account,'parent/opaque','Folder')
   expect(vi.mocked(json).mock.calls[0]?.[2]).toBe('https://graph.microsoft.com/v1.0/me/drive/items/parent%2Fopaque/children')
  })
- it('retains Box root normalization and Google shared-drive parameters',async()=>{
+ it('retains Box root creation and rejects Google Drive folder creation before issuing a write',async()=>{
   const box=selected('box');vi.mocked(json).mockResolvedValue({id:'box-folder'})
   await createRemoteFolder(box,'','Box folder')
   expect(json).toHaveBeenCalledWith(box,'POST','https://api.box.com/2.0/folders',{name:'Box folder',parent:{id:'0'}})
-  const google=selected('google');vi.mocked(json).mockResolvedValue({id:'google-folder'})
-  await createRemoteFolder(google,'shared-parent','Google folder')
-  const call=vi.mocked(json).mock.calls.at(-1)!;const url=new URL(call[2]);expect(call[0]).toBe(google)
-  expect(url.origin+url.pathname).toBe('https://www.googleapis.com/drive/v3/files');expect(url.searchParams.get('supportsAllDrives')).toBe('true')
-  expect(call[3]).toEqual({name:'Google folder',mimeType:'application/vnd.google-apps.folder',parents:['shared-parent']})
+  const google=selected('google');vi.mocked(json).mockClear()
+  await expect(createRemoteFolder(google,'shared-parent','Google folder')).rejects.toThrow('新建文件夹接口尚未接入')
+  expect(json).not.toHaveBeenCalled()
  })
  it('resolves Dropbox opaque parents without mistaking real paths containing root for the drive root',async()=>{
   const account=selected('dropbox');vi.mocked(json).mockResolvedValueOnce({'.tag':'folder',id:'id:parent',path_display:'/root collection'}).mockResolvedValueOnce({metadata:{id:'id:new'}})
@@ -46,7 +44,7 @@ describe('original provider folder recipes through native account transport',()=
   await expect(createRemoteFolder(dropbox,'id:parent','Folder')).rejects.toThrow('不是文件夹');expect(json).toHaveBeenCalledTimes(1)
  })
  it('rejects wrong-provider identity, unsupported providers and invalid names before network writes',async()=>{
-  const source=selected('google')
+  const source=selected('onedrive')
   await expect(createRemoteFolder({...source,providerId:'box'},'','Folder')).rejects.toThrow('来源不匹配')
   expect(supportsRemoteFolderCreation({...source,providerId:'webdav'})).toBe(false)
   await expect(createRemoteFolder({...source,providerId:'webdav'},'','Folder')).rejects.toThrow('尚未接入')

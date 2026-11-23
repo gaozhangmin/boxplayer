@@ -20,14 +20,10 @@ function setup(provider:Account['providerId'],userId?:string,ids:string[]=['1','
 }
 const response=(value:unknown)=>({status:200,headers:{},body:Array.from(new TextEncoder().encode(JSON.stringify(value))),finalUrl:''})
 describe('original share provider ports',()=>{
- it('reuses Google anyone permission from a later page without creating a duplicate permission',async()=>{
-  const {share}=setup('google');vi.mocked(json).mockResolvedValueOnce({permissions:[],nextPageToken:'next'}).mockResolvedValueOnce({permissions:[{id:'public',type:'anyone',role:'reader'}]}).mockResolvedValueOnce({id:'1',webViewLink:'https://drive.google.com/file/d/1/view'})
-  await expect(share.create(['1'],'Title','','')).resolves.toMatchObject({url:'https://drive.google.com/file/d/1/view'})
-  expect(vi.mocked(json).mock.calls.map(call=>call[1])).toEqual(['GET','GET','GET']);expect(vi.mocked(json).mock.calls[1]![2]).toContain('pageToken=next');share.dispose()
- })
- it('rejects a Google permission response lacking identity before reading a link',async()=>{
-  const {share}=setup('google');vi.mocked(json).mockResolvedValueOnce({permissions:[]}).mockResolvedValueOnce({})
-  await expect(share.create(['1'],'Title','','')).rejects.toThrow('失败');expect(json).toHaveBeenCalledTimes(2);share.dispose()
+ it('does not create a Google Drive share or make provider requests',async()=>{
+  const {share}=setup('google')
+  await expect(share.create(['1'],'Title','','')).rejects.toThrow('Google Drive 仅支持只读操作')
+  expect(json).not.toHaveBeenCalled()
  })
  it('preserves original OneDrive body and rejects unsupported settings before a write',async()=>{
   const {share}=setup('onedrive');await expect(share.create(['1'],'Title','','pass')).rejects.toThrow('请清空');expect(json).not.toHaveBeenCalled()
@@ -44,11 +40,6 @@ describe('original share provider ports',()=>{
  it('refuses a missing 123 UID and incomplete provider success',async()=>{
   const {share}=setup('123');await expect(share.create(['1'],'Title','','')).rejects.toThrow('有效');expect(request).not.toHaveBeenCalled()
   share.dispose();unbind();const next=setup('123','42');vi.mocked(request).mockResolvedValue(response({code:0,data:{shareKey:'key'}}));await expect(next.share.create(['1'],'Title','','')).rejects.toThrow('完整');next.share.dispose()
- })
- it('stops Google creation after the source context changes during permission lookup',async()=>{
-  const {share,pane}=setup('google');let finish!:(value:any)=>void;vi.mocked(json).mockImplementation(()=>new Promise(resolve=>{finish=resolve}))
-  const pending=share.create(['1'],'Title','','');pane.context=2;finish({permissions:[]})
-  await expect(pending).rejects.toThrow('切换');expect(json).toHaveBeenCalledTimes(1);share.dispose()
  })
  it('retains Guangya combined selections, password and original day conversion',async()=>{
   const {share}=setup('guangya');vi.mocked(json).mockResolvedValue({code:0,data:{shareId:'share',shareUrl:'https://www.guangyapan.com/s/share'}})
@@ -208,7 +199,7 @@ describe('original share provider ports',()=>{
   await expect(share.create(['1'],'Title','','',false,{amount:1,description:'x'.repeat(201),reward:false})).rejects.toThrow('说明');expect(request).not.toHaveBeenCalled();share.dispose()
  })
  it('never routes 123 paid options to another provider',async()=>{
-  const {share}=setup('google');await expect(share.create(['1'],'Title','','',false,{amount:1,description:'',reward:false})).rejects.toThrow('不支持');expect(json).not.toHaveBeenCalled();expect(nativeCall).not.toHaveBeenCalled();share.dispose()
+  const {share}=setup('onedrive');await expect(share.create(['1'],'Title','','',false,{amount:1,description:'',reward:false})).rejects.toThrow('不支持');expect(json).not.toHaveBeenCalled();expect(nativeCall).not.toHaveBeenCalled();share.dispose()
  })
  it('updates a mismatched Ali title using the original share-only batch body',async()=>{
   const ids=[JSON.stringify({driveId:'one',fileId:'a'})],{share}=setup('aliyun',undefined,ids)
@@ -227,14 +218,9 @@ describe('original share provider ports',()=>{
   const pending=share.create(ids,'Title','','');pane.context=2;finish(response({share_id:'share',share_url:'https://www.alipan.com/s/public',share_name:'Server title'}));await expect(pending).rejects.toThrow('切换');expect(nativeCall).toHaveBeenCalledTimes(1);share.dispose()
  })
 
- it.each(['box','google','onedrive','dropbox','guangya','123','pikpak','quark','aliyun'] as const)('rejects same-ID account substitution before creating a %s share',async provider=>{
+ it.each(['box','onedrive','dropbox','guangya','123','pikpak','quark','aliyun'] as const)('rejects same-ID account substitution before creating a %s share',async provider=>{
   const {share,account}=setup(provider,'cloud123_42');useFileSourcesStore().accounts=[{...account,name:'Replacement'}]
   await expect(share.create(['1'],'Title','','')).rejects.toThrow('账号已变化');expect(json).not.toHaveBeenCalled();expect(request).not.toHaveBeenCalled();expect(nativeCall).not.toHaveBeenCalled();share.dispose()
- })
- it('does not add Google public permission under a replaced account after permission lookup',async()=>{
-  const {share,account}=setup('google');let finish!:(value:any)=>void;vi.mocked(json).mockImplementation(()=>new Promise(resolve=>finish=resolve))
-  const pending=share.create(['1'],'Title','','');useFileSourcesStore().accounts=[{...account,userId:'another-user'}];finish({permissions:[]})
-  await expect(pending).rejects.toThrow('账号已变化');expect(json).toHaveBeenCalledTimes(1);expect(vi.mocked(json).mock.calls[0]![1]).toBe('GET');share.dispose()
  })
  it('does not update a stale Dropbox link after a same-ID account replacement',async()=>{
   const {share,account}=setup('dropbox');let finish!:(value:any)=>void;vi.mocked(json).mockImplementation(()=>new Promise(resolve=>finish=resolve))

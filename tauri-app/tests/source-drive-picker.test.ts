@@ -2,7 +2,6 @@ import {beforeEach,describe,expect,it,vi} from 'vitest'
 import {createPinia} from 'pinia'
 import {mount,flushPromises,DOMWrapper} from '@vue/test-utils'
 import {defineComponent,h} from 'vue'
-import {Modal as ArcoModal} from '@arco-design/web-vue'
 import SourceDriveManager from '@/features/files/drive/SourceDriveManager.vue'
 import {getDrivePane} from '@/features/files/drive/ports'
 import {useFileSourcesStore} from '@/stores/fileSources'
@@ -51,17 +50,11 @@ describe('original Electron directory picker through Tauri listing',()=>{
   expect(selected).toHaveBeenCalledWith(source.id,source.id,expect.objectContaining({file_id:'folder',isDir:true}));expect(body().find('.showpandirmodal').exists()).toBe(false)
   expect(listing.mock.calls.every(call=>call[0].id===source.id)).toBe(true);expect(json).not.toHaveBeenCalled();wrapper.unmount()
  })
- it('keeps failed nested creation open and selects a real created folder after retry',async()=>{
-  let created=false;const listing=vi.fn().mockImplementation(async(_account,parent)=>({entries:parent?[]:[folder('folder','Folder'),...(created?[folder('created','Created')]:[])]}))
-  vi.mocked(driver).mockReturnValue({list:listing,resolve:vi.fn()});vi.mocked(json).mockRejectedValueOnce(Error('fixture denied')).mockImplementationOnce(async()=>{created=true;return {id:'created'}})
+ it('keeps the Google Drive folder picker readable but hides folder creation',async()=>{
+  vi.mocked(driver).mockReturnValue({list:vi.fn().mockResolvedValue({entries:[folder('folder','Folder')]}),resolve:vi.fn()})
   const wrapper=await browser(),selected=vi.fn();await getDrivePane().action('selectDirectory',['selectdir','',selected]);await flushPromises()
-  await picker().findAll('button').find(button=>button.text()==='新建文件夹')!.trigger('click');await flushPromises()
-  await body().get('#SelectDirCreatNewDirInput').setValue('Created')
-  const create=()=>body().findAll('.source-drive-dialog button').find(button=>button.text()==='创建')!
-  await create().trigger('click');await flushPromises();expect(body().find('#SelectDirCreatNewDirInput').exists()).toBe(true);expect(selected).not.toHaveBeenCalled()
-  await create().trigger('click');await flushPromises();expect(wrapper.findAllComponents(ArcoModal).at(-1)!.props('visible')).toBe(false)
-  expect(picker().get('#selectdir').text()).toContain('Created');await choose().trigger('click');await flushPromises()
-  expect(selected).toHaveBeenCalledWith(source.id,source.id,expect.objectContaining({file_id:'created',parent_file_id:'google_root',isDir:true}));expect(json).toHaveBeenCalledTimes(2)
-  expect(listing.mock.calls.length).toBeGreaterThan(3);wrapper.unmount()
+  expect(picker().text()).toContain('Folder')
+  expect(picker().findAll('button').some(button=>button.text()==='新建文件夹')).toBe(false)
+  expect(json).not.toHaveBeenCalled();wrapper.unmount()
  })
 })
