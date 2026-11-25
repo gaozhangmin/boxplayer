@@ -16,7 +16,7 @@ import { QRCode as AntQRCode } from 'ant-design-vue'
 import { buildCloud123AuthUrl, exchangeCloud123CodeForToken } from '../cloud123/auth'
 import { buildBaiduAuthUrl, exchangeBaiduCodeForToken } from '../cloudbaidu/auth'
 import { refreshDrive115UserInfo } from '../cloud115/auth'
-import { buildQrImageUrl, DRIVE115_APP_ID, exchangeDeviceCode, generatePkce, normalize115Token, pollDeviceStatus, requestDeviceCode } from '../utils/drive115'
+import { DRIVE115_APP_ID, exchangeDeviceCode, generatePkce, normalize115Token, pollDeviceStatus, requestDeviceCode } from '../utils/drive115'
 import { loginPikPak } from '../pikpak/auth'
 import { completeQuarkQrLogin, pollQuarkQrStatus, requestQuarkQrCode } from '../quark/auth'
 import { normalizeCloud139Token } from '../cloud139/auth'
@@ -125,6 +125,7 @@ const remoteAdvanced = ref(false)
 const remoteDriveForm = ref({ name: '', url: '', username: '', password: '', rootPath: '' })
 const drive115ClientId = ref(DRIVE115_APP_ID || '')
 const drive115Verifier = ref('')
+const drive115QrContent = ref('')
 const drive115Uid = ref('')
 const drive115Time = ref('')
 const drive115Sign = ref('')
@@ -457,6 +458,7 @@ const handleClose = () => {
   baiduLoading.value = false
   baiduAuthUrl.value = ''
   drive115Verifier.value = ''
+  drive115QrContent.value = ''
   drive115Uid.value = ''
   drive115Time.value = ''
   drive115Sign.value = ''
@@ -1009,13 +1011,17 @@ const handleOpen115 = async () => {
   drive115PollFailures = 0
   if (drive115Timer) clearTimeout(drive115Timer)
   drive115Timer = null
+  drive115QrContent.value = ''
   if (!drive115ClientId.value.trim() && !DRIVE115_APP_ID) {
     loginLoading.value = false
+    qrCodeStatusType.value = 'error'
     drive115Tips.value = t('login.clientId')
     return
   }
   loginLoading.value = true
   drive115Loading.value = true
+  qrCodeStatusType.value = 'info'
+  drive115Tips.value = t('login.gettingQr')
   try {
     const { codeVerifier, codeChallenge } = await generatePkce()
     if (session !== drive115Session) return
@@ -1023,6 +1029,7 @@ const handleOpen115 = async () => {
     const resp = await requestDeviceCode(drive115ClientId.value.trim(), codeChallenge, 'sha256')
     if (session !== drive115Session) return
     if (resp.error) {
+      qrCodeStatusType.value = 'error'
       drive115Tips.value = resp.error
       loginLoading.value = false
       drive115Loading.value = false
@@ -1031,7 +1038,7 @@ const handleOpen115 = async () => {
     drive115Uid.value = resp.uid || ''
     drive115Time.value = resp.time || ''
     drive115Sign.value = resp.sign || ''
-    qrCodeUrl.value = buildQrImageUrl(resp.qrcode || '')
+    drive115QrContent.value = resp.qrcode || ''
     qrCodeStatusType.value = 'info'
     drive115Tips.value = t('login.scanWith115')
     loginLoading.value = false
@@ -1040,6 +1047,7 @@ const handleOpen115 = async () => {
     poll115Status(session)
   } catch (err: any) {
     if (session !== drive115Session) return
+    qrCodeStatusType.value = 'error'
     drive115Tips.value = err?.message || t('login.loginFailed')
     loginLoading.value = false
     drive115Loading.value = false
@@ -1428,26 +1436,17 @@ const loginSuccess = (token: ITokenInfo) => {
 
       <div v-else-if="loginProvider === '115'">
         <div id='logindiv'>
-          <div class='logincontent'>
-            <div id="loginframediv" class="loginframe">
-              <a-spin class="loading" :size="32" v-if='loginLoading' :tip="t('common.loading')" />
-              <div class="qrcodeframe" v-if="!loginLoading">
-                <a-image
-                  width='250'
-                  height='250'
-                  :hide-footer='true'
-                  :preview='false'
-                  :show-loader="true"
-                  @click="handleRefresh115Qr"
-                  style="display:inline-block;"
-                  :src="qrCodeUrl">
-                </a-image>
-                <a-alert banner center :show-icon="false" :type="qrCodeStatusType || 'info'">
-                  {{ drive115Tips }}
-                </a-alert>
+          <div class='logincontent drive115-logincontent'>
+            <a-spin class="loading" :size="32" v-if='loginLoading' :tip="t('common.loading')" />
+            <div class="qrcodeframe" v-if="!loginLoading">
+              <div v-if="drive115QrContent" class="cloud189-qrcode-wrap drive115-qrcode-wrap" @click="handleRefresh115Qr">
+                <AntQRCode :value="drive115QrContent" :size="250" color="#000" bg-color="#fff" />
               </div>
+              <a-alert banner center :show-icon="false" :type="qrCodeStatusType || 'info'">
+                {{ drive115Tips }}
+              </a-alert>
             </div>
-            <div class="cloud123-code">
+            <div class="cloud123-code" v-if="!loginLoading">
               <a-input v-model="drive115ClientId" placeholder="App ID（client_id）" allow-clear
                        @change="handleStorageChange" />
               <a-button type="primary" :loading="drive115Loading" @click="handleRefresh115Qr">{{ t('login.refreshQrCode') }}</a-button>
@@ -1853,6 +1852,19 @@ const loginSuccess = (token: ITokenInfo) => {
   flex-direction: column;
   gap: 8px;
   padding: 8px 0;
+}
+
+.drive115-logincontent {
+  height: 430px !important;
+  min-height: 430px !important;
+}
+
+.drive115-logincontent .qrcodeframe {
+  margin: 10px 15px 10px 15px;
+}
+
+.drive115-qrcode-wrap {
+  cursor: pointer;
 }
 
 </style>

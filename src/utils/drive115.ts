@@ -57,7 +57,7 @@ export const requestDeviceCode = async (clientId: string, codeChallenge: string,
   if (!resp.ok) return { error: '获取二维码失败' }
   const data = await resp.json()
   if (data?.error || data?.errno) return { error: data?.message || '获取二维码失败' }
-  if (!data?.data?.uid) return { error: data?.message || '获取二维码失败' }
+  if (!data?.data?.uid || !data?.data?.qrcode) return { error: data?.message || '获取二维码失败' }
   return {
     uid: data.data.uid as string,
     time: data.data.time as string,
