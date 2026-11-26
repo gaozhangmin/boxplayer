@@ -1,6 +1,13 @@
 name: Tauri Cross-OS UI & Playback QA
 
 on:
+  push:
+    branches:
+      - codex/dev-tauri
+      - 'fleet/**'
+    paths:
+      - 'tauri-app/**'
+      - '.github/workflows/tauri-qa.yml'
   workflow_dispatch:
     inputs:
       run_playback_tests:
