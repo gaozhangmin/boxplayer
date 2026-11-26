@@ -24,6 +24,31 @@ on:
       - '.github/workflows/tauri-qa.yml'
 
 jobs:
+  tauri-typecheck:
+    name: Tauri Typecheck & Upstream Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.32.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+          cache-dependency-path: tauri-app/pnpm-lock.yaml
+
+      - name: Run vue-tsc and soia upstream check
+        working-directory: tauri-app
+        run: |
+          pnpm --ignore-workspace install --frozen-lockfile
+          pnpm typecheck
+          node scripts/check-soia-upstream.mjs
+
   tauri-qa:
     name: Tauri QA (${{ matrix.os_id }})
     strategy:
@@ -59,13 +84,15 @@ jobs:
         with:
           workspaces: tauri-app/src-tauri
 
-      - name: Install Linux Tauri, libmpv, and ffmpeg dependencies
+      - name: Install Linux Tauri, WebDriver, libmpv, and ffmpeg dependencies
         if: matrix.os_id == 'linux'
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
+            webkit2gtk-driver \
+            xvfb \
             build-essential \
             curl \
             wget \
@@ -86,6 +113,22 @@ jobs:
           MPV_DIR="$(dirname "$MPV_LIB_PATH")"
           echo "BOXPLAYER_MPV_RUNTIME=$MPV_DIR" >> "$GITHUB_ENV"
 
+      - name: Cache and install tauri-driver on Linux
+        if: matrix.os_id == 'linux'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/tauri-driver
+          key: tauri-driver-${{ runner.os }}-2
+
+      - name: Ensure tauri-driver is installed on Linux
+        if: matrix.os_id == 'linux'
+        shell: bash
+        run: |
+          if ! command -v tauri-driver >/dev/null 2>&1; then
+            cargo install tauri-driver --locked
+          fi
+          tauri-driver --version
+
       - name: Install macOS libmpv and ffmpeg dependencies
         if: matrix.os_id == 'macos'
         shell: bash
@@ -100,6 +143,7 @@ jobs:
 
       - name: Setup MSYS2 libmpv and ffmpeg on Windows
         if: matrix.os_id == 'windows'
+        id: msys2
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
@@ -112,29 +156,37 @@ jobs:
         if: matrix.os_id == 'windows'
         shell: pwsh
         run: |
-          $bin = "C:\msys64\clang64\bin"
-          if (-not (Test-Path "$bin\libmpv-2.dll")) {
-            Write-Error "libmpv-2.dll not found in $bin"
+          $msysRoot = "${{ steps.msys2.outputs.msys2-location }}"
+          $candidates = @()
+          if ($msysRoot) { $candidates += (Join-Path $msysRoot "clang64\bin") }
+          $candidates += @("C:\msys64\clang64\bin", "D:\a\_temp\msys64\clang64\bin")
+          $bin = $candidates | Where-Object { Test-Path (Join-Path $_ "libmpv-2.dll") } | Select-Object -First 1
+          if (-not $bin) {
+            $found = Get-ChildItem -Path $env:RUNNER_TEMP, "C:\", "D:\" -Filter "libmpv-2.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $bin = $found.DirectoryName }
+          }
+          if (-not $bin -or -not (Test-Path (Join-Path $bin "libmpv-2.dll"))) {
+            Write-Error "libmpv-2.dll not found (msys2-location=$msysRoot)"
             exit 1
           }
-          if (-not (Test-Path "$bin\ffmpeg.exe")) {
+          if (-not (Test-Path (Join-Path $bin "ffmpeg.exe"))) {
             Write-Error "ffmpeg.exe not found in $bin"
             exit 1
           }
+          Write-Host "Using MSYS2 runtime dir: $bin"
           "$bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           "BOXPLAYER_MPV_RUNTIME=$bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "BOXPLAYER_FFMPEG=$bin\ffmpeg.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "BOXPLAYER_FFMPEG=$(Join-Path $bin 'ffmpeg.exe')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Install Tauri frontend dependencies and verify build
+      - name: Install Tauri frontend dependencies, test, and build dist
         working-directory: tauri-app
         run: |
           pnpm --ignore-workspace install --frozen-lockfile
-          pnpm typecheck
           pnpm test
-          pnpm build
-          node scripts/check-soia-upstream.mjs
+          pnpm exec vite build
 
       - name: Install temporary Playwright runner (no lockfile changes)
+        if: matrix.os_id != 'linux'
         shell: bash
         run: |
           mkdir -p "${RUNNER_TEMP}/pw-runner"
@@ -143,33 +195,80 @@ jobs:
           npm install --no-audit --no-fund playwright
           npx playwright install chromium
 
-      - name: Install Linux Chromium system dependencies
+      - name: Install temporary Playwright runner on Linux
         if: matrix.os_id == 'linux'
         shell: bash
         run: |
+          mkdir -p "${RUNNER_TEMP}/pw-runner"
           cd "${RUNNER_TEMP}/pw-runner"
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund playwright
+          npx playwright install chromium
           sudo npx playwright install-deps chromium
 
-      - name: Run Tauri UI render & screenshot smoke
+      - name: Run L1 Tauri UI render & screenshot smoke
         working-directory: tauri-app
         env:
           PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/pw-runner/node_modules/playwright
           BOXPLAYER_UI_OUT_DIR: ${{ runner.temp }}/tauri-ui-screenshots
         run: node scripts/ci-ui-smoke.mjs
 
-      - name: Upload Tauri UI screenshots
+      - name: Upload L1 Tauri UI screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tauri-ui-screenshots-${{ matrix.os_id }}
           path: ${{ runner.temp }}/tauri-ui-screenshots
-          if-no-files-found: error
+          if-no-files-found: warn
 
-      - name: Rust check and unit tests
+      - name: Build Tauri native debug binary
         working-directory: tauri-app
+        run: cargo build --manifest-path src-tauri/Cargo.toml
+
+      - name: Run L2 Native Tauri Window E2E (Windows WebView2 CDP)
+        if: matrix.os_id == 'windows'
+        working-directory: tauri-app
+        env:
+          PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/pw-runner/node_modules/playwright
+          BOXPLAYER_L2_OUT_DIR: ${{ runner.temp }}/tauri-native-l2
+        run: node scripts/ci-tauri-native-l2.mjs --mode windows-cdp
+
+      - name: Run L2 Native Tauri Window E2E (Linux WebKitGTK + tauri-driver)
+        if: matrix.os_id == 'linux'
+        working-directory: tauri-app
+        env:
+          BOXPLAYER_L2_OUT_DIR: ${{ runner.temp }}/tauri-native-l2
+        shell: bash
         run: |
-          cargo check --manifest-path src-tauri/Cargo.toml
-          cargo test --manifest-path src-tauri/Cargo.toml
+          DATA_DIR="$(mktemp -d)"
+          export BOXPLAYER_DEV_DATA_DIR="$DATA_DIR"
+          trap 'rm -rf "$DATA_DIR"' EXIT
+          xvfb-run -a bash -c '
+            tauri-driver --port 4444 >/tmp/tauri-driver.log 2>&1 &
+            TD_PID=$!
+            trap "kill $TD_PID 2>/dev/null || true" EXIT
+            sleep 2
+            node scripts/ci-tauri-native-l2.mjs --mode linux-webdriver
+          '
+
+      - name: Run L2 Native Tauri Process E2E (macOS)
+        if: matrix.os_id == 'macos'
+        working-directory: tauri-app
+        env:
+          BOXPLAYER_L2_OUT_DIR: ${{ runner.temp }}/tauri-native-l2
+        run: node scripts/ci-tauri-native-l2.mjs --mode macos-native
+
+      - name: Upload L2 Native Tauri screenshots & summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-native-l2-${{ matrix.os_id }}
+          path: ${{ runner.temp }}/tauri-native-l2
+          if-no-files-found: warn
+
+      - name: Run Rust unit tests
+        working-directory: tauri-app
+        run: cargo test --manifest-path src-tauri/Cargo.toml
 
       - name: Run headless libmpv playback integration tests
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_playback_tests }}
