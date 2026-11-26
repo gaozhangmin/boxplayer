@@ -88,19 +88,35 @@ describe('Cloud video quality control', () => {
     const getRawUrl = vi.fn(async () => ({ qualities: rawQualities, headers: { Referer: 'https://pan.test/' }, size: 1024 }))
     const setArtVideoUrl = vi.fn()
     const cache = new Map<string, any>()
+    const defineArtSelectorProps = (selector: any[]) => {
+      for (const item of selector) {
+        Object.defineProperty(item, '$control_option', { get: () => selector })
+        Object.defineProperty(item, '$control_item', { get: () => ({}) })
+        Object.defineProperty(item, '$control_value', { get: () => ({}) })
+      }
+    }
     const controls = {
       cache,
       remove: vi.fn((name: string) => { cache.delete(name) }),
-      update: vi.fn((opt: any) => { cache.set(opt.name, opt) })
+      update: vi.fn((opt: any) => {
+        if (cache.has(opt.name)) cache.delete(opt.name)
+        if (Array.isArray(opt.selector)) defineArtSelectorProps(opt.selector)
+        cache.set(opt.name, opt)
+      })
     }
     const notice = { show: '' }
-    let errorHandler: (() => void) | undefined
+    const loading = { show: false }
+    const listeners = new Map<string, Array<() => void>>()
     const art: any = {
       controls,
       notice,
+      loading,
       option: { url: '' },
       on: (event: string, fn: () => void) => {
-        if (event === 'video:error') errorHandler = fn
+        listeners.set(event, [...(listeners.get(event) || []), fn])
+      },
+      emit: (event: string) => {
+        for (const fn of listeners.get(event) || []) fn()
       }
     }
     const ports = {
@@ -127,16 +143,16 @@ describe('Cloud video quality control', () => {
     }
     const { getVideoInfo, registerVideoError } = new Function(...Object.keys(ports), combinedScript)(...Object.values(ports))
     registerVideoError(art)
-    const triggerError = () => errorHandler?.()
+    const triggerError = () => art.emit('video:error')
 
-    // 1) Multi-quality Origin + transcoded HLS: first error falls back once to FHD m3u8; second error shows notice.
+    // 1) Multi-quality Origin + transcoded HLS: first error falls back once to FHD m3u8; repeated updateQualityControl() succeeds with cloned selector objects; second error shows notice.
     rawQualities = [
       { quality: 'Origin', html: '原画', url: originUrl, type: '' },
       { quality: 'HD', html: '高清 720P', width: 1280, height: 720, url: hdUrl, type: 'm3u8' },
       { quality: 'FHD', html: '全高清 1080p', width: 1920, height: 1080, url: fhdUrl, type: 'm3u8' }
     ]
     await getVideoInfo(art)
-    expect(setArtVideoUrl).toHaveBeenLastCalledWith(art, originUrl, '')
+    expect(setArtVideoUrl).toHaveBeenLastCalledWith(art, originUrl, undefined)
 
     triggerError()
     expect(setArtVideoUrl).toHaveBeenCalledTimes(2)
@@ -145,6 +161,16 @@ describe('Cloud video quality control', () => {
     expect(notice.show).toBe('')
     expect(rawQualities.map((q) => q.default)).toEqual([false, false, true])
     expect(controls.update).toHaveBeenCalledTimes(2)
+    expect(controls.cache.get('quality').selector.map((q: any) => q.default)).toEqual([false, false, true])
+
+    // Simulated delayed Artplayer reconnect error after active HLS stream took over clears stale notice & spinner.
+    art.hls = {}
+    art.__hlsSourceUrl = fhdUrl
+    notice.show = 'Reconnect: 1'
+    loading.show = true
+    art.emit('error')
+    expect(notice.show).toBe('')
+    expect(loading.show).toBe(false)
 
     triggerError()
     expect(setArtVideoUrl).toHaveBeenCalledTimes(2)
@@ -152,11 +178,101 @@ describe('Cloud video quality control', () => {
 
     // 2) Next video with Origin-only does not reuse prior qualities and immediately shows unsupported notice.
     notice.show = ''
+    delete art.hls
+    delete art.__hlsSourceUrl
     rawQualities = [{ quality: 'Origin', html: '原画', url: 'https://cdn.test/only-origin.mp4', type: '' }]
     await getVideoInfo(art)
     triggerError()
     expect(setArtVideoUrl).toHaveBeenCalledTimes(3)
     expect(notice.show).toBe('不支持当前媒体类型')
+  })
+
+  it('preserves m3u8 stream type from unproxied URLs when header proxy omits extension and type', async () => {
+    const combinedScript = ts.transpile(`
+      ${removal}
+      ${artTypeHelpers}
+      ${videoInfo}
+      ${fallbackHelper}
+      const registerVideoError = (art: any) => {
+        ${videoErrorRegistration}
+      }
+      return { getVideoInfo, registerVideoError }
+    `)
+
+    const originUrl = 'https://cdn.test/video.mp4'
+    const rawM3u8Url = 'https://cdn.test/transcoded/master.m3u8?token=abc'
+    const proxiedOrigin = 'http://127.0.0.1:29384/proxy?quality=Origin'
+    const proxiedM3u8 = 'http://127.0.0.1:29384/proxy?quality=FHD'
+    const rawQualities = [
+      { quality: 'Origin', html: '原画', url: originUrl, type: '' },
+      { quality: 'FHD', html: '全高清 1080p', width: 1920, height: 1080, url: rawM3u8Url, type: '' }
+    ]
+    const setArtVideoUrl = vi.fn()
+    const cache = new Map<string, any>()
+    const controls = {
+      cache,
+      remove: vi.fn((name: string) => { cache.delete(name) }),
+      update: vi.fn((opt: any) => {
+        if (cache.has(opt.name)) cache.delete(opt.name)
+        if (Array.isArray(opt.selector)) {
+          for (const item of opt.selector) {
+            Object.defineProperty(item, '$control_option', { get: () => opt.selector })
+          }
+        }
+        cache.set(opt.name, opt)
+      })
+    }
+    const listeners = new Map<string, Array<() => void>>()
+    const art: any = {
+      controls,
+      notice: { show: '' },
+      loading: { show: false },
+      option: { url: '' },
+      on: (event: string, fn: () => void) => {
+        listeners.set(event, [...(listeners.get(event) || []), fn])
+      },
+      emit: (event: string) => {
+        for (const fn of listeners.get(event) || []) fn()
+      }
+    }
+    let uiVideoQuality = 'Origin'
+    const ports = {
+      pageVideo: { drive_id: 'aliyun', user_id: 'account', file_id: 'video', file_name: 'sample.mp4' },
+      getRawUrl: vi.fn(async () => ({ qualities: rawQualities, headers: { Cookie: 'a=1' }, size: 1024 })),
+      setArtVideoUrl,
+      useSettingStore: () => ({ uiVideoQuality }),
+      mergePlaybackHeaders: (base: any, specific: any) => ({ ...(base || {}), ...(specific || {}) }),
+      resolveHeaderAwareVideoUrl: (url: string, _headers: any, _size: number, quality: string) =>
+        quality === 'Origin' ? proxiedOrigin : proxiedM3u8,
+      GetExpiresTime: () => 0,
+      getSubTitleList: async () => {},
+      tryAutomaticSubtitleDownload: async () => {},
+      isOriginVideoQuality,
+      findOriginFallbackTranscodedQuality,
+      t: (key: string) => key,
+      captureVideoQualitySwitchPlaybackState: () => ({ shouldResume: false, position: 0 }),
+      destroyArtHls: () => {},
+      destroyArtDash: () => {},
+      destroyArtFlv: () => {},
+      scheduleCleanupInactiveStreamingControls: () => {},
+      playbackRate: 1,
+      qualitySwitchGeneration: 0,
+      resolvePreferredVideoQuality: (qualities: any[], pref: string) => qualities.find((q) => q.quality === pref) || qualities[0],
+      console: { info: vi.fn(), error: vi.fn(), warn: vi.fn() }
+    }
+    const { getVideoInfo, registerVideoError } = new Function(...Object.keys(ports), combinedScript)(...Object.values(ports))
+    registerVideoError(art)
+
+    await getVideoInfo(art)
+    expect(setArtVideoUrl).toHaveBeenLastCalledWith(art, proxiedOrigin, undefined)
+
+    art.emit('video:error')
+    expect(setArtVideoUrl).toHaveBeenLastCalledWith(art, proxiedM3u8, 'm3u8')
+
+    // Also when initial preference selects the proxied m3u8 directly without explicit type:
+    uiVideoQuality = 'FHD'
+    await getVideoInfo(art)
+    expect(setArtVideoUrl).toHaveBeenLastCalledWith(art, proxiedM3u8, 'm3u8')
   })
 
   it('aligns SettingPlay default player popover copy with settingstore default mpv', () => {

@@ -385,7 +385,12 @@ const playByFlv = (video: HTMLMediaElement, url: string, art: Artplayer) => {
 const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
   destroyArtFlv(art)
   if (HlsJs.isSupported()) {
-    if ((art as any).hls && (art as any).__hlsSourceUrl === url) return
+    if ((art as any).hls && (art as any).__hlsSourceUrl === url) {
+      if (video.readyState >= video.HAVE_CURRENT_DATA || Boolean((art as any).__hlsLoaded)) {
+        art.loading.show = false
+      }
+      return
+    }
     // @ts-ignore
     if (art.hls) art.hls.destroy()
     destroyArtDash(art)
@@ -404,6 +409,7 @@ const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
           hls.recoverMediaError()
         } else if (errorType === HlsJs.ErrorTypes.NETWORK_ERROR) {
           delete (art as any).__hlsSourceUrl
+          delete (art as any).__hlsLoaded
           if (pageVideo.expire_time && pageVideo.expire_time <= Date.now()) {
             await updateVideoTime()
             await getVideoInfo(art)
@@ -412,11 +418,13 @@ const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
           }
         } else {
           delete (art as any).__hlsSourceUrl
+          delete (art as any).__hlsLoaded
           hls.destroy()
         }
       }
     })
     hls.on(HlsJs.Events.MANIFEST_PARSED, () => {
+      if ((art as any).hls === hls) (art as any).__hlsLoaded = true
       if ((art as any).hls === hls && isHlsVideoType(art.type)) getHlsControlPlugin(art)?.update?.()
     })
     hls.on(HlsJs.Events.AUDIO_TRACKS_UPDATED, () => {
@@ -425,9 +433,11 @@ const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
     // @ts-ignore
     art.hls = hls
     ;(art as any).__hlsSourceUrl = url
+    ;(art as any).__hlsLoaded = false
     ensureHlsControlPlugin(art)
     art.on('destroy', () => {
       delete (art as any).__hlsSourceUrl
+      delete (art as any).__hlsLoaded
       hls.destroy()
     })
   } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -503,6 +513,7 @@ const resolveHeaderAwareVideoUrl = (
 
 const destroyArtHls = (art: Artplayer) => {
   delete (art as any).__hlsSourceUrl
+  delete (art as any).__hlsLoaded
   if ((art as any).hls) {
     ;(art as any).hls.detachMedia?.()
     ;(art as any).hls.destroy?.()
@@ -1318,8 +1329,9 @@ const tryFallbackOriginVideoQuality = (art: Artplayer): boolean => {
   const fallbackHeaders = mergePlaybackHeaders(ctx.data.headers, fallback.headers)
   const fallbackUrl = resolveHeaderAwareVideoUrl(fallback.url, fallbackHeaders, ctx.data.size, fallback.quality || '')
   pageVideo.expire_time = GetExpiresTime(fallback.url)
+  const fallbackArtType = getArtVideoType(fallback.url, fallback.type)
   if ((art as any).option) (art as any).option.url = fallbackUrl
-  setArtVideoUrl(art, fallbackUrl, fallback.type)
+  setArtVideoUrl(art, fallbackUrl, fallbackArtType)
   ctx.updateQualityControl?.()
   console.info('[播放][网页] 原画播放失败，自动降级为转码流', {
     quality: fallback.quality || '',
@@ -1334,6 +1346,13 @@ const initEvent = (art: Artplayer) => {
   art.on('video:error', () => {
     if (tryFallbackOriginVideoQuality(art)) return
     art.notice.show = t('video.unsupportedMediaType')
+  })
+  art.on('error', () => {
+    const ctx = (art as any).__qualityFallback
+    if (ctx?.fallbackTried && (art as any).hls && (art as any).__hlsSourceUrl === (art as any).option?.url) {
+      art.notice.show = ''
+      art.loading.show = false
+    }
   })
   art.on('ready', async () => {
     await art.play().catch()
@@ -2779,7 +2798,8 @@ const getVideoInfo = async (art: Artplayer) => {
     }
     const defaultHeaders = mergePlaybackHeaders(data.headers, defaultQuality.headers)
     const defaultUrl = resolveHeaderAwareVideoUrl(defaultQuality.url, defaultHeaders, data.size, defaultQuality.quality || '')
-    setArtVideoUrl(art, defaultUrl, defaultQuality.type)
+    const defaultArtType = defaultQuality.type || (defaultUrl !== defaultQuality.url ? getArtVideoType(defaultQuality.url, defaultQuality.type) || undefined : undefined)
+    setArtVideoUrl(art, defaultUrl, defaultArtType)
     defaultQuality.default = true
     pageVideo.expire_time = GetExpiresTime(defaultQuality.url)
     const updateQualityControl = () => {
@@ -2790,13 +2810,14 @@ const getVideoInfo = async (art: Artplayer) => {
         position: 'right',
         style: { marginRight: '15px' },
         html: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>',
-        selector: data.qualities,
+        selector: data.qualities.map((q) => ({ ...q })),
         onSelect: (selector: any, element: HTMLElement, event: Event) => {
           const item = selector as selectorItem
+          const matched = data.qualities.find((q) => q === item || (q.quality === item.quality && q.url === item.url)) || item
           for (const q of data.qualities) {
-            ;(q as selectorItem).default = q === item
+            ;(q as selectorItem).default = q === matched
           }
-          if ((art as any).__qualityFallback) (art as any).__qualityFallback.currentQuality = item
+          if ((art as any).__qualityFallback) (art as any).__qualityFallback.currentQuality = matched
           const playbackState = captureVideoQualitySwitchPlaybackState(!art.video.paused && !art.video.ended, art.video.currentTime)
           const artType = getArtVideoType(item.url, item.type)
           art.type = artType as any
