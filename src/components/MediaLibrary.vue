@@ -2535,10 +2535,15 @@ async function loadMediaServerSuggestions() {
 }
 
 const openMediaServerSearchResult = (serverId: string, item: MediaServerLibraryNode) => {
+  const route = ['boxset', 'playlist'].includes((item.rawType || '').toLowerCase())
+    ? { kind: 'library-page', libraryId: `server-container:${item.id}`, title: item.title }
+    : item.kind === 'folder'
+      ? { kind: 'library-page', libraryId: item.id, title: item.title }
+      : { kind: 'item-detail', itemId: item.id, title: item.title }
   mediaServerRegistry.setCurrentServer(serverId)
   mediaServerNavigation.goSearch(localSearchQuery.value.trim())
-  mediaServerNavigation.push({ kind: 'item-detail', itemId: item.id, title: item.title })
-  emit('mediaServerNavigate', { kind: 'item-detail', itemId: item.id, title: item.title })
+  mediaServerNavigation.push(route as any)
+  emit('mediaServerNavigate', route)
 }
 
 const resolveMediaServerSearchImage = (item: MediaServerLibraryNode) => {

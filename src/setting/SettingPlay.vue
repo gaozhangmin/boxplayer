@@ -111,14 +111,14 @@ onMounted(() => {
         <IconFont name="iconbulb" />
         <template #content>
           <div class='play-col-wide'>
-            默认：<span class='opred'>内置网页播放器</span>
+            默认：<span class='opred'>内置 MPV 播放器</span>
             <hr />
+            <span class='opred'>内置 MPV 播放器</span>：<br />
+            macOS 使用共享纹理；Windows / Linux 使用软件画面通道。仅在对应资源包可用时启用。
+            <div class='hrspace'></div>
             <span class='opred'>内置网页播放器</span>：<br />
             使用ArtPlayer网页，在线播放视频<br />
             支持 选择清晰度、倍速播放、字幕选择、画中画模式，播放加密视频
-            <div class='hrspace'></div>
-            <span class='opred'>内置 MPV 播放器</span>：<br />
-            macOS 使用共享纹理；Windows / Linux 使用软件画面通道。仅在对应资源包可用时启用。
             <div class='hrspace'></div>
             <span class='opred'>自定义播放软件</span>：<br />
             是实验性的功能，可以<span class='oporg'>自己选择</span>电脑上安装的播放软件<br />
