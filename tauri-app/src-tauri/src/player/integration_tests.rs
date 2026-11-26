@@ -1,12 +1,20 @@
 use super::*;
 use crate::gateway::tests::{fixture, gateway, media};
+
+fn test_mpv_runtime() -> PathBuf {
+    if let Some(dir) = std::env::var_os("BOXPLAYER_MPV_RUNTIME") {
+        return PathBuf::from(dir);
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos")
+}
+
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "Requires prepared libmpv runtime; run explicitly for M2 media acceptance"]
 async fn libmpv_decodes_header_authenticated_http_after_403_and_loads_separate_subtitle() {
     configure_vulkan();
     let fixture = fixture().await;
     let gateway = gateway(&fixture);
-    let runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos");
+    let runtime = test_mpv_runtime();
     let url = gateway
         .register(media(&fixture.base, "/expired"))
         .await
@@ -60,7 +68,7 @@ async fn libmpv_decodes_header_authenticated_http_after_403_and_loads_separate_s
 #[test]
 #[ignore = "Requires prepared libmpv runtime and local HDR sample directory"]
 fn libmpv_reads_hdr10_and_dolby_vision_sample_metadata() {
-    let runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos");
+    let runtime = test_mpv_runtime();
     let samples = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../testVideo");
     for name in [
         "Test Jellyfin 1080p AV1 HDR10 3M.mp4",
@@ -96,7 +104,7 @@ fn libmpv_reads_hdr10_and_dolby_vision_sample_metadata() {
 #[test]
 #[ignore = "Requires prepared libmpv runtime and testVideo fixtures"]
 fn libmpv_hdr_options_restore_when_switching_back_to_sdr() {
-    let runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos");
+    let runtime = test_mpv_runtime();
     let samples = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../testVideo");
     let mut mpv = ffi::Mpv::new(&runtime, None).unwrap();
     let baseline_hint = mpv.string("target-colorspace-hint").unwrap();
@@ -151,7 +159,7 @@ fn libmpv_hdr_options_restore_when_switching_back_to_sdr() {
 #[ignore = "Requires prepared libmpv runtime; exercises authenticated nested HLS proxy playback"]
 async fn libmpv_decodes_authenticated_nested_hls_without_exposing_segment_credentials() {
     configure_vulkan();
-    let runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos");
+    let runtime = test_mpv_runtime();
     let temporary = tempfile::tempdir().unwrap();
     let segment = temporary.path().join("segment.ts");
     let sample = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../e2e/assets/mpv-sample.mp4");
@@ -184,7 +192,7 @@ async fn libmpv_decodes_authenticated_nested_hls_without_exposing_segment_creden
         .headers
         .insert("X-Emby-Token".into(), "synthetic-hls".into());
     let url = gateway.register(source).await.unwrap();
-    let runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos");
+    let runtime = test_mpv_runtime();
     let mut mpv = ffi::Mpv::new(&runtime, None).unwrap();
     mpv.command(&["loadfile", &url]).unwrap();
     let deadline = Instant::now() + Duration::from_secs(15);

@@ -1,0 +1,173 @@
+name: Tauri Cross-OS UI & Playback QA
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_playback_tests:
+        description: Run headless libmpv playback integration tests
+        required: false
+        default: true
+        type: boolean
+  pull_request:
+    branches:
+      - codex/dev-tauri
+      - 'fleet/**'
+    paths:
+      - 'tauri-app/**'
+      - '.github/workflows/tauri-qa.yml'
+
+jobs:
+  tauri-qa:
+    name: Tauri QA (${{ matrix.os_id }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_id: windows
+            runner: windows-2025
+          - os_id: linux
+            runner: ubuntu-24.04
+          - os_id: macos
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.32.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+          cache-dependency-path: tauri-app/pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri-app/src-tauri
+
+      - name: Install Linux Tauri, libmpv, and ffmpeg dependencies
+        if: matrix.os_id == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libmpv-dev \
+            libmpv2 \
+            ffmpeg
+          MPV_LIB_PATH="$(ldconfig -p | awk '/libmpv\.so\.2/{print $NF; exit}')"
+          if [ -z "$MPV_LIB_PATH" ] || [ ! -f "$MPV_LIB_PATH" ]; then
+            echo "libmpv.so.2 not found after apt-get install" >&2
+            exit 1
+          fi
+          MPV_DIR="$(dirname "$MPV_LIB_PATH")"
+          echo "BOXPLAYER_MPV_RUNTIME=$MPV_DIR" >> "$GITHUB_ENV"
+
+      - name: Install macOS libmpv and ffmpeg dependencies
+        if: matrix.os_id == 'macos'
+        shell: bash
+        run: |
+          brew install mpv ffmpeg
+          MPV_DIR="$(brew --prefix mpv)/lib"
+          if [ ! -f "$MPV_DIR/libmpv.dylib" ]; then
+            echo "libmpv.dylib not found at $MPV_DIR" >&2
+            exit 1
+          fi
+          echo "BOXPLAYER_MPV_RUNTIME=$MPV_DIR" >> "$GITHUB_ENV"
+
+      - name: Setup MSYS2 libmpv and ffmpeg on Windows
+        if: matrix.os_id == 'windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            mingw-w64-clang-x86_64-mpv
+            mingw-w64-clang-x86_64-ffmpeg
+
+      - name: Configure Windows libmpv and ffmpeg environment
+        if: matrix.os_id == 'windows'
+        shell: pwsh
+        run: |
+          $bin = "C:\msys64\clang64\bin"
+          if (-not (Test-Path "$bin\libmpv-2.dll")) {
+            Write-Error "libmpv-2.dll not found in $bin"
+            exit 1
+          }
+          if (-not (Test-Path "$bin\ffmpeg.exe")) {
+            Write-Error "ffmpeg.exe not found in $bin"
+            exit 1
+          }
+          "$bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "BOXPLAYER_MPV_RUNTIME=$bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "BOXPLAYER_FFMPEG=$bin\ffmpeg.exe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install Tauri frontend dependencies and verify build
+        working-directory: tauri-app
+        run: |
+          pnpm --ignore-workspace install --frozen-lockfile
+          pnpm typecheck
+          pnpm test
+          pnpm build
+          node scripts/check-soia-upstream.mjs
+
+      - name: Install temporary Playwright runner (no lockfile changes)
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/pw-runner"
+          cd "${RUNNER_TEMP}/pw-runner"
+          npm init -y >/dev/null 2>&1
+          npm install --no-audit --no-fund playwright
+          npx playwright install chromium
+
+      - name: Install Linux Chromium system dependencies
+        if: matrix.os_id == 'linux'
+        shell: bash
+        run: |
+          cd "${RUNNER_TEMP}/pw-runner"
+          sudo npx playwright install-deps chromium
+
+      - name: Run Tauri UI render & screenshot smoke
+        working-directory: tauri-app
+        env:
+          PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/pw-runner/node_modules/playwright
+          BOXPLAYER_UI_OUT_DIR: ${{ runner.temp }}/tauri-ui-screenshots
+        run: node scripts/ci-ui-smoke.mjs
+
+      - name: Upload Tauri UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-ui-screenshots-${{ matrix.os_id }}
+          path: ${{ runner.temp }}/tauri-ui-screenshots
+          if-no-files-found: error
+
+      - name: Rust check and unit tests
+        working-directory: tauri-app
+        run: |
+          cargo check --manifest-path src-tauri/Cargo.toml
+          cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Run headless libmpv playback integration tests
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_playback_tests }}
+        working-directory: tauri-app
+        run: |
+          cargo test --locked --manifest-path src-tauri/Cargo.toml player::integration_tests::libmpv_decodes_header_authenticated_http_after_403_and_loads_separate_subtitle -- --ignored --nocapture
+          cargo test --locked --manifest-path src-tauri/Cargo.toml player::integration_tests::libmpv_decodes_authenticated_nested_hls_without_exposing_segment_credentials -- --ignored --nocapture
+          cargo test --locked --manifest-path src-tauri/Cargo.toml player::hls_fmp4_test::authenticated_fmp4_initialization_segments_reload_and_resume -- --ignored --nocapture

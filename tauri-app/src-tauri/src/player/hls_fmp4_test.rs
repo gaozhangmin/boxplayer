@@ -7,6 +7,25 @@ use axum::{
     Router,
 };
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+fn test_mpv_runtime() -> PathBuf {
+    if let Some(dir) = std::env::var_os("BOXPLAYER_MPV_RUNTIME") {
+        return PathBuf::from(dir);
+    }
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos")
+}
+
+fn test_ffmpeg_bin() -> PathBuf {
+    if let Some(bin) = std::env::var_os("BOXPLAYER_FFMPEG") {
+        return PathBuf::from(bin);
+    }
+    let frame_ffmpeg = PathBuf::from("/Applications/Frame Player.app/Contents/Resources/ffmpeg");
+    if frame_ffmpeg.is_file() {
+        return frame_ffmpeg;
+    }
+    PathBuf::from("ffmpeg")
+}
+
 #[derive(Clone)]
 struct Files {
     directory: PathBuf,
@@ -57,7 +76,7 @@ async fn authenticated_fmp4_initialization_segments_reload_and_resume() {
     let temporary = tempfile::tempdir().unwrap();
     let sample = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../e2e/assets/mpv-sample.mp4");
     let status =
-        std::process::Command::new("/Applications/Frame Player.app/Contents/Resources/ffmpeg")
+        std::process::Command::new(test_ffmpeg_bin())
             .args(["-v", "error", "-i"])
             .arg(sample)
             .args([
@@ -103,7 +122,7 @@ async fn authenticated_fmp4_initialization_segments_reload_and_resume() {
         .headers
         .insert("X-Emby-Token".into(), "synthetic-fmp4".into());
     let local = gateway.register(media).await.unwrap();
-    let runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos");
+    let runtime = test_mpv_runtime();
     let mut mpv = ffi::Mpv::new(&runtime, None).unwrap();
     mpv.command(&["loadfile", &local]).unwrap();
     wait_loaded(&mut mpv).await;
