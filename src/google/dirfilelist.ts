@@ -185,7 +185,7 @@ export const mapGoogleFileToAliModel = (item: GoogleDriveFile, driveId: string, 
   const time = new Date(item.modifiedTime || item.createdTime || '').getTime() || 0
   const iconInfo = isDir ? ['', 'iconfile-folder'] : getFileIcon('', ext, ext, '', size)
   return {
-    __v_skip: true, drive_id: driveId, file_id: fileId, parent_file_id: parentId, name, namesearch: HanToPin(name), ext, mime_type: mimeType, mime_extension: ext, category: isDir ? '' : iconInfo[0], icon: iconInfo[1], file_count: 0, size, sizeStr: humanSize(size), time, timeStr: time ? humanDateTimeDateStr(new Date(time).toISOString()) : '', starred: false, isDir, thumbnail: item.thumbnailLink || '', description: item.webContentLink ? `google_download:${encodeURIComponent(item.webContentLink)}` : '', content_hash: item.md5Checksum || '', created_at: item.createdTime || '', updated_at: item.modifiedTime || item.createdTime || '', type: isDir ? 'folder' : 'file'
+    __v_skip: true, drive_id: driveId, file_id: fileId, parent_file_id: parentId, name, namesearch: HanToPin(name), ext, mime_type: mimeType, mime_extension: ext, category: isDir ? '' : iconInfo[0], icon: iconInfo[1], file_count: 0, size, sizeStr: humanSize(size), time, timeStr: time ? humanDateTimeDateStr(new Date(time).toISOString()) : '', starred: false, isDir, thumbnail: item.thumbnailLink || '', description: item.webContentLink ? `google_download:${encodeURIComponent(item.webContentLink)}` : '', content_hash: item.md5Checksum || '', content_hash_name: item.md5Checksum ? 'md5' : '', created_at: item.createdTime || '', updated_at: item.modifiedTime || item.createdTime || '', type: isDir ? 'folder' : 'file'
   } as any
 }
 

@@ -108,6 +108,7 @@ export class MediaScanner {
 
     // 断点恢复只服务于用户主动发起的完整刮削。Agent 的静默扫描由任务
     // 自身负责重试，不能让视频页把正在运行的后台扫描识别成异常中断。
+    this.tmdbService.beginScanCache?.()
     try {
       const scanContext = await this.resolveScanContext(folder, driveServerId)
       scanContext.silent = !!options.silent
@@ -207,6 +208,7 @@ export class MediaScanner {
       // 只能等下次启动的自动扫描补齐媒体库。
       if (options.silent) throw error
     } finally {
+      this.tmdbService.endScanCache?.()
       this.isScanning = false
       this.mediaStore.setScanning(false)
       this.mediaStore.endPersistenceBatch()
@@ -428,6 +430,7 @@ export class MediaScanner {
     let sourceWasExisting = false
     let previousFileIds: string[] = []
 
+    this.tmdbService.beginScanCache?.()
     try {
       sourceId = `local_${folderPath}`
       const existingFolder = this.mediaStore.folders.find(source => source.id === sourceId)
@@ -514,6 +517,7 @@ export class MediaScanner {
       }
       message.error('扫描失败: ' + (error as Error).message)
     } finally {
+      this.tmdbService.endScanCache?.()
       this.isScanning = false
       this.mediaStore.setScanning(false)
       this.mediaStore.endPersistenceBatch()
@@ -1288,7 +1292,10 @@ export class MediaScanner {
           : r.candidate ? 'candidate_rejected' : 'no_candidate'
         this.addUnmatchedMediaItem(r.file.driveFile, folderName, folderId, 'ai_no_match', aiOutcome, r.candidate || undefined)
       } else if (r.error) {
-        if (r.file.driveFile) this.addRetryPendingMediaItem(r.file.driveFile, folderName, folderId)
+        if (r.file.driveFile) {
+          if (r.retryable !== false) this.addRetryPendingMediaItem(r.file.driveFile, folderName, folderId)
+          else this.addUnmatchedMediaItem(r.file.driveFile, folderName, folderId, 'ai_no_match', 'candidate_rejected')
+        }
         console.warn(`AI/TMDB 临时失败，将在下次扫描重试: ${r.file.name}`, r.error)
       }
     }

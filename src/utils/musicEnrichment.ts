@@ -33,6 +33,16 @@ export async function enrichMusicLibrary(maxItems = 60): Promise<number> {
       const group = cohorts.get(key) || []
       group.push(repaired); cohorts.set(key, group)
     }
+    const normalize = (s = '') => s.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+    const albumKey = (t: IMusicTrack) => t.album && (t.album_artist || t.artist) ? `${normalize(t.album)}|${normalize(t.album_artist || t.artist)}` : ''
+    const library = await DB.imusic_track.toArray()
+    const covers = new Map<string, Set<string>>()
+    for (const track of library) {
+      const album = albumKey(track)
+      if (!album || !track.cover_url) continue
+      const values = covers.get(album) || new Set<string>()
+      values.add(track.cover_url); covers.set(album, values)
+    }
     for (const cohort of cohorts.values()) {
       while (cohort.length && !stopRequested) {
         const count = cohort.length > 12 && cohort.length % 12 === 1 ? 11 : Math.min(12, cohort.length)
@@ -63,19 +73,15 @@ export async function enrichMusicLibrary(maxItems = 60): Promise<number> {
         }
         if (stopRequested) break
         const updated = batch.map((track, index) => ({ ...track, ...applyMusicCatalogMatch(track, matches.find(m => m.id === String(index))), enriched_at: Date.now(), metadata_retry_at: transportFailed || retryable.has(String(index)) ? Date.now() + retryDelay : !matches.some(m => m.id === String(index) && m.confidence >= 0.88) ? Date.now() + 3600000 : undefined, metadata_version: MUSIC_METADATA_VERSION }))
-        const library = await DB.imusic_track.toArray()
-        const normalize = (s = '') => s.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
-        const key = (t: IMusicTrack) => t.album && (t.album_artist || t.artist) ? `${normalize(t.album)}|${normalize(t.album_artist || t.artist)}` : ''
-        const covers = new Map<string, Set<string>>()
-        const updatedIDs = new Set(updated.map(t => t.id))
-        for (const track of [...library.filter(t => !updatedIDs.has(t.id)), ...updated]) {
-          const album = key(track)
-          if (!album || !track.cover_url) continue
-          const values = covers.get(album) || new Set<string>()
-          values.add(track.cover_url); covers.set(album, values)
+        for (const track of updated) {
+          const album = albumKey(track)
+          if (album && track.cover_url) {
+            const values = covers.get(album) || new Set<string>()
+            values.add(track.cover_url); covers.set(album, values)
+          }
         }
         for (const track of updated) {
-          const artwork = covers.get(key(track))
+          const artwork = covers.get(albumKey(track))
           if (!track.cover_url && artwork?.size === 1 && [...artwork][0] !== track.artwork_failed_url) { track.cover_url = [...artwork][0]; track.artwork_origin = 'album' }
           if (!track.cover_url && track.artwork_failed_url && Date.now() - (track.artwork_failed_at || 0) < 300000) track.metadata_retry_at = (track.artwork_failed_at || Date.now()) + 300000
           await store.updateTrackEnrichment(track.id, track)

@@ -506,7 +506,8 @@ export const listWebDavDirectory = async (
         isDir: !!item.is_dir,
         thumbnail: item.thumb ? new URL(item.thumb, getApiBaseUrl(config)).toString() : '',
         description: item.hash_info?.md5 ? `md5:${item.hash_info.md5}` : '',
-        content_hash: item.hash_info?.md5 || ''
+        content_hash: item.hash_info?.md5 || '',
+        content_hash_name: item.hash_info?.md5 ? 'md5' : ''
       } as IAliGetFileModel
     })
   }

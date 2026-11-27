@@ -24,22 +24,30 @@ export class TmdbTransientError extends Error {
 }
 
 async function fetchWithRetry(url: string, retries = 3, delayMs = 2000, timeoutMs = TMDB_REQUEST_TIMEOUT_MS, consume?: (response: Response) => Promise<void>): Promise<Response> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    for (let attempt = 0; attempt <= retries; attempt++) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    let respOk = false
+    try {
       let resp: Response
       try {
         resp = await fetch(url, { signal: controller.signal })
       } catch (error) {
-        if (controller.signal.aborted) throw new Error(`TMDB fetch timed out after ${timeoutMs}ms`)
+        if (controller.signal.aborted) {
+          if (attempt < retries) {
+            await waitForRetry(delayMs * Math.pow(2, attempt))
+            continue
+          }
+          throw new Error(`TMDB fetch timed out after ${timeoutMs}ms`)
+        }
         if (attempt < retries) {
-          await waitForRetry(delayMs * Math.pow(2, attempt), controller.signal)
+          await waitForRetry(delayMs * Math.pow(2, attempt))
           continue
         }
         throw error
       }
       if (resp.ok) {
+        respOk = true
         // Keep the deadline active while the body is read, not just until headers.
         if (consume) await consume(resp)
         return resp
@@ -48,16 +56,21 @@ async function fetchWithRetry(url: string, retries = 3, delayMs = 2000, timeoutM
       const retryable = resp.status === 408 || resp.status === 429 || resp.status === 500 || resp.status === 502 || resp.status === 503 || resp.status === 504
       if (retryable && attempt < retries) {
         const fallbackDelay = delayMs * Math.pow(2, attempt)
-        await waitForRetry(getRetryDelayMs(resp, fallbackDelay), controller.signal)
+        await waitForRetry(getRetryDelayMs(resp, fallbackDelay))
         continue
       }
       throw new Error(`TMDB fetch failed: ${resp.status}`)
+    } catch (error) {
+      if (controller.signal.aborted && respOk) throw new Error(`TMDB fetch timed out after ${timeoutMs}ms`)
+      if (attempt >= retries || (error instanceof Error && error.message.startsWith('TMDB fetch failed:'))) throw error
+      if (controller.signal.aborted) {
+        await waitForRetry(delayMs * Math.pow(2, attempt))
+        continue
+      }
+      throw error
+    } finally {
+      clearTimeout(timer)
     }
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error(`TMDB fetch timed out after ${timeoutMs}ms`)
-    throw error
-  } finally {
-    clearTimeout(timer)
   }
   throw new Error(`TMDB fetch failed after ${retries} retries`)
 }
@@ -75,17 +88,17 @@ function getRetryDelayMs(response: Response, fallbackDelayMs: number): number {
     : fallbackDelayMs
 }
 
-function waitForRetry(delayMs: number, signal: AbortSignal): Promise<void> {
+function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(done, delayMs)
     const abort = () => done(new Error('TMDB fetch aborted'))
     function done(error?: Error) {
       clearTimeout(timer)
-      signal.removeEventListener('abort', abort)
+      signal?.removeEventListener('abort', abort)
       if (error) reject(error)
       else resolve()
     }
-    signal.addEventListener('abort', abort, { once: true })
+    signal?.addEventListener('abort', abort, { once: true })
   })
 }
 
@@ -140,6 +153,18 @@ export function getLibraryRankings(): Promise<LibraryRankings> {
 
 export class TmdbService {
   private readonly networkRequests = new Map<number, Promise<import('../types/media').Network[] | undefined>>()
+  private readonly certificationRequests = new Map<string, Promise<string | undefined>>()
+  private readonly scanTvRequests = new Map<string, Promise<MediaLibraryTvSeriesItem | null>>()
+  private scanCacheDepth = 0
+
+  beginScanCache(): void {
+    this.scanCacheDepth++
+  }
+
+  endScanCache(): void {
+    if (this.scanCacheDepth > 0) this.scanCacheDepth--
+    if (this.scanCacheDepth === 0) this.scanTvRequests.clear()
+  }
 
   private async supplementNetworks(item: MediaLibraryTvSeriesItem | null): Promise<void> {
     const tv = item?.tv
@@ -171,12 +196,23 @@ export class TmdbService {
     const metadata = tv ? (item as MediaLibraryTvSeriesItem).tv : item as MovieItem
     metadata.certification = tmdbCertification(metadata, tv)
     if (metadata.certification || !metadata.id) return
-    try {
-      const endpoint = tv ? `tv/${metadata.id}/content_ratings` : `movie/${metadata.id}/release_dates`
-      const response = await fetchWithRetry(`${TMDB_BASE_URL_PROXY}/${endpoint}`, 0, 0, 10000)
-      const payload = await response.json()
-      metadata.certification = tmdbCertification({ [tv ? 'content_ratings' : 'release_dates']: payload.data ?? payload }, tv)
-    } catch { /* Optional metadata must not invalidate a successful match. */ }
+    const key = `${tv ? 'tv' : 'movie'}:${metadata.id}`
+    let request = this.certificationRequests.get(key)
+    if (!request) {
+      request = (async () => {
+        try {
+          const endpoint = tv ? `tv/${metadata.id}/content_ratings` : `movie/${metadata.id}/release_dates`
+          const response = await fetchWithRetry(`${TMDB_BASE_URL_PROXY}/${endpoint}`, 0, 0, 10000)
+          const payload = await response.json()
+          return tmdbCertification({ [tv ? 'content_ratings' : 'release_dates']: payload.data ?? payload }, tv) || undefined
+        } catch { return undefined } /* Optional metadata must not invalidate a successful match. */
+      })()
+      this.certificationRequests.set(key, request)
+      void request.then(() => {
+        if (this.certificationRequests.size > 512) this.certificationRequests.delete(this.certificationRequests.keys().next().value!)
+      })
+    }
+    metadata.certification = await request
   }
   private static instance: TmdbService
   
@@ -246,7 +282,7 @@ export class TmdbService {
       const params = new URLSearchParams({ id: String(tmdbId), season: String(season), language: 'zh-CN', append_to_response: 'content_ratings' })
       const response = await fetchWithRetry(`${TMDB_BASE_URL}/tv/id?${params}`)
       const data: TvSeriesItemResponse = await response.json()
-      const item = data.data || null
+      const item = unwrapTmdbResponse(data)
       await Promise.all([this.supplementCertification(item, true), this.supplementNetworks(item)])
       return item
     } catch (error) {
@@ -263,39 +299,60 @@ export class TmdbService {
     fingerprint?: TmdbFingerprintInput,
     fileName?: string
   ): Promise<MediaLibraryTvSeriesItem | null> {
-    try {
-      const params = new URLSearchParams({
-        language: 'zh-CN',
-        season: season.toString(),
-        append_to_response: 'content_ratings'
-      })
+    const performSearch = async (): Promise<MediaLibraryTvSeriesItem | null> => {
+      try {
+        const params = new URLSearchParams({
+          language: 'zh-CN',
+          season: season.toString(),
+          append_to_response: 'content_ratings'
+        })
 
-      if (tmdbId) {
-        params.append('tmdbId', tmdbId)
-      } else {
-        params.append('title', queryName)
-      }
+        if (tmdbId) {
+          params.append('tmdbId', tmdbId)
+        } else {
+          params.append('title', queryName)
+        }
 
-      if (year) {
-        params.append('year', year)
-      }
-      appendFingerprint(params, fingerprint)
-      if (fileName) {
-        params.append('fileName', fileName)
-      }
+        if (year) {
+          params.append('year', year)
+        }
+        appendFingerprint(params, fingerprint)
+        if (fileName) {
+          params.append('fileName', fileName)
+        }
 
-      let data!: TvSeriesItemResponse
-      await fetchWithRetry(`${TMDB_BASE_URL}/tv?${params}`, 3, 2000, TMDB_REQUEST_TIMEOUT_MS, async response => {
-        data = await response.json()
-      })
-      const item = unwrapTmdbResponse(data)
-      await Promise.all([this.supplementCertification(item, true), this.supplementNetworks(item)])
-      return item
-    } catch (error) {
-      console.error('Error searching TV show:', error)
-      if (error instanceof TmdbTransientError) throw error
-      throw new TmdbTransientError(error instanceof Error ? error.message : 'TMDB 查询失败')
+        let data!: TvSeriesItemResponse
+        await fetchWithRetry(`${TMDB_BASE_URL}/tv?${params}`, 3, 2000, TMDB_REQUEST_TIMEOUT_MS, async response => {
+          data = await response.json()
+        })
+        const item = unwrapTmdbResponse(data)
+        await Promise.all([this.supplementCertification(item, true), this.supplementNetworks(item)])
+        return item
+      } catch (error) {
+        console.error('Error searching TV show:', error)
+        if (error instanceof TmdbTransientError) throw error
+        throw new TmdbTransientError(error instanceof Error ? error.message : 'TMDB 查询失败')
+      }
     }
+
+    if (this.scanCacheDepth > 0) {
+      const normalizedTitle = queryName.trim().toLowerCase()
+      const key = `tv|zh-CN|${tmdbId ? `id:${tmdbId}` : `title:${normalizedTitle}`}|s${season}|y${year || ''}`
+      let request = this.scanTvRequests.get(key)
+      if (!request) {
+        request = performSearch().catch(error => {
+          this.scanTvRequests.delete(key)
+          throw error
+        })
+        this.scanTvRequests.set(key, request)
+        if (this.scanTvRequests.size > 256) {
+          this.scanTvRequests.delete(this.scanTvRequests.keys().next().value!)
+        }
+      }
+      return request
+    }
+
+    return performSearch()
   }
 
 

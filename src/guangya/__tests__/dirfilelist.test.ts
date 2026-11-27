@@ -75,6 +75,44 @@ describe('Guangya dirfilelist helpers', () => {
     expect(saveWarning).toHaveBeenCalledWith('光鸭云盘接口错误 /nd.bizuserres.s/v1/get_res_center_token code 112 参数错误')
   })
 
+  it('falls back to Guangya VOD streaming URL when web non-VIP size limit (code 254) triggers', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 254, msg: '网页端非会员下载文件大小超过限制' })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 0, data: { fileInfo: { gcid: 'GCID999', fileSize: 69691501113, fileName: 'matrix.mkv' } } })
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ code: 0, data: { signedURL: 'https://vod.guangyacdn.com/stream.m3u8' } })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await helpers.apiGuangyaDownloadInfo('guangya-user', 'file-big')
+    expect(result).toEqual({
+      url: 'https://vod.guangyacdn.com/stream.m3u8',
+      size: 69691501113,
+      name: 'matrix.mkv',
+      error: ''
+    })
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://api.guangyapan.com/userres/v1/file/get_file_detail',
+      expect.objectContaining({ body: JSON.stringify({ fileId: 'file-big' }) })
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'https://api.guangyapan.com/userres/v1/file/get_vod_download_url',
+      expect.objectContaining({ body: JSON.stringify({ fileId: 'file-big', gcid: 'GCID999' }) })
+    )
+  })
+
   it('maps Guangya files into the shared cloud file model with hashes', () => {
     const model = helpers.mapGuangyaFileToAliModel({
       fileId: 'file-id',

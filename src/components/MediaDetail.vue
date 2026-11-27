@@ -371,9 +371,40 @@ const inferSubtitleLanguage = (name: string) => {
   return '未知'
 }
 
+const CLOUD_DRIVE_LABELS: Record<string, string> = {
+  local: '本地媒体库',
+  aliyun: '阿里云盘',
+  'alipan-open': '阿里云盘',
+  alipan: '阿里云盘',
+  '115': '115 网盘',
+  '123': '123 云盘',
+  baidu: '百度网盘',
+  quark: '夸克网盘',
+  pikpak: 'PikPak',
+  dropbox: 'Dropbox',
+  onedrive: 'OneDrive',
+  google: 'Google Drive',
+  box: 'Box',
+  '139': '中国移动云盘',
+  '189': '天翼云盘',
+  guangya: '光鸭云盘',
+  webdav: 'WebDAV',
+  alist: 'AList',
+  smb: 'SMB',
+  nfs: 'NFS',
+  ftp: 'FTP',
+  emby: 'Emby',
+  jellyfin: 'Jellyfin',
+  plex: 'Plex'
+}
+
 const cloudDriveLabel = (file: DriveFileItem) => {
+  const cloudType = String(file.cloudType || '').trim().toLowerCase()
+  if (cloudType && CLOUD_DRIVE_LABELS[cloudType]) return CLOUD_DRIVE_LABELS[cloudType]
   const drive = [file.driveServerId, file.driveId, file.cloudType].filter(Boolean).join(' ').toLowerCase()
   if (drive.includes('local')) return '本地媒体库'
+  if (drive.includes('guangya')) return '光鸭云盘'
+  if (drive.includes('google')) return 'Google Drive'
   if (drive.includes('115')) return '115 网盘'
   if (drive.includes('123')) return '123 云盘'
   if (drive.includes('baidu')) return '百度网盘'

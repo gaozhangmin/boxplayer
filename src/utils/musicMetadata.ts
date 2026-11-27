@@ -206,6 +206,7 @@ export async function fetchMusicMetadata(q: MetaQuery): Promise<MusicMetadata> {
   const pending = (async () => {
     const data: MusicMetadata = { title, artist, album, cover: q.coverHint || '', lrc: q.lyricHint || '', lines: [], metadataSources: [q.sourceHint || 'filename'] }
     const api = Config.BOXPLAYER_API_URL.replace(/\/+$/, '')
+    let hadTransientMetadataError = false
     if (title && artist) {
       try {
         const response = await axios.post(`${api}/api/music/metadata`, { tracks: [{ id: 'playback', title, artist, album: album || undefined }] }, { timeout: 45000 })
@@ -217,18 +218,23 @@ export async function fetchMusicMetadata(q: MetaQuery): Promise<MusicMetadata> {
           data.metadataSources!.push(`${match.provider}:metadata`)
         } else if (response.data.retryableFailureIDs?.includes('playback')) throw new MusicMetadataTransientError('Music catalog temporarily unavailable')
       } catch (error) {
-        if (q.includeLyrics === false && (error instanceof MusicMetadataTransientError || isTransientMetadataRequestError(error))) throw new MusicMetadataTransientError('Music catalog temporarily unavailable')
+        const transient = error instanceof MusicMetadataTransientError || isTransientMetadataRequestError(error)
+        if (transient) hadTransientMetadataError = true
+        if (q.includeLyrics === false && transient) throw new MusicMetadataTransientError('Music catalog temporarily unavailable')
       }
       if (q.includeLyrics !== false && !data.lrc) {
         try {
           const response = await axios.post(`${api}/api/music/lyrics`, { title: data.title, artist: data.artist, album: data.album, durationSec: q.durationSec }, { timeout: 12000 })
           data.lrc = typeof response.data?.lyrics === 'string' ? response.data.lyrics : ''
           if (data.lrc) data.metadataSources!.push(`${response.data.provider}:lyrics`)
-        } catch { /* Retain usable metadata; lyrics can retry on a later playback. */ }
+        } catch {
+          hadTransientMetadataError = true
+          /* Retain usable metadata; lyrics can retry on a later playback. */
+        }
       }
     }
     data.lines = parseLrc(data.lrc, q.durationSec)
-    memCache.set(key, { ts: Date.now(), data })
+    if (!hadTransientMetadataError) memCache.set(key, { ts: Date.now(), data })
     return data
   })().finally(() => inflight.delete(key))
   inflight.set(key, pending)

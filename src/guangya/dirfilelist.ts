@@ -39,7 +39,13 @@ export const guangyaRequest = async (user_id: string, endpoint: string, body: an
   }
   let { resp, data } = await request(token)
   const code = Number(data?.code)
-  const authFailed = resp.status === 401 || code === 401 || /access\s*token.*(?:invalid|expired)|accessToken.*(?:无效|过期)/i.test(String(data?.message || data?.msg || data?.error || ''))
+  const authFailed =
+    resp.status === 401 ||
+    code === 401 ||
+    code === 110 ||
+    code === 117 ||
+    code === 118 ||
+    /access\s*token.*(?:invalid|expired)|accessToken.*(?:无效|过期)/i.test(String(data?.message || data?.msg || data?.error || ''))
   if (authFailed && token.refresh_token) {
     const refreshed = await UserDAL.EnsureUserTokenReady(user_id, true)
     if (refreshed?.access_token) {
@@ -169,7 +175,31 @@ export const getGuangyaDownloadUrlFromResponse = (data: any): string => {
 
 export const apiGuangyaDownloadInfo = async (user_id: string, fileId: string): Promise<{ url: string; size: number; name: string; error: string }> => {
   try {
-    const data = await guangyaRequest(user_id, '/nd.bizuserres.s/v1/get_res_download_url', { fileId })
+    const data = await guangyaRequest(user_id, '/nd.bizuserres.s/v1/get_res_download_url', { fileId }, 'POST', [254])
+    if (Number(data?.code) === 254) {
+      try {
+        const detail = await guangyaRequest(user_id, '/userres/v1/file/get_file_detail', { fileId })
+        const body = detail?.data || detail || {}
+        const info = body.fileInfo || body.file || body.fileDetail || body
+        const gcid = String(info?.gcid || body?.gcid || '').trim()
+        if (gcid) {
+          const vod = await guangyaRequest(user_id, '/userres/v1/file/get_vod_download_url', { fileId, gcid })
+          const vodUrl = getGuangyaDownloadUrlFromResponse(vod)
+          if (vodUrl) {
+            return {
+              url: vodUrl,
+              size: Number(info?.fileSize || info?.size || 0),
+              name: info?.fileName || info?.name || '',
+              error: ''
+            }
+          }
+        }
+      } catch {
+        // Fall through to surface the original code 254 message.
+      }
+      const detailMsg = String(data?.message || data?.msg || '').trim()
+      return { url: '', size: 0, name: '', error: detailMsg ? `光鸭云盘请求失败 code 254: ${detailMsg}` : '光鸭云盘请求失败 code 254' }
+    }
     const info = data?.data || data || {}
     const url = getGuangyaDownloadUrlFromResponse(data)
     return { url, size: Number(info.size || 0), name: info.name || info.fileName || '', error: url ? '' : '光鸭云盘未返回下载链接' }

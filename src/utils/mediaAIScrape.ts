@@ -363,6 +363,7 @@ export interface BatchScrapeResult {
   decision?: MediaAIScrapeDecision | null
   mediaItem?: MediaLibraryItem | null
   error?: string
+  retryable?: boolean
 }
 
 export async function batchScrapeMediaWithAI(files: BatchScrapeFileInfo[], folderName: string, folderId?: string): Promise<BatchScrapeResult[]> {
@@ -385,7 +386,7 @@ export async function batchScrapeMediaWithAI(files: BatchScrapeFileInfo[], folde
     const now = new Date()
 
     const results = await mapWithConcurrency(files, 3, async (file, i): Promise<BatchScrapeResult> => {
-      if (batch.errors[i]) return { file, error: batch.errors[i] }
+      if (batch.errors[i]) return { file, error: batch.errors[i], retryable: batch.retryables[i] }
       const decision = batch.decisions[i]
       const candidate = batch.candidates[i]
       if (!decision || decision.type === 'unknown') {
@@ -408,7 +409,7 @@ export async function batchScrapeMediaWithAI(files: BatchScrapeFileInfo[], folde
         }
         return { file, candidate, decision, mediaItem }
       } catch (e: any) {
-        return { file, candidate, decision, error: e?.message || 'TMDB 查询失败' }
+        return { file, candidate, decision, error: e?.message || 'TMDB 查询失败', retryable: true }
       }
     })
     return results
@@ -419,14 +420,19 @@ export async function batchScrapeMediaWithAI(files: BatchScrapeFileInfo[], folde
   }
 }
 
+function buildScrapeContext(...parts: Array<string | undefined | null>): string | null {
+  const joined = parts.map(part => (part || '').trim()).filter(Boolean).join('\n')
+  return joined ? joined.slice(-2000) : null
+}
+
 async function scrapeSingleMediaWithBoxPlayerCloud(input: MediaAIScrapeInput, timeoutMs: number): Promise<MediaAIScrapeDecision> {
   const file = input.file || input.item?.driveFiles?.[0]
   if (!file) throw new Error('没有可供刮削的视频文件')
   const id = `0:${crypto.randomUUID()}`
   const results = await scrapeMediaWithAbortTimeout([{
     id,
-    filename: file.name,
-    context: [input.folderName || input.item?.folderPath || input.folderContext?.join(' | ') || '', file.path].filter(Boolean).join('\n') || null
+    filename: file.name.slice(0, 1000),
+    context: buildScrapeContext(input.folderName || input.item?.folderPath || input.folderContext?.join(' | '), file.path)
   }], timeoutMs)
   const result = results[0]
   if (!result || result.idx !== 0 || result.id !== id) throw new Error('AI 刮削返回的文件关联无效')
@@ -436,10 +442,26 @@ async function scrapeSingleMediaWithBoxPlayerCloud(input: MediaAIScrapeInput, ti
   return normalized.decision
 }
 
-async function scrapeBatchMediaWithBoxPlayerCloud(files: BatchScrapeFileInfo[], folderName: string, signal?: AbortSignal): Promise<{ decisions: Array<MediaAIScrapeDecision | null>, candidates: Array<MediaAIScrapeDecision | null>, errors: Array<string | undefined> }> {
+async function waitForScrapeRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) throw new Error('AI 刮削已取消')
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, delayMs)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new Error('AI 刮削已取消'))
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+}
+
+async function scrapeBatchMediaWithBoxPlayerCloud(files: BatchScrapeFileInfo[], folderName: string, signal?: AbortSignal): Promise<{ decisions: Array<MediaAIScrapeDecision | null>, candidates: Array<MediaAIScrapeDecision | null>, errors: Array<string | undefined>, retryables: Array<boolean> }> {
   const decisions: Array<MediaAIScrapeDecision | null> = Array(files.length).fill(null)
   const candidates: Array<MediaAIScrapeDecision | null> = Array(files.length).fill(null)
   const errors: Array<string | undefined> = Array(files.length).fill(undefined)
+  const retryables: Array<boolean> = Array(files.length).fill(true)
   const chunks = Array.from({ length: Math.ceil(files.length / MEDIA_SCRAPE_BATCH_SIZE) }, (_, index) => files.slice(index * MEDIA_SCRAPE_BATCH_SIZE, index * MEDIA_SCRAPE_BATCH_SIZE + MEDIA_SCRAPE_BATCH_SIZE))
   for (const [chunkIndex, chunk] of chunks.entries()) {
     const start = chunkIndex * MEDIA_SCRAPE_BATCH_SIZE
@@ -449,10 +471,16 @@ async function scrapeBatchMediaWithBoxPlayerCloud(files: BatchScrapeFileInfo[], 
       for (let attempt = 1; attempt <= MEDIA_SCRAPE_MAX_ATTEMPTS; attempt++) {
         if (signal?.aborted) throw new Error('AI 刮削已取消')
         try {
-          results = await scrapeMediaWithAbortTimeout(chunk.map((file, index) => ({ id: ids[index], filename: file.name, context: [folderName, file.path].filter(Boolean).join('\n') || null })), MEDIA_SCRAPE_CLIENT_TIMEOUT_MS, signal)
+          results = await scrapeMediaWithAbortTimeout(chunk.map((file, index) => ({
+            id: ids[index],
+            filename: file.name.slice(0, 1000),
+            context: buildScrapeContext(folderName, file.path)
+          })), MEDIA_SCRAPE_CLIENT_TIMEOUT_MS, signal)
           break
         } catch (error) {
-          if (!(error instanceof BoxPlayerMediaScrapeError) || !error.retryable || attempt === MEDIA_SCRAPE_MAX_ATTEMPTS) throw error
+          const isRetryableError = !(error instanceof BoxPlayerMediaScrapeError) || error.retryable
+          if (signal?.aborted || !isRetryableError || attempt === MEDIA_SCRAPE_MAX_ATTEMPTS) throw error
+          await waitForScrapeRetry(1000 * attempt, signal)
         }
       }
       const seen = new Set<number>()
@@ -467,12 +495,16 @@ async function scrapeBatchMediaWithBoxPlayerCloud(files: BatchScrapeFileInfo[], 
       }
     } catch (error: any) {
       const message = error?.message || 'AI 刮削请求失败'
+      const retryable = error instanceof BoxPlayerMediaScrapeError ? error.retryable : !signal?.aborted
       DebugLog.mSaveWarning(`[BatchAIScrape] chunk ${chunkIndex + 1} failed: ${message}`)
-      for (let index = start; index < start + chunk.length; index++) errors[index] = message
+      for (let index = start; index < start + chunk.length; index++) {
+        errors[index] = message
+        retryables[index] = retryable
+      }
       if (signal?.aborted) break
     }
   }
-  return { decisions, candidates, errors }
+  return { decisions, candidates, errors, retryables }
 }
 
 function normalizeCloudMediaScrapeDecision(result: BoxPlayerCloudMediaScrapeResult | undefined): { usable: boolean, decision?: MediaAIScrapeDecision, reason?: string } {
