@@ -174,7 +174,10 @@ jobs:
           }
           Write-Host "Using MSYS2 runtime dir: $bin"
           "$bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          "BOXPLAYER_MPV_RUNTIME=$bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $runtime = Join-Path $PWD ".local/runtime/windows"
+          New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+          Copy-Item -Path (Join-Path $bin "*.dll") -Destination $runtime
+          "BOXPLAYER_MPV_RUNTIME=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "BOXPLAYER_FFMPEG=$(Join-Path $bin 'ffmpeg.exe')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Prepare isolated build inputs
@@ -201,6 +204,7 @@ jobs:
           mkdir -p "$output"
           case "$RUNNER_OS" in
             Windows)
+              test -f .local/runtime/windows/libmpv-2.dll
               pnpm tauri build --debug --bundles nsis --config '{"bundle":{"active":true,"resources":{"../.local/runtime/windows/":"runtime/"}}}' -- --locked
               test -f src-tauri/target/debug/boxplayer-tauri-dev.exe
               test -f src-tauri/binaries/boxplayer-host-x86_64-pc-windows-msvc.exe
