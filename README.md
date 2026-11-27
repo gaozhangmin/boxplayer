@@ -74,40 +74,22 @@ BoxPlayer 的新桌面端采用 **Tauri 2**。Vue 界面运行在系统 WebView 
 
 `clouddrive-cli` 提供文件遍历、搜索、媒体整理计划、dry-run 预览、操作记录等能力，并能作为 MCP Server 供 AI 客户端使用。独立安装可运行 `npm install -g clouddrive-cli`。使用方法见 [CLI / MCP 文档](clouddrive-cli/README.md)。
 
-## 界面预览
+## Tauri 界面预览
 
-以下是 Electron 桌面版的媒体库、音乐和文件界面。Tauri 的网盘助手截图见上方。
+以下均为 macOS 上的 Tauri 开发版实屏，使用示例媒体和本地文件。影视海报和剧照来自 TMDB。
 
-### 统一媒体库
+### 媒体库与影视详情
 
-主屏幕汇集继续观看、收藏夹和媒体分类；详情页展示背景图、季集、演职员与播放进度。
+![Tauri 媒体库的电影海报网格](screenshot/tauri/library.png)
 
-![BoxPlayer 媒体库主屏幕](screenshot/library-home.png)
+![Tauri 影视详情页的剧照、影片资料和播放操作](screenshot/tauri/detail.png)
 
-<p>
-  <img src="screenshot/server-library.png" width="49%" alt="媒体服务器海报列表">
-  <img src="screenshot/episode-detail.png" width="49%" alt="剧集详情与集封面">
-</p>
-
-### 音乐库与粒子播放器
-
-按歌曲、歌手、专辑和自建歌单浏览；从音乐库播放后可进入粒子播放器，也能返回列表继续管理曲目。
+### 音乐与文件管理
 
 <p>
-  <img src="screenshot/music_library.png" width="49%" alt="音乐库">
-  <img src="screenshot/music_player.png" width="49%" alt="粒子播放器">
+  <img src="screenshot/tauri/music.png" width="49%" alt="Tauri 粒子音乐播放器">
+  <img src="screenshot/tauri/sources.png" width="49%" alt="Tauri 来源管理窗口的文件列表">
 </p>
-
-### 文件、搜索与 AI
-
-云盘文件管理与跨来源搜索共用一个工作区。AI 功能可辅助寻找媒体、整理文件和阅读文档。
-
-<p>
-  <img src="screenshot/drive_home.png" width="49%" alt="网盘首页">
-  <img src="screenshot/ai_search.png" width="49%" alt="AI 搜索">
-</p>
-
-更多画面：[文档 AI](screenshot/pdf_ai.png) · [本地搜索](screenshot/search_local.png) · [书架](screenshot/book_home.png) · [阅读器](screenshot/book_reader.png) · [AI 阅读](screenshot/book_reader_ai.png)
 
 ## 安装
 

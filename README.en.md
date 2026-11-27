@@ -74,40 +74,22 @@ Core file management, playback, music, reading, and CLI features are available f
 
 `clouddrive-cli` can walk and search file trees, generate media organization plans, preview changes with a dry run, and log operations. Its MCP server makes these tools available to compatible AI clients. Install it independently with `npm install -g clouddrive-cli`. [CLI and MCP documentation](clouddrive-cli/README.en.md)
 
-## Screenshots
+## Tauri screenshots
 
-The screenshots below show the existing Electron desktop app. The Tauri Agent workspace is shown above.
+These screenshots show the Tauri development app on macOS with sample media and local files. Movie artwork is from TMDB.
 
-### Unified media library
+### Media library and movie details
 
-Browse Continue Watching, favorites, and media categories. Open a title to view its artwork, seasons, episodes, cast, and play progress.
+![Movie poster grid in the Tauri media library](screenshot/tauri/library.png)
 
-![BoxPlayer media library home](screenshot/library-home.png)
+![Movie artwork, information, and playback controls in the Tauri detail view](screenshot/tauri/detail.png)
 
-<p>
-  <img src="screenshot/server-library.png" width="49%" alt="Media server poster grid">
-  <img src="screenshot/episode-detail.png" width="49%" alt="TV show details and episode artwork">
-</p>
-
-### Music and the particle player
-
-Browse songs, artists, albums, or playlists, then open the particle player while you listen.
+### Music and file management
 
 <p>
-  <img src="screenshot/music_library.png" width="49%" alt="Music library">
-  <img src="screenshot/music_player.png" width="49%" alt="Particle music player">
+  <img src="screenshot/tauri/music.png" width="49%" alt="Tauri particle music player">
+  <img src="screenshot/tauri/sources.png" width="49%" alt="File list in the Tauri source management window">
 </p>
-
-### Files, search, and AI
-
-Browse and search across cloud sources in one workspace. AI tools can help find media, organize files, and read documents.
-
-<p>
-  <img src="screenshot/drive_home.png" width="49%" alt="Cloud drive home">
-  <img src="screenshot/ai_search.png" width="49%" alt="AI search">
-</p>
-
-More screenshots · [Document AI](screenshot/pdf_ai.png) · [Local search](screenshot/search_local.png) · [Bookshelf](screenshot/book_home.png) · [Reader](screenshot/book_reader.png) · [AI reading](screenshot/book_reader_ai.png)
 
 ## Installation
 
