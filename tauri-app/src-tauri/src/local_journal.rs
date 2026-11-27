@@ -115,9 +115,12 @@ fn relocate_checkpoint(library:&Library,source:&str,from:&str,to:&str,mut checkp
  let mut entry=Entry{id:uuid::Uuid::new_v4().to_string(),source_id:source.into(),root:root.to_string_lossy().into(),from:from.into(),to:to.into(),directory,fingerprint:fingerprint(&original)?,files:captured,applied:false};
  write(&connect(library)?,&entry)?;checkpoint("prepared");
  if let Err(cause)=files::rename_no_replace(&original,&target){return Err(AppError::io(cause))}
- // Directory metadata durability is part of the intent's crash boundary.
- fs::File::open(original.parent().unwrap()).and_then(|file|file.sync_all()).map_err(AppError::io)?;
- fs::File::open(&parent).and_then(|file|file.sync_all()).map_err(AppError::io)?;
+ // Windows uses the write-through move API. Unix syncs the parent directories.
+ #[cfg(unix)]
+ {
+  fs::File::open(original.parent().unwrap()).and_then(|file|file.sync_all()).map_err(AppError::io)?;
+  fs::File::open(&parent).and_then(|file|file.sync_all()).map_err(AppError::io)?;
+ }
  checkpoint("renamed");complete(library,&mut entry)?;checkpoint("applied");Ok(entry)
 }
 #[cfg(test)]

@@ -218,7 +218,7 @@ jobs:
           case "$RUNNER_OS" in
             Windows)
               test -f .local/runtime/windows/libmpv-2.dll
-              pnpm tauri build --debug --bundles nsis --config '{"bundle":{"active":true,"resources":{"../.local/runtime/windows/":"runtime/"}}}' -- --locked
+              pnpm tauri build --debug --bundles nsis --config '{"bundle":{"active":true,"resources":{"../.local/runtime/windows/":"runtime/"},"windows":{"nsis":{"compression":"zlib"}}}}' -- --locked
               test -f src-tauri/target/debug/boxplayer-tauri-dev.exe
               test -f src-tauri/binaries/boxplayer-host-x86_64-pc-windows-msvc.exe
               cp src-tauri/target/debug/bundle/nsis/*.exe "$output/"
@@ -262,22 +262,23 @@ jobs:
           pnpm test
           pnpm test:boxplayer
 
-      - name: Cache and install tauri-driver on Linux
-        if: matrix.os_id == 'linux'
+      - name: Cache tauri-driver
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id != 'macos' }}
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/tauri-driver
+          path: |
+            ~/.cargo/bin/tauri-driver
+            ~/.cargo/bin/tauri-driver.exe
           key: tauri-driver-${{ runner.os }}-2.1.0
 
-      - name: Ensure tauri-driver is installed on Linux
-        if: matrix.os_id == 'linux'
+      - name: Ensure tauri-driver is installed
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id != 'macos' }}
         shell: bash
         run: |
           if ! command -v tauri-driver >/dev/null 2>&1; then
             cargo install tauri-driver --version 2.1.0 --locked
           fi
           command -v tauri-driver
-          command -v WebKitWebDriver
 
       - name: Install temporary Playwright runner (no lockfile changes)
         if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id != 'linux' }}
@@ -316,13 +317,25 @@ jobs:
           path: ${{ runner.temp }}/tauri-ui-screenshots
           if-no-files-found: warn
 
-      - name: Run L2 Native Tauri Window E2E (Windows WebView2 CDP)
+      - name: Run L2 Native Tauri Window E2E (Windows Edge WebDriver)
         if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id == 'windows' }}
         working-directory: tauri-app
+        shell: pwsh
         env:
-          PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/pw-runner/node_modules/playwright
           BOXPLAYER_L2_OUT_DIR: ${{ runner.temp }}/tauri-native-l2
-        run: node scripts/ci-tauri-native-l2.mjs --mode windows-cdp
+        run: |
+          $edgeDriver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
+          if (-not (Test-Path $edgeDriver)) { throw "Microsoft Edge WebDriver is missing: $edgeDriver" }
+          & $edgeDriver --version
+          $env:BOXPLAYER_DEV_DATA_DIR = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
+          New-Item -ItemType Directory -Path $env:BOXPLAYER_L2_OUT_DIR -Force | Out-Null
+          $driver = Start-Process -FilePath tauri-driver.exe -ArgumentList '--port','4444','--native-driver',('"{0}"' -f $edgeDriver) -PassThru -NoNewWindow -RedirectStandardOutput "$env:BOXPLAYER_L2_OUT_DIR/tauri-driver.log" -RedirectStandardError "$env:BOXPLAYER_L2_OUT_DIR/tauri-driver-error.log"
+          try {
+            node scripts/ci-tauri-native-l2.mjs --mode windows-webdriver 2>&1 | Tee-Object -FilePath "$env:BOXPLAYER_L2_OUT_DIR/test.log"
+            if ($LASTEXITCODE -ne 0) { throw "Windows WebDriver test failed with exit code $LASTEXITCODE" }
+          } finally {
+            Stop-Process -Id $driver.Id -ErrorAction SilentlyContinue
+          }
 
       - name: Run L2 Native Tauri Window E2E (Linux WebKitGTK + tauri-driver)
         if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id == 'linux' }}

@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { spawn, spawnSync } from 'node:child_process'
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -15,13 +15,12 @@ const viteBin = join(dirname(require.resolve('vite/package.json')), 'bin', 'vite
 
 const PORT = 1428
 const BASE_URL = `http://127.0.0.1:${PORT}`
-const CDP_PORT = 9222
 const WD_URL = process.env.TAURI_WEBDRIVER_URL || 'http://127.0.0.1:4444'
 
 function parseMode() {
   const idx = process.argv.indexOf('--mode')
   if (idx !== -1 && process.argv[idx + 1]) return process.argv[idx + 1]
-  if (process.platform === 'win32') return 'windows-cdp'
+  if (process.platform === 'win32') return 'windows-webdriver'
   if (process.platform === 'linux') return 'linux-webdriver'
   if (process.platform === 'darwin') return 'macos-native'
   throw new Error(`Unsupported platform: ${process.platform}`)
@@ -32,12 +31,9 @@ function binaryPath() {
   return join(tauriAppRoot, 'src-tauri', 'target', 'debug', name)
 }
 
-async function waitForHttp(url, timeoutMs = 45000, process) {
+async function waitForHttp(url, timeoutMs = 45000) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    if (process && (process.exitCode !== null || process.signalCode !== null)) {
-      throw new Error(`Application exited before ${url} (code ${process.exitCode}, signal ${process.signalCode})`)
-    }
     try {
       const res = await fetch(url)
       if (res.ok) return res
@@ -86,162 +82,6 @@ async function listDirTree(dir, prefix = '') {
   return out
 }
 
-async function runWindowsCdp(bin, dataDir) {
-  const playwrightTarget = process.env.PLAYWRIGHT_MODULE_PATH || 'playwright'
-  const { chromium } = require(playwrightTarget)
-  const summary = { mode: 'windows-cdp', dataDir, windows: [], screenshots: [] }
-
-  let logs = ''
-  const launchApp = () => {
-    logs = ''
-    const proc = spawn(bin, [], {
-      cwd: tauriAppRoot,
-      env: {
-        ...process.env,
-        BOXPLAYER_DEV_DATA_DIR: dataDir,
-        WEBVIEW2_USER_DATA_FOLDER: join(dataDir, 'webview2'),
-        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${CDP_PORT} --remote-debugging-address=127.0.0.1`,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    const capture = chunk => { logs = (logs + String(chunk)).slice(-8000) }
-    proc.stdout.on('data', capture)
-    proc.stderr.on('data', capture)
-    proc.on('error', capture)
-    return proc
-  }
-
-  let proc = launchApp()
-  let browser
-  try {
-    await waitForHttp(`http://127.0.0.1:${CDP_PORT}/json/version`, 60000, proc)
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`)
-
-    const findPage = async (urlFragment, timeoutMs = 30000) => {
-      const deadline = Date.now() + timeoutMs
-      while (Date.now() < deadline) {
-        for (const ctx of browser.contexts()) {
-          for (const p of ctx.pages()) {
-            const pathname = new URL(p.url()).pathname
-            if (pathname === `/${urlFragment}` || (urlFragment === 'index.html' && pathname === '/')) return p
-          }
-        }
-        await new Promise(r => setTimeout(r, 250))
-      }
-      throw new Error(`Timed out waiting for WebView2 page matching ${urlFragment}`)
-    }
-
-    const mainPage = await findPage('index.html', 45000)
-    const pageErrors = []
-    mainPage.on('pageerror', err => pageErrors.push(err.message || String(err)))
-    await mainPage.waitForFunction(
-      () => {
-        const root = document.querySelector('#app')
-        return Boolean(root && root.children.length > 0 && window.__TAURI_INTERNALS__)
-      },
-      { timeout: 30000 },
-    )
-    await mainPage.waitForTimeout(500)
-
-    const runtimeInfo = await mainPage.evaluate(() =>
-      window.__TAURI_INTERNALS__.invoke('runtime_info'),
-    )
-    if (runtimeInfo.platform !== 'windows') {
-      throw new Error(`Expected platform windows, got ${runtimeInfo.platform}`)
-    }
-    summary.runtimeInfo = runtimeInfo
-
-    await mainPage.screenshot({ path: join(outDir, 'l2-native-main-initial.png'), fullPage: true })
-    summary.screenshots.push('l2-native-main-initial.png')
-
-    const initialSettings = await mainPage.evaluate(() =>
-      window.__TAURI_INTERNALS__.invoke('settings_get'),
-    )
-    const updatedSettings = await mainPage.evaluate(
-      rev =>
-        window.__TAURI_INTERNALS__.invoke('settings_update', {
-          expectedRevision: rev,
-          patch: { theme: 'dark', sidebarCollapsed: true },
-        }),
-      initialSettings.revision,
-    )
-    if (
-      updatedSettings.revision !== initialSettings.revision + 1 ||
-      updatedSettings.theme !== 'dark' ||
-      updatedSettings.sidebarCollapsed !== true
-    ) {
-      throw new Error(`Unexpected updated settings: ${JSON.stringify(updatedSettings)}`)
-    }
-    await mainPage.waitForFunction(() => document.documentElement.classList.contains('dark'), {
-      timeout: 10000,
-    })
-    await mainPage.waitForTimeout(300)
-    await mainPage.screenshot({ path: join(outDir, 'l2-native-main-dark.png'), fullPage: true })
-    summary.screenshots.push('l2-native-main-dark.png')
-
-    const secondary = [
-      { kind: 'settings', view: 'general', urlPart: 'settings.html', file: 'l2-native-settings.png' },
-      { kind: 'player', view: undefined, urlPart: 'player.html', file: 'l2-native-player.png' },
-    ]
-    for (const win of secondary) {
-      await mainPage.evaluate(
-        ({ kind, view }) => window.__TAURI_INTERNALS__.invoke('window_open', { kind, view }),
-        { kind: win.kind, view: win.view },
-      )
-      const p = await findPage(win.urlPart, 30000)
-      await p.waitForFunction(
-        () => {
-          const root = document.querySelector('#app')
-          return Boolean(root && root.children.length > 0)
-        },
-        { timeout: 20000 },
-      )
-      await p.waitForTimeout(400)
-      await p.screenshot({ path: join(outDir, win.file), fullPage: true })
-      summary.windows.push(win.kind)
-      summary.screenshots.push(win.file)
-    }
-
-    if (pageErrors.length > 0) {
-      throw new Error(`Native WebView2 pageerror(s): ${pageErrors.join('; ')}`)
-    }
-
-    await browser.close()
-    browser = undefined
-    await killProcess(proc)
-    await new Promise(r => setTimeout(r, 1000))
-
-    // Restart persistence check with the exact same BOXPLAYER_DEV_DATA_DIR.
-    proc = launchApp()
-    await waitForHttp(`http://127.0.0.1:${CDP_PORT}/json/version`, 60000, proc)
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`)
-    const restartedMain = await findPage('index.html', 45000)
-    await restartedMain.waitForFunction(() => Boolean(window.__TAURI_INTERNALS__), {
-      timeout: 30000,
-    })
-    const persisted = await restartedMain.evaluate(() =>
-      window.__TAURI_INTERNALS__.invoke('settings_get'),
-    )
-    if (persisted.theme !== 'dark' || persisted.sidebarCollapsed !== true) {
-      throw new Error(`Settings did not persist across restart: ${JSON.stringify(persisted)}`)
-    }
-    summary.restartPersisted = true
-    summary.persistedRevision = persisted.revision
-  } catch (error) {
-    if (logs) console.error('Windows native app output:', logs)
-    for (const file of await listDirTree(join(dataDir, 'logs'))) {
-      const content = await readFile(join(dataDir, 'logs', file), 'utf-8').catch(() => '')
-      if (content) console.error(`Native log ${file}:
-${content.slice(-8000)}`)
-    }
-    throw error
-  } finally {
-    if (browser) await browser.close().catch(() => {})
-    await killProcess(proc)
-  }
-  return summary
-}
-
 async function wdReq(method, path, body) {
   const res = await fetch(`${WD_URL}${path}`, {
     method,
@@ -276,8 +116,8 @@ async function wdScreenshot(sessionId, filename) {
   await writeFile(join(outDir, filename), Buffer.from(b64, 'base64'))
 }
 
-async function runLinuxWebdriver(bin, dataDir) {
-  const summary = { mode: 'linux-webdriver', dataDir, windows: [], screenshots: [] }
+async function runNativeWebdriver(bin, dataDir, platform) {
+  const summary = { mode: `${platform}-webdriver`, dataDir, windows: [], screenshots: [] }
   await waitForHttp(`${WD_URL}/status`, 30000)
 
   const createSession = async () => {
@@ -308,7 +148,7 @@ async function runLinuxWebdriver(bin, dataDir) {
       }
       await new Promise(r => setTimeout(r, 300))
     }
-    throw new Error('Timed out waiting for #app + __TAURI_INTERNALS__ in WebKitGTK')
+    throw new Error(`Timed out waiting for #app + __TAURI_INTERNALS__ in ${platform} WebDriver`)
   }
 
   let sid = await createSession()
@@ -317,8 +157,8 @@ async function runLinuxWebdriver(bin, dataDir) {
     await new Promise(r => setTimeout(r, 500))
 
     const runtimeInfo = await wdInvoke(sid, 'runtime_info')
-    if (runtimeInfo.platform !== 'linux') {
-      throw new Error(`Expected platform linux, got ${runtimeInfo.platform}`)
+    if (runtimeInfo.platform !== platform) {
+      throw new Error(`Expected platform ${platform}, got ${runtimeInfo.platform}`)
     }
     summary.runtimeInfo = runtimeInfo
 
@@ -357,13 +197,23 @@ async function runLinuxWebdriver(bin, dataDir) {
       { kind: 'player', view: undefined, file: 'l2-native-player.png' },
     ]) {
       await wdInvoke(sid, 'window_open', { kind: win.kind, view: win.view })
-      await new Promise(r => setTimeout(r, 1000))
-      const handles = await wdReq('GET', `/session/${sid}/window/handles`)
-      const newHandle = handles.find(h => !knownHandles.has(h))
+      if (platform === 'linux') await new Promise(r => setTimeout(r, 1000))
+      const deadline = Date.now() + (platform === 'windows' ? 15000 : 0)
+      let newHandle
+      do {
+        const handles = await wdReq('GET', `/session/${sid}/window/handles`)
+        newHandle = handles.find(h => !knownHandles.has(h))
+        if (newHandle) {
+          knownHandles = new Set(handles)
+          break
+        }
+        if (platform === 'windows') await new Promise(r => setTimeout(r, 300))
+      } while (Date.now() < deadline)
+      if (platform === 'windows' && !newHandle) throw new Error(`WebView2 did not open ${win.kind}`)
       if (newHandle) {
-        knownHandles = new Set(handles)
         await wdReq('POST', `/session/${sid}/window`, { handle: newHandle })
-        await new Promise(r => setTimeout(r, 600))
+        if (platform === 'windows') await waitForMounted(sid)
+        else await new Promise(r => setTimeout(r, 600))
         await wdScreenshot(sid, win.file)
         summary.windows.push(win.kind)
         summary.screenshots.push(win.file)
@@ -457,8 +307,8 @@ async function main() {
   let result
   try {
     await waitForHttp(`${BASE_URL}/index.html`, 30000)
-    if (mode === 'windows-cdp') result = await runWindowsCdp(bin, dataDir)
-    else if (mode === 'linux-webdriver') result = await runLinuxWebdriver(bin, dataDir)
+    if (mode === 'windows-webdriver') result = await runNativeWebdriver(bin, dataDir, 'windows')
+    else if (mode === 'linux-webdriver') result = await runNativeWebdriver(bin, dataDir, 'linux')
     else if (mode === 'macos-native') result = await runMacosNative(bin, dataDir)
     else throw new Error(`Unknown mode: ${mode}`)
 
