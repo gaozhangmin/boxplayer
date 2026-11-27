@@ -42,7 +42,7 @@ const normalizeCliAccount = (account) => {
   }
 }
 
-function parseRealCloudAccounts(value, cloud123Override = '', quarkOverride = '', baiduOverride = '') {
+function parseRealCloudAccounts(value, cloud123Override = '', quarkOverride = '', baiduOverride = '', aliyunOverride = '') {
   if (!String(value || '').trim()) throw new Error('缺少 BOXPLAYER_E2E_ACCOUNTS_JSON')
   const parsed = parseJson(value, 'BOXPLAYER_E2E_ACCOUNTS_JSON')
   const source = Array.isArray(parsed) ? parsed : parsed?.accounts
@@ -59,7 +59,8 @@ function parseRealCloudAccounts(value, cloud123Override = '', quarkOverride = ''
   for (const [provider, value, name] of [
     ['cloud123', cloud123Override, 'BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON'],
     ['quark', quarkOverride, 'BOXPLAYER_E2E_QUARK_ACCOUNT_JSON'],
-    ['baidu', baiduOverride, 'BOXPLAYER_E2E_BAIDU_ACCOUNT_JSON']
+    ['baidu', baiduOverride, 'BOXPLAYER_E2E_BAIDU_ACCOUNT_JSON'],
+    ['aliyun', aliyunOverride, 'BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON']
   ]) {
     if (!String(value || '').trim()) continue
     const overrides = parseRealCloudAccounts(value)
@@ -118,7 +119,7 @@ function parseRealCloudTargets(value, accounts, options = {}) {
 }
 
 function loadRealCloudE2EConfig(env = process.env) {
-  const accounts = parseRealCloudAccounts(env.BOXPLAYER_E2E_ACCOUNTS_JSON, env.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON, env.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON, env.BOXPLAYER_E2E_BAIDU_ACCOUNT_JSON)
+  const accounts = parseRealCloudAccounts(env.BOXPLAYER_E2E_ACCOUNTS_JSON, env.BOXPLAYER_E2E_CLOUD123_ACCOUNT_JSON, env.BOXPLAYER_E2E_QUARK_ACCOUNT_JSON, env.BOXPLAYER_E2E_BAIDU_ACCOUNT_JSON, env.BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON)
   const requiredProviders = parseRequiredProviders(env.BOXPLAYER_E2E_REQUIRED_PROVIDERS)
   const targets = parseRealCloudTargets(env.BOXPLAYER_E2E_TARGETS_JSON, accounts, {
     folder: env.BOXPLAYER_E2E_MEDIA_FOLDER,

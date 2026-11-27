@@ -89,6 +89,35 @@ describe('real cloud E2E configuration', () => {
     expect(readFileSync('e2e/fixtures/boxPlayer.ts', 'utf8')).toContain('process.env.BOXPLAYER_E2E_BAIDU_ACCOUNT_JSON')
   })
 
+  it('replaces only the Aliyun account and preserves its configured playback target', () => {
+    const original = { accounts: [cliAccount('baidu'), cliAccount('aliyun')] }
+    const target = { provider: 'aliyun', path: ['Fixture'], fileName: 'sample.mp4' }
+    const env = {
+      BOXPLAYER_E2E_ACCOUNTS_JSON: JSON.stringify(original),
+      BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON: JSON.stringify({ accounts: [{
+        provider: 'aliyun',
+        token: { user_id: 'fresh-aliyun', refresh_token: 'test-aliyun-refresh', access_token: 'test-aliyun-access' }
+      }] }),
+      BOXPLAYER_E2E_REQUIRED_PROVIDERS: 'aliyun',
+      BOXPLAYER_E2E_TARGETS_JSON: JSON.stringify([target])
+    }
+    const result = loadRealCloudE2EConfig(env)
+    expect(result.accounts[1]).toMatchObject({ user_id: 'fresh-aliyun', refresh_token: 'test-aliyun-refresh', access_token: 'test-aliyun-access' })
+    expect(result.accounts[0]).toEqual(parseRealCloudAccounts(env.BOXPLAYER_E2E_ACCOUNTS_JSON)[0])
+    expect(result.targets).toEqual([target])
+    expect(() => loadRealCloudE2EConfig({
+      ...env, BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON: JSON.stringify([cliAccount('baidu')])
+    })).toThrow('BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON 必须只包含一个 aliyun 账号')
+  })
+
+  it('passes the Aliyun override to all four workflows and renderer seeding', () => {
+    for (const platform of ['linux', 'windows-x64', 'macos-arm64', 'macos-x64']) {
+      const workflow = readFileSync(`.github/workflows/embedded-mpv-${platform}.yml`, 'utf8')
+      expect(workflow).toContain('BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON: ${{ secrets.BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON }}')
+    }
+    expect(readFileSync('e2e/fixtures/boxPlayer.ts', 'utf8')).toContain('process.env.BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON')
+  })
+
   it('rejects overrides for other providers or multiple accounts', () => {
     const base = JSON.stringify({ accounts: [cliAccount('aliyun')] })
     for (const accounts of [[cliAccount('quark')], [cliAccount('cloud123'), cliAccount('aliyun')]]) {

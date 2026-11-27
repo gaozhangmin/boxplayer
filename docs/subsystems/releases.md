@@ -35,3 +35,7 @@ Manual trigger only (`workflow_dispatch`) via `.github/workflows/release.yml`. B
 ### 百度网盘真实账号验证
 
 发布矩阵及单平台真实播放诊断可读取仓库的 `BOXPLAYER_E2E_BAIDU_ACCOUNT_JSON`。该 Secret 只含一个百度账号，存在时替换共享测试配置中的百度条目，继续使用原有目标目录和文件。更新通过标准输入写入 GitHub Secret。
+
+### 阿里云盘真实账号验证
+
+发布矩阵及单平台真实播放诊断可读取仓库的 `BOXPLAYER_E2E_ALIYUN_ACCOUNT_JSON`。该 Secret 只含一个阿里云盘账号，存在时替换共享测试配置中的阿里云盘条目，继续使用原有目标目录和文件。更新通过标准输入写入 GitHub Secret。
