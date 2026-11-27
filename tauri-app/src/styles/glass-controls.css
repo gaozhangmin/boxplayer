@@ -26,9 +26,11 @@
   --app-glass-danger: #ff8795;
 }
 
-/* Root specificity also beats retained vendor !important accent declarations.
-   Cards are content, switches are stateful tracks; neither is an action surface. */
-:root:root:not(.player-window) body :is(button, input[type='button'], input[type='submit'], .bp-glass-control, [role='button']):not(:where(
+/* Media detail actions use glass over the backdrop.
+   Other controls keep the appearance of their own component. */
+:root:root:not(.player-window) body :is(button, input[type='button'], input[type='submit'], .bp-glass-control, [role='button']):where(
+  .media-detail :is(.play-button, .action-button, .version-button, .detail-back)
+):not(:where(
   [role='switch'], .settings-switch, .arco-switch, .ant-switch, .track-menu__mode-switch,
   .media-card, .poster-tile, .folder-browser-card, .local-file-card, .file-source-card,
   .episode-card, .cast-card, .collection-poster-card, .resume-card, .tmdb-result-card,
