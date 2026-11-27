@@ -187,7 +187,8 @@ fn runtime_info(state: State<'_, ShellState>) -> Result<RuntimeInfo, AppError> {
         pending_open,
     })
 }
-#[tauri::command]
+// Creating a WebView2 window from the IPC thread can deadlock on Windows.
+#[tauri::command(async)]
 fn window_open(app: tauri::AppHandle, kind: String) -> Result<(), AppError> {
     let (title, file, width, height) = match kind.as_str() {
         "settings" => ("BoxPlayer Dev · Settings", "settings.html", 1040.0, 780.0),
@@ -298,7 +299,12 @@ fn handle_menu(app: &tauri::AppHandle, id: &str) {
     match id {
         "show" => show_main(app),
         "settings" => {
-            let _ = window_open(app.clone(), "settings".into());
+            let app = app.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                if let Err(error) = window_open(app, "settings".into()) {
+                    log::warn!("Unable to open settings from the menu: {error:?}");
+                }
+            });
         }
         "quit" => app.exit(0),
         _ => {}

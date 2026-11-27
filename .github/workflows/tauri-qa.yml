@@ -251,17 +251,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Run frontend and sidecar unit tests
-        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
-        shell: bash
-        working-directory: tauri-app
-        run: |
-          if [ "$RUNNER_OS" = Windows ]; then
-            export BOXPLAYER_TEST_POSIX_SHELL="$(cygpath -w "$(command -v sh)")"
-          fi
-          pnpm test
-          pnpm test:boxplayer
-
       - name: Cache tauri-driver
         if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id != 'macos' }}
         uses: actions/cache@v4
@@ -389,6 +378,17 @@ jobs:
           name: tauri-native-l2-${{ matrix.os_id }}
           path: ${{ runner.temp }}/tauri-native-l2
           if-no-files-found: warn
+
+      - name: Run frontend and sidecar unit tests
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        shell: bash
+        working-directory: tauri-app
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            export BOXPLAYER_TEST_POSIX_SHELL="$(cygpath -w "$(command -v sh)")"
+          fi
+          pnpm test
+          pnpm test:boxplayer
 
       - name: Run Rust unit tests
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
