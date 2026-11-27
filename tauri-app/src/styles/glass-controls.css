@@ -35,6 +35,8 @@
   .preset-card, .home-card, .home-insight-card, .home-next-card, .aml-home-card,
   .podcast-continue-card, .pl-card, .favorite-shortcut, .detail-playlist-member,
   .server-home-cards > button, .server-source-card,
+  .na-workspace *, .na-drawer *, .main-content:has(.assistant-content) .unified-toolbar .back-button,
+  .source-window-content *, .source-sidebar-toggle, .source-agent-toggle,
   :has(img), .category-grid > article > button:first-child, [data-glass-control='off']
 )) {
   border-width: var(--app-control-border-width, 1px) !important;
@@ -48,6 +50,14 @@
   backdrop-filter: var(--app-control-blur, var(--app-glass-blur)) !important;
   -webkit-backdrop-filter: var(--app-control-blur, var(--app-glass-blur)) !important;
   transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+
+:root body .na-chip-btn,
+:root body .source-agent-toggle {
+  border-radius: 7px;
+}
+:root body .source-agent-toggle {
+  box-shadow: none;
 }
 
 /* Flat variants share the material palette without floating a disk behind every row. */

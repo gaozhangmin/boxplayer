@@ -20,6 +20,10 @@
 | 跟进影视资源 | “为这部剧创建追更任务，找到新一集时告诉我。” |
 | 批量操作 | “检查这个目录的命名和重复文件，告诉我哪些值得整理。” |
 
+![BoxPlayer 网盘助手开发预览，左侧为对话和 Recipes，右侧为方案面板](docs/tauri-migration/evidence/ui-style/boxplayer-agent-workspace.png)
+
+*macOS 开发版，使用本地示例媒体。*
+
 ### 先看方案，再批准写入
 
 1. **选定范围。** 从当前目录或选中的文件开始。需要时锁定上下文。
@@ -39,7 +43,7 @@
 
 ## 从源码运行
 
-需要 Node.js 22.12 或更新版本、pnpm 10.32.1、Rust，以及对应平台的 Tauri 开发依赖。macOS 的开发签名与 libmpv 运行库准备见 [Tauri 开发说明](tauri-app/README.md)。
+需要 Node.js 22.12 或更新版本、pnpm 10.32.1、Rust，以及对应平台的 Tauri 开发依赖。使用已有的开发注册配置，必要时通过 `BOXPLAYER_REGISTRATION_FILE` 指向该文件。macOS 的开发签名与 libmpv 运行库准备见 [Tauri 开发说明](tauri-app/README.md)。
 
 ```sh
 cd tauri-app

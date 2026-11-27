@@ -20,6 +20,10 @@ Open **AI Assistant** in Files to ask about the current folder or selected files
 | Follow a series | “Track this series and let me know when you find a new episode.” |
 | Review file hygiene | “Check this folder for duplicate files and suggest clearer names.” |
 
+![BoxPlayer Agent development preview with Recipes and conversation on the left and the plan panel on the right](docs/tauri-migration/evidence/ui-style/boxplayer-agent-workspace.png)
+
+*macOS development preview with local sample media.*
+
 ### Review changes before approving them
 
 1. **Choose a scope.** Start from a folder or selected files. Lock the context when needed.
@@ -39,7 +43,7 @@ Tauri 2 hosts the Vue interface in the system WebView. Native services connect a
 
 ## Run from source
 
-Install Node.js 22.12 or later, pnpm 10.32.1, Rust, and your platform’s Tauri prerequisites. See the [Tauri development guide](tauri-app/README.md) for macOS development signing and libmpv setup.
+Install Node.js 22.12 or later, pnpm 10.32.1, Rust, and your platform’s Tauri prerequisites. Use your existing app registration configuration. Set `BOXPLAYER_REGISTRATION_FILE` to its path if needed. See the [Tauri development guide](tauri-app/README.md) for macOS development signing and libmpv setup.
 
 ```sh
 cd tauri-app
