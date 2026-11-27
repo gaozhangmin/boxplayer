@@ -324,18 +324,38 @@ jobs:
         env:
           BOXPLAYER_L2_OUT_DIR: ${{ runner.temp }}/tauri-native-l2
         run: |
+          # WebView2 150+ ignores the driver's debugging switch in elevated hosts.
+          # https://github.com/tauri-apps/wry/issues/1782
+          choco install gsudo --version=2.6.1 --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "Could not install gsudo" }
+
           $edgeDriver = Join-Path $env:EDGEWEBDRIVER 'msedgedriver.exe'
-          if (-not (Test-Path $edgeDriver)) { throw "Microsoft Edge WebDriver is missing: $edgeDriver" }
-          & $edgeDriver --version
-          $env:BOXPLAYER_DEV_DATA_DIR = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
-          New-Item -ItemType Directory -Path $env:BOXPLAYER_L2_OUT_DIR -Force | Out-Null
-          $driver = Start-Process -FilePath tauri-driver.exe -ArgumentList '--port','4444','--native-driver',('"{0}"' -f $edgeDriver) -PassThru -NoNewWindow -RedirectStandardOutput "$env:BOXPLAYER_L2_OUT_DIR/tauri-driver.log" -RedirectStandardError "$env:BOXPLAYER_L2_OUT_DIR/tauri-driver-error.log"
-          try {
-            node scripts/ci-tauri-native-l2.mjs --mode windows-webdriver 2>&1 | Tee-Object -FilePath "$env:BOXPLAYER_L2_OUT_DIR/test.log"
-            if ($LASTEXITCODE -ne 0) { throw "Windows WebDriver test failed with exit code $LASTEXITCODE" }
-          } finally {
-            Stop-Process -Id $driver.Id -ErrorAction SilentlyContinue
+          $webviewClient = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          $runtimeVersion = Get-ItemPropertyValue "HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\$webviewClient" pv -ErrorAction SilentlyContinue
+          if (-not $runtimeVersion) {
+            $runtimeVersion = Get-ItemPropertyValue "HKCU:\SOFTWARE\Microsoft\EdgeUpdate\Clients\$webviewClient" pv -ErrorAction SilentlyContinue
           }
+          if ($runtimeVersion -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw "WebView2 Runtime version unavailable" }
+          $driverVersion = (Get-Item $edgeDriver -ErrorAction SilentlyContinue).VersionInfo.FileVersion
+          $runtimeBuild = ([version]$runtimeVersion).ToString(3)
+          if ($driverVersion -notlike "$runtimeBuild.*") {
+            $driverDir = Join-Path $env:RUNNER_TEMP 'boxplayer-edge-driver'
+            $driverZip = "$driverDir.zip"
+            Invoke-WebRequest "https://msedgedriver.microsoft.com/$runtimeVersion/edgedriver_win64.zip" -OutFile $driverZip
+            Expand-Archive $driverZip $driverDir
+            $edgeDriver = Join-Path $driverDir 'msedgedriver.exe'
+          }
+          Write-Host "WebView2 Runtime $runtimeVersion"
+          & $edgeDriver --version
+
+          $dataDir = Join-Path $env:RUNNER_TEMP "boxplayer-l2-$([guid]::NewGuid())"
+          foreach ($dir in @($dataDir, $env:BOXPLAYER_L2_OUT_DIR)) {
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          }
+          & "$env:ChocolateyInstall/bin/gsudo.exe" --integrity Medium --direct pwsh -NoProfile -NonInteractive -File scripts/ci-tauri-native-windows.ps1 `
+            -TauriDriver (Get-Command tauri-driver.exe).Source -EdgeDriver $edgeDriver `
+            -Node (Get-Command node.exe).Source -OutputDir $env:BOXPLAYER_L2_OUT_DIR -DataDir $dataDir
+          if ($LASTEXITCODE -ne 0) { throw "Windows WebDriver test failed with exit code $LASTEXITCODE" }
 
       - name: Run L2 Native Tauri Window E2E (Linux WebKitGTK + tauri-driver)
         if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id == 'linux' }}
