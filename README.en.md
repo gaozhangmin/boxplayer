@@ -94,7 +94,7 @@ Browse music by song, artist, album, or playlist, manage the queue, and see lyri
 
 The new desktop app is a rebuild of the Electron app using **Tauri 2**. Vue runs in the system WebView. Rust provides native windows, storage, and media access, and the macOS development app embeds libmpv. The new desktop source lives in [`tauri-app/`](tauri-app/) on the default `main` branch. The previous desktop project is on the [`electron` branch](https://github.com/gaozhangmin/boxplayer/tree/electron).
 
-To run the native development app, install Node.js 22.12 or later, pnpm 10.32.1, Rust, and your platform's Tauri prerequisites. Follow the [desktop development guide](tauri-app/README.md) to prepare app registration, macOS development signing, and the playback runtime.
+To run the native development app, install Node.js 22.12 or later, pnpm 10.32.1, the Bun version pinned by `@types/bun`, Rust, and your platform's Tauri prerequisites. Store app registration in `tauri-app/.local/provider-registration.ts` or set `BOXPLAYER_REGISTRATION_FILE` to your registration file. See the [desktop development guide](tauri-app/README.md) for macOS development signing and the playback runtime.
 
 ```sh
 cd tauri-app

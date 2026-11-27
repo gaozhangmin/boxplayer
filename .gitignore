@@ -25,21 +25,11 @@ yarn.lock
 config/secrets.json
 config/keys.json
 
-# 包含机密信息的恢复脚本
-scripts/
-!scripts/
-scripts/*
-!scripts/clouddrive-cli.mjs
-!scripts/clouddrive-mcp.mjs
-!scripts/koodo-reader-smoke.mjs
-!scripts/generate-secrets.mjs
-!scripts/version-utils.mjs
-!scripts/sync-mediary.sh
-!scripts/__tests__/
-scripts/__tests__/*
-!scripts/__tests__/releaseDraftPolicy.test.mjs
-
-src/secrets.generated.ts
+# Private files retained during migration from older checkouts.
+/scripts/*
+!/scripts/clouddrive-cli.mjs
+!/scripts/clouddrive-mcp.mjs
+/src/secrets.generated.ts
 
 
 docs/
@@ -75,14 +65,6 @@ tmp_video_xhs/
 test-results/
 playwright-report/
 
-# stale tsc compile output for ts source files (must be regenerated only via vite-plugin-electron)
-electron/**/*.js
-electron/**/*.d.ts
-electron/**/*.js.map
-electron/**/*.d.ts.map
-!electron/preload/preload-env.d.ts
-!electron/main/**/__tests__/**
-
 # 文档与媒体产物：只保留 README 类 Markdown
 *.md
 !README*.md
@@ -94,15 +76,11 @@ electron/**/*.d.ts.map
 !docs/tauri-migration/*.md
 *.html
 *.mp4
-!e2e/assets/mpv-sample.mp4
 *.mov
 *.py
 
 # Local assistant permissions may contain private command history.
 .claude/
-
-# Windows embedded runtime is supplied by the release workflow.
-static/engine/win32/x64/mpv-texture/
 
 # Agent rule migration archive.
 !docs/agents/

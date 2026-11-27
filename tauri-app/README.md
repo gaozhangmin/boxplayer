@@ -1,6 +1,14 @@
 # BoxPlayer Tauri development shell
 
-M2 migration workspace: Tauri 2, Vue 3.5, Pinia, Reka UI, shadcn-vue-style local components and Tailwind CSS 4. The existing Electron project remains independent.
+BoxPlayer desktop uses Tauri 2, Vue 3.5, Pinia, Reka UI, and Tailwind CSS 4. Install Node.js 22.12 or later, pnpm 10.32.1, the Bun version pinned by `@types/bun` in `package.json`, Rust, and the platform's Tauri prerequisites.
+
+### App registration
+
+The Tauri wrapper uses the `BOXPLAYER_*` environment variables first, then the file selected by `BOXPLAYER_REGISTRATION_FILE`, then the ignored `tauri-app/.local/provider-registration.ts` file. A registration file uses one `export const KEY = "value"` declaration per line. See [the registration key list](scripts/provider-registration.mjs) for the supported names. Keep actual values in a private file or the build environment.
+
+For existing development setups, move the allowed **application registration** entries from the old `src/secrets.generated.ts` into the ignored Tauri file, or explicitly point `BOXPLAYER_REGISTRATION_FILE` at the existing file. The loader reads only the supported application keys. It never reads account or application data. Direct Cargo commands can omit registration for local tests or receive the same environment variables for a configured build.
+
+### Run and check
 
 ```sh
 cd tauri-app
@@ -85,7 +93,7 @@ HDR routing now adapts soia's public `hdr_output.rs`, detecting PQ/HLG from actu
 
 ### M3 开发配置
 
-此目录通过 .npmrc 的 ignore-workspace=true 保持 package/lock 与父 Electron 工程独立。依赖安装可显式使用 `pnpm --ignore-workspace install --frozen-lockfile`。
+此目录通过 .npmrc 的 ignore-workspace=true 使用自己的 package 和锁文件。依赖安装可显式使用 `pnpm --ignore-workspace install --frozen-lockfile`。
 
 应用注册项从父项目已有生成配置的有限键清单或 `BOXPLAYER_<KEY>` 环境变量读入 Rust 的 ignored 构建输出；不读取用户账号数据库。115 QR 使用本地二维码库；OAuth 使用独立本机回调，需匹配提供商应用注册。不得将生成配置、token 或 QR 内容写入验收报告。
 

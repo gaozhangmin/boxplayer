@@ -8,7 +8,7 @@
 
 ## CI
 
-Manual trigger only (`workflow_dispatch`) via `.github/workflows/release.yml`. Builds on `windows-latest` + `ubuntu-latest`, publishes draft GitHub Release. No automatic CI on push/PR.
+`main` 使用 [Tauri QA](../../.github/workflows/tauri-qa.yml) 验证新桌面端。旧 Electron 构建与发布工作流保留在 [`electron` 分支](https://github.com/gaozhangmin/boxplayer/tree/electron/.github/workflows)。GitHub 的手动触发要求工作流存在于默认分支。旧 Electron 流程从 `main` 移除后，原有手动发布入口停用。Tauri 正式产物须采用独立的发布流程。[GitHub 手动触发说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
 
 ### Release publication authorization
 

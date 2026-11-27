@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { join } from 'node:path'
 
 // App registration only. Never read account databases, cookies or the credential vault.
 export const registrationKeys = [
@@ -23,16 +22,8 @@ export function parseRegistration(text) {
   }
   return values
 }
-function sharedWorktree(root) {
-  try {
-    const common = execFileSync('git', ['-C', root, 'rev-parse', '--path-format=absolute', '--git-common-dir'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
-    return dirname(common)
-  } catch { return null }
-}
-export function loadProviderRegistration({ root, env = process.env, sharedRoot = undefined, strict = true }) {
-  const worktree = resolve(root, '..')
-  const shared = sharedRoot === undefined ? sharedWorktree(worktree) : sharedRoot
-  const paths = [env.BOXPLAYER_REGISTRATION_FILE, join(worktree, 'src/secrets.generated.ts'), shared && join(shared, 'src/secrets.generated.ts')].filter(Boolean)
+export function loadProviderRegistration({ root, env = process.env, strict = true }) {
+  const paths = [env.BOXPLAYER_REGISTRATION_FILE, join(root, '.local', 'provider-registration.ts')].filter(Boolean)
   const files = [...new Set(paths)].filter(path => existsSync(path))
   const values = {}
   for (const path of files) {
@@ -42,6 +33,6 @@ export function loadProviderRegistration({ root, env = process.env, sharedRoot =
   const output = {}
   for (const key of registrationKeys) output[`BOXPLAYER_${key}`] = env[`BOXPLAYER_${key}`] ?? values[key] ?? ''
   const missing = registrationKeys.filter(key => !output[`BOXPLAYER_${key}`].trim())
-  if (strict && missing.length) throw new Error(`Missing application registration: ${missing.join(', ')}. Generate application registration in this worktree or set BOXPLAYER_REGISTRATION_FILE before building.`)
+  if (strict && missing.length) throw new Error(`Missing application registration: ${missing.join(', ')}. Configure .local/provider-registration.ts or set BOXPLAYER_REGISTRATION_FILE before building.`)
   return { env: output, configured: registrationKeys.filter(key => !missing.includes(key)), missing }
 }

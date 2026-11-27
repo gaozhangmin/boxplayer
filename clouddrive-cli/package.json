@@ -40,5 +40,11 @@
     "type": "git",
     "url": "https://github.com/gaozhangmin/aliyunpan.git",
     "directory": "clouddrive-cli"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.9"
   }
 }

@@ -94,7 +94,7 @@
 
 新一代桌面端从 Electron 重构到 **Tauri 2**。Vue 界面运行在系统 WebView，Rust 原生层负责窗口、存储和媒体访问，macOS 开发版使用嵌入式 libmpv。新版源代码位于默认分支 `main` 的 [`tauri-app/`](tauri-app/)，Electron 工程的历史分支为 [`electron`](https://github.com/gaozhangmin/boxplayer/tree/electron)。
 
-要在本机运行原生开发版，需要 Node.js 22.12 或更新版本、pnpm 10.32.1、Rust 和系统对应的 Tauri 开发依赖。应用注册配置、macOS 开发签名和播放器运行库的准备步骤见 [桌面开发指南](tauri-app/README.md)。
+要在本机运行原生开发版，需要 Node.js 22.12 或更新版本、pnpm 10.32.1、与 `@types/bun` 版本一致的 Bun、Rust 和系统对应的 Tauri 开发依赖。将应用注册配置放在 `tauri-app/.local/provider-registration.ts`，也可使用 `BOXPLAYER_REGISTRATION_FILE` 指定配置文件。macOS 开发签名和播放器运行库的准备步骤见 [桌面开发指南](tauri-app/README.md)。
 
 ```sh
 cd tauri-app

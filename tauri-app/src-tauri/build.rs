@@ -1,11 +1,6 @@
 // Copy only application registration keys into ignored build output. Never read user accounts.
 fn main() {
-    let source = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("../../src/secrets.generated.ts");
-    println!("cargo:rerun-if-changed={}", source.display());
-    // Direct cargo builds are useful for tests. App builds go through tauri.mjs,
-    // which requires a complete registration and injects only these application keys.
-    let text = std::fs::read_to_string(&source).unwrap_or_default();
+    // App builds inject registration through tauri.mjs. Direct Cargo tests may omit it.
     let mut config = serde_json::Map::new();
     for key in [
         "ALIYUN_APP_ID",
@@ -32,17 +27,7 @@ fn main() {
     ] {
         let env_key = format!("BOXPLAYER_{}", key);
         println!("cargo:rerun-if-env-changed={}", env_key);
-        let value = std::env::var(&env_key)
-            .ok()
-            .or_else(|| {
-                let prefix = format!("export const {} =", key);
-                text.lines().find_map(|line| {
-                    line.trim().strip_prefix(&prefix).and_then(|rest| {
-                        serde_json::from_str::<String>(rest.trim().trim_end_matches(';')).ok()
-                    })
-                })
-            })
-            .unwrap_or_default();
+        let value = std::env::var(&env_key).unwrap_or_default();
         config.insert(key.into(), value.into());
     }
     let output =
