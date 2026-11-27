@@ -74,7 +74,7 @@ async fn serve(
 async fn authenticated_fmp4_initialization_segments_reload_and_resume() {
     configure_vulkan();
     let temporary = tempfile::tempdir().unwrap();
-    let sample = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../e2e/assets/mpv-sample.mp4");
+    let sample = PathBuf::from(crate::gateway::tests::SAMPLE_PATH);
     let status =
         std::process::Command::new(test_ffmpeg_bin())
             .args(["-v", "error", "-i"])

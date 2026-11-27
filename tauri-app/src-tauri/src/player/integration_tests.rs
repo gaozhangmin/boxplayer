@@ -162,7 +162,7 @@ async fn libmpv_decodes_authenticated_nested_hls_without_exposing_segment_creden
     let runtime = test_mpv_runtime();
     let temporary = tempfile::tempdir().unwrap();
     let segment = temporary.path().join("segment.ts");
-    let sample = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../e2e/assets/mpv-sample.mp4");
+    let sample = PathBuf::from(crate::gateway::tests::SAMPLE_PATH);
     let mut recorder = ffi::Mpv::new(&runtime, None).unwrap();
     recorder
         .set("stream-record", segment.to_str().unwrap())

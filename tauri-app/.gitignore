@@ -13,3 +13,4 @@ src-tauri/binaries/
 !src/features/trakt/INTEGRATION.md
 !THIRD_PARTY_NOTICES.md
 !/*.html
+!/tests/fixtures/mpv-sample.mp4

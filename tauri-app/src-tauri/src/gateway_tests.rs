@@ -49,7 +49,9 @@ fn server_media_user_agent_matches_ios_host_policy() {
         assert!(headers.is_empty());
     }
 }
-pub(crate) const SAMPLE: &[u8] = include_bytes!("../../../e2e/assets/mpv-sample.mp4");
+pub(crate) const SAMPLE_PATH: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../tests/fixtures/mpv-sample.mp4");
+pub(crate) const SAMPLE: &[u8] = include_bytes!("../../tests/fixtures/mpv-sample.mp4");
 pub(crate) struct Fixture {
     pub base: String,
     pub refreshes: Arc<AtomicUsize>,
