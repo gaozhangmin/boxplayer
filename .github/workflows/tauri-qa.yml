@@ -228,6 +228,7 @@ jobs:
               dpkg-deb --field "$output"/*.deb Depends | grep -w libmpv2
               installed="$PWD/.local/qa-installed"
               dpkg-deb --extract "$output"/*.deb "$installed"
+              grep -Eq '^Exec=.* %u$' "$installed"/usr/share/applications/*.desktop
               test -x "$installed/usr/bin/boxplayer-tauri-dev"
               test -x "$installed/usr/bin/boxplayer-host"
               echo "BOXPLAYER_L2_BINARY=$installed/usr/bin/boxplayer-tauri-dev" >> "$GITHUB_ENV"

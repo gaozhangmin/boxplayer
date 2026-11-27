@@ -19,7 +19,16 @@ fn unavailable() -> AppError {
         true,
     )
 }
-fn keyring_error(_: keyring::Error) -> AppError {
+fn keyring_error(error: keyring::Error) -> AppError {
+    #[cfg(target_os = "linux")]
+    if matches!(error, keyring::Error::NoStorageAccess(_)) {
+        return AppError::new(
+            "CREDENTIAL_STORE",
+            "无法访问系统密钥环。请在系统的密码管理器中创建或解锁默认密钥环，然后重试登录",
+            true,
+        );
+    }
+    let _ = error;
     unavailable()
 }
 fn cipher(key: &[u8]) -> Result<LessSafeKey, AppError> {

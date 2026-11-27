@@ -19,6 +19,8 @@
 
 SETTINGS_INVALID、SCHEMA_UNSUPPORTED 和读取错误必须保留原文件并报错；文件确实不存在才初始化默认值。不得把开发数据目录指向 Electron 真实数据。
 
+Linux 登录使用桌面会话的 Secret Service 默认密钥环保存加密凭据的密钥。若系统拒绝访问密钥环，应用提示在系统密码管理器中创建或解锁默认密钥环后重试。Ubuntu Live 会话可能启动了 Secret Service，却没有默认密钥环。
+
 ## 验证与维护
 
 先读 [开发与执行约束](../agent-development.md) 和 [代码标准](../code-standards.md)。验证按本次用户要求及平台限制执行；未运行的测试、构建和真实设备检查要明确标注。契约改变时同步本文，并核对旧调用者。

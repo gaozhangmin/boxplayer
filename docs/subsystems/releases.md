@@ -12,6 +12,8 @@
 
 三端 QA 稀疏检出 `tauri-app/`，用合成应用注册配置调用 Tauri CLI。Windows 使用 LZMA 生成 NSIS 安装程序，随包附带 libmpv 的 DLL 依赖。播放测试从安装器提取目录加载 DLL。Linux 生成依赖 `libmpv2` 的 deb，使用移除调试符号的优化构建，原生窗口测试运行从 deb 提取的程序。macOS 生成包含 libmpv 及其动态库的应用压缩包。工作流核对原生程序和 sidecar，并运行前端、sidecar、Rust、UI 与播放器测试。Actions 产物供调试验收，正式发行的签名、公证和可再分发依赖另按发布流程核对。
 
+Linux deb 使用 `tauri-app/src-tauri/linux/boxplayer.desktop`，通过 `Exec` 的 `%u` 把浏览器交给桌面入口的 OAuth 回调 URL 传给应用。QA 校验安装包中生成的桌面入口。
+
 ### Release publication authorization
 
 - On 2026-11-04, the user explicitly authorized automatic public GitHub Releases after the fix is confirmed and relevant tests pass, including the daily BoxPlayer inspection automation. No additional per-release publication confirmation is required within that scope.
