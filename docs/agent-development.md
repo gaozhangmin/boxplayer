@@ -2,7 +2,7 @@
 
 本文承接原 `AGENTS.md` 的完整相关段落。源码路径以仓库根目录解释；版本、旧机器路径及历史验证仅为当时记录，不能当成当前发行状态。
 
-新应用命令以 `tauri-app/package.json` 为准。以下旧 Electron 开发/IPC/E2E 条目仅适用于遗留 Electron 代码；新应用开发标识与数据目录必须独立。迁移源码在 `codex/dev-tauri` 分支维护。
+新应用命令以 `tauri-app/package.json` 为准。以下旧 Electron 开发/IPC/E2E 条目仅适用于遗留 Electron 代码；新应用开发标识与数据目录必须独立。迁移源码在 `main` 分支维护。
 
 ## Tauri 任务定位（取代下文旧 Electron 命令的默认适用范围）
 

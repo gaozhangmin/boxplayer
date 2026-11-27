@@ -3,7 +3,7 @@ name: Tauri Cross-OS UI & Playback QA
 on:
   push:
     branches:
-      - codex/dev-tauri
+      - main
       - 'fleet/**'
     paths:
       - 'tauri-app/**'
@@ -17,7 +17,7 @@ on:
         type: boolean
   pull_request:
     branches:
-      - codex/dev-tauri
+      - main
       - 'fleet/**'
     paths:
       - 'tauri-app/**'
