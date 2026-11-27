@@ -459,6 +459,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "cookie_store",
+ "dbus-secret-service",
  "futures-util",
  "hyper-util",
  "k256",

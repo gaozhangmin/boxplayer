@@ -27,12 +27,9 @@ export async function saveChosenLocalFolder(selection: LocalFolderSelection, nam
   const source = await nativeCall<{ id: string }>('local_save_chosen_source', {
     selectionId: selection.id,
     name: name || selection.name,
+    scanAfterSave: true,
   })
   return source
-}
-export async function scanNewLocalFolder(sourceId: string) {
-  await useFileSourcesStore().refresh()
-  await useVideoCatalog().scanFolder(sourceId, '')
 }
 export const MediaScanner={getInstance:()=>({async scanLocalFolder(path:string,name?:string){const catalog=useVideoCatalog(),sources=useFileSourcesStore();const [sourceId,relativePath]=decodeLocal(path);await toggleFolderFavorite(sources,catalog,sourceId,relativePath,name||'文件夹',true)},async favoriteFolder(folder:ElectronFolder,_provider:string,name:string,_root?:boolean,_covered?:boolean){await toggleFolderFavorite(useFileSourcesStore(),useVideoCatalog(),folder.user_id,folder.file_id,name,false)}})}
 export async function downloadFolder(folder:ElectronFolder,name:string){await nativeCall('source_download',{accountId:folder.user_id,fileId:folder.file_id,name})}

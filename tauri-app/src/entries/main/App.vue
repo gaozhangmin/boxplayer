@@ -141,11 +141,39 @@ const scanScheduler=createScanScheduler({
 })
 watch(()=>settings.value.libraryScanMinutes,()=>{scanScheduler.invalidate();if(isNative()&&recoveryReady)void scanScheduler.tick()})
 let recoveryReady=false
+const addedLocalScans = new Set<string>()
+let stopAddedLocalScan: (() => void) | undefined
+let scanningAddedLocal = false
+async function scanAddedLocalFolders() {
+  if (!recoveryReady || scanningAddedLocal || videoCatalog.scanning) return
+  scanningAddedLocal = true
+  try {
+    for (const sourceId of addedLocalScans) {
+      try {
+        await fileSources.refresh()
+        if (videoCatalog.scanning) break
+        addedLocalScans.delete(sourceId)
+        if (fileSources.snapshot.localFolders.some(folder => folder.id === sourceId)) {
+          await videoCatalog.scanFolder(sourceId, '')
+        }
+      } catch (error) {
+        addedLocalScans.delete(sourceId)
+        toast.error(`文件夹已添加，扫描失败：${asAppError(error).message}`)
+      }
+    }
+  } finally {
+    scanningAddedLocal = false
+  }
+}
+watch(() => videoCatalog.scanning, busy => {
+  if (!busy && addedLocalScans.size) void scanAddedLocalFolders()
+})
 let recoveryNotice:string|number|undefined
 async function recoverFileState(){
  try{
   await recoverRemoteOperations(fileSources);await recoverLocalOperations(fileSources)
   recoveryReady=true
+  if (addedLocalScans.size) void scanAddedLocalFolders()
   if(recoveryNotice!==undefined)toast.dismiss(recoveryNotice)
   if(!scanTimer)scanTimer=setInterval(()=>{if(recoveryReady)void scanScheduler.tick()},30000)
   return true
@@ -172,6 +200,10 @@ onMounted(async () => {
     reportUnlisten = await listen<import('@/platform/contracts').PlayerSnapshot>('player:state', event => {void reportServer(event.payload);void videoCatalog.recordProgress(event.payload).catch(()=>{})})
     catalogUnlisten=await listen('catalog:changed',()=>void videoCatalog.load())
     libraryUnlisten = await listen('library:changed', () => void run(() => fileSources.refresh()))
+    stopAddedLocalScan = await listen<string>('library:scan-added-local', ({ payload }) => {
+      addedLocalScans.add(payload)
+      void scanAddedLocalFolders()
+    })
     refreshUnlisten = await listen<import('@/platform/contracts').RefreshRequest>('media:refresh-request', event => {
       void run(async () => {
         let media = null
@@ -191,6 +223,7 @@ onMounted(async () => {
   } catch (e) { toast.error(asAppError(e).message) }
 })
 onUnmounted(() => {scanScheduler.stop();if(scanTimer)clearInterval(scanTimer);if(searchTimer)clearTimeout(searchTimer); window.removeEventListener('focus',onMembershipFocus);catalogUnlisten?.();reportUnlisten?.(); unlisten?.(); libraryUnlisten?.(); refreshUnlisten?.() })
+onUnmounted(() => { stopAddedLocalScan?.(); addedLocalScans.clear() })
 </script>
 <template>
   <AppFrame>

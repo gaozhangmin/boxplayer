@@ -57,6 +57,7 @@ keyring = { version = "3.6.3", features = ["windows-native"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+dbus-secret-service = "4.1"
 keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]

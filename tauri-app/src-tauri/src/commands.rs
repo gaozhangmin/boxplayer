@@ -159,13 +159,25 @@ pub fn local_cancel_folder(state:State<'_,Backend>,selection_id:String)->Result<
     if selected.as_ref().is_some_and(|(id,_)|id==&selection_id){*selected=None}Ok(())
 }
 #[tauri::command]
-pub fn local_save_chosen_source(app:tauri::AppHandle,state:State<'_,Backend>,selection_id:String,name:String)->Result<LocalSource,AppError>{
+pub fn local_save_chosen_source(
+    app: tauri::AppHandle,
+    state: State<'_, Backend>,
+    selection_id: String,
+    name: String,
+    scan_after_save: Option<bool>,
+) -> Result<LocalSource, AppError> {
     let name=name.trim();if name.len()>512{return Err(AppError::new("SOURCE_NAME","来源名称无效",false))}
     let mut selected=state.pending_local.lock().map_err(|_|AppError::new("LOCAL_SELECTION","Folder selection unavailable",true))?;
     let Some((id,path))=selected.as_ref() else{return Err(AppError::new("LOCAL_SELECTION","请重新选择文件夹",false))};
     if id!=&selection_id{return Err(AppError::new("LOCAL_SELECTION","文件夹选择已过期",false))}
     let source=state.library.add_source_named(path,if name.is_empty(){None}else{Some(name)})?;
-    *selected=None;let _=app.emit("library:changed",());Ok(source)
+    *selected = None;
+    drop(selected);
+    let _ = app.emit("library:changed", ());
+    if scan_after_save == Some(true) {
+        let _ = app.emit_to("main", "library:scan-added-local", &source.id);
+    }
+    Ok(source)
 }
 #[tauri::command]
 pub async fn local_add_source(app: tauri::AppHandle) -> Result<Option<LocalSource>, AppError> {

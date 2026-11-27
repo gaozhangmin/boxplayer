@@ -24,7 +24,7 @@ fn keyring_error(error: keyring::Error) -> AppError {
     if matches!(error, keyring::Error::NoStorageAccess(_)) {
         return AppError::new(
             "CREDENTIAL_STORE",
-            "无法访问系统密钥环。请在系统的密码管理器中创建或解锁默认密钥环，然后重试登录",
+            "无法访问系统密钥环。请在系统提示中完成密钥环创建或解锁，然后重试登录",
             true,
         );
     }
@@ -131,6 +131,33 @@ fn read_error(error:keyring::Error)->AppError{
     #[cfg(not(target_os="macos"))]
     {keyring_error(error)}
 }
+#[cfg(target_os = "linux")]
+fn linux_keyring_slot(id: &str) -> Result<(keyring::Entry, Option<String>), keyring::Error> {
+    let dedicated = keyring::Entry::new_with_target("BoxPlayer", SERVICE, id)?;
+    match dedicated.get_password() {
+        Ok(password) => return Ok((dedicated, Some(password))),
+        Err(keyring::Error::NoEntry) => {}
+        Err(error) => return Err(error),
+    }
+
+    let default = keyring::Entry::new(SERVICE, id)?;
+    match default.get_password() {
+        Ok(password) => Ok((default, Some(password))),
+        Err(keyring::Error::NoEntry) => Ok((default, None)),
+        Err(keyring::Error::NoStorageAccess(cause))
+            if matches!(
+                cause.downcast_ref::<dbus_secret_service::Error>(),
+                Some(dbus_secret_service::Error::NoResult)
+            ) =>
+        {
+            // A named Secret Service collection can be created with the
+            // desktop's normal password prompt even without a default alias.
+            Ok((dedicated, None))
+        }
+        Err(error) => Err(error),
+    }
+}
+
 pub struct SystemVault {
     directory: PathBuf,
 }
@@ -147,6 +174,10 @@ impl SystemVault {
         Ok(Self { directory })
     }
     fn entry(id: &str) -> Result<keyring::Entry, AppError> {
+        #[cfg(target_os = "linux")]
+        return linux_keyring_slot(id).map(|(entry, _)| entry).map_err(keyring_error);
+
+        #[cfg(not(target_os = "linux"))]
         keyring::Entry::new(SERVICE, id).map_err(keyring_error)
     }
     fn marker(&self, value: &str) -> Result<Option<(PathBuf, Vec<u8>)>, AppError> {
@@ -164,6 +195,10 @@ impl SystemVault {
 }
 impl SystemVault {
     fn put_inner(&self, id: &str, value: &str) -> Result<(), AppError> {
+        #[cfg(target_os = "linux")]
+        static WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        #[cfg(target_os = "linux")]
+        let _guard = WRITE.lock().map_err(|_| unavailable())?;
         if value.len() > 1024 * 1024 {
             return Err(unavailable());
         }

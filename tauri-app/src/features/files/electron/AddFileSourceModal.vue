@@ -12,7 +12,7 @@ import type { IAliGetFileModel } from '../adapters/sourceServices'
 import MediaServerIcon from './MediaServerIcon.vue'
 import { getDriveProviderMeta } from '../adapters/sourceServices'
 import { useMediaLibraryStore } from '../adapters/sourceServices'
-import {message,chooseLocal,cancelLocal,saveChosenLocalFolder,scanNewLocalFolder,type LocalFolderSelection} from '../adapters/sourceServices'
+import {message,chooseLocal,cancelLocal,saveChosenLocalFolder,type LocalFolderSelection} from '../adapters/sourceServices'
 import { t } from './i18n'
 import { nativeCall, asAppError } from '@/platform/native'
 
@@ -82,12 +82,9 @@ async function saveLocalFolder() {
   if (!selection || savingLocal.value || useMediaLibraryStore().isScanning) return
   savingLocal.value = true
   try {
-    const source = await saveChosenLocalFolder(selection, sourceName.value.trim() || undefined)
+    await saveChosenLocalFolder(selection, sourceName.value.trim() || undefined)
     localSelection.value = undefined
     connected()
-    void scanNewLocalFolder(source.id).catch(error => {
-      message.error(`文件夹已添加，扫描失败：${asAppError(error).message}`)
-    })
   }
   catch (error) { message.error(asAppError(error).message) }
   finally { savingLocal.value = false }

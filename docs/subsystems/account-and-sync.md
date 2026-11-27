@@ -19,7 +19,7 @@
 
 SETTINGS_INVALID、SCHEMA_UNSUPPORTED 和读取错误必须保留原文件并报错；文件确实不存在才初始化默认值。不得把开发数据目录指向 Electron 真实数据。
 
-Linux 登录使用桌面会话的 Secret Service 默认密钥环保存加密凭据的密钥。若系统拒绝访问密钥环，应用提示在系统密码管理器中创建或解锁默认密钥环后重试。Ubuntu Live 会话可能启动了 Secret Service，却没有默认密钥环。
+Linux 登录使用桌面会话的 Secret Service 保存加密凭据的密钥。已有条目沿用各自的密钥环。若系统没有默认密钥环，首次保存时由 Secret Service 创建 BoxPlayer 专用密钥环，并由系统处理密码提示。默认密钥环锁定或授权被拒绝时仍按原有失败路径处理。
 
 ## 验证与维护
 
