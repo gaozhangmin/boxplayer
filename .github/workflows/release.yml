@@ -54,6 +54,7 @@ jobs:
             src/utils/__tests__/mediaScrapeMerge.test.ts \
             src/utils/__tests__/mediaFileNormalizer.test.ts \
             src/utils/__tests__/mediaScannerQueue.test.ts \
+            src/utils/__tests__/nfoParser.test.ts \
             src/utils/__tests__/mediaLibraryDexieMigration.test.ts \
             src/utils/__tests__/mediaAIScrape.test.ts \
             src/utils/__tests__/mediaSourceMembership.test.ts \
