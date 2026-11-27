@@ -21,6 +21,8 @@ Tauri 沿用 iOS 的 Emby 兼容 User-Agent 匹配规则：`drivemby.com` 与其
 
 下方从旧入口迁移的 15 步 checklist 属于 Electron 接入参考。Tauri 应映射到自己的真实实现，不照抄 Electron IPC 命令或把旧测试作为原生通过。
 
+OAuth 遇到构建时注入的 `synthetic-*` 注册占位值时按缺少注册配置处理。真实登录验收使用相应应用的有效注册，并以目标平台的授权回调与保存结果为准。
+
 ## 验证与维护
 
 先读 [开发与执行约束](../agent-development.md) 和 [代码标准](../code-standards.md)。验证按本次用户要求及平台限制执行；未运行的测试、构建和真实设备检查要明确标注。契约改变时同步本文，并核对旧调用者。

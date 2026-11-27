@@ -32,6 +32,10 @@ pub fn site_url() -> Result<String, crate::settings::AppError> {
     }
     Ok(url.into())
 }
+fn bundled_credential(value: &serde_json::Value) -> Option<&str> {
+    value.as_str().map(str::trim).filter(|value| !value.is_empty() && !value.starts_with("synthetic-"))
+}
+
 pub fn client(
     provider: &str,
     supplied_id: String,
@@ -64,12 +68,9 @@ pub fn client(
     )))
     .unwrap_or_default();
     (
-        values[keys.0].as_str().unwrap_or("").into(),
+        bundled_credential(&values[keys.0]).unwrap_or("").into(),
         supplied_secret.filter(|s| !s.is_empty()).or_else(|| {
-            values[keys.1]
-                .as_str()
-                .filter(|s| !s.is_empty())
-                .map(str::to_owned)
+            bundled_credential(&values[keys.1]).map(str::to_owned)
         }),
     )
 }

@@ -8,6 +8,7 @@ import { toast } from 'vue-sonner'
 withDefaults(defineProps<{ controls?: boolean }>(), { controls: true })
 const { t } = useI18n()
 const isMac = /Mac/.test(navigator.platform)
+const hasSystemControls = isMac || /Linux/i.test(navigator.platform)
 async function action(kind: 'minimize' | 'maximize' | 'close') {
   if (!isNative()) return
   try {
@@ -25,7 +26,7 @@ async function drag(event: MouseEvent) {
 <template>
   <header class="window-bar" :class="{ 'mac-bar': isMac }" @mousedown="drag">
     <div class="window-bar-content"><slot /></div>
-    <div v-if="controls && !isMac && isNative()" class="window-controls">
+    <div v-if="controls && !hasSystemControls && isNative()" class="window-controls">
       <Button variant="ghost" size="icon" :aria-label="t('minimize')" @click="action('minimize')"><Minus :size="15" /></Button>
       <Button variant="ghost" size="icon" :aria-label="t('maximize')" @click="action('maximize')"><Square :size="13" /></Button>
       <Button variant="ghost" size="icon" :aria-label="t('close')" @click="action('close')"><X :size="16" /></Button>

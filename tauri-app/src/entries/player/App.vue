@@ -26,6 +26,7 @@ const queueEntries = computed(() => snapshot.value?.queue?.map(item => ({ coreEn
 const video = computed<BoxPlayer[]>(() => [{ id: 1, track_type: 'video', title: '', selected: true, w: snapshot.value?.videoWidth, h: snapshot.value?.videoHeight }])
 const info = computed<MediaInfo | null>(() => snapshot.value ? { title: snapshot.value.title, path: snapshot.value.title, container: '', size: '', duration: formatTime(snapshot.value.duration), badges: [], video: { codec: '', resolution: `${snapshot.value.videoWidth} × ${snapshot.value.videoHeight}`, fps: '', bitRate: '', color: '', aspect: '' }, audio: { codec: '', channels: '', sampleRate: '', language: '' }, subtitles: subtitles.value.map(track => track.title) } : null)
 const isMac = /mac|darwin/i.test(navigator.userAgent)
+const hasLinuxSystemControls = /Linux/i.test(navigator.platform)
 const fullscreen = ref(false)
 const infoOpen = ref(false)
 const playlistOpen = ref(false)
@@ -60,7 +61,7 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
 </script>
 <template>
   <AppFrame>
-    <div class="soia-container" :class="{ 'video-mode': active, 'cursor-hidden': !controlsVisible }" @mousemove="wake" @mouseleave="wake" @click.self="menu = ''; wake()">
+    <div class="soia-container" :class="{ 'video-mode': active, 'cursor-hidden': !controlsVisible, 'system-window-controls': hasLinuxSystemControls }" @mousemove="wake" @mouseleave="wake" @click.self="menu = ''; wake()">
       <PlayerHeader v-show="controlsVisible" :is-mac-os="isMac" :url="url || snapshot?.displayPath || snapshot?.title || ''" :media-title="snapshot?.title || ''" :is-url-modified="!!url" :is-file-loaded="!!active" :is-info-open="infoOpen" :is-playlist-open="playlistOpen" :is-loading="snapshot?.state === 'loading'" playback-title-mode="Show" :compact-mode-enabled="true" :is-fullscreen="fullscreen" :info="info" :current-time="snapshot?.position || 0" :duration="snapshot?.duration || 0" :is-playing="!paused" :video-bitrate="0" hwdec-current="" :playback-speed="snapshot?.speed || 1" :video-tracks="video" :audio-tracks="audio" :sub-tracks="subtitles" @update:url="url = $event" @open-file-picker="choose" @load-file="choose" @toggle-info="infoOpen = !infoOpen" @toggle-playlist="menu = ''; playlistOpen = !playlistOpen; wake()" />
       <div v-if="!active" class="soia-empty"><h1>{{ snapshot?.state === 'error' ? snapshot.error : t('playerEmpty') }}</h1><button @click="choose">{{ t('selectFile') }}</button></div>
       <ContentLoading v-else-if="snapshot?.state === 'loading'" class="soia-loading" :label="t('loadingVideo')" />
@@ -72,6 +73,7 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
   </AppFrame>
 </template>
 <style scoped>
+.system-window-controls :deep(.top-bar__window-controls) { display: none; }
 .soia-loading{position:absolute;inset:0;pointer-events:none}
 .soia-empty { margin: auto; text-align: center; color: var(--text-color); }
 .soia-empty button { padding: 10px 20px; margin-top: 20px; background: var(--primary); color: var(--primary-foreground); border-radius: 8px; }
