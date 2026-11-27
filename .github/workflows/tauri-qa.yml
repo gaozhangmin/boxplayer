@@ -352,7 +352,7 @@ jobs:
           foreach ($dir in @($dataDir, $env:BOXPLAYER_L2_OUT_DIR)) {
             New-Item -ItemType Directory -Path $dir -Force | Out-Null
           }
-          & "$env:ChocolateyInstall/bin/gsudo.exe" --integrity Medium --direct pwsh -NoProfile -NonInteractive -File scripts/ci-tauri-native-windows.ps1 `
+          & "$env:ChocolateyInstall/lib/gsudo/tools/x64/gsudo.exe" --integrity Medium --direct pwsh -NoProfile -NonInteractive -File scripts/ci-tauri-native-windows.ps1 `
             -TauriDriver (Get-Command tauri-driver.exe).Source -EdgeDriver $edgeDriver `
             -Node (Get-Command node.exe).Source -OutputDir $env:BOXPLAYER_L2_OUT_DIR -DataDir $dataDir
           if ($LASTEXITCODE -ne 0) { throw "Windows WebDriver test failed with exit code $LASTEXITCODE" }
