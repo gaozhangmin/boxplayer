@@ -28,7 +28,7 @@ function parseMode() {
 
 function binaryPath() {
   const name = process.platform === 'win32' ? 'boxplayer-tauri-dev.exe' : 'boxplayer-tauri-dev'
-  return join(tauriAppRoot, 'src-tauri', 'target', 'debug', name)
+  return process.env.BOXPLAYER_L2_BINARY || join(tauriAppRoot, 'src-tauri', 'target', 'debug', name)
 }
 
 async function waitForHttp(url, timeoutMs = 45000) {

@@ -186,11 +186,10 @@ jobs:
             exit 1
           }
           Write-Host "Using MSYS2 runtime dir: $bin"
-          "$bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
           $runtime = Join-Path $PWD ".local/runtime/windows"
-          New-Item -ItemType Directory -Path $runtime -Force | Out-Null
-          Copy-Item -Path (Join-Path $bin "*.dll") -Destination $runtime
-          "BOXPLAYER_MPV_RUNTIME=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $readobj = Join-Path $env:ProgramFiles 'LLVM/bin/llvm-readobj.exe'
+          node scripts/stage-windows-mpv.mjs $bin $runtime $readobj (Join-Path $env:SystemRoot 'System32')
+          if ($LASTEXITCODE -ne 0) { throw "Could not stage the libmpv runtime" }
           "BOXPLAYER_FFMPEG=$(Join-Path $bin 'ffmpeg.exe')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Prepare isolated build inputs
@@ -218,17 +217,20 @@ jobs:
           case "$RUNNER_OS" in
             Windows)
               test -f .local/runtime/windows/libmpv-2.dll
-              pnpm tauri build --debug --bundles nsis --config '{"bundle":{"active":true,"resources":{"../.local/runtime/windows/":"runtime/"},"windows":{"nsis":{"compression":"zlib"}}}}' -- --locked
+              pnpm tauri build --debug --bundles nsis --config '{"bundle":{"active":true,"resources":{"../.local/runtime/windows/":"runtime/"},"windows":{"nsis":{"compression":"lzma"}}}}' -- --locked
               test -f src-tauri/target/debug/boxplayer-tauri-dev.exe
               test -f src-tauri/binaries/boxplayer-host-x86_64-pc-windows-msvc.exe
               cp src-tauri/target/debug/bundle/nsis/*.exe "$output/"
               ;;
             Linux)
-              pnpm tauri build --debug --bundles deb --config '{"bundle":{"active":true,"linux":{"deb":{"depends":["libmpv2"]}}}}' -- --locked
-              test -x src-tauri/target/debug/boxplayer-tauri-dev
-              test -x src-tauri/binaries/boxplayer-host-x86_64-unknown-linux-gnu
-              cp src-tauri/target/debug/bundle/deb/*.deb "$output/"
+              CARGO_PROFILE_RELEASE_STRIP=symbols pnpm tauri build --bundles deb --config '{"bundle":{"active":true,"linux":{"deb":{"depends":["libmpv2"]}}}}' -- --locked
+              cp src-tauri/target/release/bundle/deb/*.deb "$output/"
               dpkg-deb --field "$output"/*.deb Depends | grep -w libmpv2
+              installed="$PWD/.local/qa-installed"
+              dpkg-deb --extract "$output"/*.deb "$installed"
+              test -x "$installed/usr/bin/boxplayer-tauri-dev"
+              test -x "$installed/usr/bin/boxplayer-host"
+              echo "BOXPLAYER_L2_BINARY=$installed/usr/bin/boxplayer-tauri-dev" >> "$GITHUB_ENV"
               ;;
             macOS)
               pnpm tauri build --debug --bundles app --config '{"bundle":{"active":true}}' -- --locked
@@ -239,8 +241,24 @@ jobs:
               ditto -c -k --sequesterRsrc --keepParent "$app" "$output/BoxPlayer-macos-debug.zip"
               ;;
           esac
+          wc -c "$output"/*
           cp ../LICENSE THIRD_PARTY_NOTICES.md "$output/"
           git diff --exit-code -- pnpm-lock.yaml src-tauri/Cargo.lock
+
+      - name: Extract and verify the packaged Windows libmpv runtime
+        if: matrix.os_id == 'windows'
+        shell: pwsh
+        working-directory: tauri-app
+        run: |
+          $installer = Get-ChildItem '.local/ci-packages' -Filter '*.exe'
+          $installed = Join-Path $PWD '.local/qa-installed'
+          & "$env:ProgramFiles/7-Zip/7z.exe" x $installer.FullName "-o$installed" -y
+          if ($LASTEXITCODE -ne 0) { throw "Could not extract the NSIS installer" }
+          $runtime = Join-Path $installed 'runtime'
+          $staged = Get-ChildItem '.local/runtime/windows' -Filter '*.dll' | Select-Object -ExpandProperty Name
+          $packaged = Get-ChildItem $runtime -Filter '*.dll' | Select-Object -ExpandProperty Name
+          if (Compare-Object $staged $packaged) { throw "Installer DLLs differ from the staged runtime" }
+          "BOXPLAYER_MPV_RUNTIME=$runtime" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Upload QA package
         uses: actions/upload-artifact@v4
