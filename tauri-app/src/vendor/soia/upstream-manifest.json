@@ -5,19 +5,27 @@
   "files": [
     {
       "file": "components/PlayerHeader.vue",
-      "sha256": "f394d13bafcbc6becc51ca968a11ca6c71b65d72e0c9e794c7e346d492b87746"
+      "sha256": "f394d13bafcbc6becc51ca968a11ca6c71b65d72e0c9e794c7e346d492b87746",
+      "integratedSha256": "23206d230f552e4be31c209249061c21f68ab4ecf3340f0d407067244f1c74d8",
+      "integration": "Frame-style playback control placement; retains BoxPlayer events"
     },
     {
       "file": "components/PlayerControls.vue",
-      "sha256": "5ed818560b4e747f3640464c0d5ab40fd7fdd0db22ec466662261a276f6426e9"
+      "sha256": "5ed818560b4e747f3640464c0d5ab40fd7fdd0db22ec466662261a276f6426e9",
+      "integratedSha256": "212f7c3af704c507e116d1da28adee8c15bd19606d66a4a87e9276bde4700aa5",
+      "integration": "Frame-style playback control placement; retains BoxPlayer events"
     },
     {
       "file": "components/player-controls/LeftControls.vue",
-      "sha256": "05965a36f57fff2120f84b18d83f91bd74faf3218528d5da4930aa7e0d7bc0e3"
+      "sha256": "05965a36f57fff2120f84b18d83f91bd74faf3218528d5da4930aa7e0d7bc0e3",
+      "integratedSha256": "1ef7ea97eb36af0ffda076c454a2cd56dfc65cf9d64c61c5d946455c76d60546",
+      "integration": "Frame-style playback control placement; retains BoxPlayer events"
     },
     {
       "file": "components/player-controls/RightControls.vue",
-      "sha256": "8f7cd5e3b2276ff18b79c3f4578e722b005c531632aee2c07997da24bc6c0601"
+      "sha256": "8f7cd5e3b2276ff18b79c3f4578e722b005c531632aee2c07997da24bc6c0601",
+      "integratedSha256": "478727c2d42e07012b5e089e9b1b9677c1891a59513bdd04796be473698c2ea9",
+      "integration": "Frame-style playback control placement; retains BoxPlayer events"
     },
     {
       "file": "components/player-controls/SeekBar.vue",

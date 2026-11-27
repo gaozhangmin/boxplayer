@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 const props = defineProps<{
     isPlaying: boolean;
+    frameLayout?: boolean;
     currentTime: number;
     duration: number;
     isLivePlayback: boolean;
@@ -45,6 +46,7 @@ const onVolumeInput = (event: Event) => {
 
 <template>
     <div class="controls-left">
+      <div class="playback-transport">
         <button
             class="icon-button icon-button--player icon-button--lg"
             :disabled="props.navigationDisabled"
@@ -58,7 +60,7 @@ const onVolumeInput = (event: Event) => {
             </svg>
         </button>
         <button
-            class="icon-button icon-button--player icon-button--lg"
+            class="icon-button icon-button--player icon-button--lg transport-play"
             :disabled="props.playbackDisabled"
             :aria-description="props.playbackDisabledReason"
             :data-disabled-reason="props.playbackDisabled ? props.playbackDisabledReason : undefined"
@@ -87,6 +89,7 @@ const onVolumeInput = (event: Event) => {
                 <path d="M16 6v12h2V6h-2zm-1.5 6L6 18V6l8.5 6z" />
             </svg>
         </button>
+      </div>
         <div
             v-if="passthroughActive"
             class="passthrough-indicator"
@@ -150,7 +153,7 @@ const onVolumeInput = (event: Event) => {
             <span class="live-dot" aria-hidden="true"></span>
             <span>Live</span>
         </div>
-        <div v-else class="time-display">
+        <div v-else-if="!props.frameLayout" class="time-display">
             <span>{{ formatTime(currentTime) }}</span>
             <span class="separator">/</span>
             <span>{{ formatTime(duration) }}</span>
@@ -168,6 +171,12 @@ const onVolumeInput = (event: Event) => {
 </template>
 
 <style scoped>
+.playback-transport {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .volume-control {
     --volume-percent: 100%;
     position: relative;

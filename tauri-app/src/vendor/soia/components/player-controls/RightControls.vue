@@ -467,7 +467,7 @@ watch(
 
 <template>
     <div class="controls-right">
-        <div class="track-menu-container">
+        <div class="track-menu-container playback-speed">
             <button
                 class="icon-button icon-button--player"
                 :disabled="speedLocked || props.castingDisabled"
@@ -564,6 +564,7 @@ watch(
             </button>
         </div>
 
+        <slot name="after-repeat" />
         <div class="track-menu-container">
             <button
                 class="icon-button icon-button--player"
@@ -1295,9 +1296,11 @@ watch(
             </svg>
         </button>
 
+        <slot name="before-fullscreen" />
         <button
             v-if="!(isWindowsPlatform && isPipEnabled)"
-            class="icon-button icon-button--player icon-button--lg"
+            class="icon-button icon-button--player icon-button--lg playback-fullscreen"
+            :title="isFullscreen ? 'Exit fullscreen' : 'Fullscreen'"
             :class="{ 'icon-button--disabled': isMacPlatform && isPipEnabled }"
             :disabled="isMacPlatform && isPipEnabled"
             :aria-disabled="isMacPlatform && isPipEnabled"

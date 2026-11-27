@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import ContentLoading from '@/features/files/electron/ContentLoading.vue'
-import { computed, onMounted, onUnmounted, onErrorCaptured, ref } from 'vue'
+import { computed, watch, onMounted, onUnmounted, onErrorCaptured, ref } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import AppFrame from '@/components/AppFrame.vue'
 import PlayerHeader from '@/vendor/soia/components/PlayerHeader.vue'
 import PlayerControls from '@/vendor/soia/components/PlayerControls.vue'
+import CastDevicePopover from '@/vendor/soia/components/CastDevicePopover.vue'
 import PlaylistDrawer from '@/vendor/soia/components/PlaylistDrawer.vue'
 import { formatTime } from '@/features/player/formatTime'
 import { usePlayer } from '@/features/player/usePlayer'
@@ -15,6 +16,7 @@ import type { MediaInfo } from '@/vendor/soia/mock/mediaInfo'
 import '@/vendor/soia/styles/app-theme.css'
 import '@/vendor/soia/styles/app-shell.css'
 import '@/vendor/soia/styles/player.css'
+import '@/features/player/framePlayback.css'
 const { t } = useI18n()
 const { snapshot, error, control } = usePlayer()
 const active = computed(() => snapshot.value && !['idle', 'error'].includes(snapshot.value.state))
@@ -31,6 +33,19 @@ const fullscreen = ref(false)
 const infoOpen = ref(false)
 const playlistOpen = ref(false)
 const menu = ref('')
+const castOpen = ref(false)
+function togglePlaylist() {
+  menu.value = ''
+  playlistOpen.value = !playlistOpen.value
+  wake()
+}
+function toggleCast(open: boolean) {
+  castOpen.value = open
+  if (open) menu.value = ''
+  wake()
+}
+watch(active, value => { if (!value) castOpen.value = false })
+
 const advanced = ref(false)
 const controlsVisible = ref(true)
 const url = ref('')
@@ -38,7 +53,7 @@ const lastVolume = ref(70)
 const adjustments = ref({ zoom: 1, audioDelay: 0, subDelay: 0, brightness: 0, contrast: 0, saturation: 0, gamma: 0, hue: 0, globalColor: true, globalCrop: true, loop: false })
 let hideTimer: ReturnType<typeof setTimeout> | undefined
 let unresize: (() => void) | undefined
-function wake() { controlsVisible.value = true; if (hideTimer) clearTimeout(hideTimer); hideTimer = setTimeout(() => { if (!paused.value && !menu.value && !infoOpen.value && !playlistOpen.value) controlsVisible.value = false }, 2500) }
+function wake() { controlsVisible.value = true; if (hideTimer) clearTimeout(hideTimer); hideTimer = setTimeout(() => { if (!paused.value && !menu.value && !infoOpen.value && !playlistOpen.value && !castOpen.value) controlsVisible.value = false }, 2500) }
 function unsupported(feature: string) { error.value = `${feature} 尚未接入；当前操作未执行。` }
 async function choose() { try { const path = await openFile(); if (path) await playFile(path) } catch (e) { error.value = asAppError(e).message } }
 async function toggleFullscreen() { try { const win = getCurrentWindow(); await win.setFullscreen(!await win.isFullscreen()); fullscreen.value = await win.isFullscreen() } catch (e) { error.value = asAppError(e).message } }
@@ -61,14 +76,31 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
 </script>
 <template>
   <AppFrame>
-    <div class="soia-container" :class="{ 'video-mode': active, 'cursor-hidden': !controlsVisible, 'system-window-controls': hasLinuxSystemControls }" @mousemove="wake" @mouseleave="wake" @click.self="menu = ''; wake()">
-      <PlayerHeader v-show="controlsVisible" :is-mac-os="isMac" :url="url || snapshot?.displayPath || snapshot?.title || ''" :media-title="snapshot?.title || ''" :is-url-modified="!!url" :is-file-loaded="!!active" :is-info-open="infoOpen" :is-playlist-open="playlistOpen" :is-loading="snapshot?.state === 'loading'" playback-title-mode="Show" :compact-mode-enabled="true" :is-fullscreen="fullscreen" :info="info" :current-time="snapshot?.position || 0" :duration="snapshot?.duration || 0" :is-playing="!paused" :video-bitrate="0" hwdec-current="" :playback-speed="snapshot?.speed || 1" :video-tracks="video" :audio-tracks="audio" :sub-tracks="subtitles" @update:url="url = $event" @open-file-picker="choose" @load-file="choose" @toggle-info="infoOpen = !infoOpen" @toggle-playlist="menu = ''; playlistOpen = !playlistOpen; wake()" />
+    <div class="soia-container" :class="{ 'video-mode': active, 'frame-playback': active, 'frame-playback-macos': isMac && !fullscreen, 'cursor-hidden': !controlsVisible, 'system-window-controls': hasLinuxSystemControls }" @mousemove="wake" @mouseleave="wake" @click.self="menu = ''; wake()">
+      <PlayerHeader v-show="controlsVisible" :playback-actions-in-footer="!!active" :is-mac-os="isMac" :url="url || snapshot?.displayPath || snapshot?.title || ''" :media-title="snapshot?.title || ''" :is-url-modified="!!url" :is-file-loaded="!!active" :is-info-open="infoOpen" :is-playlist-open="playlistOpen" :is-loading="snapshot?.state === 'loading'" playback-title-mode="Show" :compact-mode-enabled="true" :is-fullscreen="fullscreen" :info="info" :current-time="snapshot?.position || 0" :duration="snapshot?.duration || 0" :is-playing="!paused" :video-bitrate="0" hwdec-current="" :playback-speed="snapshot?.speed || 1" :video-tracks="video" :audio-tracks="audio" :sub-tracks="subtitles" @update:url="url = $event" @open-file-picker="choose" @load-file="choose" @toggle-info="infoOpen = !infoOpen" @toggle-playlist="togglePlaylist">
+        <template #playback-brand>
+          <span v-if="active" class="playback-brand">BoxPlayer <img src="/app-icon.png" alt="" /></span>
+        </template>
+      </PlayerHeader>
       <div v-if="!active" class="soia-empty"><h1>{{ snapshot?.state === 'error' ? snapshot.error : t('playerEmpty') }}</h1><button @click="choose">{{ t('selectFile') }}</button></div>
       <ContentLoading v-else-if="snapshot?.state === 'loading'" class="soia-loading" :label="t('loadingVideo')" />
       <p v-if="error" class="soia-notice" role="alert" @click="error = ''">{{ error }}</p>
       <PlaylistDrawer :open="playlistOpen" :playlists="[]" active-playlist-id="current" active-playlist-name="当前播放队列" :width-ratio="null" :scroll-state="{ list: 0, playlists: {} }" :entries="queueEntries" :current-url="snapshot?.title || ''" :is-ready="!!snapshot" loop-mode="list" sort-mode="name" :is-loop-one="adjustments.loop" @close="playlistOpen = false" @play="control('queue', queueEntries.findIndex(entry => entry.coreEntryId === $event.coreEntryId))" @add="choose" @toggle-loop="unsupported('队列循环方式')" @back="unsupported('播放列表管理')" @toggle-sort="unsupported('队列排序')" @clear="unsupported('清空队列')" @remove="unsupported('移除队列项目')" @rename-playlist="unsupported('重命名播放列表')" @delete-playlist="unsupported('删除播放列表')" @move-playlist="unsupported('移动播放列表')" />
-      <PlayerControls v-if="snapshot?.sessionId" :is-playing="!paused" :current-time="snapshot.position" :duration="snapshot.duration" :is-live-playback="false" :progress-percent="snapshot.duration ? snapshot.position / snapshot.duration * 100 : 0" :buffered-percent="snapshot.duration ? (snapshot.bufferedPosition ?? snapshot.position) / snapshot.duration * 100 : 0" :volume="snapshot.volume" :format-time="formatTime" :controls-visible="controlsVisible" :is-hidden="!controlsVisible" :status-badges="[]" :audio-passthrough-active="false" :current-speed="snapshot.speed" :current-zoom="adjustments.zoom" :playback-rates="[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]" :show-speed-menu="menu === 'speed'" :show-settings-menu="menu === 'settings'" :audio-delay="adjustments.audioDelay" :sub-delay="adjustments.subDelay" :secondary-sub-delay="0" :brightness="adjustments.brightness" :contrast="adjustments.contrast" :saturation="adjustments.saturation" :gamma="adjustments.gamma" :hue="adjustments.hue" :global-color-adjustments-enabled="adjustments.globalColor" :global-crop-zoom-enabled="adjustments.globalCrop" :is-loop-one="adjustments.loop" :audio-tracks="audio" :video-tracks="video" :show-audio-menu="menu === 'audio'" :sub-tracks="subtitles" :dual-sub-enabled="false" :secondary-sub-id="0" active-sub-target="primary" primary-sub-font-family="" secondary-sub-font-family="" :primary-sub-font-size="55" :secondary-sub-font-size="55" primary-sub-font-color="#FFFFFF" secondary-sub-font-color="#FFFFFF" :primary-sub-pos="100" :secondary-sub-pos="100" :show-sub-menu="menu === 'sub'" :show-subtitle-advanced-settings="advanced" :has-audio-tracks="!!audio.length" :has-sub-tracks="subtitles.length > 1" :is-fullscreen="fullscreen"
-      @seek="control('seek', $event)" @prev-track="control('previous')" @next-track="control('next')" @toggle-play-pause="control('pause', paused ? 0 : 1)" @stop-playback="control('pause', 1)" @set-volume="control('volume', $event)" @toggle-muted="toggleMute" @toggle-menu="toggleMenu" @set-speed="control('speed', $event)" @set-speed-continuously="control('speed', $event)" @select-audio="control('audio', undefined, Number($event.id))" @select-sub-track="control('subtitle', undefined, Number($event.track.id) === 0 ? -1 : Number($event.track.id))" @toggle-fullscreen="toggleFullscreen" @set-zoom="setting('zoom', $event)" @set-audio-delay="setting('audioDelay', $event)" @set-sub-delay-for-target="setting('subDelay', $event.value)" @set-brightness="setting('brightness', $event)" @set-contrast="setting('contrast', $event)" @set-saturation="setting('saturation', $event)" @set-gamma="setting('gamma', $event)" @set-hue="setting('hue', $event)" @toggle-loop-one="setting('loop', !adjustments.loop)" @set-global-color-adjustments-enabled="unsupported('全局画面设置')" @set-global-crop-zoom-enabled="unsupported('全局裁剪设置')" @toggle-dual-sub="unsupported('双字幕')" @add-external-audio="unsupported('外挂音轨')" @add-external-sub="unsupported('外挂字幕选择')" @find-online-sub="unsupported('在线字幕')" @set-sub-font-family="unsupported('字幕字体')" @set-sub-font-size="unsupported('字幕字号')" @set-sub-font-color="unsupported('字幕颜色')" @set-sub-position="unsupported('字幕位置')" @reset-sub-appearance="unsupported('字幕外观重置')" @update:show-subtitle-advanced-settings="advanced = $event" />
+      <PlayerControls v-if="snapshot?.sessionId" :frame-layout="!!active" :is-playing="!paused" :current-time="snapshot.position" :duration="snapshot.duration" :is-live-playback="false" :progress-percent="snapshot.duration ? snapshot.position / snapshot.duration * 100 : 0" :buffered-percent="snapshot.duration ? (snapshot.bufferedPosition ?? snapshot.position) / snapshot.duration * 100 : 0" :volume="snapshot.volume" :format-time="formatTime" :controls-visible="controlsVisible" :is-hidden="!controlsVisible" :status-badges="[]" :audio-passthrough-active="false" :current-speed="snapshot.speed" :current-zoom="adjustments.zoom" :playback-rates="[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]" :show-speed-menu="menu === 'speed'" :show-settings-menu="menu === 'settings'" :audio-delay="adjustments.audioDelay" :sub-delay="adjustments.subDelay" :secondary-sub-delay="0" :brightness="adjustments.brightness" :contrast="adjustments.contrast" :saturation="adjustments.saturation" :gamma="adjustments.gamma" :hue="adjustments.hue" :global-color-adjustments-enabled="adjustments.globalColor" :global-crop-zoom-enabled="adjustments.globalCrop" :is-loop-one="adjustments.loop" :audio-tracks="audio" :video-tracks="video" :show-audio-menu="menu === 'audio'" :sub-tracks="subtitles" :dual-sub-enabled="false" :secondary-sub-id="0" active-sub-target="primary" primary-sub-font-family="" secondary-sub-font-family="" :primary-sub-font-size="55" :secondary-sub-font-size="55" primary-sub-font-color="#FFFFFF" secondary-sub-font-color="#FFFFFF" :primary-sub-pos="100" :secondary-sub-pos="100" :show-sub-menu="menu === 'sub'" :show-subtitle-advanced-settings="advanced" :has-audio-tracks="!!audio.length" :has-sub-tracks="subtitles.length > 1" :is-fullscreen="fullscreen"
+      @seek="control('seek', $event)" @prev-track="control('previous')" @next-track="control('next')" @toggle-play-pause="control('pause', paused ? 0 : 1)" @stop-playback="control('pause', 1)" @set-volume="control('volume', $event)" @toggle-muted="toggleMute" @toggle-menu="toggleMenu" @set-speed="control('speed', $event)" @set-speed-continuously="control('speed', $event)" @select-audio="control('audio', undefined, Number($event.id))" @select-sub-track="control('subtitle', undefined, Number($event.track.id) === 0 ? -1 : Number($event.track.id))" @toggle-fullscreen="toggleFullscreen" @set-zoom="setting('zoom', $event)" @set-audio-delay="setting('audioDelay', $event)" @set-sub-delay-for-target="setting('subDelay', $event.value)" @set-brightness="setting('brightness', $event)" @set-contrast="setting('contrast', $event)" @set-saturation="setting('saturation', $event)" @set-gamma="setting('gamma', $event)" @set-hue="setting('hue', $event)" @toggle-loop-one="setting('loop', !adjustments.loop)" @set-global-color-adjustments-enabled="unsupported('全局画面设置')" @set-global-crop-zoom-enabled="unsupported('全局裁剪设置')" @toggle-dual-sub="unsupported('双字幕')" @add-external-audio="unsupported('外挂音轨')" @add-external-sub="unsupported('外挂字幕选择')" @find-online-sub="unsupported('在线字幕')" @set-sub-font-family="unsupported('字幕字体')" @set-sub-font-size="unsupported('字幕字号')" @set-sub-font-color="unsupported('字幕颜色')" @set-sub-position="unsupported('字幕位置')" @reset-sub-appearance="unsupported('字幕外观重置')" @update:show-subtitle-advanced-settings="advanced = $event">
+        <template #after-repeat>
+          <button v-if="active" class="icon-button icon-button--player playback-queue"
+            type="button" title="Playlist" aria-label="Playlist" :aria-pressed="playlistOpen"
+            @click.stop="togglePlaylist">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M2.4 3.6h19.2v2.4H2.4zM2.4 10.8h19.2v2.4H2.4zM2.4 18h13.2v2.4H2.4zM16.8 16.4v5.6l4.8-2.8z" />
+            </svg>
+          </button>
+        </template>
+        <template #before-fullscreen>
+          <CastDevicePopover v-if="active" :is-file-loaded="true" @update:open="toggleCast" />
+        </template>
+      </PlayerControls>
     </div>
   </AppFrame>
 </template>

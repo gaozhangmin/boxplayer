@@ -10,6 +10,7 @@ import RightControls from "./player-controls/RightControls.vue";
 
 const props = defineProps<{
     isPlaying: boolean;
+    frameLayout?: boolean;
     currentTime: number;
     duration: number;
     isLivePlayback: boolean;
@@ -164,7 +165,9 @@ const updateControlsMainScale = () => {
     const measureGroupWidth = (group: HTMLElement) => {
         const groupStyle = window.getComputedStyle(group);
         const gap = Number.parseFloat(groupStyle.columnGap || groupStyle.gap || "0") || 0;
-        const children = Array.from(group.children) as HTMLElement[];
+        const children = (Array.from(group.children) as HTMLElement[]).filter(
+            (child) => !props.frameLayout || window.getComputedStyle(child).position !== "absolute",
+        );
         let total = 0;
 
         for (const child of children) {
@@ -183,7 +186,16 @@ const updateControlsMainScale = () => {
     };
 
     const availableWidth = controlsViewport.clientWidth;
-    const requiredWidth = measureGroupWidth(leftControls) + measureGroupWidth(rightControls) + 8;
+    const leftWidth = measureGroupWidth(leftControls);
+    const rightWidth = measureGroupWidth(rightControls);
+    const transportWidth = controlsMain.querySelector<HTMLElement>(".playback-transport")?.offsetWidth ?? 0;
+    const speedWidth = controlsMain.querySelector<HTMLElement>(".playback-speed")?.offsetWidth ?? 0;
+    const splitRows = props.frameLayout && window.matchMedia("(max-width: 560px)").matches;
+    const requiredWidth = props.frameLayout
+        ? splitRows
+            ? leftWidth + speedWidth + rightWidth + 16
+            : 2 * Math.max(leftWidth + speedWidth, rightWidth) + transportWidth + 16
+        : leftWidth + rightWidth + 8;
 
     if (availableWidth <= 0 || requiredWidth <= 0) {
         if (controlsMainScale.value !== 1) {
@@ -254,6 +266,10 @@ onUnmounted(() => {
         :class="{ 'ui-hidden': props.isHidden }"
     >
         <div class="player-controls-content">
+            <div v-if="props.frameLayout && !isLivePlayback" class="playback-times">
+                <span>{{ formatTime(currentTime) }}</span>
+                <span>{{ formatTime(duration) }}</span>
+            </div>
             <SeekBar
                 v-if="!isLivePlayback"
                 :duration="duration"
@@ -274,6 +290,7 @@ onUnmounted(() => {
                     }"
                 >
                     <LeftControls
+                        :frame-layout="props.frameLayout"
                         :is-playing="isPlaying"
                         :current-time="currentTime"
                         :duration="duration"
@@ -377,7 +394,10 @@ onUnmounted(() => {
                         @find-online-sub="emit('find-online-sub')"
                         @toggle-fullscreen="emit('toggle-fullscreen')"
                         @update:show-subtitle-advanced-settings="emit('update:showSubtitleAdvancedSettings', $event)"
-                    />
+                    >
+                        <template #after-repeat><slot name="after-repeat" /></template>
+                        <template #before-fullscreen><slot name="before-fullscreen" /></template>
+                    </RightControls>
                 </div>
             </div>
         </div>

@@ -1,0 +1,214 @@
+/*
+ * Playback chrome adapted from Frame Player 5a05260 (GPL-3.0).
+ * Source: src/lib/components/{TopBar,Osc,Controls,SeekBar}.svelte.
+ * This stylesheet applies only while BoxPlayer has a playable session.
+ */
+.frame-playback {
+  --playback-icon: #e8e8ec;
+  --playback-accent: #a0a8ff;
+  --playback-edge: 20px;
+  --playback-control-height: 42px;
+}
+
+.frame-playback .top-bar {
+  height: 48px;
+  padding: 0 var(--playback-edge);
+  color: var(--playback-icon);
+  pointer-events: none;
+  background: transparent;
+}
+
+.frame-playback .top-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 76px;
+  background: linear-gradient(to bottom, rgb(0 0 0 / 60%), transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.frame-playback .top-bar__content {
+  min-height: 48px;
+  padding: 0;
+  gap: 8px;
+}
+
+.frame-playback-macos .top-bar__content { padding-left: 58px; }
+
+.frame-playback .top-bar__input {
+  position: absolute;
+  inset: 8px 25% auto;
+  width: 50%;
+  height: 32px;
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 5px rgb(0 0 0 / 75%);
+}
+
+.frame-playback .top-bar__input:focus:not([readonly]) { background-color: rgb(20 20 29 / 88%); }
+.frame-playback .top-bar :is(button, input, .info-panel) { pointer-events: auto; }
+.frame-playback .top-bar__input--hidden { pointer-events: none; }
+
+.frame-playback .top-bar__info,
+.frame-playback .top-bar__action {
+  width: 34px;
+  height: 34px;
+  margin: 0;
+  border-radius: 8px;
+  color: var(--playback-icon);
+}
+
+.frame-playback .top-bar__info svg,
+.frame-playback .top-bar__action svg { width: 20px; height: 20px; }
+
+.frame-playback .playback-brand {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-shadow: 0 1px 5px rgb(0 0 0 / 75%);
+}
+
+.frame-playback .playback-brand img { width: 16px; height: 16px; }
+
+.frame-playback .player-controls {
+  isolation: isolate;
+  padding: 0 var(--playback-edge) 12px;
+  color: var(--playback-icon);
+  background: transparent;
+}
+
+.frame-playback .player-controls::before {
+  content: "";
+  position: absolute;
+  inset: -44px 0 0;
+  z-index: -1;
+  background: linear-gradient(to top, rgb(0 0 0 / 72%), rgb(0 0 0 / 32%) 55%, transparent);
+  pointer-events: none;
+}
+
+.frame-playback .playback-times {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #e0e0e6;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 4px rgb(0 0 0 / 75%);
+}
+
+.frame-playback .player-controls .progress-area {
+  height: 16px;
+  margin-top: 6px;
+}
+
+.frame-playback .player-controls .progress-area .progress-bg {
+  height: 4px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 28%);
+}
+
+.frame-playback .player-controls .progress-current { background: #fff; }
+.frame-playback .player-controls .progress-buffer-ahead { background: rgb(255 255 255 / 30%); }
+.frame-playback .player-controls .scrubber-head {
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 0;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}
+
+.frame-playback .player-controls .controls-main {
+  position: relative;
+  height: var(--playback-control-height);
+  margin-top: 8px;
+}
+
+.frame-playback .player-controls .controls-left,
+.frame-playback .player-controls .controls-right { gap: 6px; }
+
+.frame-playback .player-controls .playback-transport {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.frame-playback .player-controls :is(.icon-button--player, .cast-popover__trigger) {
+  width: 36px;
+  height: 34px;
+  padding: 0;
+  margin: 0;
+  color: var(--playback-icon);
+  border-radius: 8px;
+}
+
+.frame-playback .player-controls :is(.icon-button--player, .cast-popover__trigger):hover:not(:disabled) {
+  background: rgb(255 255 255 / 12%);
+}
+
+.frame-playback .player-controls :is(.icon-button--player, .cast-popover__trigger) svg { width: 20px; height: 20px; }
+.frame-playback .player-controls .transport-play { width: 46px; height: 42px; }
+.frame-playback .player-controls .transport-play svg { width: 32px; height: 32px; }
+.frame-playback .player-controls .playback-fullscreen svg { width: 24px; height: 24px; }
+.frame-playback .player-controls :is([aria-pressed="true"], .cast-popover__trigger--active) { color: var(--playback-accent); }
+.frame-playback .player-controls .icon-button--player:disabled { opacity: .55; }
+
+.frame-playback .player-controls .volume-control { gap: 6px; padding: 0; }
+.frame-playback .player-controls .volume-control__popover {
+  position: static;
+  width: 90px;
+  height: 34px;
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+.frame-playback .player-controls .volume-control__slider { width: 90px; height: 4px; margin: 0; }
+.frame-playback .player-controls .volume-control__slider::-webkit-slider-thumb { width: 12px; height: 12px; }
+.frame-playback .player-controls .volume-control__slider::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 0; }
+.frame-playback .player-controls .playback-speed {
+  position: absolute;
+  top: 2px;
+  left: 142px;
+}
+.frame-playback .player-controls .playback-speed .track-menu { left: 0; right: auto; }
+.frame-playback .player-controls .track-menu-container { padding: 0; box-shadow: none; }
+.frame-playback .player-controls .track-menu-container:hover { background: transparent; }
+.frame-playback .player-controls .cast-popover__panel {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform-origin: bottom right;
+}
+.frame-playback .player-controls .track-menu,
+.frame-playback .player-controls .cast-popover__panel {
+  color: var(--playback-icon);
+  color-scheme: dark;
+  background: rgb(23 23 32 / 96%);
+  border-color: rgb(255 255 255 / 16%);
+}
+
+@media (max-width: 560px) {
+  .frame-playback { --playback-edge: 12px; }
+  .frame-playback .playback-brand { visibility: hidden; }
+  .frame-playback .top-bar__input { inset-inline: 33%; width: 34%; }
+  .frame-playback .player-controls .controls-main { height: 78px; align-items: flex-end; }
+  .frame-playback .player-controls .playback-transport { gap: 4px; }
+  .frame-playback .player-controls .controls-right { gap: 2px; }
+  .frame-playback .player-controls .volume-control__popover,
+  .frame-playback .player-controls .volume-control__slider { width: 54px; }
+  .frame-playback .player-controls .playback-speed { top: auto; bottom: 0; left: 102px; }
+}

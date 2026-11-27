@@ -1,4 +1,4 @@
-// Checks pinned upstream sources with explicit compatibility edits and the reviewed seek bar style.
+// Checks pinned upstream sources with explicit compatibility and playback layout edits.
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 const root = new URL('../src/vendor/soia/', import.meta.url)
@@ -17,4 +17,4 @@ for (const file of manifest.files) {
   const sha = crypto.createHash('sha256').update(code).digest('hex')
   if (sha !== (file.integratedSha256 ?? file.sha256)) throw new Error(`Unexpected upstream modification: ${file.file}`)
 }
-console.log(`Verified ${manifest.files.length} soia source files; native imports, track types, discovery typing and the pinned BoxPlayer seek bar style verified.`)
+console.log(`Verified ${manifest.files.length} soia source files and their pinned integration edits.`)

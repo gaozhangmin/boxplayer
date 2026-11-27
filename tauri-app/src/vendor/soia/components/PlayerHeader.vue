@@ -21,6 +21,7 @@ const props = defineProps<{
     mediaTitle: string;
     isUrlModified: boolean;
     isFileLoaded: boolean;
+    playbackActionsInFooter?: boolean;
     isInfoOpen: boolean;
     isPlaylistOpen: boolean;
     isLoading: boolean;
@@ -904,6 +905,7 @@ watch(
                     </svg>
                 </button>
                 <button
+                    v-if="!props.playbackActionsInFooter"
                     class="icon-button top-bar__playlist"
                     :class="{ 'top-bar__playlist--active': props.isPlaylistOpen }"
                     type="button"
@@ -954,9 +956,11 @@ watch(
                 />
 
                 <CastDevicePopover
+                    v-if="!props.playbackActionsInFooter"
                     :is-file-loaded="props.isFileLoaded"
                     @update:open="emit('cast-popover-toggle', $event)"
                 />
+                <slot name="playback-brand" />
 
                 <button
                     v-if="props.isUrlModified"
