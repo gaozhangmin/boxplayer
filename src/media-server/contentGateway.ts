@@ -253,7 +253,11 @@ const toKind = (type?: string): MediaServerCardItem['kind'] => {
     case 'episode': return 'episode'
     case 'person': return 'person'
     case 'folder':
-    case 'collectionfolder': return 'folder'
+    case 'collectionfolder':
+    case 'playlistsfolder':
+    case 'playlist':
+    case 'boxset':
+    case 'userview': return 'folder'
     default: return 'unknown'
   }
 }
@@ -394,7 +398,7 @@ const mapItem = (config: MediaServerConfig, item: MediaServerBaseItem): MediaSer
 const mapLibraryNode = (config: MediaServerConfig, item: MediaServerBaseItem): MediaServerLibraryNode => ({
   ...mapItem(config, item),
   childCount: item.ChildCount,
-  collectionType: item.CollectionType
+  collectionType: item.CollectionType || ((item.Type || '').toLowerCase() === 'playlistsfolder' ? 'playlists' : undefined)
 })
 
 const mapPerson = (
@@ -624,11 +628,19 @@ const ensureServerContext = (config: MediaServerConfig) => {
   if (!config.userId) throw new Error('媒体服务器用户信息缺失，请重新登录')
 }
 
+const HOME_LIBRARY_COLLECTION_TYPES = new Set(['homevideos', 'movies', 'musicvideos', 'tvshows', 'playlists', 'boxsets'])
+
+const isSupportedHomeLibrary = (item: MediaServerBaseItem) =>
+  HOME_LIBRARY_COLLECTION_TYPES.has((item.CollectionType || '').toLowerCase())
+  || (item.Type || '').toLowerCase() === 'playlistsfolder'
+
 const homeLibraryIncludeTypes = (collectionType?: string) => {
   const normalized = (collectionType || '').toLowerCase()
   if (normalized === 'movies') return 'Movie'
   if (normalized === 'tvshows') return 'Series'
   if (normalized === 'musicvideos') return 'MusicVideo,Video'
+  if (normalized === 'playlists') return 'Playlist'
+  if (normalized === 'boxsets') return 'BoxSet'
   if (normalized === 'homevideos') return 'Movie,Series,Video'
   return 'Movie,Series,Video'
 }
@@ -648,7 +660,7 @@ export const getMediaServerHome = async (config: MediaServerConfig): Promise<Med
 
   const excludedLibraryIds = new Set(userPayload.Configuration?.LatestItemsExcludes || [])
   const libraries = (libraryPayload.Items || [])
-    .filter((item) => ['homevideos', 'movies', 'musicvideos', 'tvshows'].includes((item.CollectionType || '').toLowerCase()))
+    .filter(isSupportedHomeLibrary)
     .filter((item) => !excludedLibraryIds.has(item.Id || ''))
     .map((item) => mapLibraryNode(config, item))
   const librarySections = (
@@ -718,7 +730,7 @@ export const getMediaServerHomeWithPreferences = async (
 
   const excludedLibraryIds = new Set(userPayload.Configuration?.LatestItemsExcludes || [])
   const libraries = (libraryPayload.Items || [])
-    .filter((item) => ['homevideos', 'movies', 'musicvideos', 'tvshows'].includes((item.CollectionType || '').toLowerCase()))
+    .filter(isSupportedHomeLibrary)
     .filter((item) => !excludedLibraryIds.has(item.Id || ''))
     .map((item) => mapLibraryNode(config, item))
 
@@ -771,7 +783,7 @@ export const getMediaServerHomeShell = async (config: MediaServerConfig): Promis
   const libraryPayload = await mediaServerFetch<BaseQueryResult>(config, `/Users/${config.userId}/Views`)
 
   const libraries = (libraryPayload.Items || [])
-    .filter((item) => ['homevideos', 'movies', 'musicvideos', 'tvshows'].includes((item.CollectionType || '').toLowerCase()))
+    .filter(isSupportedHomeLibrary)
     .map((item) => mapLibraryNode(config, item))
     .map((item) => ({ id: item.id, title: item.title, collectionType: item.collectionType, items: [], total: item.childCount }))
 
@@ -1480,15 +1492,9 @@ export const getMediaServerLibraryPagedItems = async (
   const container = parentId.startsWith('server-container:')
   const queryParentId = container ? parentId.slice('server-container:'.length) : parentId
   const recursive = !container && options?.recursiveMedia === true
-  const includeItemTypes = (() => {
-    const collectionType = (options?.collectionType || '').toLowerCase()
-    if (!recursive) return ''
-    if (collectionType === 'movies') return '&IncludeItemTypes=Movie'
-    if (collectionType === 'tvshows') return '&IncludeItemTypes=Series'
-    if (collectionType === 'musicvideos') return '&IncludeItemTypes=MusicVideo,Video'
-    if (collectionType === 'homevideos') return '&IncludeItemTypes=Movie,Series,Video'
-    return '&IncludeItemTypes=Movie,Series,Video'
-  })()
+  const includeItemTypes = recursive
+    ? `&IncludeItemTypes=${encodeURIComponent(homeLibraryIncludeTypes(options?.collectionType))}`
+    : ''
   const payload = await mediaServerFetch<BaseQueryResult>(
     config,
     `/Users/${config.userId}/Items?ParentId=${encodeURIComponent(queryParentId)}&Recursive=${recursive ? 'true' : 'false'}${includeItemTypes}&EnableUserData=true&Fields=${HOME_ITEM_FIELDS}${container ? '' : '&' + serverPageOrder(options?.order)}&Limit=${pageSize}&StartIndex=${page * pageSize}`
@@ -1613,7 +1619,7 @@ export const getMediaServerSearch = async (
 
   const payload = await mediaServerFetch<BaseQueryResult>(
     config,
-    `/Users/${config.userId}/Items?SearchTerm=${encodeURIComponent(trimmedQuery)}&Recursive=true&IncludeItemTypes=Movie,Series,Season,Episode,BoxSet,Person,Folder&Fields=${HOME_ITEM_FIELDS}&Limit=60&SortBy=SortName&SortOrder=Ascending`
+    `/Users/${config.userId}/Items?SearchTerm=${encodeURIComponent(trimmedQuery)}&Recursive=true&IncludeItemTypes=Movie,Series,Season,Episode,BoxSet,Playlist,Person,Folder&Fields=${HOME_ITEM_FIELDS}&Limit=60&SortBy=SortName&SortOrder=Ascending`
   )
 
   return {

@@ -309,6 +309,15 @@
                   subtitle-mode="title"
                   @select="handleSearchItemSelect"
                 />
+                <MediaServerPosterRow
+                  v-if="searchFolderItems.length > 0"
+                  :title="t('mediaServer.collectionsAndPlaylists')"
+                  :items="searchFolderItems"
+                  poster-type="portrait"
+                  :show-see-all="false"
+                  subtitle-mode="title"
+                  @select="handleSearchItemSelect"
+                />
               </div>
               <div v-else class="empty-placeholder">{{ t('mediaServer.noSearchResults', { query: normalizedSearchQuery }) }}</div>
             </template>
@@ -1786,6 +1795,7 @@ const searchMovieItems = computed<MediaServerLibraryNode[]>(() => currentSearch.
 const searchSeriesItems = computed<MediaServerLibraryNode[]>(() => currentSearch.value.items.filter((item) => item.kind === 'series'))
 const searchEpisodeItems = computed<MediaServerLibraryNode[]>(() => currentSearch.value.items.filter((item) => item.kind === 'episode' || item.kind === 'season'))
 const searchPersonItems = computed<MediaServerLibraryNode[]>(() => currentSearch.value.items.filter((item) => item.kind === 'person' || (item.kind === 'unknown' && !item.childCount)))
+const searchFolderItems = computed<MediaServerLibraryNode[]>(() => currentSearch.value.items.filter((item) => item.kind === 'folder'))
 const currentCollection = computed(() => {
   const serverId = registry.currentServer?.id || ''
   if (!serverId || currentRoute.value.kind !== 'collection-page') {
@@ -3206,7 +3216,7 @@ const getListingSubtitle = (item: MediaServerLibraryNode) => {
   if (item.parentTitle && item.parentTitle !== item.title) return item.title
   if (item.year) return `${item.year}`
   if (typeof item.rating === 'number') return `评分 ${item.rating.toFixed(1)}`
-  return item.collectionType || item.kind || '媒体'
+  return getListingKindLabel(item)
 }
 
 const getListingOverlay = (item: MediaServerLibraryNode) => {
@@ -3235,6 +3245,10 @@ const getListingKindLabel = (item: MediaServerLibraryNode) => {
     if (typeof item.episodeNumber === 'number') return `第 ${item.episodeNumber} 集`
     return '剧集'
   }
+  const rawType = (item.rawType || '').toLowerCase()
+  if (rawType === 'playlist') return '播放列表'
+  if (rawType === 'boxset') return '合集'
+  if (item.kind === 'folder') return item.collectionType || '文件夹'
   return item.collectionType || '媒体'
 }
 
@@ -3501,7 +3515,7 @@ const handleLibraryItemClick = (itemId: string, title: string, item?: MediaServe
     navigation.push({ kind: 'item-detail', itemId, title })
     return
   }
-  navigation.push({ kind: 'library-page', libraryId: ['BoxSet', 'Playlist'].includes(item?.rawType || '') ? `server-container:${itemId}` : itemId, title })
+  navigation.push({ kind: 'library-page', libraryId: ['boxset', 'playlist'].includes((item?.rawType || '').toLowerCase()) ? `server-container:${itemId}` : itemId, title })
 }
 
 const handleSearchItemSelect = (item: MediaServerLibraryNode) => {

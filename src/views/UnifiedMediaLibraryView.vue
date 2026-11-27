@@ -858,10 +858,15 @@ function moveSource(key: string, offset: number) {
 const failedProviderIcons = ref(new Set<string>())
 function markProviderIconFailed(key: string) { failedProviderIcons.value = new Set([...failedProviderIcons.value, key]) }
 const serverFolderMenu = ref<{ item: MediaServerCardItem; x: number; y: number }>()
+const serverItemRoute = (item: MediaServerCardItem): MediaServerRoute => ['boxset', 'playlist'].includes((item.rawType || '').toLowerCase())
+  ? { kind: 'library-page', libraryId: `server-container:${item.id}`, title: item.title }
+  : item.kind === 'folder'
+    ? { kind: 'library-page', libraryId: item.id, title: item.title }
+    : { kind: 'item-detail', itemId: item.id, title: item.title }
 const folderFavoriteCards = computed(() => serverFolderFavorites.value.filter(entry =>
  registry.servers.some(server => server.id === entry.item.serverId && (server.userId || '') === entry.userId)
 ).map(entry => ({ key: serverFolderFavoriteKey(entry.item), title: entry.item.title, item: entry.item,
- action: () => entry.item.id === '__all__' ? showServer(entry.item.serverId) : entry.item.kind === 'folder' ? showServer(entry.item.serverId, { kind: 'library-page', libraryId: entry.item.id, title: entry.item.title }) : showServer(entry.item.serverId, { kind: 'item-detail', itemId: entry.item.id, title: entry.item.title }) })))
+ action: () => entry.item.id === '__all__' ? showServer(entry.item.serverId) : showServer(entry.item.serverId, serverItemRoute(entry.item)) })))
 const fileSourceCards = computed(() => [
  ...folderFavoriteCards.value.map(card => ({ ...card, server: null, providerIcon: '', icon: Folder })),
  ...libraryBookmarks.favorites.filter(route => route.startsWith('home-entry/')).map(route => ({ key: 'server-category:' + route, title: libraryBookmarks.titles[route] || categoryBookmarkTitle(route), server: null, providerIcon: '', icon: Folder, action: () => showCatalog(route) })),...connectedFileRoots.value.filter(root => !media.folders.some(folder => folder.isFavorite !== false && rootFolderMatchesAny(root, folder) && (!isConnectedRootFolder(folder) || folder.isDriveRootFavorite))).map(root => ({ key: `root:${root.value}`, title: sourceOverrides.value[`root:${root.value}`]?.name || root.label, server: null, providerIcon: root.providerIcon || '', icon: root.driveServerId === 'webdav' ? Network : Folder, action: () => { void openConnectedFileRoot(root) } })), ...registry.servers.map(server => ({ key: 'server:' + server.id, title: server.name, server, providerIcon: '', icon: Star, action: () => showServer(server.id) })), ...media.folders.filter(folder => (!isConnectedRootFolder(folder) || folder.isDriveRootFavorite) && folder.isFavorite !== false).map(folder => ({ key: 'folder:' + folder.id, title: folder.name, subtitle: folder.isDriveRootFavorite ? rootFavoriteDriveName(folder) : '', server: null, providerIcon: folder.isDriveRootFavorite || ['/', '0', 'root', 'quark_root', 'baidu_root'].includes(folder.fileId) ? getDriveProviderIcon(getDriveProviderById(folder.driveId || folder.driveServerId)) : '', icon: Star, action: () => { void showFolder(folder) } }))].sort((a,b) => ((sourceOverrides.value[a.key]?.order ?? 9999) - (sourceOverrides.value[b.key]?.order ?? 9999)) || a.title.localeCompare(b.title) * (fileSourceDescending.value ? -1 : 1)))
@@ -1071,14 +1076,18 @@ const localCard = (item: MediaLibraryItem, landscape = false, playlistName?: str
   if (playlistName && action === 'reorderPlaylistItem') { showHomeRow('local:playlist:group:' + encodeURIComponent(playlistName)); playlistReordering.value = true; return }
   void localPosterAction(item, action)
 } }, key: `local:${item.id}${!seriesPreferences.mergeVersions ? ':file:' + item.driveFiles[0]?.id : ''}`, title: generalPreferences.showFileNames ? item.driveFiles[0]?.name || item.name : item.name, sortValues: { title: item.name, fileName: item.driveFiles[0]?.name, addedAt: item.addedAt, premiereDate: item.releaseDate }, image: landscape ? item.backdropUrl || item.posterUrl : item.posterUrl || item.backdropUrl, subtitle: posterYearAndSeasons(item.year, item.type === 'tv' ? item.seasons?.filter(season => season.seasonNumber > 0).length : undefined), progress: mediaWatchProgressPercent(item), action: () => { if (browseSelection.value && section.value === 'collection') toggleObjectSelection(item); else void openVideo(item, seriesID) } })
-const serverCard = (item: MediaServerCardItem, landscape = false): Card => ({ overview: item.overview, certification: item.officialRating, rating: item.rating, posterMenu: { server: true, tv: item.kind === 'series' || item.kind === 'season', watched: item.isPlayed === true, favorite: item.isFavorite, disabled: item.kind === 'season' ? ['rating', 'playlist'] : ['playlist'], action: action => { void serverPosterAction(item, action) } }, key: `${item.serverId}:${item.id}`, title: item.title, sortValues: item, image: toMsCacheUrl(item.serverId, resolveMediaServerImage(item, landscape ? 'landscape' : 'portrait')), subtitle: item.kind === 'series' ? posterYearAndSeasons(item.year, item.seasonCount) : item.parentTitle || String(item.year || ''), progress: item.progress, action: () => showServer(item.serverId, { kind: 'item-detail', itemId: item.id, title: item.title }) })
+const serverCard = (item: MediaServerCardItem, landscape = false): Card => ({ overview: item.overview, certification: item.officialRating, rating: item.rating, posterMenu: { server: true, tv: item.kind === 'series' || item.kind === 'season', watched: item.isPlayed === true, favorite: item.isFavorite, disabled: item.kind === 'season' ? ['rating', 'playlist'] : ['playlist'], action: action => { void serverPosterAction(item, action) } }, key: `${item.serverId}:${item.id}`, title: item.title, sortValues: item, image: toMsCacheUrl(item.serverId, resolveMediaServerImage(item, landscape ? 'landscape' : 'portrait')), subtitle: item.kind === 'series' ? posterYearAndSeasons(item.year, item.seasonCount) : item.parentTitle || String(item.year || ''), progress: item.progress, action: () => showServer(item.serverId, serverItemRoute(item)) })
 const searchRows = computed<Row[]>(() => {
   const keyword = query.value.trim().toLocaleLowerCase()
   if (!keyword) return []
   const server = registry.servers.find(server => server.id === searchScope.value)
   if (server) {
     const items = content.currentSearchData(server.id + ':' + query.value.trim()).items
-    return [{ key: 'search-movies', title: t('media.movie'), cards: items.filter(item => item.kind === 'movie').map(item => serverCard(item)), more: () => {} }, { key: 'search-tv', title: t('media.tv'), cards: items.filter(item => item.kind === 'series').map(item => serverCard(item)), more: () => {} }].filter(row => row.cards.length)
+    return [
+      { key: 'search-movies', title: t('media.movie'), cards: items.filter(item => item.kind === 'movie').map(item => serverCard(item)), more: () => {} },
+      { key: 'search-tv', title: t('media.tv'), cards: items.filter(item => item.kind === 'series').map(item => serverCard(item)), more: () => {} },
+      { key: 'search-collections', title: t('mediaServer.collectionsAndPlaylists'), cards: items.filter(item => item.kind === 'folder' || ['boxset', 'playlist'].includes((item.rawType || '').toLowerCase())).map(item => serverCard(item)), more: () => {} }
+    ].filter(row => row.cards.length)
   }
   const items = searchLibrary.value.filter(item => item.name.toLocaleLowerCase().includes(keyword) && (searchScope.value !== 'local' || hasLocalMedia(item)))
   return [{ key: 'search-movies', title: t('media.movie'), cards: items.filter(item => item.type === 'movie').map(item => localCard(item)), more: () => {} }, { key: 'search-tv', title: t('media.tv'), cards: items.filter(item => item.type === 'tv').map(item => localCard(item)), more: () => {} }, { key: 'search-other', title: t('unified.other'), cards: items.filter(item => item.type !== 'movie' && item.type !== 'tv').map(item => localCard(item)), more: () => {} }].filter(row => row.cards.length)
@@ -1210,9 +1219,7 @@ const remoteRows = computed<Row[]>(() => {
       const key = `${server.id}:${libraryId}`
       const title = `${t(`serverFavorites.${type}`)} - ${server.name}`
       result.push({ key, title, loading: !!content.homeSectionLoading[key] || (!(key in content.homeFavoriteItems) && !content.homeSectionError[key]), error: content.homeSectionError[key], retry: () => { void requestHomeRow(key, true) }, cards: (content.homeFavoriteItems[key] || []).slice(0, 24).map(item => ({ ...serverCard(item),
-        action: () => showServer(server.id, ['BoxSet', 'Playlist'].includes(item.rawType || '')
-          ? { kind: 'library-page', libraryId: `server-container:${item.id}`, title: item.title }
-          : { kind: 'item-detail', itemId: item.id, title: item.title }) })),
+        action: () => showServer(server.id, serverItemRoute(item)) })),
         more: () => showServer(server.id, { kind: 'library-page', libraryId, title: homePreferences.titles[key] ? `${homePreferences.titles[key]} - ${server.name}` : title }) })
     }
     result.push({ key: `${server.id}:next`, loading: !!content.homeSectionLoading[`${server.id}:nextup`] || (!content.homeSectionLoaded[`${server.id}:nextup`] && !content.homeSectionError[`${server.id}:nextup`]), error: content.homeSectionError[`${server.id}:nextup`], retry: () => { void requestHomeRow(`${server.id}:next`, true) }, title: `${t('unified.nextUp')} · ${server.name}`, cards: data.nextUp.map(item => serverCard(item)), more: () => showServer(server.id, { kind: 'collection-page', collectionId: 'home:nextup', title: t('unified.nextUp') }) })

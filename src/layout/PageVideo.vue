@@ -55,7 +55,7 @@ import { formatEmbeddedSubtitleLabel } from '../utils/subtitleLanguage'
 import { resolveFullscreenModalContainer } from '../utils/fullscreenModal'
 import { updateSettingPreservingActivePanel } from '../utils/artplayerSetting'
 import message from '../utils/message'
-import { captureVideoQualitySwitchPlaybackState } from '../utils/videoQualitySwitch'
+import { captureVideoQualitySwitchPlaybackState, findOriginFallbackTranscodedQuality, isOriginVideoQuality } from '../utils/videoQualitySwitch'
 import { hasPlaybackHeaders, mergeMpvPlaybackHeaders, mergePlaybackHeaders, resolveMpvPlaybackTransport } from '../utils/playbackHeaders'
 import { directVideoPosition, getLocalVideoProgress, saveDirectVideoProgress, saveLocalVideoProgress } from '../utils/videoProgress'
 import { isVideoFile } from '../utils/videoFile'
@@ -385,6 +385,12 @@ const playByFlv = (video: HTMLMediaElement, url: string, art: Artplayer) => {
 const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
   destroyArtFlv(art)
   if (HlsJs.isSupported()) {
+    if ((art as any).hls && (art as any).__hlsSourceUrl === url) {
+      if (video.readyState >= video.HAVE_CURRENT_DATA || Boolean((art as any).__hlsLoaded)) {
+        art.loading.show = false
+      }
+      return
+    }
     // @ts-ignore
     if (art.hls) art.hls.destroy()
     destroyArtDash(art)
@@ -402,6 +408,8 @@ const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
         if (errorType === HlsJs.ErrorTypes.MEDIA_ERROR) {
           hls.recoverMediaError()
         } else if (errorType === HlsJs.ErrorTypes.NETWORK_ERROR) {
+          delete (art as any).__hlsSourceUrl
+          delete (art as any).__hlsLoaded
           if (pageVideo.expire_time && pageVideo.expire_time <= Date.now()) {
             await updateVideoTime()
             await getVideoInfo(art)
@@ -409,11 +417,14 @@ const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
             art.emit('video:error', data)
           }
         } else {
+          delete (art as any).__hlsSourceUrl
+          delete (art as any).__hlsLoaded
           hls.destroy()
         }
       }
     })
     hls.on(HlsJs.Events.MANIFEST_PARSED, () => {
+      if ((art as any).hls === hls) (art as any).__hlsLoaded = true
       if ((art as any).hls === hls && isHlsVideoType(art.type)) getHlsControlPlugin(art)?.update?.()
     })
     hls.on(HlsJs.Events.AUDIO_TRACKS_UPDATED, () => {
@@ -421,8 +432,14 @@ const playByHls = (video: HTMLMediaElement, url: string, art: Artplayer) => {
     })
     // @ts-ignore
     art.hls = hls
+    ;(art as any).__hlsSourceUrl = url
+    ;(art as any).__hlsLoaded = false
     ensureHlsControlPlugin(art)
-    art.on('destroy', () => hls.destroy())
+    art.on('destroy', () => {
+      delete (art as any).__hlsSourceUrl
+      delete (art as any).__hlsLoaded
+      hls.destroy()
+    })
   } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
     video.src = url
   } else {
@@ -495,6 +512,8 @@ const resolveHeaderAwareVideoUrl = (
 }
 
 const destroyArtHls = (art: Artplayer) => {
+  delete (art as any).__hlsSourceUrl
+  delete (art as any).__hlsLoaded
   if ((art as any).hls) {
     ;(art as any).hls.detachMedia?.()
     ;(art as any).hls.destroy?.()
@@ -1287,10 +1306,53 @@ const initHotKey = (art: Artplayer) => {
   })
 }
 
+const tryFallbackOriginVideoQuality = (art: Artplayer): boolean => {
+  const ctx = (art as any).__qualityFallback as {
+    data: IRawUrl
+    currentQuality: selectorItem
+    fallbackTried: boolean
+    updateQualityControl?: () => void
+  } | undefined
+  if (!ctx || ctx.fallbackTried || !isOriginVideoQuality(ctx.currentQuality)) return false
+  if (isHlsVideoType(getArtVideoType(ctx.currentQuality.url, ctx.currentQuality.type))) return false
+  const fallback = findOriginFallbackTranscodedQuality(
+    ctx.data.qualities || [],
+    (item) => isHlsVideoType(getArtVideoType(item.url, item.type))
+  )
+  if (!fallback) return false
+
+  ctx.fallbackTried = true
+  ctx.currentQuality = fallback
+  for (const quality of ctx.data.qualities) {
+    ;(quality as selectorItem).default = quality === fallback
+  }
+  const fallbackHeaders = mergePlaybackHeaders(ctx.data.headers, fallback.headers)
+  const fallbackUrl = resolveHeaderAwareVideoUrl(fallback.url, fallbackHeaders, ctx.data.size, fallback.quality || '')
+  pageVideo.expire_time = GetExpiresTime(fallback.url)
+  const fallbackArtType = getArtVideoType(fallback.url, fallback.type)
+  if ((art as any).option) (art as any).option.url = fallbackUrl
+  setArtVideoUrl(art, fallbackUrl, fallbackArtType)
+  ctx.updateQualityControl?.()
+  console.info('[播放][网页] 原画播放失败，自动降级为转码流', {
+    quality: fallback.quality || '',
+    qualityLabel: fallback.html || '',
+    url: fallbackUrl
+  })
+  return true
+}
+
 const initEvent = (art: Artplayer) => {
   // 监听事件
   art.on('video:error', () => {
+    if (tryFallbackOriginVideoQuality(art)) return
     art.notice.show = t('video.unsupportedMediaType')
+  })
+  art.on('error', () => {
+    const ctx = (art as any).__qualityFallback
+    if (ctx?.fallbackTried && (art as any).hls && (art as any).__hlsSourceUrl === (art as any).option?.url) {
+      art.notice.show = ''
+      art.loading.show = false
+    }
   })
   art.on('ready', async () => {
     await art.play().catch()
@@ -2687,6 +2749,7 @@ const handleMpvPlaylistStep = async (step: number) => {
 }
 
 const getVideoInfo = async (art: Artplayer) => {
+  delete (art as any).__qualityFallback
   if (pageVideo.drive_id === 'local') {
     const urlModule = window.require?.('url')
     const filePath = pageVideo.file_id || (pageVideo as any).file_path || ''
@@ -2735,74 +2798,90 @@ const getVideoInfo = async (art: Artplayer) => {
     }
     const defaultHeaders = mergePlaybackHeaders(data.headers, defaultQuality.headers)
     const defaultUrl = resolveHeaderAwareVideoUrl(defaultQuality.url, defaultHeaders, data.size, defaultQuality.quality || '')
-    setArtVideoUrl(art, defaultUrl, defaultQuality.type)
+    const defaultArtType = defaultQuality.type || (defaultUrl !== defaultQuality.url ? getArtVideoType(defaultQuality.url, defaultQuality.type) || undefined : undefined)
+    setArtVideoUrl(art, defaultUrl, defaultArtType)
     defaultQuality.default = true
     pageVideo.expire_time = GetExpiresTime(defaultQuality.url)
-    if (data.qualities.length > 1) art.controls.update({
-      name: 'quality',
-      index: 20,
-      position: 'right',
-      style: { marginRight: '15px' },
-      html: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>',
-      selector: data.qualities,
-      onSelect: (selector: any, element: HTMLElement, event: Event) => {
-        const item = selector as selectorItem
-        const playbackState = captureVideoQualitySwitchPlaybackState(!art.video.paused && !art.video.ended, art.video.currentTime)
-        const artType = getArtVideoType(item.url, item.type)
-        art.type = artType as any
-        if (!isHlsVideoType(artType)) destroyArtHls(art)
-        if (!isDashVideoType(artType)) destroyArtDash(art)
-        if (artType !== 'flv') destroyArtFlv(art)
-        const itemHeaders = mergePlaybackHeaders(data.headers, item.headers)
-        const itemUrl = resolveHeaderAwareVideoUrl(item.url, itemHeaders, data.size, item.quality || '')
-        console.info('[播放][网页] 切换清晰度链接', {
-          quality: item.quality || '',
-          qualityLabel: item.html || '',
-          url: itemUrl,
-          position: playbackState.position,
-          shouldResume: playbackState.shouldResume
-        })
-        let positionRestored = false
-        const switchGeneration = ++qualitySwitchGeneration
-        const restorePlayback = async () => {
-          if (switchGeneration !== qualitySwitchGeneration) return
-          if (playbackState.position > 0 && !positionRestored) {
-            art.currentTime = playbackState.position
-            positionRestored = true
+    const updateQualityControl = () => {
+      if (data.qualities.length <= 1) return
+      art.controls.update({
+        name: 'quality',
+        index: 20,
+        position: 'right',
+        style: { marginRight: '15px' },
+        html: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>',
+        selector: data.qualities.map((q) => ({ ...q })),
+        onSelect: (selector: any, element: HTMLElement, event: Event) => {
+          const item = selector as selectorItem
+          const matched = data.qualities.find((q) => q === item || (q.quality === item.quality && q.url === item.url)) || item
+          for (const q of data.qualities) {
+            ;(q as selectorItem).default = q === matched
           }
-          if (playbackState.shouldResume && art.video.paused) await art.play().catch(() => undefined)
-        }
-        const handleQualityCanPlay = () => {
-          void restorePlayback()
-        }
-        const handleQualityError = () => {
-          art.off('video:canplay', handleQualityCanPlay)
-        }
-        art.once('video:canplay', handleQualityCanPlay)
-        art.once('video:error', handleQualityError)
-        art.switchQuality(itemUrl).then(async () => {
-          if (switchGeneration !== qualitySwitchGeneration) return
-          art.off('video:canplay', handleQualityCanPlay)
-          art.off('video:error', handleQualityError)
-          scheduleCleanupInactiveStreamingControls(art)
-          art.playbackRate = playbackRate
-          await restorePlayback()
-          if (switchGeneration === qualitySwitchGeneration) qualitySwitchGeneration = 0
-          console.info('[播放][网页] 已切换播放链接', {
+          if ((art as any).__qualityFallback) (art as any).__qualityFallback.currentQuality = matched
+          const playbackState = captureVideoQualitySwitchPlaybackState(!art.video.paused && !art.video.ended, art.video.currentTime)
+          const artType = getArtVideoType(item.url, item.type)
+          art.type = artType as any
+          if (!isHlsVideoType(artType)) destroyArtHls(art)
+          if (!isDashVideoType(artType)) destroyArtDash(art)
+          if (artType !== 'flv') destroyArtFlv(art)
+          const itemHeaders = mergePlaybackHeaders(data.headers, item.headers)
+          const itemUrl = resolveHeaderAwareVideoUrl(item.url, itemHeaders, data.size, item.quality || '')
+          console.info('[播放][网页] 切换清晰度链接', {
             quality: item.quality || '',
-            url: art.video?.currentSrc || art.url || itemUrl,
-            position: art.currentTime,
-            playing: art.playing
+            qualityLabel: item.html || '',
+            url: itemUrl,
+            position: playbackState.position,
+            shouldResume: playbackState.shouldResume
           })
-        }).catch((error) => {
-          if (switchGeneration === qualitySwitchGeneration) qualitySwitchGeneration = 0
-          art.off('video:canplay', handleQualityCanPlay)
-          art.off('video:error', handleQualityError)
-          console.error('[播放][网页] 切换播放链接失败', { quality: item.quality || '', url: itemUrl, error })
-        })
-        return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>'
-      }
-    })
+          let positionRestored = false
+          const switchGeneration = ++qualitySwitchGeneration
+          const restorePlayback = async () => {
+            if (switchGeneration !== qualitySwitchGeneration) return
+            if (playbackState.position > 0 && !positionRestored) {
+              art.currentTime = playbackState.position
+              positionRestored = true
+            }
+            if (playbackState.shouldResume && art.video.paused) await art.play().catch(() => undefined)
+          }
+          const handleQualityCanPlay = () => {
+            void restorePlayback()
+          }
+          const handleQualityError = () => {
+            art.off('video:canplay', handleQualityCanPlay)
+          }
+          art.once('video:canplay', handleQualityCanPlay)
+          art.once('video:error', handleQualityError)
+          art.switchQuality(itemUrl).then(async () => {
+            if (switchGeneration !== qualitySwitchGeneration) return
+            art.off('video:canplay', handleQualityCanPlay)
+            art.off('video:error', handleQualityError)
+            scheduleCleanupInactiveStreamingControls(art)
+            art.playbackRate = playbackRate
+            await restorePlayback()
+            if (switchGeneration === qualitySwitchGeneration) qualitySwitchGeneration = 0
+            console.info('[播放][网页] 已切换播放链接', {
+              quality: item.quality || '',
+              url: art.video?.currentSrc || art.url || itemUrl,
+              position: art.currentTime,
+              playing: art.playing
+            })
+          }).catch((error) => {
+            if (switchGeneration === qualitySwitchGeneration) qualitySwitchGeneration = 0
+            art.off('video:canplay', handleQualityCanPlay)
+            art.off('video:error', handleQualityError)
+            console.error('[播放][网页] 切换播放链接失败', { quality: item.quality || '', url: itemUrl, error })
+          })
+          return '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-label="清晰度"><rect x="2" y="5" width="15" height="14" rx="3"/><path d="m17 10 5-3v10l-5-3M6 14l6-6M7 8h5v5"/></svg>'
+        }
+      })
+    }
+    ;(art as any).__qualityFallback = {
+      data,
+      currentQuality: defaultQuality,
+      fallbackTried: false,
+      updateQualityControl
+    }
+    updateQualityControl()
     // 内嵌字幕
     const subtitles = data.subtitles || []
     if (subtitles.length > 0) {
