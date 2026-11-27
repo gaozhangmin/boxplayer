@@ -11,9 +11,8 @@ import type { MediaServerConfig, MediaServerType } from '../adapters/serverTypes
 import type { IAliGetFileModel } from '../adapters/sourceServices'
 import MediaServerIcon from './MediaServerIcon.vue'
 import { getDriveProviderMeta } from '../adapters/sourceServices'
-import { MediaScanner } from '../adapters/sourceServices'
 import { useMediaLibraryStore } from '../adapters/sourceServices'
-import {message,chooseLocal,cancelLocal} from '../adapters/sourceServices'
+import {message,chooseLocal,cancelLocal,saveChosenLocalFolder,scanNewLocalFolder,type LocalFolderSelection} from '../adapters/sourceServices'
 import { t } from './i18n'
 import { nativeCall, asAppError } from '@/platform/native'
 
@@ -27,7 +26,13 @@ type Detail = { kind: 'cloud'; provider: string } | { kind: 'server'; type: Medi
 const detail = ref<Detail>()
 const authorizing = ref(false)
 const sourceName = ref('')
-const localPath = ref('')
+const localSelection = ref<LocalFolderSelection>()
+const localPath = computed(() => localSelection.value?.path ?? '')
+function clearLocalSelection() {
+  const selection = localSelection.value
+  localSelection.value = undefined
+  if (selection) void cancelLocal(selection.id)
+}
 const savingLocal = ref(false)
 const cloud139Pending = ref('')
 const selectedSource = computed(() => props.sources.find(s => s.id === selected.value))
@@ -39,7 +44,7 @@ function cancelCloud139() {
   cloud139Pending.value = ''
   if (requestId) void nativeCall('auth_cancel', { requestId }).catch(() => {})
 }
-function resetDetail() { cancelCloud139(); void cancelLocal(); detail.value = undefined; authorizing.value = false; sourceName.value = ''; localPath.value = '' }
+function resetDetail() { cancelCloud139(); clearLocalSelection(); detail.value = undefined; authorizing.value = false; sourceName.value = '' }
 function selectSource(id: string) { editingId.value=''; if (savingLocal.value) return; resetDetail(); selected.value = id }
 function openCloud(provider: string) {
   resetDetail()
@@ -68,15 +73,23 @@ async function connectSource() {
   }
 }
 async function chooseLocalFolder() {
-  try { const selection=await chooseLocal();if(!selection)return;localPath.value=selection.path;if(!sourceName.value.trim())sourceName.value=selection.name }
-  catch(error){message.error(String(error))}
+  try { const selection=await chooseLocal();if(!selection)return;localSelection.value=selection;if(!sourceName.value.trim())sourceName.value=selection.name }
+  catch(error){message.error(asAppError(error).message)}
 }
-onUnmounted(()=>{cancelCloud139();void cancelLocal()})
+onUnmounted(()=>{cancelCloud139();clearLocalSelection()})
 async function saveLocalFolder() {
-  if (!localPath.value || savingLocal.value || useMediaLibraryStore().isScanning) return
+  const selection = localSelection.value
+  if (!selection || savingLocal.value || useMediaLibraryStore().isScanning) return
   savingLocal.value = true
-  try { await MediaScanner.getInstance().scanLocalFolder(localPath.value, sourceName.value.trim() || undefined); connected() }
-  catch (error) { message.error(String(error)) }
+  try {
+    const source = await saveChosenLocalFolder(selection, sourceName.value.trim() || undefined)
+    localSelection.value = undefined
+    connected()
+    void scanNewLocalFolder(source.id).catch(error => {
+      message.error(`文件夹已添加，扫描失败：${asAppError(error).message}`)
+    })
+  }
+  catch (error) { message.error(asAppError(error).message) }
   finally { savingLocal.value = false }
 }
 watch(() => props.visible, () => { if (!savingLocal.value) { showTransfers.value=false; selected.value = 'add'; resetDetail() } })

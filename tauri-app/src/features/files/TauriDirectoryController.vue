@@ -12,7 +12,7 @@ import NativeFilesDialogs from './adapters/NativeFilesDialogs.vue'
 import {useFilesPorts} from './adapters/filesPorts'
 import MediaPanRight from './electron/MediaPanRight.vue'
 import type {BrowserFile} from './electron/MediaPanRight.vue'
-import {decodeLocal,encodeLocal} from './adapters/sourceServices'
+import {decodeLocal,encodeLocal,message} from './adapters/sourceServices'
 import { computed, ref, watch, onUnmounted, onMounted } from 'vue'
 import { useVideoCatalog,type VideoItem } from '@/features/library/catalog'
 import type { BrowseRoute } from '@/features/servers/workspace'
@@ -181,7 +181,7 @@ watch(() => [props.source?.id,props.searchQuery,props.searchRevision,currentBook
 async function open(entry: LocalEntry) {if(selection.value){selected.value=selected.value.includes(entry.relativePath)?selected.value.filter(id=>id!==entry.relativePath):[...selected.value,entry.relativePath];return}
   if (entry.isDirectory) { await browse(entry.relativePath,true); return }
   if (!props.source?.sourceId || !entry.playable) return
-  try { await playLocal(props.source.sourceId, entry.relativePath) } catch (e) { error.value = asAppError(e).message }
+  try { await playLocal(props.source.sourceId, entry.relativePath) } catch (e) { message.error(asAppError(e).message) }
 }
 function modifiedDate(value:number){if(!value)return '';return new Date(value<1e12?value*1000:value).toLocaleDateString()}
 function size(bytes: number) { return bytes >= 1024 ** 3 ? `${(bytes / 1024 ** 3).toFixed(1)} GB` : bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toFixed(1)} MB` : `${Math.ceil(bytes / 1024)} KB` }
