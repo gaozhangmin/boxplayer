@@ -15,7 +15,30 @@ fn connect(library:&Library)->Result<rusqlite::Connection,AppError>{let db=libra
 fn fingerprint(path:&Path)->Result<String,AppError>{
  let meta=fs::symlink_metadata(path).map_err(AppError::io)?;if meta.file_type().is_symlink(){return Err(error("文件操作日志不跟随符号链接"))}
  #[cfg(unix)]{use std::os::unix::fs::MetadataExt;Ok(format!("{}:{}:{}",meta.dev(),meta.ino(),meta.is_dir()))}
- #[cfg(not(unix))]{let _=meta;Err(error("此平台本地文件身份恢复尚未实现"))}
+ #[cfg(windows)]
+ {
+  use std::{mem::MaybeUninit, os::windows::{fs::OpenOptionsExt, io::AsRawHandle}};
+  use windows_sys::Win32::Storage::FileSystem::{
+   BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS,
+   FILE_FLAG_OPEN_REPARSE_POINT, GetFileInformationByHandle,
+  };
+  let handle = fs::OpenOptions::new()
+   .access_mode(0)
+   .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
+   .open(path)
+   .map_err(AppError::io)?;
+  let mut info = MaybeUninit::<BY_HANDLE_FILE_INFORMATION>::uninit();
+  if unsafe { GetFileInformationByHandle(handle.as_raw_handle(), info.as_mut_ptr()) } == 0 {
+   return Err(AppError::io(std::io::Error::last_os_error()));
+  }
+  let info = unsafe { info.assume_init() };
+  if info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+   return Err(error("文件操作日志不跟随重解析点"));
+  }
+  let file_index = (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow);
+  Ok(format!("win:{}:{}:{}", info.dwVolumeSerialNumber, file_index, meta.is_dir()))
+ }
+ #[cfg(not(any(unix, windows)))]{let _=meta;Err(error("此平台本地文件身份恢复尚未实现"))}
 }
 #[cfg(test)]
 fn snapshot(root:&Path,path:&Path,output:&mut Vec<String>)->Result<(),AppError>{

@@ -77,6 +77,7 @@ async fn authenticated_fmp4_initialization_segments_reload_and_resume() {
     let sample = PathBuf::from(crate::gateway::tests::SAMPLE_PATH);
     let status =
         std::process::Command::new(test_ffmpeg_bin())
+            .current_dir(temporary.path())
             .args(["-v", "error", "-i"])
             .arg(sample)
             .args([
@@ -92,8 +93,7 @@ async fn authenticated_fmp4_initialization_segments_reload_and_resume() {
                 "0",
                 "-hls_segment_filename",
             ])
-            .arg(temporary.path().join("part-%03d.m4s"))
-            .arg(temporary.path().join("master.m3u8"))
+            .args(["part-%03d.m4s", "master.m3u8"])
             .output()
             .unwrap();
     assert!(

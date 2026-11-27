@@ -11,8 +11,9 @@ export function openWorkflowRepository(path:string):SqliteWorkflowRepository {
   exec:(sql:string)=>db.exec(sql),
   prepare:(sql:string)=>db.prepare(sql),
   transaction:(body:()=>unknown)=>db.transaction(body),
-  close:()=>db.close()
+  // Finalize statements before closing so Windows can remove or reopen the database.
+  close:()=>db.close(true)
  }
  try{return new SqliteWorkflowRepository(compatible as unknown as ConstructorParameters<typeof SqliteWorkflowRepository>[0])}
- catch(error){db.close();throw error}
+ catch(error){db.close(true);throw error}
 }

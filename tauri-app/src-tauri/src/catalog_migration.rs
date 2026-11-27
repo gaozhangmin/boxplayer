@@ -92,7 +92,29 @@ pub fn import(library:&Library,b:&Bundle)->Result<Report,AppError>{
 mod tests{
  use super::*;
  fn fixture()->Bundle{let mut catalog=Catalog::default();catalog.items=vec![json!({"id":"video-a","sourceId":"local-a","fileId":"movie.mkv","local":true,"watched":true,"progress":42,"personalRating":8,"originalMetadata":{"credits":{"cast":[{"name":"Actor"}]}}})];catalog.playlists=json!({"Mix":["video-a"]});catalog.series=json!({"Series":["video-a"]});encode("electron-fixture".into(),Payload{sources:vec![LocalSource{id:"local-a".into(),name:"Movies".into(),path:std::env::temp_dir().join("synthetic-movies").to_string_lossy().into()}],positions:vec![Position{key:"local-a/movie.mkv".into(),position:42.,duration:100.}],catalog,preferences:BTreeMap::new()}).unwrap()}
- #[test]fn original_exporter_fixture_matches_native_digest_and_imports(){let fixture=include_str!("../../tests/fixtures/electron-video-v2.json");let bundle:Bundle=serde_json::from_str(fixture).unwrap();validate(&bundle).unwrap();let dir=tempfile::tempdir().unwrap();let library=Library::open(dir.path()).unwrap();assert!(import(&library,&bundle).unwrap().applied);assert!(!import(&library,&bundle).unwrap().applied);let saved=catalog::load(&library).unwrap();assert_eq!(saved.items[0]["progress"],42);assert_eq!(saved.items[0]["favorite"],true);assert_eq!(saved.playlists["Mix"][0],saved.items[0]["id"]);}
+ #[test]
+ fn original_exporter_fixture_matches_native_digest_and_imports() {
+  let fixture = include_str!("../../tests/fixtures/electron-video-v2.json");
+  let bundle: Bundle = serde_json::from_str(fixture).unwrap();
+  assert_eq!(digest(&bundle.payload).unwrap(), bundle.sha256);
+  let dir = tempfile::tempdir().unwrap();
+  // The original exporter snapshot names a Unix root. Import requires a path on
+  // the current host, so use a locally rooted copy after checking its digest.
+  #[cfg(windows)]
+  let bundle = {
+   assert!(validate(&bundle).is_err());
+   let mut payload = bundle.payload;
+   payload.sources[0].path = dir.path().join("movies").to_string_lossy().into_owned();
+   encode(bundle.source_version, payload).unwrap()
+  };
+  validate(&bundle).unwrap();
+  let library = Library::open(dir.path()).unwrap();
+  assert!(import(&library, &bundle).unwrap().applied);
+  assert!(!import(&library, &bundle).unwrap().applied);
+  let saved = catalog::load(&library).unwrap();
+  assert_eq!(saved.items[0]["progress"], 42);
+  assert_eq!(saved.playlists["Mix"][0], saved.items[0]["id"]);
+ }
  #[test]fn portable_roundtrip_keeps_associations_progress_and_is_idempotent(){let dir=tempfile::tempdir().unwrap();let lib=Library::open(dir.path()).unwrap();let b=fixture();let wire=serde_json::to_vec(&b).unwrap();let copy:Bundle=serde_json::from_slice(&wire).unwrap();assert!(import(&lib,&copy).unwrap().applied);assert!(!import(&lib,&copy).unwrap().applied);let saved=catalog::load(&lib).unwrap();assert_eq!(saved.items.len(),1);assert_eq!(saved.items[0]["progress"],42);assert_eq!(saved.playlists["Mix"][0],saved.items[0]["id"]);assert_eq!(saved.series["Series"][0],saved.items[0]["id"]);assert_eq!(export(&lib).unwrap().payload.positions.len(),1);assert_eq!(saved.items[0]["originalMetadata"]["credits"]["cast"][0]["name"],"Actor");}
  #[test]fn preserves_newer_target_records_and_merges_memberships(){let dir=tempfile::tempdir().unwrap();let lib=Library::open(dir.path()).unwrap();let b=fixture();let mut target=normalize_local(b.payload.clone()).unwrap().catalog;target.items[0]["progress"]=json!(90);catalog::save(&lib,0,target).unwrap();import(&lib,&b).unwrap();assert_eq!(catalog::load(&lib).unwrap().items[0]["progress"],90);}
  #[test]fn rejects_checksum_counts_and_dangling_references_without_writes(){let dir=tempfile::tempdir().unwrap();let lib=Library::open(dir.path()).unwrap();let mut b=fixture();b.tables.insert("media".into(),99);assert!(import(&lib,&b).is_err());b=fixture();b.payload.catalog.items[0]["progress"]=json!(200);assert!(import(&lib,&b).is_err());b=fixture();b.payload.catalog.playlists=json!({"bad":["missing"]});assert!(encode("x".into(),b.payload).is_err());assert!(lib.sources().unwrap().is_empty());assert!(catalog::load(&lib).unwrap().items.is_empty());}

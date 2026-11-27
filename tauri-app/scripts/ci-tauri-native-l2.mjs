@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { spawn, spawnSync } from 'node:child_process'
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,9 +32,12 @@ function binaryPath() {
   return join(tauriAppRoot, 'src-tauri', 'target', 'debug', name)
 }
 
-async function waitForHttp(url, timeoutMs = 45000) {
+async function waitForHttp(url, timeoutMs = 45000, process) {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
+    if (process && (process.exitCode !== null || process.signalCode !== null)) {
+      throw new Error(`Application exited before ${url} (code ${process.exitCode}, signal ${process.signalCode})`)
+    }
     try {
       const res = await fetch(url)
       if (res.ok) return res
@@ -61,7 +64,11 @@ async function killProcess(proc) {
       clearTimeout(timer)
       resolveExit()
     })
-    proc.kill('SIGTERM')
+    if (process.platform === 'win32' && proc.pid) {
+      spawnSync('taskkill', ['/F', '/T', '/PID', String(proc.pid)], { stdio: 'ignore' })
+    } else {
+      proc.kill('SIGTERM')
+    }
   })
 }
 
@@ -84,21 +91,30 @@ async function runWindowsCdp(bin, dataDir) {
   const { chromium } = require(playwrightTarget)
   const summary = { mode: 'windows-cdp', dataDir, windows: [], screenshots: [] }
 
-  const launchApp = () =>
-    spawn(bin, [], {
+  let logs = ''
+  const launchApp = () => {
+    logs = ''
+    const proc = spawn(bin, [], {
       cwd: tauriAppRoot,
       env: {
         ...process.env,
         BOXPLAYER_DEV_DATA_DIR: dataDir,
-        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${CDP_PORT}`,
+        WEBVIEW2_USER_DATA_FOLDER: join(dataDir, 'webview2'),
+        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${CDP_PORT} --remote-debugging-address=127.0.0.1`,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
+    const capture = chunk => { logs = (logs + String(chunk)).slice(-8000) }
+    proc.stdout.on('data', capture)
+    proc.stderr.on('data', capture)
+    proc.on('error', capture)
+    return proc
+  }
 
   let proc = launchApp()
   let browser
   try {
-    await waitForHttp(`http://127.0.0.1:${CDP_PORT}/json/version`, 60000)
+    await waitForHttp(`http://127.0.0.1:${CDP_PORT}/json/version`, 60000, proc)
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`)
 
     const findPage = async (urlFragment, timeoutMs = 30000) => {
@@ -197,7 +213,7 @@ async function runWindowsCdp(bin, dataDir) {
 
     // Restart persistence check with the exact same BOXPLAYER_DEV_DATA_DIR.
     proc = launchApp()
-    await waitForHttp(`http://127.0.0.1:${CDP_PORT}/json/version`, 60000)
+    await waitForHttp(`http://127.0.0.1:${CDP_PORT}/json/version`, 60000, proc)
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`)
     const restartedMain = await findPage('index.html', 45000)
     await restartedMain.waitForFunction(() => Boolean(window.__TAURI_INTERNALS__), {
@@ -211,6 +227,14 @@ async function runWindowsCdp(bin, dataDir) {
     }
     summary.restartPersisted = true
     summary.persistedRevision = persisted.revision
+  } catch (error) {
+    if (logs) console.error('Windows native app output:', logs)
+    for (const file of await listDirTree(join(dataDir, 'logs'))) {
+      const content = await readFile(join(dataDir, 'logs', file), 'utf-8').catch(() => '')
+      if (content) console.error(`Native log ${file}:
+${content.slice(-8000)}`)
+    }
+    throw error
   } finally {
     if (browser) await browser.close().catch(() => {})
     await killProcess(proc)
