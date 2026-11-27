@@ -1,109 +1,69 @@
-<p align="center"><img src="screenshot/icon.svg" alt="BoxPlayer" width="112"></p>
+<p align="center"><img src="screenshot/icon.svg" width="104" alt="BoxPlayer"></p>
 
 # BoxPlayer
 
-<p align="center">One media player for your phone, tablet, TV, and computer. Bring together cloud drives, media servers, music, books, and AI tools.</p>
+Bring the media on your computer, cloud drives, NAS, and media servers into one library. Find something to watch, pick up a series, put on music, or open a book.
 
-<p align="center">
-  <a href="./README.md">中文</a> · English ·
-  <a href="https://xbyvideohub.com/">Website and downloads</a> ·
-  <a href="https://github.com/gaozhangmin/boxplayer/releases">Desktop releases</a> ·
-  <a href="https://github.com/gaozhangmin/boxplayer/issues/540">First Tauri release updates</a> ·
-  <a href="./clouddrive-cli/README.en.md">CLI / MCP</a>
-</p>
+[Install BoxPlayer](#install-boxplayer) · [Tauri release progress](https://github.com/gaozhangmin/boxplayer/issues/540) · [中文](README.md)
 
-BoxPlayer is a cross-platform player for your personal media. It runs on iPhone, iPad, Mac, Apple TV, Android phones and tablets, Android TV, Windows, and Linux. Browse cloud drives and local files, connect NAS shares and Jellyfin, Emby, or Plex, and build a library for movies, TV shows, music, and books. Features vary by platform and version.
+![BoxPlayer Tauri movie details with artwork, cast, and playback controls](screenshot/readme/movie-detail.png)
 
-[Install BoxPlayer](#installation), then add an existing drive, folder, or media server to browse your content and build your library.
+*Captured in the macOS Tauri development app. Movie artwork and information are from TMDB.*
 
-## The desktop app has been rebuilt with Tauri
+## Build a library from the media you already have
 
-The new desktop app uses **Tauri 2** to host its Vue interface in the system WebView. Native services connect accounts, files, transfers, and playback. The macOS development app embeds libmpv. Tauri source lives in [`tauri-app/`](tauri-app/) on the default `main` branch. The existing Electron desktop app is on the [`electron` branch](https://github.com/gaozhangmin/boxplayer/tree/electron).
+Connect a local folder, cloud drive, or Jellyfin, Emby, or Plex server to browse and play its media. Scan your movie and TV folders to add posters, descriptions, seasons, and episodes. Pick up where you left off or browse your favorites, playlists, and categories.
 
-**The first Tauri release is in preparation.** The Agent features below are from the development preview and are still being integrated. The [release announcement](https://github.com/gaozhangmin/boxplayer/issues/540) will list supported platforms, cloud providers, and installers.
+Choose audio and subtitle tracks, change playback speed, or open media in a supported external player. Formats and playback features depend on your device, sources, and client.
 
-## New cloud drive Agent
+![The BoxPlayer Tauri movie library showing posters and collections](screenshot/readme/media-library.png)
 
-Open **AI Assistant** in Files to ask about the current folder or selected files. Open the full Agent workspace to work across sources or follow longer tasks. Lock the context to keep a task focused on its original scope while you browse elsewhere.
+## Let the cloud drive Agent prepare a plan
 
-| What you want to do | What you can ask |
+In the Tauri development app, open **AI Assistant** from Files or hand off a title from its detail page. The Agent can work with a folder, selected files, or a particular movie or show. Lock the context to keep the same scope while you browse elsewhere.
+
+| What you want to do | What you can ask the Agent to do |
 | --- | --- |
-| Find files and check storage | “Find this movie across my connected sources and check which drives have room.” |
-| Organize a series | “Show me how you would group the episodes in this folder by season.” |
-| Inspect a shared folder | “List the videos in this share so I can choose which ones to save.” |
-| Follow a series | “Track this series and let me know when you find a new episode.” |
-| Review file hygiene | “Check this folder for duplicate files and suggest clearer names.” |
+| Find files | Look for a movie across connected sources, inspect folders or shares, or check available storage. |
+| Organize a series | Group episodes by season and preview folders, moves, and standardized filenames. |
+| Review a share or follow a series | Inspect a share before choosing what to import, or track an acquisition task and new episodes. |
+| Repeat a workflow | Use Recipes for tasks such as filing movies or batch renaming, and schedule plans for review. |
 
-![BoxPlayer Agent development preview with Recipes and conversation on the left and the plan panel on the right](docs/tauri-migration/evidence/ui-style/boxplayer-agent-workspace.png)
+![BoxPlayer Tauri cloud drive Agent with a composer, Recipes, and a plan panel](screenshot/readme/drive-agent.png)
 
-*macOS development preview with local sample media.*
+For changes that write to storage, review the proposed steps in the **plan diff**, choose which items to keep, and approve the plan. The Agent rechecks sources and destinations before applying supported changes. You can inspect the results and undo eligible changes. Search, import, and write permissions vary by provider and account.
 
-### Review changes before approving them
+The development app also offers optional local MCP access. For terminal workflows, see the [clouddrive-cli guide](clouddrive-cli/README.en.md) for file traversal, organization plans, and dry runs.
 
-1. **Choose a scope.** Start from a folder or selected files. Lock the context when needed.
-2. **Inspect the plan.** Review proposed folders, moves, and renames, and deselect the steps you want to skip.
-3. **Approve the plan.** The Agent checks sources and destinations again before writing. Some higher-risk actions require an additional confirmation.
-4. **Follow the results.** See task progress, execution records, and errors in the workspace. Eligible changes can be undone.
+## Work with more than video
 
-**Recipes** make repeated tasks such as organizing episodes, filing movies, and batch naming reusable. Schedules can prepare plans for your approval. The development preview also offers optional local MCP access, which is off by default. Search, import, write, and undo capabilities vary by provider and account permissions.
-
-## What BoxPlayer can do
-
-| Area | Main features |
-| --- | --- |
-| File management | Browse and search multiple cloud accounts, upload and download files, copy and move items, manage shares, and use the trash where supported. |
-| Media library | Scan cloud and local folders and fetch posters and metadata. Browse movies, shows, seasons, episodes, cast, and categories. |
-| Media servers | Connect Jellyfin, Emby, or Plex to browse, search, play, and pick up where you left off. |
-| Video playback | Use the built-in player or supported external players such as MPV and IINA. Choose audio and subtitle tracks, including ASS/SSA, adjust speed, and resume playback. |
-| Music | Browse songs, artists, albums, and playlists. Use the queue, particle player, lyrics, effects, and desktop lyrics where available. |
-| Reading and Document AI | Read EPUB, PDF, and TXT. Use bookmarks, notes, and highlights, or ask questions about supported documents. |
-| AI workspace | Find and analyze content, plan file organization, and review proposed writes before execution. |
-| Automation | Use `clouddrive-cli` and its MCP server to work with cloud drives from the terminal or an AI client. |
-
-### Cloud drives and other sources
-
-- Cloud drives include Aliyun Drive, Baidu Netdisk, 123Pan, 115 Drive, Quark, PikPak, Google Drive, OneDrive, Dropbox, Box, China Mobile Cloud 139, Tianyi Cloud 189, and Guangya.
-- Other sources include Jellyfin, Emby, Plex, SMB, NFS, WebDAV, AList, and local folders.
-- Available operations depend on the client, provider, and account permissions.
-
-### AI and Pro
-
-Core file management, playback, music, reading, and CLI features are available for free. Pro mainly covers hosted AI, resource search quotas, and priority support. You can also configure your own OpenAI-compatible service or local model. Your provider handles any third-party API charges.
-
-### CLI and MCP
-
-`clouddrive-cli` can walk and search file trees, generate media organization plans, preview changes with a dry run, and log operations. Its MCP server makes these tools available to compatible AI clients. Install it independently with `npm install -g clouddrive-cli`. [CLI and MCP documentation](clouddrive-cli/README.en.md)
-
-## Tauri screenshots
-
-These screenshots show the Tauri development app on macOS with sample media and local files. Movie artwork is from TMDB.
-
-### Media library and movie details
-
-![Movie poster grid in the Tauri media library](screenshot/tauri/library.png)
-
-![Movie artwork, information, and playback controls in the Tauri detail view](screenshot/tauri/detail.png)
-
-### Music and file management
+- **Files and transfers.** Connect accounts from services such as Google Drive, OneDrive, Dropbox, Aliyun Drive, Baidu Netdisk, 115, 123Pan, and Quark. Browse, upload, download, and import shares where supported. Network sources include SMB, NFS, WebDAV, and AList.
+- **Music.** Browse songs, artists, albums, and playlists. Manage the playback queue and use particle visuals and lyrics.
+- **Books and documents.** Read EPUB and PDF in the bookshelf, keep bookmarks and notes, and resume reading. Supported clients can preview documents and help answer questions about them.
+- **Models and Pro.** Where the client supports it, connect your own model service or use hosted AI features available with BoxPlayer Pro.
 
 <p>
-  <img src="screenshot/tauri/music.png" width="49%" alt="Tauri particle music player">
-  <img src="screenshot/tauri/sources.png" width="49%" alt="File list in the Tauri source management window">
+  <img src="screenshot/readme/connect-sources.png" width="49%" alt="BoxPlayer Tauri source picker for local folders, network shares, and cloud drives">
+  <img src="screenshot/readme/music-library.png" width="49%" alt="BoxPlayer Tauri music library with song categories, track list, and playback controls">
 </p>
 
-## Installation
+## Install BoxPlayer
 
 | Device | Download |
 | --- | --- |
-| iPhone, iPad, Mac, Apple TV | [BoxPlayer on the App Store](https://apps.apple.com/us/app/boxplayer/id6739804060) |
-| Android phones, tablets, and Android TV | [Android APK downloads](https://xbyvideohub.com/) |
-| macOS, Windows, and Linux desktop | [Website downloads](https://xbyvideohub.com/) · [GitHub Releases](https://github.com/gaozhangmin/boxplayer/releases) |
+| iPhone, iPad, Mac, Apple TV | [App Store](https://apps.apple.com/us/app/boxplayer/id6739804060) |
+| Android phones and tablets, Android TV | [BoxPlayer website](https://xbyvideohub.com/) |
+| Windows, Linux, and macOS desktop | [GitHub Releases](https://github.com/gaozhangmin/boxplayer/releases) |
 
-Choose an installer for your operating system and processor architecture from the published downloads. Apple platforms also have a native App Store client. For Tauri installer availability, see the [first release announcement](https://github.com/gaozhangmin/boxplayer/issues/540).
+Each platform has its own client. Check the corresponding version for available features, supported sources, and installers.
 
-## Development
+## Tauri desktop development
 
-Install Node.js 22.12 or later, pnpm 10.32.1, Rust, and the Tauri prerequisites for your platform. Reuse your existing app registration configuration and set `BOXPLAYER_REGISTRATION_FILE` to its path if needed. The [Tauri development guide](tauri-app/README.md) covers macOS signing and libmpv setup.
+BoxPlayer is rebuilding its desktop app with **Tauri 2**. Vue runs in the system WebView, with Rust providing desktop windows, data storage, and media access. The macOS development app embeds libmpv. The Tauri screenshots above were taken in the running macOS development app.
+
+**The first Tauri release is in preparation.** The Agent and other features are still being integrated. Follow the [release announcement](https://github.com/gaozhangmin/boxplayer/issues/540) for platform support and installers. The new desktop source lives in [`tauri-app/`](tauri-app/) on `main`. The existing desktop code is maintained on the [`electron` branch](https://github.com/gaozhangmin/boxplayer/tree/electron).
+
+Install Node.js 22.12 or later, pnpm 10.32.1, Rust, and your platform's Tauri prerequisites. Reuse your app registration configuration and set `BOXPLAYER_REGISTRATION_FILE` if needed. See the [development guide](tauri-app/README.md) for app registration, macOS signing, and the playback runtime.
 
 ```sh
 cd tauri-app
@@ -111,15 +71,10 @@ pnpm --ignore-workspace install --frozen-lockfile
 pnpm tauri dev
 ```
 
-`pnpm dev` opens the browser preview. Run `pnpm tauri dev` for native playback, accounts, system integration, and Agent development. Use a separate development data directory to preserve existing Electron data. Run `pnpm typecheck` and `pnpm test` for frontend checks.
+Run `pnpm typecheck` and `pnpm test` for frontend checks. See the [migration notes](docs/tauri-migration/progress.md) for implementation and platform details.
 
-Engineering details are in the [migration progress](docs/tauri-migration/progress.md) and [subsystem docs](docs/subsystems/README.md). For Electron development and packaging, see the [Electron README](https://github.com/gaozhangmin/boxplayer/tree/electron).
+## Contribute
 
-## Community and credits
+Include your client version, operating system, source type, and reproduction steps when reporting an issue. [GitHub Issues](https://github.com/gaozhangmin/boxplayer/issues) · [Telegram](https://t.me/+wjdFeQ7ZNNE1NmM1)
 
-- Include your OS, app version, source type, and reproduction steps when reporting an issue. [GitHub Issues](https://github.com/gaozhangmin/boxplayer/issues)
-- [Telegram community](https://t.me/+wjdFeQ7ZNNE1NmM1) · [WeChat official account](screenshot/qrcode_wechat.jpg)
-- BoxPlayer builds on [aliyunpan](https://github.com/liupan1890/aliyunpan). Global search integrates [PanHub](https://github.com/wu529778790/panhub.shenzjd.com) and media acquisition integrates [MediaScout](https://github.com/fancydirty/mediary-scout).
-- BoxPlayer is licensed under the [GPL-3.0](LICENSE).
-
-Use media you have the right to access and follow the terms of each connected service.
+BoxPlayer builds on [aliyunpan](https://github.com/liupan1890/aliyunpan) and uses [MediaScout](https://github.com/fancydirty/mediary-scout) for media acquisition. The project is licensed under the [GPL-3.0](LICENSE). Use media you have the right to access and follow the terms of your connected services.
