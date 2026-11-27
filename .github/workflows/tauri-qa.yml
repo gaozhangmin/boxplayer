@@ -137,6 +137,19 @@ jobs:
           cp -L "$(brew --prefix mpv)/lib/libmpv.dylib" "$runtime/"
           chmod u+w "$runtime/libmpv.dylib"
           dylibbundler -of -b -x "$runtime/libmpv.dylib" -d "$runtime/" -p '@loader_path/'
+          # dylibbundler can rewrite multiple original LC_RPATH entries to the same path.
+          for library in "$runtime/"*.dylib; do
+            count="$(otool -l "$library" | awk '$1=="path" && $2=="@loader_path/" {count++} END {print count+0}')"
+            if (( count > 1 )); then
+              chmod u+w "$library"
+              while (( count > 1 )); do
+                install_name_tool -delete_rpath '@loader_path/' "$library"
+                count=$((count - 1))
+              done
+              codesign --force --sign - --timestamp=none "$library"
+            fi
+          done
+          python3 -c 'import ctypes, sys; ctypes.CDLL(sys.argv[1])' "$runtime/libmpv.dylib"
           echo "BOXPLAYER_MPV_RUNTIME=$runtime" >> "$GITHUB_ENV"
 
       - name: Setup MSYS2 libmpv and ffmpeg on Windows
