@@ -26,7 +26,7 @@ export interface MediaLibraryItem {
   aiScrape?: { provider: string; confidence: number; reason: string; updatedAt: number }
   // TMDB / AI 暂时不可用时仍显示该文件，并在后续增量扫描中优先重试。
   scrapeRetrying?: boolean
-  metadataSource?: 'tmdb' | 'ai-tmdb' | 'filename' | 'manual'
+  metadataSource?: 'tmdb' | 'ai-tmdb' | 'filename' | 'nfo' | 'manual'
   metadataUpdatedAt?: number
   seasons?: MediaSeason[]
   expectedSeasons?: MediaExpectedSeason[]
@@ -64,7 +64,7 @@ export interface MediaCollectionMovie {
   tmdbId?: number
   imdbId?: string
   tvdbId?: string
-  metadataSource?: 'tmdb' | 'ai-tmdb' | 'filename' | 'manual'
+  metadataSource?: 'tmdb' | 'ai-tmdb' | 'filename' | 'nfo' | 'manual'
   metadataUpdatedAt?: number
   credits?: Credits
   addedAt: Date
@@ -96,7 +96,7 @@ export interface MediaSeason {
   episodeCount: number
   airDate?: string
   credits?: Credits
-  metadataSource?: 'tmdb' | 'manual'
+  metadataSource?: 'tmdb' | 'nfo' | 'manual'
   metadataUpdatedAt?: number
   episodes?: MediaEpisode[] // 添加缺少的episodes属性
 }
@@ -112,7 +112,7 @@ export interface MediaEpisode {
   runtime?: number
   seasonNumber: number
   crew?: CrewMember[]
-  metadataSource?: 'tmdb' | 'manual'
+  metadataSource?: 'tmdb' | 'nfo' | 'manual'
   metadataUpdatedAt?: number
   driveFiles: DriveFileItem[]
 }

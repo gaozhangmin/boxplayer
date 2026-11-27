@@ -601,3 +601,58 @@ export const testWebDavConnection = async (config: WebDavConnectionConfig) => {
   }
   await listWebDavDirectory(config, '/')
 }
+
+const fetchRemoteBytes = async (url: string, maxBytes: number): Promise<Uint8Array> => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(15000) })
+  if (!response.ok) throw new Error(`读取远程文件失败 (${response.status})`)
+  const contentLength = Number(response.headers.get('content-length') || '0')
+  if (contentLength > maxBytes) throw new Error(`文件超出读取上限 (${maxBytes} bytes)`)
+  const buffer = new Uint8Array(await response.arrayBuffer())
+  if (buffer.byteLength > maxBytes) throw new Error(`文件超出读取上限 (${maxBytes} bytes)`)
+  return buffer
+}
+
+export const readWebDavFileText = async (
+  config: WebDavConnectionConfig,
+  relativePath: string,
+  maxBytes = 512 * 1024
+): Promise<string> => {
+  const normalized = normalizeWebDavPath(relativePath)
+  if (isNetShareConnection(config)) {
+    const bytes = await netShareInvoke<Uint8Array>('NetShare:readFile', toNetShareConfig(config), normalized, maxBytes)
+    return new TextDecoder('utf-8').decode(bytes)
+  }
+  let bytes: Uint8Array
+  if (config.kind === 'alist') {
+    const url = await getWebDavDownloadUrl(config, normalized)
+    bytes = await fetchRemoteBytes(url, maxBytes)
+  } else {
+    const client = createWebDavClient(config)
+    const raw = await client.getFileContents(joinDavPath(config.rootPath, normalized), { format: 'binary' })
+    bytes = raw instanceof Uint8Array ? raw : raw instanceof ArrayBuffer ? new Uint8Array(raw) : new TextEncoder().encode(String(raw || ''))
+    if (bytes.byteLength > maxBytes) throw new Error(`文件超出读取上限 (${maxBytes} bytes)`)
+  }
+  return new TextDecoder('utf-8').decode(bytes)
+}
+
+export const cacheWebDavArtwork = async (
+  config: WebDavConnectionConfig,
+  relativePath: string,
+  maxBytes = 8 * 1024 * 1024
+): Promise<string | undefined> => {
+  const normalized = normalizeWebDavPath(relativePath)
+  if (isNetShareConnection(config)) {
+    return await netShareInvoke<string>('NetShare:cacheArtwork', toNetShareConfig(config), normalized)
+  }
+  let bytes: Uint8Array
+  if (config.kind === 'alist') {
+    const url = await getWebDavDownloadUrl(config, normalized)
+    bytes = await fetchRemoteBytes(url, maxBytes)
+  } else {
+    const client = createWebDavClient(config)
+    const raw = await client.getFileContents(joinDavPath(config.rootPath, normalized), { format: 'binary' })
+    bytes = raw instanceof Uint8Array ? raw : raw instanceof ArrayBuffer ? new Uint8Array(raw) : new Uint8Array(0)
+    if (bytes.byteLength === 0 || bytes.byteLength > maxBytes) return undefined
+  }
+  return await netShareInvoke<string>('NetShare:cacheArtworkBytes', bytes)
+}

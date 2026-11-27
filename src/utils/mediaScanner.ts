@@ -6,7 +6,7 @@ import AliDirFileList from '../aliapi/dirfilelist'
 import { usePanTreeStore } from '../store'
 import message from './message'
 import { isAliyunUser, isBaiduUser, isBoxUser, isCloud139User, isCloud189User, isCloud123User, isDrive115User, isDropboxUser, isGoogleUser, isGuangyaUser, isOneDriveUser, isPikPakUser, isQuarkUser } from '../aliapi/utils'
-import { getWebDavConnection, getWebDavConnectionId, isWebDavDrive, listWebDavDirectory, type WebDavConnectionConfig } from './webdavClient'
+import { getWebDavConnection, getWebDavConnectionId, isWebDavDrive, listWebDavDirectory, readWebDavFileText, cacheWebDavArtwork, type WebDavConnectionConfig } from './webdavClient'
 import UserDAL from '../user/userdal'
 import { buildExpectedSeasons } from './mediaCoverage'
 import { isThirdPartyProviderFolder, iterateProviderFolderPages, listProviderFolderItems } from './providerFolderList'
@@ -19,6 +19,21 @@ import { buildMediaFingerprint } from './mediaFingerprint'
 import { mergeScrapedMedia, scrapedMediaId } from './mediaScrapeMerge'
 import useSettingStore from '../setting/settingstore'
 import { captureMediaScrapeUnrecognized } from '../analytics/posthog'
+import {
+  ARTWORK_MAX_BYTES,
+  NFO_MAX_BYTES,
+  buildDirectorySidecarIndex,
+  isArtworkFileName,
+  isNfoFileName,
+  isSeasonDirectoryName,
+  matchDirectorySidecars,
+  mergeShowAndEpisodeNfo,
+  parseNfoXml,
+  stableNfoSyntheticId,
+  type DirectorySidecarIndex,
+  type MatchedVideoSidecars,
+  type ParsedNfoMetadata
+} from './nfoParser'
 
 type ScanContext = {
   userId: string
@@ -29,6 +44,9 @@ type ScanContext = {
 
 type MediaScanHint = { tmdbId?: number; title: string; year?: number; mediaType: 'movie' | 'tv' | 'anime' }
 type SubtitleAssociationIndex = { files: DriveFileItem[]; folderParents: Map<string, string> }
+type SidecarRef = { name: string; path: string; driveId: string; localPath?: string; size?: number }
+type ShowSidecarSummary = Pick<DirectorySidecarIndex<SidecarRef>, 'tvshowNfo' | 'posterFile' | 'fanartFile'>
+type FileSidecarContext = { matched: MatchedVideoSidecars<SidecarRef>; connection?: WebDavConnectionConfig; localFs?: any; localDirPath?: string }
 
 const PERSISTENCE_CHECKPOINT_ITEMS = 100
 const PERSISTENCE_CHECKPOINT_MS = 3000
@@ -43,6 +61,9 @@ export class MediaScanner {
   private scanWaiters: Array<() => void> = []
   private itemsSincePersistenceCheckpoint = 0
   private lastPersistenceCheckpointAt = 0
+  private fileSidecarContexts = new WeakMap<DriveFileItem, FileSidecarContext>()
+  private nfoParseCache = new Map<string, Promise<ParsedNfoMetadata | null>>()
+  private artworkCache = new Map<string, Promise<string | undefined>>()
 
   // 支持的视频文件扩展名
   private readonly VIDEO_EXTENSIONS = new Set([
@@ -208,6 +229,8 @@ export class MediaScanner {
       // 只能等下次启动的自动扫描补齐媒体库。
       if (options.silent) throw error
     } finally {
+      this.nfoParseCache.clear()
+      this.artworkCache.clear()
       this.tmdbService.endScanCache?.()
       this.isScanning = false
       this.mediaStore.setScanning(false)
@@ -233,57 +256,71 @@ export class MediaScanner {
     onAIUnmatched: (files: DriveFileItem[]) => Promise<void>,
     subtitleIndex: SubtitleAssociationIndex,
     depth = 0,
-    relativePath = folder.path || folder.name
+    relativePath = folder.path || folder.name,
+    parentShowSidecars?: ShowSidecarSummary
   ): Promise<number> {
     if (this.shouldStop) return 0
 
     let totalFound = 0
+    const connection = isWebDavDrive(scanContext.driveId)
+      ? getWebDavConnection(getWebDavConnectionId(scanContext.driveId))
+      : undefined
 
     try {
       console.log(`正在扫描: ${folder.name} (深度: ${depth})`)
       subtitleIndex.folderParents.set(folder.file_id, folder.parent_file_id || '')
+      const videoFiles: DriveFileItem[] = []
+      const subFolders: IAliGetFileModel[] = []
+      const sidecarRefs: SidecarRef[] = []
       for await (const items of this.iterateFolderPages(folder, scanContext)) {
         if (this.shouldStop) break
-        const videoFiles: DriveFileItem[] = []
-        const subFolders: IAliGetFileModel[] = []
         for (const item of items) {
+          const itemPath = relativePath ? `${relativePath.replace(/\/$/, '')}/${item.name}` : item.name
+          const remoteItemPath = isWebDavDrive(scanContext.driveId) ? (item.path || item.file_id || itemPath) : itemPath
           if (item.isDir) {
             subtitleIndex.folderParents.set(item.file_id, item.parent_file_id || folder.file_id)
             subFolders.push(item)
-          }
-          else if (this.isVideoFile(item.name)) {
-            const itemPath = relativePath ? `${relativePath.replace(/\/$/, '')}/${item.name}` : item.name
+          } else if (this.isVideoFile(item.name)) {
             videoFiles.push({ id: item.file_id, name: item.name, path: itemPath, parentFileId: item.parent_file_id || folder.file_id, userId: scanContext.userId, driveId: item.drive_id || scanContext.driveId, driveServerId: scanContext.driveServerId, fileSize: item.size || 0, contentHash: item.content_hash || '', contentHashName: item.content_hash_name || '', thumbnailLink: item.thumbnail || undefined, videoDuration: item.media_duration, height: item.media_height, sourceFolderIds: [folderKey] })
           } else if (this.isSubtitleFile(item.name)) {
-            const itemPath = relativePath ? `${relativePath.replace(/\/$/, '')}/${item.name}` : item.name
             subtitleIndex.files.push({ id: item.file_id, name: item.name, path: itemPath, parentFileId: item.parent_file_id || folder.file_id, userId: scanContext.userId, driveId: item.drive_id || scanContext.driveId, driveServerId: scanContext.driveServerId, fileSize: item.size || 0, contentHash: item.content_hash || '', contentHashName: item.content_hash_name || '', sourceFolderIds: [folderKey] })
+          } else if (isNfoFileName(item.name) || isArtworkFileName(item.name)) {
+            sidecarRefs.push({ name: item.name, path: remoteItemPath, driveId: item.drive_id || scanContext.driveId, size: item.size || 0 })
           }
         }
-        if (incremental && videoFiles.length) {
-          const indexed = await DB.getIndexedMediaFileIds(videoFiles.map(file => this.getScopedDriveFileKey(file)))
-          indexed.forEach(id => existingIds.add(id))
-          const associated = await DB.associateMediaFilesWithFolder(videoFiles.filter(file => indexed.has(this.getScopedDriveFileKey(file))), folderKey)
-          for (const item of associated) {
-            if (this.mediaStore.mediaItems.some(cached => cached.id === item.id)) this.mediaStore.addMediaItem(item)
-          }
+      }
+      const dirIndex = buildDirectorySidecarIndex(sidecarRefs)
+      for (const videoFile of videoFiles) {
+        this.fileSidecarContexts.set(videoFile, {
+          matched: matchDirectorySidecars(dirIndex, videoFile.name, parentShowSidecars),
+          connection
+        })
+      }
+      if (incremental && videoFiles.length) {
+        const indexed = await DB.getIndexedMediaFileIds(videoFiles.map(file => this.getScopedDriveFileKey(file)))
+        indexed.forEach(id => existingIds.add(id))
+        const associated = await DB.associateMediaFilesWithFolder(videoFiles.filter(file => indexed.has(this.getScopedDriveFileKey(file))), folderKey)
+        for (const item of associated) {
+          if (this.mediaStore.mediaItems.some(cached => cached.id === item.id)) this.mediaStore.addMediaItem(item)
         }
-        const toProcess = incremental ? videoFiles.filter(f => !existingIds.has(this.getScopedDriveFileKey(f))) : videoFiles
-        totalFound += videoFiles.length
-        for (let i = 0; i < toProcess.length && !this.shouldStop; i += 3) {
-          const batch = toProcess.slice(i, i + 3)
-          const { unmatched, completed, unresolved } = await this.processVideoBatchWithTransientRetry(batch, folder.name, folderKey, mediaHint)
-          if (deferUnmatchedForAI) await onAIUnmatched(unmatched)
-          else unmatched.forEach(item => this.addUnmatchedMediaItem(item, folder.name, folderKey))
-          unresolved.forEach(item => this.addRetryPendingMediaItem(item, folder.name, folderKey))
-          onProgress({ processed: batch.length, unresolved: unresolved.length })
-          // 临时失败不能在完整扫描时被当作已删除文件。新文件没有持久化
-          // 映射，下一次增量扫描仍会再次尝试；已有资料则保持原资料不被清理。
-          completed.concat(unresolved).forEach(file => existingIds.add(this.getScopedDriveFileKey(file)))
-        }
-        for (const sub of subFolders) {
-          if (this.shouldStop) break
-          totalFound += await this.scrapeFolderRecursive(sub, scanContext, folderKey, existingIds, incremental, deferUnmatchedForAI, mediaHint, onProgress, onAIUnmatched, subtitleIndex, depth + 1, relativePath ? `${relativePath.replace(/\/$/, '')}/${sub.name}` : sub.name)
-        }
+      }
+      const toProcess = incremental ? videoFiles.filter(f => !existingIds.has(this.getScopedDriveFileKey(f))) : videoFiles
+      totalFound += videoFiles.length
+      for (let i = 0; i < toProcess.length && !this.shouldStop; i += 3) {
+        const batch = toProcess.slice(i, i + 3)
+        const { unmatched, completed, unresolved } = await this.processVideoBatchWithTransientRetry(batch, folder.name, folderKey, mediaHint)
+        if (deferUnmatchedForAI) await onAIUnmatched(unmatched)
+        else unmatched.forEach(item => this.addUnmatchedMediaItem(item, folder.name, folderKey))
+        unresolved.forEach(item => this.addRetryPendingMediaItem(item, folder.name, folderKey))
+        onProgress({ processed: batch.length, unresolved: unresolved.length })
+        // 临时失败不能在完整扫描时被当作已删除文件。新文件没有持久化
+        // 映射，下一次增量扫描仍会再次尝试；已有资料则保持原资料不被清理。
+        completed.concat(unresolved).forEach(file => existingIds.add(this.getScopedDriveFileKey(file)))
+      }
+      for (const sub of subFolders) {
+        if (this.shouldStop) break
+        const nextShowSidecars = isSeasonDirectoryName(sub.name) ? dirIndex : undefined
+        totalFound += await this.scrapeFolderRecursive(sub, scanContext, folderKey, existingIds, incremental, deferUnmatchedForAI, mediaHint, onProgress, onAIUnmatched, subtitleIndex, depth + 1, relativePath ? `${relativePath.replace(/\/$/, '')}/${sub.name}` : sub.name, nextShowSidecars)
       }
     } catch (error) {
       console.error(`扫描文件夹失败: ${folder.name}`, error)
@@ -517,6 +554,8 @@ export class MediaScanner {
       }
       message.error('扫描失败: ' + (error as Error).message)
     } finally {
+      this.nfoParseCache.clear()
+      this.artworkCache.clear()
       this.tmdbService.endScanCache?.()
       this.isScanning = false
       this.mediaStore.setScanning(false)
@@ -721,23 +760,33 @@ export class MediaScanner {
     folderPath: string,
     fs: any,
     path: any,
-    depth = 0
+    depth = 0,
+    parentShowSidecars?: ShowSidecarSummary
   ): AsyncGenerator<DriveFileItem> {
     if (this.shouldStop) return
     if (depth > 10) throw new Error(`本地目录层级超过扫描上限: ${folderPath}`)
 
     try {
       const entries = await fs.promises.readdir(folderPath, { withFileTypes: true })
+      const sidecarRefs: SidecarRef[] = []
+      for (const entry of entries) {
+        if (entry.isFile() && (isNfoFileName(entry.name) || isArtworkFileName(entry.name))) {
+          const fullPath = path.join(folderPath, entry.name)
+          sidecarRefs.push({ name: entry.name, path: fullPath, driveId: 'local', localPath: fullPath })
+        }
+      }
+      const dirIndex = buildDirectorySidecarIndex(sidecarRefs)
       for (const entry of entries) {
         if (this.shouldStop) return
         const fullPath = path.join(folderPath, entry.name)
         if (entry.isDirectory()) {
-          yield* this.iterateLocalVideoFiles(fullPath, fs, path, depth + 1)
+          const nextShowSidecars = isSeasonDirectoryName(entry.name) ? dirIndex : undefined
+          yield* this.iterateLocalVideoFiles(fullPath, fs, path, depth + 1, nextShowSidecars)
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name).toLowerCase()
           if (this.VIDEO_EXTENSIONS.has(ext)) {
             const stat = await fs.promises.stat(fullPath)
-            yield {
+            const driveFile: DriveFileItem = {
               id: fullPath,
               name: entry.name,
               path: fullPath,
@@ -749,6 +798,12 @@ export class MediaScanner {
               videoDuration: undefined,
               height: undefined
             }
+            this.fileSidecarContexts.set(driveFile, {
+              matched: matchDirectorySidecars(dirIndex, entry.name, parentShowSidecars),
+              localFs: fs,
+              localDirPath: folderPath
+            })
+            yield driveFile
           }
         }
       }
@@ -797,54 +852,209 @@ export class MediaScanner {
     return match ? match[1] : null
   }
 
+  private async readParsedNfo(ref: SidecarRef | undefined, context?: FileSidecarContext): Promise<ParsedNfoMetadata | null> {
+    if (!ref) return null
+    const cacheKey = `${ref.driveId}:${ref.localPath || ref.path}`
+    const cached = this.nfoParseCache.get(cacheKey)
+    if (cached) return cached
+    const promise = (async () => {
+      try {
+        if (ref.size && ref.size > NFO_MAX_BYTES) return null
+        if (ref.localPath && context?.localFs) {
+          const stat = await context.localFs.promises.stat(ref.localPath)
+          if (stat.size > NFO_MAX_BYTES) return null
+          const xml = await context.localFs.promises.readFile(ref.localPath, 'utf8')
+          return parseNfoXml(xml)
+        }
+        if (context?.connection) {
+          const xml = await readWebDavFileText(context.connection, ref.path, NFO_MAX_BYTES)
+          return parseNfoXml(xml)
+        }
+      } catch (error) {
+        console.warn(`读取 NFO 失败 (${ref.name}):`, error)
+      }
+      return null
+    })()
+    this.nfoParseCache.set(cacheKey, promise)
+    return promise
+  }
+
+  private async resolveNfoMetadata(file: DriveFileItem, isTvHint: boolean): Promise<ParsedNfoMetadata | null> {
+    const context = this.fileSidecarContexts.get(file)
+    if (!context) return null
+    const { videoNfo, movieNfo, tvshowNfo } = context.matched
+    const parsedVideo = await this.readParsedNfo(videoNfo, context)
+    if (isTvHint || parsedVideo?.kind === 'episodedetails' || (!parsedVideo && tvshowNfo && !movieNfo)) {
+      const parsedShow = await this.readParsedNfo(tvshowNfo, context)
+      return mergeShowAndEpisodeNfo(parsedShow, parsedVideo)
+    }
+    if (parsedVideo) return parsedVideo
+    return await this.readParsedNfo(movieNfo, context)
+  }
+
+  private async resolveLocalArtworkUrl(ref: SidecarRef | undefined, context?: FileSidecarContext): Promise<string | undefined> {
+    if (!ref) return undefined
+    const cacheKey = `${ref.driveId}:${ref.localPath || ref.path}`
+    const cached = this.artworkCache.get(cacheKey)
+    if (cached) return cached
+    const promise = (async () => {
+      try {
+        if (ref.size && ref.size > ARTWORK_MAX_BYTES) return undefined
+        if (ref.localPath && context?.localFs) {
+          const stat = await context.localFs.promises.stat(ref.localPath)
+          if (stat.size <= 0 || stat.size > ARTWORK_MAX_BYTES) return undefined
+          const urlModule = typeof window !== 'undefined' ? window.require?.('url') : undefined
+          return urlModule?.pathToFileURL ? urlModule.pathToFileURL(ref.localPath).href : `file://${encodeURI(ref.localPath)}`
+        }
+        if (context?.connection) {
+          return await cacheWebDavArtwork(context.connection, ref.path, ARTWORK_MAX_BYTES)
+        }
+      } catch (error) {
+        console.warn(`读取本地海报失败 (${ref.name}):`, error)
+      }
+      return undefined
+    })()
+    this.artworkCache.set(cacheKey, promise)
+    return promise
+  }
+
+  private async resolveFallbackArtwork(file: DriveFileItem, nfo: ParsedNfoMetadata | null) {
+    const context = this.fileSidecarContexts.get(file)
+    const posterUrl = (await this.resolveLocalArtworkUrl(context?.matched.posterFile, context)) || nfo?.thumbUrl
+    const backdropUrl = (await this.resolveLocalArtworkUrl(context?.matched.fanartFile, context)) || nfo?.fanartUrl
+    const thumbUrl = (await this.resolveLocalArtworkUrl(context?.matched.thumbFile, context)) || backdropUrl || posterUrl
+    return { posterUrl, backdropUrl, thumbUrl }
+  }
+
   private async processVideoFileWithoutAI(file: DriveFileItem, folderName: string, folderId?: string, mediaHint?: MediaScanHint): Promise<DriveFileItem | null> {
     try {
       this.removeRetryPendingMediaItem(file)
       const fileName = file.name.replace(/\.[^/.]+$/, '')
       const normalized = this.tmdbService.normalizeFileName(file.name, file.path || `${folderName}/${file.name}`)
-      const seasonEpisode = normalized.seasonNumber === undefined || normalized.episodeNumber === undefined
+      const filenameSE = normalized.seasonNumber === undefined || normalized.episodeNumber === undefined
         ? null
         : { season: normalized.seasonNumber, episode: normalized.episodeNumber }
-      const lookupName = normalized.searchTitle || mediaHint?.title || ''
+      const nfo = await this.resolveNfoMetadata(file, Boolean(filenameSE || mediaHint?.mediaType === 'tv' || mediaHint?.mediaType === 'anime'))
+      const seasonEpisode = filenameSE || (nfo?.episode && nfo.episode > 0 ? { season: nfo.season ?? 1, episode: nfo.episode } : null)
+      const lookupName = normalized.searchTitle || mediaHint?.title || nfo?.title || nfo?.originalTitle || ''
 
       if (lookupName.replace(/\s/g, '').length === 0) return file
 
       if (seasonEpisode) {
-        // Acquisition already resolved the title identity.  Do not send an
-        // imported TV/anime file back through title search merely because its
-        // release name has no embedded TMDB id.
         const tmdbId = (mediaHint?.mediaType === 'tv' || mediaHint?.mediaType === 'anime') && mediaHint.tmdbId
           ? String(mediaHint.tmdbId)
-          : this.parseTmdbId(fileName)
-        const year = normalized.releaseYear === undefined ? undefined : String(normalized.releaseYear)
+          : nfo?.tmdbId ? String(nfo.tmdbId) : this.parseTmdbId(fileName)
+        const year = (normalized.releaseYear === undefined ? undefined : String(normalized.releaseYear)) || nfo?.year
         const shouldUseYear = Boolean(year && !lookupName.includes(year))
         const fingerprint = buildMediaFingerprint(file)
 
-        const tvResult = tmdbId
-          ? await this.tmdbService.searchTV(lookupName, seasonEpisode.season, shouldUseYear ? year : undefined, tmdbId, fingerprint)
-          : await this.tmdbService.searchTV(lookupName, seasonEpisode.season, shouldUseYear ? year : undefined, undefined, fingerprint, fileName)
+        let tvResult = null
+        let transientError: TmdbTransientError | undefined
+        try {
+          tvResult = tmdbId
+            ? await this.tmdbService.searchTV(lookupName, seasonEpisode.season, shouldUseYear ? year : undefined, tmdbId, fingerprint)
+            : await this.tmdbService.searchTV(lookupName, seasonEpisode.season, shouldUseYear ? year : undefined, undefined, fingerprint, fileName)
+        } catch (error) {
+          if (error instanceof TmdbTransientError && nfo?.title) transientError = error
+          else throw error
+        }
 
         const matchedEpisode = tvResult?.current_season?.episodes?.find(ep => ep.episode_number === seasonEpisode.episode)
         if (tvResult && tvResult.current_season && matchedEpisode) {
           const mediaItem = this.buildTvMediaItem(tvResult, matchedEpisode, seasonEpisode, file, folderName, folderId)
           const episodes = (normalized.episodeNumbers || [seasonEpisode.episode]).map(number => tvResult.current_season!.episodes?.find(episode => episode.episode_number === number))
-          if (episodes.some(episode => !episode)) return file
-          mediaItem.seasons![0].episodes = episodes.map(episode => this.buildTvMediaItem(tvResult, episode, { season: seasonEpisode.season, episode: episode!.episode_number }, file, folderName, folderId).seasons![0].episodes![0])
+          if (!episodes.some(episode => !episode)) {
+            mediaItem.seasons![0].episodes = episodes.map(episode => this.buildTvMediaItem(tvResult, episode, { season: seasonEpisode.season, episode: episode!.episode_number }, file, folderName, folderId).seasons![0].episodes![0])
+            if (!mediaItem.posterUrl || !mediaItem.backdropUrl || mediaItem.seasons![0].episodes.some(ep => !ep.stillPath)) {
+              const localArt = await this.resolveFallbackArtwork(file, nfo)
+              if (!mediaItem.posterUrl && localArt.posterUrl) mediaItem.posterUrl = localArt.posterUrl
+              if (!mediaItem.backdropUrl && localArt.backdropUrl) mediaItem.backdropUrl = localArt.backdropUrl
+              mediaItem.seasons![0].episodes.forEach(ep => {
+                if (!ep.stillPath && localArt.thumbUrl) ep.stillPath = localArt.thumbUrl
+              })
+            }
+            await this.prepareScrapedMediaItem(mediaItem)
+            this.mediaStore.addOrMergeTvSeries(mediaItem)
+            this.mediaStore.addToRecentlyAdded(mediaItem)
+            console.log(`✅ 电视剧: ${file.name} -> ${mediaItem.name} S${seasonEpisode.season}E${seasonEpisode.episode} (TMDB)`)
+            return null
+          }
+        }
+        if (nfo?.title) {
+          const showTmdbId = nfo.tmdbId || stableNfoSyntheticId(`${file.driveId}|${nfo.title}|${nfo.year || ''}`)
+          const localArt = await this.resolveFallbackArtwork(file, nfo)
+          const mediaItem: MediaLibraryItem = {
+            id: scrapedMediaId('tv', showTmdbId),
+            parentId: folderName,
+            folderId,
+            folderPath: file.path.substring(0, file.path.lastIndexOf('/')) || '',
+            type: 'tv',
+            name: nfo.title,
+            overview: nfo.overview,
+            posterUrl: localArt.posterUrl,
+            backdropUrl: localArt.backdropUrl,
+            releaseDate: nfo.releaseDate,
+            year: nfo.year,
+            certification: nfo.mpaa,
+            rating: nfo.rating,
+            genres: nfo.genres,
+            tmdbId: showTmdbId,
+            imdbId: nfo.imdbId,
+            tvdbId: nfo.tvdbId,
+            metadataSource: 'nfo',
+            seasons: [{
+              id: showTmdbId * 100 - seasonEpisode.season,
+              seasonNumber: seasonEpisode.season,
+              name: `第 ${seasonEpisode.season} 季`,
+              episodeCount: 1,
+              posterPath: localArt.posterUrl,
+              metadataSource: 'nfo',
+              episodes: [{
+                id: stableNfoSyntheticId(`${showTmdbId}|S${seasonEpisode.season}E${seasonEpisode.episode}`),
+                episodeNumber: seasonEpisode.episode,
+                seasonNumber: seasonEpisode.season,
+                name: nfo.episodeTitle || `第 ${seasonEpisode.episode} 集`,
+                overview: nfo.overview,
+                stillPath: localArt.thumbUrl,
+                airDate: nfo.releaseDate,
+                runtime: nfo.runtime,
+                metadataSource: 'nfo',
+                driveFiles: [file]
+              }]
+            }],
+            driveFiles: [],
+            addedAt: new Date()
+          }
           await this.prepareScrapedMediaItem(mediaItem)
           this.mediaStore.addOrMergeTvSeries(mediaItem)
           this.mediaStore.addToRecentlyAdded(mediaItem)
-          console.log(`✅ 电视剧: ${file.name} -> ${mediaItem.name} S${seasonEpisode.season}E${seasonEpisode.episode} (TMDB)`)
+          console.log(`✅ 电视剧(NFO): ${file.name} -> ${mediaItem.name} S${seasonEpisode.season}E${seasonEpisode.episode}`)
           return null
         }
+        if (transientError) throw transientError
         return file
       }
 
-      // 电影处理：Agent 已确认 TMDB ID 时，直接按 ID 获取元数据；只有旧任务没有 ID 时才按标题搜索。
+      // 电影处理：Agent 或 NFO 已提供 TMDB ID 时直接按 ID 查询。
       if (mediaHint?.mediaType === 'tv' || mediaHint?.mediaType === 'anime') return file
-      const movie = mediaHint?.mediaType === 'movie' && mediaHint.tmdbId
-        ? await this.tmdbService.getMovieByTmdbId(mediaHint.tmdbId)
-        : await this.tmdbService.searchMovie(lookupName, mediaHint?.year ? String(mediaHint.year) : normalized.releaseYear === undefined ? undefined : String(normalized.releaseYear), this.parseTmdbId(fileName) || undefined, buildMediaFingerprint(file), file.name)
+      const effectiveMovieTmdbId = mediaHint?.mediaType === 'movie' && mediaHint.tmdbId
+        ? String(mediaHint.tmdbId)
+        : nfo?.tmdbId ? String(nfo.tmdbId) : this.parseTmdbId(fileName) || undefined
+      const effectiveYear = mediaHint?.year ? String(mediaHint.year) : (normalized.releaseYear === undefined ? nfo?.year : String(normalized.releaseYear))
+      let movie = null
+      let transientError: TmdbTransientError | undefined
+      try {
+        movie = effectiveMovieTmdbId
+          ? await this.tmdbService.getMovieByTmdbId(effectiveMovieTmdbId)
+          : await this.tmdbService.searchMovie(lookupName, effectiveYear, undefined, buildMediaFingerprint(file), file.name)
+      } catch (error) {
+        if (error instanceof TmdbTransientError && nfo?.title) transientError = error
+        else throw error
+      }
       if (movie) {
+        const localArt = (!movie.poster_path || !movie.backdrop_path) ? await this.resolveFallbackArtwork(file, nfo) : undefined
+        const posterUrl = tmdbImageUrl(movie.poster_path) || localArt?.posterUrl
+        const backdropUrl = tmdbImageUrl(movie.backdrop_path) || localArt?.backdropUrl
         const collection = movie.belongs_to_collection
         const mediaItem: MediaLibraryItem = {
           id: collection ? `collection_${collection.id}` : scrapedMediaId('movie', movie.id),
@@ -854,8 +1064,8 @@ export class MediaScanner {
           type: 'movie',
           name: collection?.name || movie.title || movie.original_title || lookupName,
           overview: movie.overview,
-          posterUrl: tmdbImageUrl(movie.poster_path) || undefined,
-          backdropUrl: tmdbImageUrl(movie.backdrop_path) || undefined,
+          posterUrl: posterUrl || undefined,
+          backdropUrl: backdropUrl || undefined,
           logoUrl: tmdbImageUrl(movie.logo_path) || undefined,
           releaseDate: movie.release_date,
           year: movie.release_date?.substring(0, 4),
@@ -877,11 +1087,11 @@ export class MediaScanner {
             type: 'movie' as const,
             name: movie.title || movie.original_title || lookupName,
             overview: movie.overview,
-            posterUrl: tmdbImageUrl(movie.poster_path) || undefined,
-            backdropUrl: tmdbImageUrl(movie.backdrop_path) || undefined,
+            posterUrl: posterUrl || undefined,
+            backdropUrl: backdropUrl || undefined,
             logoUrl: tmdbImageUrl(movie.logo_path) || undefined,
             releaseDate: movie.release_date,
-          year: movie.release_date?.substring(0, 4),
+            year: movie.release_date?.substring(0, 4),
             certification: movie.certification,
             rating: movie.vote_average,
             genres: movie.genres?.map(g => g.name) || [],
@@ -903,6 +1113,39 @@ export class MediaScanner {
         return null
       }
 
+      if (nfo?.title) {
+        const movieTmdbId = nfo.tmdbId || stableNfoSyntheticId(this.getScopedDriveFileKey(file))
+        const localArt = await this.resolveFallbackArtwork(file, nfo)
+        const mediaItem: MediaLibraryItem = {
+          id: scrapedMediaId('movie', movieTmdbId),
+          parentId: folderName,
+          folderId: folderId || `${file.driveId}`,
+          folderPath: file.path.substring(0, file.path.lastIndexOf('/')) || '',
+          type: 'movie',
+          name: nfo.title,
+          overview: nfo.overview,
+          posterUrl: localArt.posterUrl,
+          backdropUrl: localArt.backdropUrl,
+          releaseDate: nfo.releaseDate,
+          year: nfo.year,
+          certification: nfo.mpaa,
+          rating: nfo.rating,
+          genres: nfo.genres,
+          tmdbId: movieTmdbId,
+          imdbId: nfo.imdbId,
+          tvdbId: nfo.tvdbId,
+          driveFiles: [file],
+          metadataSource: 'nfo',
+          addedAt: new Date()
+        }
+        await this.prepareScrapedMediaItem(mediaItem)
+        this.mediaStore.addOrMergeTvSeries(mediaItem)
+        this.mediaStore.addToRecentlyAdded(mediaItem)
+        console.log(`✅ 电影(NFO): ${file.name} -> ${mediaItem.name}`)
+        return null
+      }
+
+      if (transientError) throw transientError
       return file
     } catch (error) {
       console.error(`处理文件失败: ${file.name}`, error)

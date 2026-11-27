@@ -1104,13 +1104,16 @@ function catalogHomeTitle(root: string, category: string, value = '') {
  return ['mini', 'concerts', 'shorts'].includes(category) ? label : `${prefix} - ${label}`
 }
 function localRow(items: MediaLibraryItem[], row: Omit<Row, 'cards'>, card: (item: MediaLibraryItem) => Card = localCard): Row {
-  const movieList = row.key === libraryHomeId('movies/all')
+  const movieList = [libraryHomeId('movies/all'), libraryHomeId('movies/unwatched'), libraryHomeId('movies/recent'), 'local:unwatched'].includes(row.key)
   const tvList = row.key === libraryHomeId('tv/all')
+  const allowAllTypes = row.key === 'local:unwatched'
+  const unwatchedFiltered = row.key === libraryHomeId('movies/unwatched') || row.key === 'local:unwatched'
+  const allowedIds = new Set(items.map(item => item.id))
   const groups: { id: string; title: string; members: MediaLibraryItem[] }[] = []
   if ((movieList && seriesPreferences.showMovies) || (tvList && seriesPreferences.showTV)) {
     if (seriesPreferences.useCustom) for (const group of customSeriesGroups.value) {
       const members = libraryPlaylistMembers(homeLibrary.value, group.members.filter(member => !member.serverId).map(member => member.id))
-        .filter(item => item.type === (tvList ? 'tv' : 'movie'))
+        .filter(item => (allowAllTypes ? (item.type === 'movie' || item.type === 'tv') : item.type === (tvList ? 'tv' : 'movie')) && (!unwatchedFiltered || allowedIds.has(item.id)))
       if (members.length) groups.push({ id: 'custom:' + group.id, title: group.title, members })
     }
     const customIDs = new Set(groups.flatMap(group => group.members.map(item => item.id)))
@@ -1184,12 +1187,16 @@ const localRows = computed<Row[]>(() => {
       continue
     }
     const items = category.key === 'movies' ? homeLibrary.value.filter(item => item.type === 'movie') : category.key === 'tv' ? homeLibrary.value.filter(item => item.type === 'tv') : category.key === 'unmatched' ? homeLibrary.value.filter(item => item.type === 'unmatched')
-      : category.key === 'unwatched' ? homeLibrary.value.filter(item => !isMediaWatched(item, media.watchedItems))
+      : category.key === 'unwatched' ? filterLibraryCategory(homeLibrary.value, 'unwatched', item => isMediaWatched(item, media.watchedItems))
       : category.key === 'favorites' ? homeLibrary.value.filter(item => media.isFavorite(item.id))
       : category.key === 'animation' ? homeLibrary.value.filter(item => item.genres.some(genre => /动画|动漫|Animation|^16$/i.test(genre)))
       : category.key === 'documentary' ? homeLibrary.value.filter(item => item.genres.some(genre => /纪录|Documentary|^99$/i.test(genre)))
       : category.key === 'ratings' ? media.topRated : homeLibrary.value.filter(item => item.type === 'movie')
-    result.push({ key: `local:${category.key}`, title: category.title, cards: items.slice(0, 24).map(item => localCard(item)), more: () => { void showCategory(category.key) } })
+    if (category.key === 'unwatched') {
+      result.push(localRow(items, { key: `local:${category.key}`, title: category.title, more: () => { void showCategory(category.key) } }))
+    } else {
+      result.push({ key: `local:${category.key}`, title: category.title, cards: items.slice(0, 24).map(item => localCard(item)), more: () => { void showCategory(category.key) } })
+    }
   }
   result.push({ key: 'music', title: t('nav.music'), cards: music.recentlyAdded.slice(0, 20).map(item => ({ key: item.id, title: item.title || item.file_name, image: item.cover_url || item.thumbnail, subtitle: item.artist, action: () => { void openMusic(item) } })), more: () => { app.mediaLibrarySection = 'music' } })
   result.push({ key: 'books', title: t('nav.books'), cards: books.recentlyAdded.slice(0, 20).map(item => ({ key: item.id, title: item.title || item.file_name, image: item.cover_url || item.thumbnail, subtitle: item.author, action: () => { void openBook(item) } })), more: () => { app.mediaLibrarySection = 'book' } })

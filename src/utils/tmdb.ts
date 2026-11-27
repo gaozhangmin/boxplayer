@@ -125,7 +125,10 @@ function unwrapTmdbResponse<T>(payload: { code?: number; data?: T; msg?: string 
 }
 
 export function tmdbImageUrl(path?: string | null, size: string = 'w500'): string {
-  const imagePath = String(path || '').replace(/^\/+/, '')
+  const raw = String(path || '').trim()
+  if (!raw) return ''
+  if (/^(https?:|file:|mscache:|data:)/i.test(raw)) return raw
+  const imagePath = raw.replace(/^\/+/, '')
   return imagePath ? `${TMDB_BASE_URL}/image/${size}/${imagePath}` : ''
 }
 

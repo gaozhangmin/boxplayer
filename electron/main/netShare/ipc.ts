@@ -1,5 +1,6 @@
+import path from 'node:path'
 import { ipcMain, safeStorage, app } from 'electron'
-import { NetShareManager, type SecretCodec } from './manager'
+import { NetShareManager, saveCachedNfoArtwork, type SecretCodec } from './manager'
 import type { NetShareConfig } from '../../../shared/netShare'
 
 const SAFE_PREFIX = 'safe:'
@@ -47,6 +48,9 @@ export function registerNetShareIpc() {
   ipcMain.handle('NetShare:listShares', wrap((config: NetShareConfig) => shares.listShares(config)))
   ipcMain.handle('NetShare:list', wrap((config: NetShareConfig, relativePath: string) => shares.driverFor(config).list(relativePath || '/')))
   ipcMain.handle('NetShare:stat', wrap((config: NetShareConfig, relativePath: string) => shares.stat(config, relativePath || '/', 0)))
+  ipcMain.handle('NetShare:readFile', wrap((config: NetShareConfig, relativePath: string, maxBytes?: number) => shares.readFile(config, relativePath || '/', maxBytes)))
+  ipcMain.handle('NetShare:cacheArtwork', wrap((config: NetShareConfig, relativePath: string) => shares.cacheArtwork(config, relativePath || '/', path.join(app.getPath('userData'), 'nfo-artwork'))))
+  ipcMain.handle('NetShare:cacheArtworkBytes', wrap((bytes: Uint8Array) => saveCachedNfoArtwork(path.join(app.getPath('userData'), 'nfo-artwork'), Buffer.from(bytes))))
   ipcMain.handle('NetShare:streamUrl', wrap((config: NetShareConfig, relativePath: string) => shares.streamUrl(config, relativePath)))
   ipcMain.handle('NetShare:forget', wrap((id: string) => shares.forget(id)))
   ipcMain.handle('NetShare:download', async (event, config: NetShareConfig, relativePath: string, localFile: string, requestId?: string) => {

@@ -4,6 +4,7 @@ import { randomBytes, createHash } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import mime from 'mime-types'
 import { buildNetShareStreamPath, parseByteRange, parseNetShareStreamPath, type NetShareConfig } from '../../../shared/netShare'
 import { FtpDriver } from './ftpDriver'
@@ -17,6 +18,32 @@ export type SecretCodec = { encrypt(plain: string): string; decrypt(stored: stri
 export const plainSecretCodec: SecretCodec = { encrypt: value => value, decrypt: value => value }
 
 const configKey = (config: NetShareConfig) => createHash('sha1').update(JSON.stringify([config.kind, config.host, config.port, config.share, config.domain, config.username, config.password, config.anonymous, config.exportPath, config.rootPath, config.secure, config.allowUntrustedCert, config.encoding])).digest('hex')
+
+export const MAX_NETSHARE_READ_BYTES = 8 * 1024 * 1024
+
+export function detectImageExtension(bytes: Buffer): '.png' | '.jpg' | '.webp' | null {
+  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return '.png'
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return '.jpg'
+  if (bytes.length >= 12 && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP') return '.webp'
+  return null
+}
+
+export async function saveCachedNfoArtwork(cacheRoot: string, bytes: Buffer): Promise<string> {
+  if (bytes.length === 0 || bytes.length > MAX_NETSHARE_READ_BYTES) throw new Error('图片体积超出限制')
+  const ext = detectImageExtension(bytes)
+  if (!ext) throw new Error('不支持的图片格式')
+  const digest = createHash('sha256').update(bytes).digest('hex')
+  await fs.promises.mkdir(cacheRoot, { recursive: true })
+  const targetPath = path.join(cacheRoot, `${digest}${ext}`)
+  try {
+    await fs.promises.access(targetPath)
+    return pathToFileURL(targetPath).href
+  } catch {}
+  const tempPath = `${targetPath}.${randomBytes(6).toString('hex')}.tmp`
+  await fs.promises.writeFile(tempPath, bytes)
+  await fs.promises.rename(tempPath, targetPath)
+  return pathToFileURL(targetPath).href
+}
 
 export const createDriver = (config: NetShareConfig, password: string): NetShareDriver & { listShares?: () => Promise<string[]> } => {
   if (config.kind === 'smb') return new SmbDriver(config, password)
@@ -147,6 +174,36 @@ export class NetShareManager {
     source.on('data', (chunk: Buffer) => { done += chunk.length; onProgress?.(done, stat.size) })
     await pipeline(source, fs.createWriteStream(partial, { flags: offset ? 'a' : 'w' }))
     await fs.promises.rename(partial, localFile)
+  }
+
+  async readFile(config: NetShareConfig, relativePath: string, maxBytes = MAX_NETSHARE_READ_BYTES): Promise<Buffer> {
+    const limit = Math.max(1, Math.min(maxBytes, MAX_NETSHARE_READ_BYTES))
+    const driver = this.driverFor(config)
+    const stat = await driver.stat(relativePath)
+    if (stat.isDir) throw new Error('目标是目录，无法读取文件')
+    if (stat.size > limit) throw new Error(`文件超出读取上限 (${limit} bytes)`)
+    if (stat.size === 0) return Buffer.alloc(0)
+    const stream = await driver.createReadStream(relativePath, 0, Math.min(stat.size, limit) - 1)
+    const chunks: Buffer[] = []
+    let total = 0
+    return await new Promise<Buffer>((resolve, reject) => {
+      stream.on('data', (chunk: Buffer | string) => {
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+        total += buf.length
+        if (total > limit) {
+          stream.destroy(new Error(`文件超出读取上限 (${limit} bytes)`))
+          return
+        }
+        chunks.push(buf)
+      })
+      stream.once('end', () => resolve(Buffer.concat(chunks, total)))
+      stream.once('error', reject)
+    })
+  }
+
+  async cacheArtwork(config: NetShareConfig, relativePath: string, cacheRoot: string): Promise<string> {
+    const bytes = await this.readFile(config, relativePath, MAX_NETSHARE_READ_BYTES)
+    return saveCachedNfoArtwork(cacheRoot, bytes)
   }
 
   close() {

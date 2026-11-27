@@ -923,7 +923,7 @@ const getMediaPageQuery = () => {
     if (props.localOnly && !hasLocalMedia(item)) return false
     if (category === 'documentary' && !item.genres.some(genre => String(genre).toLowerCase() === '99' || String(genre).includes('纪录'))) return false
     if (category === 'animation' && !item.genres.some(genre => String(genre).toLowerCase() === '16' || String(genre).includes('动画') || String(genre).includes('动漫'))) return false
-    if (category === 'unwatched' && isMediaWatched(item, watchedIds)) return false
+    if (category === 'unwatched' && (item.type === 'unmatched' || isMediaWatched(item, watchedIds))) return false
     if (selectedGenreValue && !item.genres.includes(selectedGenreValue)) return false
     if (selectedYearValue) {
       const year = Number(item.year || 0)
@@ -1107,7 +1107,7 @@ const animationItems = computed(() => mediaStore.mediaItems.filter((item) => {
   })
 }))
 
-const unwatchedItems = computed(() => mediaStore.mediaItems.filter(item => !isMediaWatched(item, mediaStore.watchedItems)))
+const unwatchedItems = computed(() => mediaStore.mediaItems.filter(item => item.type !== 'unmatched' && !isMediaWatched(item, mediaStore.watchedItems)))
 
 const favoriteItems = computed(() => mediaStore.favorites
   .map(favoriteIdToMediaItem)

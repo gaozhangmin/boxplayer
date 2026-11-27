@@ -69,3 +69,17 @@ it('keeps network browsing in the sidebar even without metadata', () => {
   expect(LIBRARY_SIDEBAR_ROUTES).toContain('tv/networks')
   expect(libraryCategoryGroups([], 'networks')).toEqual([])
 })
+
+it('excludes unmatched items from unwatched/recent and filters watched members before collapsing collections', () => {
+  const m1 = { ...movie('m1', { collectionId: 10, collectionName: 'Trilogy' }), type: 'movie' as const }
+  const m2 = { ...movie('m2', { collectionId: 10, collectionName: 'Trilogy' }), type: 'movie' as const }
+  const col = movie('collection_10', { collectionId: 10, collectionName: 'Trilogy', collectionMovies: [m1, m2] })
+  const show = movie('tv_1', { type: 'tv' })
+  const unmatched = movie('u1', { type: 'unmatched' })
+  const items = [col, show, unmatched]
+  const unwatched = filterLibraryCategory(items, 'unwatched', item => item.id === 'm1')
+  expect(unwatched.map(i => i.id)).toEqual(['m2', 'tv_1'])
+  expect(libraryMovieSeries(unwatched)[0].members.map(i => i.id)).toEqual(['m2'])
+  expect(filterLibraryCategory(items, 'recent', () => false).map(i => i.id)).not.toContain('u1')
+  expect(filterLibraryCategory(items, 'other', () => false).map(i => i.id)).toEqual(['u1'])
+})

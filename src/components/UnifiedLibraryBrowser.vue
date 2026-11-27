@@ -67,12 +67,18 @@ const filtered = computed(() => filterLibraryCategory(items.value, props.route, 
 const playlists = computed(() => Object.entries(media.playlists).map(([name, ids]) => ({ name, members: libraryPlaylistMembers(items.value, ids) })))
 const series = computed(() => libraryMovieSeries(items.value))
 const inlineSeries = computed(() => {
-  const enabled = root.value === 'movies' ? seriesPreferences.showMovies : root.value === 'tv' && seriesPreferences.showTV
-  if (!enabled || parts.value.length !== 2 || category.value !== 'all') return []
+  const showMovies = (root.value === 'movies' && ['all', 'unwatched', 'recent'].includes(category.value)) || ['unwatched', 'recent'].includes(root.value)
+  const showTV = root.value === 'tv' && category.value === 'all'
+  const enabled = (showMovies && seriesPreferences.showMovies) || (showTV && seriesPreferences.showTV)
+  if (!enabled) return []
   const allowed = new Set(filtered.value.map(item => item.id))
-  const automatic = root.value === 'movies' ? series.value.filter(group => group.members.some(item => allowed.has(item.id))) : []
+  const automatic = showMovies ? libraryMovieSeries(filtered.value) : []
+  const isUnwatchedRoute = root.value === 'unwatched' || category.value === 'unwatched'
   const custom = seriesPreferences.useCustom ? loadCustomSeries().map(group => ({ id: 'custom:' + group.id, title: group.title,
-    members: libraryPlaylistMembers(items.value, group.members.filter(member => !member.serverId).map(member => member.id)).filter(item => item.type === (root.value === 'movies' ? 'movie' : 'tv')) })).filter(group => group.members.length) : []
+    members: libraryPlaylistMembers(items.value, group.members.filter(member => !member.serverId).map(member => member.id)).filter(item =>
+      (root.value === 'tv' ? item.type === 'tv' : root.value === 'movies' ? item.type === 'movie' : (item.type === 'movie' || item.type === 'tv'))
+      && (!isUnwatchedRoute || allowed.has(item.id))
+    ) })).filter(group => group.members.length) : []
   const customIDs = new Set(custom.flatMap(group => group.members.map(item => item.id)))
   return [...custom, ...automatic.map(group => ({ ...group, members: group.members.filter(item => !customIDs.has(item.id)) })).filter(group => group.members.length)]
 })
