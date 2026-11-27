@@ -1,9 +1,12 @@
 import { expect, it } from 'vitest'
 import { electronProviderCapabilities, fileOperationAvailable } from '@/features/files/adapters/providerCapabilities'
-import { providers } from '@/features/sources/contracts'
+import { providers, type ProviderId } from '@/features/sources/contracts'
 import type { DriveOperation } from '@/features/files/electron/drive/services/agent/providerCapabilityTypes'
-it('uses original declarations for retained providers without falling back to Aliyun for servers',()=>{
- for(const [providerId] of providers){const result=electronProviderCapabilities({providerId});expect(!!result).toBe(!['jellyfin','emby','plex','boxplayer'].includes(providerId))}
+it('uses upstream declarations only for sources covered by the legacy registry', () => {
+ const outsideLegacyRegistry = new Set<ProviderId>(['jellyfin', 'emby', 'plex', 'boxplayer', 'smb', 'nfs', 'ftp'])
+ for (const [providerId] of providers) {
+   expect(Boolean(electronProviderCapabilities({ providerId })), providerId).toBe(!outsideLegacyRegistry.has(providerId))
+ }
  expect(electronProviderCapabilities({providerId:'115'})!.operations['share.create']).toBe(false)
  expect(electronProviderCapabilities({providerId:'google'})!.operations['files.rename']).toBe(true)
  expect(electronProviderCapabilities({providerId:'123'})!.platform).toBe('cloud123')

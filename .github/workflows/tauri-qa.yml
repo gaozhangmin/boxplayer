@@ -49,6 +49,83 @@ jobs:
           pnpm typecheck
           node scripts/check-soia-upstream.mjs
 
+  tauri-native-build:
+    name: Standalone Tauri build (${{ matrix.os_id }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_id: windows
+            runner: windows-2025
+          - os_id: linux
+            runner: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: tauri-app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tauri-app
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 10.32.1
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: pnpm
+          cache-dependency-path: tauri-app/pnpm-lock.yaml
+
+      - id: bun
+        run: echo "version=$(node -p 'require("./package.json").devDependencies["@types/bun"]')" >> "$GITHUB_OUTPUT"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ steps.bun.outputs.version }}
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tauri-app/src-tauri
+          key: standalone-build
+
+      - name: Install Linux Tauri dependencies
+        if: matrix.os_id == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Prepare isolated build inputs
+        run: |
+          test ! -e ../electron && test ! -e ../src && test ! -e ../package.json
+          node --input-type=module <<'JS'
+          import { appendFileSync } from 'node:fs'
+          import { registrationKeys } from './scripts/provider-registration.mjs'
+          const entries = registrationKeys.map(key =>
+            `BOXPLAYER_${key}=${key === 'BOXPLAYER_SITE_URL' ? 'https://example.invalid' : 'synthetic-' + key}`
+          )
+          appendFileSync(process.env.GITHUB_ENV, entries.join('\n') + '\n')
+          JS
+          pnpm --ignore-workspace install --frozen-lockfile
+
+      - name: Compile and verify native executable and sidecar
+        run: |
+          pnpm tauri build --debug --no-bundle -- --locked
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            test -f src-tauri/target/debug/boxplayer-tauri-dev.exe
+            test -f src-tauri/binaries/boxplayer-host-x86_64-pc-windows-msvc.exe
+          else
+            test -x src-tauri/target/debug/boxplayer-tauri-dev
+            test -x src-tauri/binaries/boxplayer-host-x86_64-unknown-linux-gnu
+          fi
+          git diff --exit-code -- pnpm-lock.yaml src-tauri/Cargo.lock
+
   tauri-qa:
     name: Tauri QA (${{ matrix.os_id }})
     strategy:

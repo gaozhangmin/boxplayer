@@ -15,7 +15,15 @@ import type {VideoItem} from '@/features/library/catalog'
 import {useFileSourcesStore} from '@/stores/fileSources'
 vi.mock('@/features/servers/ServerHomeSections.vue',()=>({default:{name:'ServerHomeSections',props:{hideFavorites:Boolean,hasLocalResume:Boolean},setup:()=>({card:{key:'remote-film',title:'Remote film',duration:300,progress:20,action:()=>{}}}),template:`<div><slot name="lead" :kind="hasLocalResume ? 'resume' : 'latest'" :cards="[card]" /></div>`}}))
 const fixture=vi.hoisted(()=>({catalog:null as any,native:vi.fn(),list:vi.fn(),browse:vi.fn(),share:vi.fn()}))
-vi.mock('@/platform/native',async original=>({...await original<object>(),isNative:()=>false,localList:(...args:unknown[])=>fixture.list(...args),nativeCall:(...args:unknown[])=>fixture.native(...args)}))
+vi.mock('@/platform/native', async original => ({
+ ...await original<object>(),
+ isNative: () => false,
+ localList: (...args: unknown[]) => fixture.list(...args),
+ nativeCall: async (...args: unknown[]) => {
+   const response = await fixture.native(...args)
+   return args[0] === 'player_direct_video_history' ? response ?? [] : response
+ },
+}))
 vi.mock('@/features/sources/share',()=>({supportsSourceShare:(account:{providerId:string})=>account.providerId==='dropbox',createSourceShare:(...args:unknown[])=>fixture.share(...args)}))
 vi.mock('@/features/sources/drivers',async original=>({...await original<object>(),driver:()=>({list:(...args:unknown[])=>fixture.list(...args)})}))
 vi.mock('@/features/servers/workspace',async original=>({...await original<object>(),browseServer:(...args:unknown[])=>fixture.browse(...args)}))
