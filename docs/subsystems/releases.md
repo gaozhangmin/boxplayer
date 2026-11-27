@@ -10,7 +10,7 @@
 
 `main` 使用 [Tauri QA](../../.github/workflows/tauri-qa.yml) 验证新桌面端。旧 Electron 构建与发布工作流保留在 [`electron` 分支](https://github.com/gaozhangmin/boxplayer/tree/electron/.github/workflows)。GitHub 的手动触发要求工作流存在于默认分支。旧 Electron 流程从 `main` 移除后，原有手动发布入口停用。Tauri 正式产物须采用独立的发布流程。[GitHub 手动触发说明](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
 
-Windows 和 Linux 的 Standalone Tauri build 作业稀疏检出 `tauri-app/`，用合成应用注册配置运行 Tauri CLI，并核对原生程序和 sidecar 产物。UI、播放器验收和正式发行使用各自的流程。
+三端 QA 稀疏检出 `tauri-app/`，用合成应用注册配置调用 Tauri CLI。Windows 生成 NSIS 安装程序并附带 libmpv 动态库，Linux 生成依赖 `libmpv2` 的 deb，macOS 生成包含 libmpv 及其动态库的应用压缩包。工作流核对原生程序和 sidecar，并运行前端、sidecar、Rust、UI 与播放器测试。Actions 产物供调试验收，正式发行的签名、公证和可再分发依赖另按发布流程核对。
 
 ### Release publication authorization
 

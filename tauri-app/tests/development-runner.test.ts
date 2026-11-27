@@ -57,9 +57,11 @@ it('preserves spaced app arguments and never launches after a signer failure',()
   const signer=join(fixture,'signer.mjs'),app=join(fixture,'app.sh'),trace=join(fixture,'trace')
   writeFileSync(signer,'import {appendFileSync} from "node:fs";appendFileSync(process.env.TRACE,"sign\\n");process.exit(Number(process.env.FAIL||0))')
   writeFileSync(app,'#!/bin/sh\nprintf "run:%s\\n" "$1" >> "$TRACE"\n',{mode:0o700})
-  const args=[join(root,'scripts/macos-dev-runner.sh'),app,'literal $() with spaces']
-  const invoke=(fail:string)=>spawnSync('/bin/sh',args,{env:{...process.env,TRACE:trace,FAIL:fail,BOXPLAYER_DEV_NODE:process.execPath,BOXPLAYER_DEV_SIGNER:signer},encoding:'utf8'})
-  expect(invoke('7').status).toBe(7);expect(readFileSync(trace,'utf8')).toBe('sign\n')
+  const shell=process.env.BOXPLAYER_TEST_POSIX_SHELL||(process.platform==='win32'?'sh':'/bin/sh')
+  const shellPath=(path:string)=>process.platform==='win32'?path.replaceAll('\\','/'):path
+  const args=[shellPath(join(root,'scripts/macos-dev-runner.sh')),shellPath(app),'literal $() with spaces']
+  const invoke=(fail:string)=>spawnSync(shell,args,{env:{...process.env,TRACE:shellPath(trace),FAIL:fail,BOXPLAYER_DEV_NODE:shellPath(process.execPath),BOXPLAYER_DEV_SIGNER:shellPath(signer)},encoding:'utf8'})
+  const failed=invoke('7');expect(failed.error).toBeUndefined();expect(failed.status,failed.stderr).toBe(7);expect(readFileSync(trace,'utf8')).toBe('sign\n')
   writeFileSync(trace,'');expect(invoke('0').status).toBe(0);expect(readFileSync(trace,'utf8')).toBe('sign\nrun:literal $() with spaces\n')
  }finally{rmSync(fixture,{recursive:true,force:true})}
 })

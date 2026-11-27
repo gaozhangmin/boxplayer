@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -13,17 +13,11 @@ const outDir = resolve(
 const require = createRequire(import.meta.url)
 const playwrightTarget = process.env.PLAYWRIGHT_MODULE_PATH || 'playwright'
 const { chromium } = require(playwrightTarget)
-const viteBin = require.resolve('vite/bin/vite.js', { paths: [tauriAppRoot] })
+const viteBin = join(dirname(require.resolve('vite/package.json')), 'bin', 'vite.js')
 
 const PORT = 1428
 const BASE_URL = `http://127.0.0.1:${PORT}`
-const ENTRIES = [
-  { pagePath: 'index.html', screenshot: 'main.png' },
-  { pagePath: 'settings.html', screenshot: 'settings.png' },
-  { pagePath: 'player.html', screenshot: 'player.png' },
-  { pagePath: 'sources.html', screenshot: 'sources.png' },
-  { pagePath: 'media.html', screenshot: 'media.png' },
-]
+const requiredEntries = ['index.html', 'settings.html', 'player.html']
 
 async function waitForServer(url, timeoutMs = 30000) {
   const deadline = Date.now() + timeoutMs
@@ -40,6 +34,10 @@ async function waitForServer(url, timeoutMs = 30000) {
 }
 
 async function main() {
+  const entries = (await readdir(join(tauriAppRoot, 'dist'))).filter(name => name.endsWith('.html')).sort()
+  for (const entry of requiredEntries) {
+    if (!entries.includes(entry)) throw new Error(`Missing built Tauri page: ${entry}`)
+  }
   await mkdir(outDir, { recursive: true })
   const server = spawn(
     process.execPath,
@@ -62,7 +60,8 @@ async function main() {
     browser = await chromium.launch({ headless: true })
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
 
-    for (const entry of ENTRIES) {
+    for (const pagePath of entries) {
+      const screenshot = pagePath === 'index.html' ? 'main.png' : pagePath.replace(/\.html$/, '.png')
       const page = await context.newPage()
       const pageErrors = []
       const badResponses = []
@@ -77,7 +76,7 @@ async function main() {
         }
       })
 
-      const targetUrl = `${BASE_URL}/${entry.pagePath}`
+      const targetUrl = `${BASE_URL}/${pagePath}`
       const response = await page.goto(targetUrl, { waitUntil: 'networkidle', timeout: 30000 })
       const status = response ? response.status() : 0
       await page.waitForTimeout(500)
@@ -92,27 +91,27 @@ async function main() {
         }
       })
 
-      const screenshotPath = join(outDir, entry.screenshot)
+      const screenshotPath = join(outDir, screenshot)
       await page.screenshot({ path: screenshotPath, fullPage: true })
       await page.close()
 
       if (status !== 200) {
-        throw new Error(`${entry.pagePath}: expected HTTP 200, got ${status}`)
+        throw new Error(`${pagePath}: expected HTTP 200, got ${status}`)
       }
       if (!appCheck.exists || (appCheck.childCount === 0 && appCheck.htmlLength === 0)) {
-        throw new Error(`${entry.pagePath}: #app failed to mount`)
+        throw new Error(`${pagePath}: #app failed to mount`)
       }
       if (pageErrors.length > 0) {
-        throw new Error(`${entry.pagePath}: uncaught page errors: ${pageErrors.join('; ')}`)
+        throw new Error(`${pagePath}: uncaught page errors: ${pageErrors.join('; ')}`)
       }
       if (badResponses.length > 0) {
-        throw new Error(`${entry.pagePath}: failed local asset responses: ${JSON.stringify(badResponses)}`)
+        throw new Error(`${pagePath}: failed local asset responses: ${JSON.stringify(badResponses)}`)
       }
 
       results.push({
-        pagePath: entry.pagePath,
+        pagePath,
         status,
-        screenshot: entry.screenshot,
+        screenshot,
         appCheck,
       })
     }

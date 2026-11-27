@@ -862,10 +862,15 @@ pub fn runtime_directory(app: &tauri::AppHandle) -> PathBuf {
         .resource_dir()
         .unwrap_or_default()
         .join("runtime");
-    if bundled.join("libmpv.dylib").exists() {
+    if bundled.join(ffi::RUNTIME_LIBRARY).is_file() {
         return bundled;
     }
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos")
+    #[cfg(target_os = "macos")]
+    return PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.local/runtime/macos");
+    #[cfg(target_os = "windows")]
+    return bundled;
+    #[cfg(target_os = "linux")]
+    PathBuf::new()
 }
 pub fn configure_vulkan() {
     #[cfg(target_os = "macos")]

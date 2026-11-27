@@ -49,8 +49,8 @@ jobs:
           pnpm typecheck
           node scripts/check-soia-upstream.mjs
 
-  tauri-native-build:
-    name: Standalone Tauri build (${{ matrix.os_id }})
+  tauri-qa:
+    name: Tauri QA & package (${{ matrix.os_id }})
     strategy:
       fail-fast: false
       matrix:
@@ -59,12 +59,11 @@ jobs:
             runner: windows-2025
           - os_id: linux
             runner: ubuntu-24.04
+          - os_id: macos
+            runner: macos-15
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
-    defaults:
-      run:
-        shell: bash
-        working-directory: tauri-app
+    timeout-minutes: 60
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -82,78 +81,13 @@ jobs:
           cache-dependency-path: tauri-app/pnpm-lock.yaml
 
       - id: bun
+        shell: bash
+        working-directory: tauri-app
         run: echo "version=$(node -p 'require("./package.json").devDependencies["@types/bun"]')" >> "$GITHUB_OUTPUT"
 
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ steps.bun.outputs.version }}
-
-      - uses: dtolnay/rust-toolchain@stable
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: tauri-app/src-tauri
-          key: standalone-build
-
-      - name: Install Linux Tauri dependencies
-        if: matrix.os_id == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libssl-dev libxdo-dev libayatana-appindicator3-dev librsvg2-dev
-
-      - name: Prepare isolated build inputs
-        run: |
-          test ! -e ../electron && test ! -e ../src && test ! -e ../package.json
-          node --input-type=module <<'JS'
-          import { appendFileSync } from 'node:fs'
-          import { registrationKeys } from './scripts/provider-registration.mjs'
-          const entries = registrationKeys.map(key =>
-            `BOXPLAYER_${key}=${key === 'BOXPLAYER_SITE_URL' ? 'https://example.invalid' : 'synthetic-' + key}`
-          )
-          appendFileSync(process.env.GITHUB_ENV, entries.join('\n') + '\n')
-          JS
-          pnpm --ignore-workspace install --frozen-lockfile
-
-      - name: Compile and verify native executable and sidecar
-        run: |
-          pnpm tauri build --debug --no-bundle -- --locked
-          if [ "$RUNNER_OS" = "Windows" ]; then
-            test -f src-tauri/target/debug/boxplayer-tauri-dev.exe
-            test -f src-tauri/binaries/boxplayer-host-x86_64-pc-windows-msvc.exe
-          else
-            test -x src-tauri/target/debug/boxplayer-tauri-dev
-            test -x src-tauri/binaries/boxplayer-host-x86_64-unknown-linux-gnu
-          fi
-          git diff --exit-code -- pnpm-lock.yaml src-tauri/Cargo.lock
-
-  tauri-qa:
-    name: Tauri QA (${{ matrix.os_id }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os_id: windows
-            runner: windows-2025
-          - os_id: linux
-            runner: ubuntu-24.04
-          - os_id: macos
-            runner: macos-15
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v3
-        with:
-          version: 10.32.1
-          run_install: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.12.0
-          cache: pnpm
-          cache-dependency-path: tauri-app/pnpm-lock.yaml
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -190,33 +124,20 @@ jobs:
           MPV_DIR="$(dirname "$MPV_LIB_PATH")"
           echo "BOXPLAYER_MPV_RUNTIME=$MPV_DIR" >> "$GITHUB_ENV"
 
-      - name: Cache and install tauri-driver on Linux
-        if: matrix.os_id == 'linux'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/tauri-driver
-          key: tauri-driver-${{ runner.os }}-2
-
-      - name: Ensure tauri-driver is installed on Linux
-        if: matrix.os_id == 'linux'
-        shell: bash
-        run: |
-          if ! command -v tauri-driver >/dev/null 2>&1; then
-            cargo install tauri-driver --locked
-          fi
-          tauri-driver --version
-
-      - name: Install macOS libmpv and ffmpeg dependencies
+      - name: Prepare macOS libmpv and its dynamic libraries
         if: matrix.os_id == 'macos'
         shell: bash
+        working-directory: tauri-app
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
         run: |
-          brew install mpv ffmpeg
-          MPV_DIR="$(brew --prefix mpv)/lib"
-          if [ ! -f "$MPV_DIR/libmpv.dylib" ]; then
-            echo "libmpv.dylib not found at $MPV_DIR" >&2
-            exit 1
-          fi
-          echo "BOXPLAYER_MPV_RUNTIME=$MPV_DIR" >> "$GITHUB_ENV"
+          brew install mpv ffmpeg dylibbundler
+          runtime="$PWD/.local/runtime/macos"
+          mkdir -p "$runtime"
+          cp -L "$(brew --prefix mpv)/lib/libmpv.dylib" "$runtime/"
+          chmod u+w "$runtime/libmpv.dylib"
+          dylibbundler -of -b -x "$runtime/libmpv.dylib" -d "$runtime/" -p '@loader_path/'
+          echo "BOXPLAYER_MPV_RUNTIME=$runtime" >> "$GITHUB_ENV"
 
       - name: Setup MSYS2 libmpv and ffmpeg on Windows
         if: matrix.os_id == 'windows'
@@ -232,6 +153,7 @@ jobs:
       - name: Configure Windows libmpv and ffmpeg environment
         if: matrix.os_id == 'windows'
         shell: pwsh
+        working-directory: tauri-app
         run: |
           $msysRoot = "${{ steps.msys2.outputs.msys2-location }}"
           $candidates = @()
@@ -255,15 +177,93 @@ jobs:
           "BOXPLAYER_MPV_RUNTIME=$bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "BOXPLAYER_FFMPEG=$(Join-Path $bin 'ffmpeg.exe')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Install Tauri frontend dependencies, test, and build dist
+      - name: Prepare isolated build inputs
+        shell: bash
         working-directory: tauri-app
         run: |
+          test ! -e ../electron && test ! -e ../src && test ! -e ../package.json
+          node --input-type=module <<'JS'
+          import { appendFileSync } from 'node:fs'
+          import { registrationKeys } from './scripts/provider-registration.mjs'
+          const entries = registrationKeys.map(key =>
+            `BOXPLAYER_${key}=${key === 'BOXPLAYER_SITE_URL' ? 'https://example.invalid' : 'synthetic-' + key}`
+          )
+          appendFileSync(process.env.GITHUB_ENV, entries.join('\n') + '\n')
+          JS
           pnpm --ignore-workspace install --frozen-lockfile
+
+      - name: Build and verify the native QA package
+        id: package
+        shell: bash
+        working-directory: tauri-app
+        run: |
+          output=.local/ci-packages
+          mkdir -p "$output"
+          case "$RUNNER_OS" in
+            Windows)
+              pnpm tauri build --debug --bundles nsis --config '{"bundle":{"active":true,"resources":{"../.local/runtime/windows/":"runtime/"}}}' -- --locked
+              test -f src-tauri/target/debug/boxplayer-tauri-dev.exe
+              test -f src-tauri/binaries/boxplayer-host-x86_64-pc-windows-msvc.exe
+              cp src-tauri/target/debug/bundle/nsis/*.exe "$output/"
+              ;;
+            Linux)
+              pnpm tauri build --debug --bundles deb --config '{"bundle":{"active":true,"linux":{"deb":{"depends":["libmpv2"]}}}}' -- --locked
+              test -x src-tauri/target/debug/boxplayer-tauri-dev
+              test -x src-tauri/binaries/boxplayer-host-x86_64-unknown-linux-gnu
+              cp src-tauri/target/debug/bundle/deb/*.deb "$output/"
+              dpkg-deb --field "$output"/*.deb Depends | grep -w libmpv2
+              ;;
+            macOS)
+              pnpm tauri build --debug --bundles app --config '{"bundle":{"active":true}}' -- --locked
+              app="src-tauri/target/debug/bundle/macos/BoxPlayer Dev.app"
+              test -x "$app/Contents/MacOS/boxplayer-tauri-dev"
+              test -x "$app/Contents/MacOS/boxplayer-host"
+              test -f "$app/Contents/Resources/runtime/libmpv.dylib"
+              ditto -c -k --sequesterRsrc --keepParent "$app" "$output/BoxPlayer-macos-debug.zip"
+              ;;
+          esac
+          cp ../LICENSE THIRD_PARTY_NOTICES.md "$output/"
+          git diff --exit-code -- pnpm-lock.yaml src-tauri/Cargo.lock
+
+      - name: Upload QA package
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-qa-package-${{ matrix.os_id }}
+          path: tauri-app/.local/ci-packages/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Run frontend and sidecar unit tests
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        shell: bash
+        working-directory: tauri-app
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            export BOXPLAYER_TEST_POSIX_SHELL="$(cygpath -w "$(command -v sh)")"
+          fi
           pnpm test
-          pnpm exec vite build
+          pnpm test:boxplayer
+
+      - name: Cache and install tauri-driver on Linux
+        if: matrix.os_id == 'linux'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/tauri-driver
+          key: tauri-driver-${{ runner.os }}-2.1.0
+
+      - name: Ensure tauri-driver is installed on Linux
+        if: matrix.os_id == 'linux'
+        shell: bash
+        run: |
+          if ! command -v tauri-driver >/dev/null 2>&1; then
+            cargo install tauri-driver --version 2.1.0 --locked
+          fi
+          command -v tauri-driver
+          command -v WebKitWebDriver
 
       - name: Install temporary Playwright runner (no lockfile changes)
-        if: matrix.os_id != 'linux'
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id != 'linux' }}
         shell: bash
         run: |
           mkdir -p "${RUNNER_TEMP}/pw-runner"
@@ -273,7 +273,7 @@ jobs:
           npx playwright install chromium
 
       - name: Install temporary Playwright runner on Linux
-        if: matrix.os_id == 'linux'
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id == 'linux' }}
         shell: bash
         run: |
           mkdir -p "${RUNNER_TEMP}/pw-runner"
@@ -284,6 +284,7 @@ jobs:
           sudo npx playwright install-deps chromium
 
       - name: Run L1 Tauri UI render & screenshot smoke
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         working-directory: tauri-app
         env:
           PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/pw-runner/node_modules/playwright
@@ -298,12 +299,8 @@ jobs:
           path: ${{ runner.temp }}/tauri-ui-screenshots
           if-no-files-found: warn
 
-      - name: Build Tauri native debug binary
-        working-directory: tauri-app
-        run: cargo build --manifest-path src-tauri/Cargo.toml
-
       - name: Run L2 Native Tauri Window E2E (Windows WebView2 CDP)
-        if: matrix.os_id == 'windows'
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id == 'windows' }}
         working-directory: tauri-app
         env:
           PLAYWRIGHT_MODULE_PATH: ${{ runner.temp }}/pw-runner/node_modules/playwright
@@ -311,7 +308,7 @@ jobs:
         run: node scripts/ci-tauri-native-l2.mjs --mode windows-cdp
 
       - name: Run L2 Native Tauri Window E2E (Linux WebKitGTK + tauri-driver)
-        if: matrix.os_id == 'linux'
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id == 'linux' }}
         working-directory: tauri-app
         env:
           BOXPLAYER_L2_OUT_DIR: ${{ runner.temp }}/tauri-native-l2
@@ -320,7 +317,7 @@ jobs:
           DATA_DIR="$(mktemp -d)"
           export BOXPLAYER_DEV_DATA_DIR="$DATA_DIR"
           trap 'rm -rf "$DATA_DIR"' EXIT
-          xvfb-run -a bash -c '
+          dbus-run-session -- xvfb-run -a bash -c '
             tauri-driver --port 4444 >/tmp/tauri-driver.log 2>&1 &
             TD_PID=$!
             trap "kill $TD_PID 2>/dev/null || true" EXIT
@@ -329,7 +326,7 @@ jobs:
           '
 
       - name: Run L2 Native Tauri Process E2E (macOS)
-        if: matrix.os_id == 'macos'
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && matrix.os_id == 'macos' }}
         working-directory: tauri-app
         env:
           BOXPLAYER_L2_OUT_DIR: ${{ runner.temp }}/tauri-native-l2
@@ -344,11 +341,13 @@ jobs:
           if-no-files-found: warn
 
       - name: Run Rust unit tests
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         working-directory: tauri-app
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
       - name: Run headless libmpv playback integration tests
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_playback_tests }}
+        if: ${{ !cancelled() && steps.package.outcome == 'success' && (github.event_name != 'workflow_dispatch' || inputs.run_playback_tests) }}
+        shell: bash
         working-directory: tauri-app
         run: |
           cargo test --locked --manifest-path src-tauri/Cargo.toml player::integration_tests::libmpv_decodes_header_authenticated_http_after_403_and_loads_separate_subtitle -- --ignored --nocapture

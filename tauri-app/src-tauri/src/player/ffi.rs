@@ -72,24 +72,48 @@ fn error() -> AppError {
 fn c(value: &str) -> Result<CString, AppError> {
     CString::new(value).map_err(|_| AppError::new("MPV_INPUT", "Invalid player input", false))
 }
+#[cfg(target_os = "macos")]
+pub(super) const RUNTIME_LIBRARY: &str = "libmpv.dylib";
+#[cfg(target_os = "windows")]
+pub(super) const RUNTIME_LIBRARY: &str = "libmpv-2.dll";
+#[cfg(target_os = "linux")]
+pub(super) const RUNTIME_LIBRARY: &str = "libmpv.so.2";
+
+fn load_library(runtime: &Path) -> Result<Library, AppError> {
+    let unavailable = |_| {
+        AppError::new(
+            "MPV_RUNTIME",
+            "Unable to load libmpv; prepare the platform runtime before playing",
+            false,
+        )
+    };
+    let path = runtime.join(RUNTIME_LIBRARY);
+    #[cfg(target_os = "windows")]
+    let result = unsafe {
+        use libloading::os::windows::{
+            Library as WindowsLibrary, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
+        };
+        let path = std::path::absolute(path).map_err(|_| {
+            AppError::new("MPV_RUNTIME", "Invalid libmpv runtime path", false)
+        })?;
+        WindowsLibrary::load_with_flags(
+            path,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+        )
+        .map(Library::from)
+    };
+    #[cfg(not(target_os = "windows"))]
+    let result = unsafe { Library::new(path) };
+    result.map_err(unavailable)
+}
+
 impl Mpv {
     pub fn new(runtime: &Path, host: Option<usize>) -> Result<Self, AppError> {
         unsafe {
             #[cfg(any(target_os = "macos", target_os = "linux"))]
             libc::setlocale(libc::LC_NUMERIC, c"C".as_ptr());
-            #[cfg(target_os = "macos")]
-            let name = "libmpv.dylib";
-            #[cfg(target_os = "windows")]
-            let name = "libmpv-2.dll";
-            #[cfg(target_os = "linux")]
-            let name = "libmpv.so.2";
-            let library = Library::new(runtime.join(name)).map_err(|_| {
-                AppError::new(
-                    "MPV_RUNTIME",
-                    "Unable to load libmpv; prepare the platform runtime before playing",
-                    false,
-                )
-            })?;
+            let library = load_library(runtime)?;
             let create: Create = *library.get(b"mpv_create\0").map_err(|_| error())?;
             let init: Init = *library.get(b"mpv_initialize\0").map_err(|_| error())?;
             // Resolve all symbols before creating a handle so a missing symbol cannot leak it.
@@ -168,19 +192,7 @@ impl Mpv {
     }
     fn thumbnail_config(runtime: &Path, gateway: bool) -> Result<Self, AppError> {
         unsafe {
-            #[cfg(target_os = "macos")]
-            let name = "libmpv.dylib";
-            #[cfg(target_os = "windows")]
-            let name = "libmpv-2.dll";
-            #[cfg(target_os = "linux")]
-            let name = "libmpv.so.2";
-            let library = Library::new(runtime.join(name)).map_err(|_| {
-                AppError::new(
-                    "MPV_RUNTIME",
-                    "Unable to load libmpv; prepare the platform runtime before playing",
-                    false,
-                )
-            })?;
+            let library = load_library(runtime)?;
             let create: Create = *library.get(b"mpv_create\0").map_err(|_| error())?;
             let init: Init = *library.get(b"mpv_initialize\0").map_err(|_| error())?;
             // Resolve all symbols before creating a handle so a missing symbol cannot leak it.

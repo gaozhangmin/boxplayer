@@ -11,7 +11,7 @@ const outDir = resolve(
   process.env.BOXPLAYER_L2_OUT_DIR || join(tauriAppRoot, '.local', 'ci-native-l2'),
 )
 const require = createRequire(import.meta.url)
-const viteBin = require.resolve('vite/bin/vite.js', { paths: [tauriAppRoot] })
+const viteBin = join(dirname(require.resolve('vite/package.json')), 'bin', 'vite.js')
 
 const PORT = 1428
 const BASE_URL = `http://127.0.0.1:${PORT}`
@@ -106,7 +106,8 @@ async function runWindowsCdp(bin, dataDir) {
       while (Date.now() < deadline) {
         for (const ctx of browser.contexts()) {
           for (const p of ctx.pages()) {
-            if (p.url().includes(urlFragment)) return p
+            const pathname = new URL(p.url()).pathname
+            if (pathname === `/${urlFragment}` || (urlFragment === 'index.html' && pathname === '/')) return p
           }
         }
         await new Promise(r => setTimeout(r, 250))
@@ -164,7 +165,6 @@ async function runWindowsCdp(bin, dataDir) {
 
     const secondary = [
       { kind: 'settings', view: 'general', urlPart: 'settings.html', file: 'l2-native-settings.png' },
-      { kind: 'sources', view: 'shares', urlPart: 'sources.html', file: 'l2-native-sources.png' },
       { kind: 'player', view: undefined, urlPart: 'player.html', file: 'l2-native-player.png' },
     ]
     for (const win of secondary) {
@@ -401,6 +401,7 @@ async function runMacosNative(bin, dataDir) {
     if (proc.exitCode !== null) {
       throw new Error(`macOS native binary exited early (${proc.exitCode}): ${logs}`)
     }
+    if (initializedFiles.length === 0) throw new Error(`macOS did not initialize its test data directory: ${logs}`)
     summary.initializedFiles = initializedFiles
 
     const screenFile = join(outDir, 'l2-native-macos-screen.png')

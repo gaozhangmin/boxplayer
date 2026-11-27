@@ -21,7 +21,9 @@
     },
     {
       "file": "components/player-controls/SeekBar.vue",
-      "sha256": "c96ad001336b1907da1df84f61f9b3b9998be7e12f10209dd02d2ee062fc0922"
+      "sha256": "c96ad001336b1907da1df84f61f9b3b9998be7e12f10209dd02d2ee062fc0922",
+      "integratedSha256": "fa145e3cb84dff0f28bbabd6d0a51dd8be64be758374ae85cb1e65e846f4444b",
+      "integration": "BoxPlayer seek bar styling"
     },
     {
       "file": "components/player-controls/ControlSlider.vue",
