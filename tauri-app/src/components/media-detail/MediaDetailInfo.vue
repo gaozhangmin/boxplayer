@@ -28,7 +28,7 @@ const emit = defineEmits<{ inspect: [card: Card]; select: [card: Card] }>()
     <div v-if="file" class="detail-file-bar">
       <div class="detail-file-source">在 {{ file.source }} 上</div>
       <div v-if="file.path" class="detail-file-path" :title="file.path">路径：{{ file.path }}</div>
-      <div class="detail-file-name" :title="file.path">{{ file.name }}</div>
+      <div v-if="file.name && file.path?.split(/[/\\]/).pop() !== file.name" class="detail-file-name" :title="file.name">{{ file.name }}</div>
       <div v-if="file.summary" class="detail-file-meta">{{ file.summary }}</div>
     </div>
 

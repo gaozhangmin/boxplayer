@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import WatchedIndicator from '@/features/library/electron/WatchedIndicator.vue'
-import MediaPosterPlaceholder from '@/features/library/electron/MediaPosterPlaceholder.vue'
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import FileTypeIcon from './FileTypeIcon.vue'
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { Folder, Check, Star } from 'lucide-vue-next'
 import { getLocalVideoPreview, previewFileName, type LocalVideoPreview } from '../adapters/localVideoPreview'
 import { t } from './i18n'
@@ -20,6 +20,9 @@ async function load() {
   if (current === version) preview.value = result
 }
 watch(() => props.path, () => { if (visible) void load() })
+const artwork = computed(() => props.thumbnail || preview.value.thumbnail)
+const imageFailed = ref(false)
+watch(artwork, () => { imageFailed.value = false })
 onMounted(() => {
   observer = new IntersectionObserver(entries => {
     if (entries.some(entry => entry.isIntersecting)) { visible = true; observer?.disconnect(); void load() }
@@ -31,9 +34,9 @@ onUnmounted(() => { version++; observer?.disconnect() })
 <template>
   <div ref="root" class="local-file-card" :class="{ 'local-file-list': mode === 'list', 'local-file-portrait-list': mode === 'list' && portraitList }" role="button" tabindex="0" :aria-label="name" :aria-pressed="selection ? !!selected : undefined" @click="emit('open')" @keydown.enter.prevent="emit('open')" @keydown.space.prevent="emit('open')" @contextmenu.prevent="emit('context', $event)">
     <div class="local-file-art">
-      <img v-if="thumbnail || preview.thumbnail" :src="thumbnail || preview.thumbnail" alt="" />
+      <img v-if="artwork && !imageFailed" :src="artwork" alt="" @error="imageFailed = true" />
       <Folder v-else-if="directory" :size="mode === 'list' ? 30 : 56" />
-      <MediaPosterPlaceholder v-else />
+      <FileTypeIcon v-else :filename="path ? previewFileName(path) : name" :size="mode === 'list' ? 30 : 56" />
       <WatchedIndicator v-if="!directory" corner :watched="!!watched" />
       <input v-if="selection" type="checkbox" tabindex="-1" :checked="selected" :aria-label="name" />
     </div>

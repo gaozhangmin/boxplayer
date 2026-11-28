@@ -1,4 +1,4 @@
-import type { MediaExpectedSeason, MediaLibraryItem } from '@/features/files/electron/mediaTypes'
+import type { MediaEpisode, MediaExpectedSeason, MediaLibraryItem, MediaSeason } from '@/features/files/electron/mediaTypes'
 
 export interface MediaSeasonGap {
   seasonNumber: number
@@ -55,6 +55,39 @@ export function getMediaCoverage(item: MediaLibraryItem, now = new Date()): Medi
   const missingEpisodeCount = seasonGaps.reduce((total, gap) => total + gap.missingEpisodes.length, 0)
   const parts = [missingSeasons.length ? `缺 ${missingSeasons.length} 季` : '', missingEpisodeCount ? `缺 ${missingEpisodeCount} 集` : ''].filter(Boolean)
   return { missingSeasons, seasonGaps, missingEpisodeCount, summary: parts.join(' · ') }
+}
+
+export function visibleSeriesSeasons(item: MediaLibraryItem, showMissingSeasons: boolean, showMissingEpisodes: boolean): MediaSeason[] {
+  if (item.type !== 'tv') return []
+  const seasons = new Map((item.seasons || []).map(season => [season.seasonNumber, season]))
+  const coverage = getMediaCoverage(item)
+  for (const gap of coverage?.seasonGaps || []) {
+    const season = seasons.get(gap.seasonNumber)
+    if (!showMissingSeasons && coverage?.missingSeasons.includes(gap.seasonNumber)) {
+      seasons.delete(gap.seasonNumber)
+      continue
+    }
+    const missing: MediaEpisode[] = showMissingEpisodes ? gap.missingEpisodes.map(episodeNumber => ({
+      id: -episodeNumber,
+      seasonNumber: gap.seasonNumber,
+      episodeNumber,
+      name: '缺失',
+      driveFiles: [],
+    })) : []
+    const episodes = [...(season?.episodes || []), ...missing]
+    seasons.set(gap.seasonNumber, {
+      id: -gap.seasonNumber,
+      name: `第 ${gap.seasonNumber} 季`,
+      seasonNumber: gap.seasonNumber,
+      ...season,
+      episodeCount: episodes.length,
+      episodes,
+    })
+  }
+  return [...seasons.values()].sort((a, b) => a.seasonNumber - b.seasonNumber).map(season => ({
+    ...season,
+    episodes: [...(season.episodes || [])].sort((a, b) => a.episodeNumber - b.episodeNumber),
+  }))
 }
 
 export function buildExpectedSeasons(tvResult: any): MediaExpectedSeason[] {

@@ -10,6 +10,7 @@ import AppFrame from '@/components/AppFrame.vue'
 import WindowBar from '@/components/WindowBar.vue'
 import { Button } from '@/components/ui/button'
 import { useSettingsStore } from '@/stores/settings'
+import { generalPreferences, setGeneralPreference } from '@/features/library/electron/seriesVersionPreferences'
 import { useI18n } from '@/lib/i18n'
 import { asAppError, isNative, revealData, runtimeInfo, exportMigration, importMigration,inspectMigration } from '@/platform/native'
 import type { RuntimeInfo, SettingsPatch, Theme, Language } from '@/platform/contracts'
@@ -22,6 +23,13 @@ const panels = [{id:'general',label:'general',icon:SlidersHorizontal},{id:'launc
 const collapsed=ref(false)
 const activePanel=computed(()=>panels.find(panel=>panel.id===selectedPanel.value)!)
 const en=computed(()=>settings.value.language==='en')
+const missingMediaOptions = [
+  { key: 'showMissingSeasons', zh: '显示缺失季', en: 'Show missing seasons' },
+  { key: 'showMissingEpisodes', zh: '显示缺失集', en: 'Show missing episodes' },
+] as const
+function saveMissingMediaOption(key: typeof missingMediaOptions[number]['key'], value: boolean) {
+  try { setGeneralPreference(key, value) } catch (error) { toast.error(asAppError(error).message) }
+}
 async function close() { if(isNative()) {try {await getCurrentWindow().close()} catch(e) {toast.error(asAppError(e).message)}} }
 const info = ref<RuntimeInfo>()
 async function save(patch: SettingsPatch) { try { await settings.save(patch); toast.success(t('saved')) } catch (e) { toast.error(asAppError(e).message) } }
@@ -52,6 +60,10 @@ onMounted(async () => { if (isNative()) { try { info.value = await runtimeInfo()
               <section class="settings-section"><h2>{{en?'Accounts & library':'账号与媒体库'}}</h2><div class="settings-card">
                 <label class="setting-row"><span>{{en?'Automatically check in to Aliyun web accounts':'自动签到阿里网页账号'}}</span><SwitchRoot class="settings-switch" :model-value="!!settings.value.autoSign" @update:model-value="save({autoSign:$event})"><SwitchThumb class="settings-switch-thumb"/></SwitchRoot></label>
                 <label class="setting-row"><span>{{en?'Library incremental scan':'媒体库增量扫描'}}</span><span class="settings-select"><select :value="settings.value.libraryScanMinutes||0" @change="save({libraryScanMinutes:Number(($event.target as HTMLSelectElement).value)})"><option :value="0">{{en?'Off':'关闭'}}</option><option :value="15">15 {{en?'minutes':'分钟'}}</option><option :value="60">1 {{en?'hour':'小时'}}</option><option :value="1440">{{en?'Daily':'每天'}}</option></select><ChevronDown :size="14"/></span></label>
+                <label v-for="option in missingMediaOptions" :key="option.key" class="setting-row" :for="option.key">
+                  <span>{{ en ? option.en : option.zh }}</span>
+                  <SwitchRoot :id="option.key" class="settings-switch" :model-value="generalPreferences[option.key]" @update:model-value="saveMissingMediaOption(option.key, $event)"><SwitchThumb class="settings-switch-thumb" /></SwitchRoot>
+                </label>
               </div></section>
             </template>
             <NetworkProxySettings v-if="selectedPanel==='network'" />

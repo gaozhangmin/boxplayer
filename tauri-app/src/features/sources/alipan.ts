@@ -27,6 +27,34 @@ async function withPairedAuthorization<T>(web: () => Promise<T>, open: () => Pro
     }
   }
 }
+
+export async function aliFileDisplayPath(account: Account, itemId: string, signal?: AbortSignal): Promise<string> {
+  const { driveId, fileId } = location(itemId)
+  const endpoint = channel(account)
+  const resolve = async (target: ReturnType<typeof channel>) => {
+    const read = <T>(url: string, body: unknown) => json<T>(account, 'POST', url, body, undefined, {}, signal)
+    const drive = check(await read<{ code?: string; resource_drive_id?: string; backup_drive_id?: string; default_drive_id?: string }>(target.info, {}))
+    const root = drive.resource_drive_id === driveId ? '资源盘' : drive.backup_drive_id === driveId ? '备份盘' : '网盘'
+    const parts: string[] = []
+    const seen = new Set<string>()
+    let current = fileId
+    while (current !== 'root') {
+      if (seen.has(current) || seen.size >= 64) throw new Error('阿里云盘文件路径无效')
+      seen.add(current)
+      const meta = check(await read<{ code?: string; name?: string; parent_file_id?: string; drive_id?: string; file_id?: string }>(
+        target.api + (target.web ? '/v2/file/get' : '/adrive/v1.0/openFile/get'),
+        { drive_id: driveId, file_id: current },
+      ))
+      if (!meta.name || !meta.parent_file_id || (meta.drive_id && meta.drive_id !== driveId) || (meta.file_id && meta.file_id !== current)) {
+        throw new Error('阿里云盘文件路径不可用')
+      }
+      parts.push(meta.name)
+      current = meta.parent_file_id
+    }
+    return [root, ...parts.reverse()].join('/')
+  }
+  return endpoint.web ? withPairedAuthorization(() => resolve(endpoint), () => resolve(openChannel)) : resolve(openChannel)
+}
 async function listOnChannel(account:Account,parent:string,cursor:string|undefined,endpoint:ReturnType<typeof channel>,signal?:AbortSignal): Promise<SourcePage> {
   const read=<T>(url:string,body:unknown)=>signal?json<T>(account,'POST',url,body,undefined,{},signal):json<T>(account,'POST',url,body)
   if(!parent){

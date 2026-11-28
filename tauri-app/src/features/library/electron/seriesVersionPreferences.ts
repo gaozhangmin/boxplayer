@@ -38,7 +38,7 @@ export function playbackVersions(files: DriveFileItem[]): DriveFileItem[] {
   return orderedVersions(files, seriesPreferences.playbackVersion === 'auto' ? seriesPreferences.defaultVersion : seriesPreferences.playbackVersion)
 }
 
-export const generalPreferences = reactive({ autoSubtitles: false, logo: 'all', ratings: 'all', showFileNames: false, fileManagement: true, posterTitles: true, recentlyPlayed: true, watchIndicators: true, dailyPicks: 'all', hideSpoilers: false, autoNext: true, errorReports: true, sort: 'title' })
+export const generalPreferences = reactive({ autoSubtitles: false, logo: 'all', ratings: 'all', showFileNames: false, fileManagement: true, posterTitles: true, recentlyPlayed: true, watchIndicators: true, dailyPicks: 'all', hideSpoilers: false, showMissingSeasons: true, showMissingEpisodes: true, autoNext: true, errorReports: true, sort: 'title' })
 export function displayScopeAllows(mode: string, isMovie: boolean): boolean {
   return mode === 'all' || (mode === 'movie' && isMovie) || (mode === 'tv' && !isMovie)
 }

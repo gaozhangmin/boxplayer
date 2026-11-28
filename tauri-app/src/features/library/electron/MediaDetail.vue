@@ -13,7 +13,7 @@ import PosterRatingBadge from './PosterRatingBadge.vue'
 import { isMediaWatched, setMediaWatched } from '../adapters/libraryData'
 import { ref, computed, watch, watchEffect, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import {downloadFile} from '../adapters/detailNative'
-import {getMediaCoverage} from './mediaCoverage'
+import { getMediaCoverage, visibleSeriesSeasons } from './mediaCoverage'
 import { useMediaLibraryStore } from '../adapters/libraryData'
 import type { MediaLibraryItem, MediaCollectionMovie, MediaSeason, MediaEpisode, CastMember, CrewMember, DriveFileItem } from '@/features/files/electron/mediaTypes'
 import type {MediaServerMediaInfoCard} from './mediaServerContent'
@@ -36,6 +36,9 @@ import MediaSourceRatings from './MediaSourceRatings.vue'
 import {getLocalVideoProgress} from '../adapters/detailNative'
 import { detailResumeState, detailSeriesId, videoDurationSeconds } from './detailResume'
 import { openCustomSeries } from '../adapters/customSeries'
+import { aliFileDisplayPath } from '@/features/sources/alipan'
+import { useFileSourcesStore } from '@/stores/fileSources'
+import { localSources } from '@/platform/native'
 import type { CustomSeriesDetail, SeriesMedia } from '../adapters/customSeries'
 import CustomSeriesDetailRail from './CustomSeriesDetailRail.vue'
 import { detailCollectionTarget, detailCollectionMovies, playlistSelection, applyPlaylistSelection } from './detailCollections'
@@ -143,18 +146,9 @@ const playlistMemberEpisodeLabel = (member: MediaLibraryItem): string => {
 }
 
 // 计算属性
-const currentSeason = computed(() => {
-  if (activeMediaItem.value.type !== 'tv' || !activeMediaItem.value.seasons) return null
-  return activeMediaItem.value.seasons.find(s => s.seasonNumber === selectedSeason.value) || activeMediaItem.value.seasons[0]
-})
-
-const currentSeasonEpisodes = computed(() => {
-  if (activeMediaItem.value.type !== 'tv' || !activeMediaItem.value.seasons) return []
-
-  const currentSeason = activeMediaItem.value.seasons.find(s => s.seasonNumber === selectedSeason.value)
-
-  return currentSeason?.episodes || []
-})
+const availableSeasons = computed(() => visibleSeriesSeasons(activeMediaItem.value, generalPreferences.showMissingSeasons, generalPreferences.showMissingEpisodes))
+const currentSeason = computed(() => availableSeasons.value.find(season => season.seasonNumber === selectedSeason.value) || availableSeasons.value[0])
+const currentSeasonEpisodes = computed(() => currentSeason.value?.episodes || [])
 
 const continueRecord = computed(() => {
   if (activeMediaItem.value.type !== 'tv') {
@@ -210,11 +204,6 @@ watchEffect(() => {
   }
 })
 
-const availableSeasons = computed(() => {
-  if (activeMediaItem.value.type !== 'tv' || !activeMediaItem.value.seasons) return []
-  return activeMediaItem.value.seasons.sort((a, b) => a.seasonNumber - b.seasonNumber)
-})
-
 const totalEpisodeCount = computed(() => {
   if (activeMediaItem.value.type !== 'tv' || !activeMediaItem.value.seasons) return 0
   return activeMediaItem.value.seasons.reduce((total, season) => {
@@ -259,9 +248,9 @@ const productionCountries = computed(() => {
 const currentEpisode = computed(() => {
   if (activeMediaItem.value.type !== 'tv') return null
   const selected = currentSeasonEpisodes.value.find(
-    item => item.episodeNumber === selectedEpisode.value
+    item => item.episodeNumber === selectedEpisode.value && item.driveFiles.length
   )
-  return selected || currentSeasonEpisodes.value[0] || null
+  return selected || currentSeasonEpisodes.value.find(episode => episode.driveFiles.length) || null
 })
 
 const detailVersionFiles = computed<DriveFileItem[]>(() => {
@@ -272,6 +261,38 @@ const detailVersionFiles = computed<DriveFileItem[]>(() => {
 const selectedDriveFile = computed<DriveFileItem | undefined>(() => {
   return detailVersionFiles.value.find(file => file.id === selectedDriveFileId.value) || detailVersionFiles.value[0]
 })
+const fileSources = useFileSourcesStore()
+const selectedMediaPath = ref('')
+watch(selectedDriveFile, async (file, _, onCleanup) => {
+  selectedMediaPath.value = ''
+  if (!file) return
+  const controller = new AbortController()
+  onCleanup(() => controller.abort())
+  try {
+    let result = ''
+    if (file.cloudType === 'local') {
+      if (/^(?:\/|\\\\|[A-Za-z]:[/\\])/.test(file.path)) {
+        result = file.path
+      } else {
+        const source = (await localSources()).find(source => source.id === file.userId)
+        if (source) {
+          const separator = /^(?:\\\\|[A-Za-z]:\\)/.test(source.path) ? '\\' : '/'
+          result = source.path.replace(/[/\\]+$/, '') + separator + file.path.split('/').filter(Boolean).join(separator)
+        }
+      }
+    } else {
+      const account = fileSources.accounts.find(account => account.id === file.userId)
+      if (account?.providerId === 'aliyun' || account?.providerId === 'alipan-open') {
+        result = await aliFileDisplayPath(account, file.path, controller.signal)
+      } else if (file.path.startsWith('/')) {
+        result = file.path
+      }
+    }
+    if (!controller.signal.aborted) selectedMediaPath.value = result
+  } catch {
+    // Keep the filename visible while a source cannot resolve its complete path.
+  }
+}, { immediate: true })
 
 const formatMediaFileSize = (value?: number) => {
   if (!value || value <= 0) return ''
@@ -538,6 +559,7 @@ const handleEpisodeSelect = (episode: MediaEpisode) => {
 }
 
 const handleEpisodePlay = (episode: MediaEpisode) => {
+  if (!episode.driveFiles.length) return
   selectedEpisode.value = episode.episodeNumber
   hasUserSelectedEpisode.value = true
   playEpisode(episode)
@@ -821,7 +843,7 @@ const getCastInitial = (name?: string): string => {
 <template>
   <MediaDetailPage class="library-media-detail" :item-key="String(activeMediaItem.id)" :title="activeMediaItem.name"
     :backdrop-style="backgroundStyle" :play-label="playButtonLabel" :progress="playProgressPercent"
-    :has-version="detailVersionFiles.length > 1" @back="handleBackClick" @play="playMainContent">
+    :has-version="detailVersionFiles.length > 1" :play-disabled="!selectedDriveFile" @back="handleBackClick" @play="playMainContent">
     <template #header-actions>
       <button class="action-button" :title="isWatchlisted ? '从待看列表移除' : '加入待看列表'" @click="toggleWatchlist"><Bookmark :size="20" :fill="isWatchlisted ? 'currentColor' : 'none'" /></button>
       <a-dropdown v-model:popup-visible="detailMenuOpen" trigger="click" position="br" :auto-fit-popup-width="false" popup-class="detail-more-action-popup">
@@ -954,10 +976,10 @@ const getCastInitial = (name?: string): string => {
         <a-button
           v-for="season in availableSeasons"
           :key="season.seasonNumber"
-          :type="selectedSeason === season.seasonNumber ? 'primary' : 'secondary'"
+          :type="currentSeason?.seasonNumber === season.seasonNumber ? 'primary' : 'secondary'"
           @click="handleSeasonChange(season.seasonNumber)"
         >
-          第 {{ season.seasonNumber }} 季
+          第 {{ season.seasonNumber }} 季<span v-if="mediaCoverage?.missingSeasons.includes(season.seasonNumber)"> · 缺失</span>
         </a-button>
       </div>
     </div>
@@ -993,7 +1015,7 @@ const getCastInitial = (name?: string): string => {
             <div v-if="episode.stillPath || activeMediaItem.posterUrl" class="thumbnail-placeholder" style="display: none;">
               <MediaPosterPlaceholder kind="resume" />
             </div>
-            <button type="button" class="episode-play-overlay" :aria-label="`播放第 ${episode.episodeNumber} 集`" @click.stop="handleEpisodePlay(episode)">
+            <button v-if="episode.driveFiles.length" type="button" class="episode-play-overlay" :aria-label="`播放第 ${episode.episodeNumber} 集`" @click.stop="handleEpisodePlay(episode)">
               <Play :size="20" fill="currentColor" aria-hidden="true" />
             </button>
           </div>
@@ -1083,7 +1105,7 @@ const getCastInitial = (name?: string): string => {
       </div>
     </section>
     <MediaDetailInfo :cards="detailMediaInfoCards" :file="selectedDriveFile ? {
-      source: cloudDriveLabel(selectedDriveFile), path: selectedDriveFile.path,
+      source: cloudDriveLabel(selectedDriveFile), path: selectedMediaPath,
       name: selectedDriveFile.name, summary: detailFileSummary
     } : undefined" />
     <template #dialogs>
@@ -1293,4 +1315,36 @@ body:not([arco-theme='dark']) .playlist-modal.detail-media-modal .arco-modal-clo
 
 <style scoped>.library-media-detail :deep(.action-buttons){grid-auto-columns:minmax(0,1fr)}.library-media-detail :deep(.detail-header-actions>.action-button){width:40px;height:40px;flex:0 0 40px}.library-media-detail :deep(.detail-header-actions .arco-trigger-popup){min-width:190px}</style>
 
-<style>.detail-more-action-popup .detail-more-action-item{display:grid!important;grid-template-columns:20px minmax(0,1fr);align-items:center;column-gap:8px;text-align:left}.detail-more-action-popup .detail-more-action-item>svg{width:20px;height:20px;justify-self:center}</style>
+<style>
+.detail-more-action-popup {
+  padding: 6px;
+  border: 1px solid var(--color-border-2);
+  border-radius: 10px;
+  background: var(--color-bg-popup);
+}
+.detail-more-action-menu {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: min(220px, calc(100vw - 24px));
+  max-height: min(500px, calc(100vh - 100px));
+  overflow-y: auto;
+  gap: 2px;
+}
+.detail-more-action-menu .detail-more-action-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-1);
+  text-align: left;
+}
+.detail-more-action-menu .detail-more-action-item:hover:not(:disabled),
+.detail-more-action-menu .detail-more-action-item:focus-visible { background: var(--color-fill-2); }
+.detail-more-action-menu .detail-more-action-item:disabled { opacity: .5; }
+.detail-more-action-menu .detail-more-action-item > svg { width: 20px; height: 20px; }
+</style>

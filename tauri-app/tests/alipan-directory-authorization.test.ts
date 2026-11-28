@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { alipan } from '@/features/sources/alipan'
+import { alipan, aliFileDisplayPath } from '@/features/sources/alipan'
 import { json } from '@/features/sources/transport'
 
 vi.mock('@/features/sources/transport', () => ({ json: vi.fn(), playable: () => false }))
@@ -62,4 +62,18 @@ it('retains a file-level permission error without switching channels', async () 
   vi.mocked(json).mockRejectedValueOnce(error)
   await expect(alipan.resolve(account, { id: root, name: 'Movie', isDirectory: false, size: 0, playable: true })).rejects.toBe(error)
   expect(json).toHaveBeenCalledTimes(1)
+})
+
+it('resolves a complete path by following the same account and drive through all parents', async () => {
+  const id = JSON.stringify({ driveId: 'drive', fileId: 'video' })
+  vi.mocked(json).mockRejectedValueOnce(rejected)
+    .mockResolvedValueOnce({ resource_drive_id: 'drive' })
+    .mockResolvedValueOnce({ drive_id: 'drive', file_id: 'video', parent_file_id: 'folder', name: 'Film.mkv' })
+    .mockResolvedValueOnce({ drive_id: 'drive', file_id: 'folder', parent_file_id: 'root', name: 'Documentaries' })
+
+  await expect(aliFileDisplayPath(account, id)).resolves.toBe('资源盘/Documentaries/Film.mkv')
+  expect(vi.mocked(json).mock.calls.slice(2).map(([_, , , body]) => body)).toEqual([
+    { drive_id: 'drive', file_id: 'video' },
+    { drive_id: 'drive', file_id: 'folder' },
+  ])
 })

@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Folder, FileVideo, Download } from 'lucide-vue-next'
+import { Folder, Download } from 'lucide-vue-next'
+import FileTypeIcon from './FileTypeIcon.vue'
 
 const props = withDefaults(defineProps<{
   name: string
+  filename?: string
+  category?: string
+  icon?: string
+  fileSize?: number
   directory: boolean
   thumbnail?: string
   sizeText?: string
@@ -28,7 +33,7 @@ const emit = defineEmits<{ open: [event: MouseEvent]; context: [event: MouseEven
     <span class="folder-browser-art">
       <img v-if="showThumbnail" :src="thumbnail" alt="" @error="imageFailed = true" />
       <Folder v-else-if="directory" :size="mode === 'list' ? 28 : 56" aria-hidden="true" />
-      <FileVideo v-else :size="mode === 'list' ? 28 : 56" aria-hidden="true" />
+      <FileTypeIcon v-else :filename="filename || name" :icon="icon" :category="category" :file-size="fileSize" :size="mode === 'list' ? 28 : 56" />
       <input v-if="selection" type="checkbox" :checked="selected" tabindex="-1" :aria-label="name" />
     </span>
     <span class="folder-browser-info">
