@@ -10,9 +10,8 @@ export const traktStatus=ref<Status>({configured:false,connected:false,settings:
 export const traktAccount=ref<Account>()
 export async function loadTraktStatus(){return traktStatus.value=await nativeCall<Status>('trakt_status')}
 export async function loadTraktAccount(){return traktAccount.value=await nativeCall<Account>('trakt_account')}
-export const startTraktLogin=()=>nativeCall<{expiresAt:number;interval:number}>('trakt_web_start')
 export const connectDeviceAuth=()=>nativeCall<DeviceLogin>('trakt_connect_device_auth')
-export async function pollDeviceAuth(){const result=await nativeCall<{state:'pending';interval:number}|{state:'connected';status:Status}>('trakt_poll');if(result.state==='connected')traktStatus.value=result.status;return result}
+export const pollDeviceAuth=()=>nativeCall<{state:'pending';interval:number}|{state:'connected';status:Status}>('trakt_poll')
 export const cancelTraktLogin=()=>nativeCall<void>('trakt_cancel')
 export async function disconnectTrakt(){traktStatus.value=await nativeCall<Status>('trakt_disconnect');traktAccount.value=undefined}
 export async function setTraktSettings(settings:SyncSettings){return traktStatus.value=await nativeCall<Status>('trakt_settings',{settings})}

@@ -1,40 +1,28 @@
 <script setup lang="ts">
-import { ref, onUnmounted, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { t } from '@/features/files/electron/i18n'
 import MediaLoadingIndicator from '@/features/files/electron/MediaLoadingIndicator.vue'
-import { traktStatus, traktAccount, loadTraktStatus, loadTraktAccount, traktSyncEnabled, setTraktSyncEnabled, traktSyncRange, setTraktSyncRange, syncTraktPlaybackProgress, startTraktLogin, openTraktVip, cancelTraktLogin, logoutTrakt, traktError } from '../adapters/traktClient'
+import { traktStatus, traktAccount, loadTraktStatus, loadTraktAccount, traktSyncEnabled, setTraktSyncEnabled, traktSyncRange, setTraktSyncRange, syncTraktPlaybackProgress, openTraktVip, logoutTrakt, traktError } from '../adapters/traktClient'
+import { useTraktDeviceLogin } from '@/features/trakt/useTraktDeviceLogin'
 import TraktAvatar from './TraktAvatar.vue'
 import { IconExport, IconClose } from '@arco-design/web-vue/es/icon'
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ close: [] }>()
-const login = ref(false)
 const busy = ref(false)
 const error = ref('')
-let timer: ReturnType<typeof setTimeout> | undefined
-let generation = 0
-function stop() { generation++; clearTimeout(timer); login.value = false; busy.value = false }
-async function close() { stop(); await cancelTraktLogin().catch(() => undefined); emit('close') }
-async function begin() {
-  stop(); error.value = ''; busy.value = true
-  const attempt = generation
-  try {
-    login.value = true
-    const status = await startTraktLogin()
-    if (attempt !== generation) return
-    traktStatus.value = status
-    stop()
-    await refreshAccount()
-    await setTraktSyncEnabled(true)
-  } catch (e) { if (attempt === generation) { stop(); error.value = traktError(e) } }
-}
+const { device, starting, start, cancel, openVerification } = useTraktDeviceLogin(async () => {
+  error.value = ''
+  await refreshAccount()
+  await setTraktSyncEnabled(true)
+}, cause => { error.value = traktError(cause) })
+async function close() { await cancel(); emit('close') }
 async function disconnect() { busy.value = true; error.value = ''; try { await logoutTrakt() } catch (e) { error.value = traktError(e) } finally { busy.value = false } }
 async function refreshAccount() { busy.value = true; try { await loadTraktAccount() } catch (e) { error.value = traktError(e) } finally { busy.value = false } }
 watch(() => props.visible, async visible => {
-  if (!visible) { stop(); void cancelTraktLogin().catch(() => undefined); return }
+  if (!visible) { void cancel(); return }
   error.value = ''; busy.value = true
   try { await loadTraktStatus(); if (props.visible && traktStatus.value.connected) { await refreshAccount(); if (traktSyncEnabled.value) void syncTraktPlaybackProgress().catch(e => error.value = traktError(e)) } } catch (e) { error.value = traktError(e) } finally { busy.value = false }
 }, {immediate:true})
-onUnmounted(() => { stop(); void cancelTraktLogin().catch(() => undefined) })
 </script>
 <template>
   <a-modal :visible="visible" :title="traktStatus.connected ? undefined : 'Trakt'" :width="384" :footer="false" :modal-class="traktStatus.connected ? 'trakt-profile-modal' : ''" @cancel="close">
@@ -53,14 +41,17 @@ onUnmounted(() => { stop(); void cancelTraktLogin().catch(() => undefined) })
         <label class="profile-sync"><span>{{ t('trakt.syncRange') }}</span><select :value="traktSyncRange" @change="setTraktSyncRange(Number(($event.target as HTMLSelectElement).value))"><option :value="-1">{{ t('trakt.rangeAll') }}</option><option :value="7">{{ t('trakt.rangeWeek') }}</option><option :value="30">{{ t('trakt.rangeMonth') }}</option><option :value="180">{{ t('trakt.rangeHalfYear') }}</option><option :value="365">{{ t('trakt.rangeYear') }}</option></select></label>
         <div class="profile-footer"><a-button size="small" :loading="busy" @click="disconnect"><IconExport />{{ t('trakt.disconnect') }}</a-button></div>
       </template>
-      <template v-else-if="login">
-        <div class="trakt-wait"><MediaLoadingIndicator :size="24" /><span>{{ t('trakt.waiting') }}</span></div>
+      <template v-else-if="device">
+        <p>{{ t('trakt.enterCode') }}</p>
+        <strong class="device-code">{{ device.userCode }}</strong>
+        <div class="trakt-wait" role="status"><MediaLoadingIndicator :size="24" /><span>{{ t('trakt.waiting') }}</span></div>
+        <a-button type="primary" @click="error = ''; openVerification()">{{ t('trakt.openBrowser') }}</a-button>
         <a-button @click="close">{{ t('common.cancel') }}</a-button>
       </template>
       <template v-else>
         <p>{{ t('trakt.description') }}</p>
         <p v-if="!traktStatus.configured">{{ t('trakt.configRequired') }}</p>
-        <a-button type="primary" :loading="busy" :disabled="!traktStatus.configured" @click="begin">{{ t('trakt.connect') }}</a-button>
+        <a-button type="primary" :loading="busy || starting" :disabled="busy || starting || !traktStatus.configured" @click="error = ''; start()">{{ t('trakt.connect') }}</a-button>
       </template>
       <p v-if="error" role="alert" class="trakt-error">{{ error }}<button v-if="traktStatus.connected" @click="error = ''; refreshAccount()">{{ t('trakt.retry') }}</button></p>
     </div>

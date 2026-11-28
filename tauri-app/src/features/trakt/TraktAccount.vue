@@ -1,23 +1,22 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
-import {traktStatus,traktAccount,loadTraktStatus,loadTraktAccount,startTraktLogin,connectDeviceAuth,pollDeviceAuth,cancelTraktLogin,disconnectTrakt,setTraktSettings,openTraktPage,loadTraktPlayback,traktError,type DeviceLogin,type PlaybackProgress} from './client'
+import { ref, watch } from 'vue'
+import {traktStatus,traktAccount,loadTraktStatus,loadTraktAccount,disconnectTrakt,setTraktSettings,openTraktPage,loadTraktPlayback,traktError,type PlaybackProgress} from './client'
+import { useTraktDeviceLogin } from './useTraktDeviceLogin'
 const props=withDefaults(defineProps<{visible?:boolean}>(),{visible:true})
 const emit=defineEmits<{close:[];progress:[records:PlaybackProgress[]]}>()
-const busy=ref(false),error=ref(''),login=ref<DeviceLogin>(),webLogin=ref<{expiresAt:number}>(),avatarFailed=ref(false)
-let generation=0,timer:ReturnType<typeof setTimeout>|undefined
-function stop(){generation++;clearTimeout(timer);login.value=undefined;webLogin.value=undefined;busy.value=false}
+const busy=ref(false),error=ref(''),avatarFailed=ref(false)
+let generation=0
 async function perform(action:()=>Promise<unknown>){if(busy.value)return;busy.value=true;error.value='';const attempt=generation;try{await action()}catch(e){if(attempt===generation)error.value=traktError(e)}finally{if(attempt===generation)busy.value=false}}
 async function sync(){if(traktStatus.value.settings.enabled&&traktStatus.value.connected){const records=await loadTraktPlayback();if(props.visible&&traktStatus.value.connected&&traktStatus.value.settings.enabled)emit('progress',records)}}
 async function refresh(){await loadTraktStatus();if(!props.visible)return;if(traktStatus.value.connected){await loadTraktAccount();avatarFailed.value=false;await sync()}}
-function schedule(attempt:number,seconds:number){timer=setTimeout(()=>void poll(attempt),Math.max(1,seconds)*1000)}
-async function poll(attempt:number){if(attempt!==generation||!props.visible)return;try{if((login.value||webLogin.value)&&Date.now()>=(login.value?.expiresAt||webLogin.value!.expiresAt))throw{code:'TRAKT_EXPIRED'};const result=await pollDeviceAuth();if(attempt!==generation)return;if(result.state==='pending'){schedule(attempt,result.interval);return}login.value=undefined;webLogin.value=undefined;busy.value=false;await perform(async()=>{await setTraktSettings({...traktStatus.value.settings,enabled:true});await refresh()})}catch(e){if(attempt===generation){login.value=undefined;webLogin.value=undefined;busy.value=false;error.value=traktError(e)}}}
-async function connectDevice(){stop();const attempt=generation;await perform(async()=>{const result=await connectDeviceAuth();if(attempt!==generation)return;login.value=result;schedule(attempt,result.interval);await openTraktPage('verification')})}
-async function connect(){stop();const attempt=generation;await perform(async()=>{const result=await startTraktLogin();if(attempt!==generation)return;webLogin.value=result;schedule(attempt,result.interval)})}
-async function close(){stop();await cancelTraktLogin().catch(()=>{});emit('close')}
-async function disconnect(){stop();await perform(disconnectTrakt)}
+const { device, starting, start, cancel, openVerification } = useTraktDeviceLogin(
+  () => perform(async () => { await setTraktSettings({...traktStatus.value.settings,enabled:true}); await refresh() }),
+  cause => { error.value = traktError(cause) },
+)
+async function close(){generation++;await cancel();emit('close')}
+async function disconnect(){await perform(disconnectTrakt)}
 async function settings(enabled:boolean,range:number){await perform(async()=>{await setTraktSettings({enabled,range});await sync()})}
-watch(()=>props.visible,visible=>{stop();if(visible)void perform(refresh);else void cancelTraktLogin().catch(()=>{})},{immediate:true})
-onUnmounted(()=>{stop();void cancelTraktLogin().catch(()=>{})})
+watch(()=>props.visible,visible=>{generation++;busy.value=false;if(visible)void perform(refresh);else void cancel()},{immediate:true})
 defineExpose({refresh:()=>perform(refresh),sync:()=>perform(sync)})
 </script>
 <template>
@@ -33,8 +32,21 @@ defineExpose({refresh:()=>perform(refresh),sync:()=>perform(sync)})
    <label>同步时间范围<select :value="traktStatus.settings.range" :disabled="busy" @change="settings(traktStatus.settings.enabled,Number(($event.target as HTMLSelectElement).value))"><option :value="-1">所有</option><option :value="7">最近一周</option><option :value="30">最近一个月</option><option :value="180">最近半年</option><option :value="365">最近一年</option></select></label>
    <footer><button :disabled="busy" @click="perform(refresh)">刷新与同步</button><button :disabled="busy" @click="disconnect">退出登录</button></footer>
   </template>
-  <template v-else><h2 id="trakt-title">Trakt</h2><p>连接 Trakt，同步待看列表和个人评分。</p><template v-if="login||webLogin"><p v-if="login">在浏览器登录 Trakt，输入授权码：</p><strong v-if="login" class="device-code">{{login.userCode}}</strong><p role="status">等待浏览器授权…</p><button @click="perform(()=>openTraktPage('verification'))">打开授权网页</button><button @click="stop();cancelTraktLogin().catch(()=>{})">取消授权</button></template><template v-else><p v-if="!traktStatus.configured" class="note">Trakt 服务尚未配置。</p><button :disabled="busy||!traktStatus.configured" @click="connect">连接 Trakt</button><button :disabled="busy||!traktStatus.configured" @click="connectDevice">使用设备授权码连接</button></template></template>
-  <p v-if="busy" role="status">正在处理…</p><div v-if="error" role="alert" class="error">{{error}}<button :disabled="busy" @click="perform(refresh)">重试</button></div>
+  <template v-else>
+   <h2 id="trakt-title">Trakt</h2><p>连接 Trakt，同步待看列表和个人评分。</p>
+   <template v-if="device">
+    <p>在浏览器登录 Trakt，然后输入以下授权码。</p>
+    <strong class="device-code">{{device.userCode}}</strong>
+    <p role="status">等待浏览器授权…</p>
+    <button @click="error = ''; openVerification()">打开授权网页</button>
+    <button @click="error = ''; cancel()">取消授权</button>
+   </template>
+   <template v-else>
+    <p v-if="!traktStatus.configured" class="note">Trakt 服务尚未配置。</p>
+    <button :disabled="busy||starting||!traktStatus.configured" @click="error = ''; start()">连接 Trakt</button>
+   </template>
+  </template>
+  <p v-if="busy||starting" role="status">正在处理…</p><div v-if="error" role="alert" class="error">{{error}}<button v-if="traktStatus.connected || !traktStatus.configured" :disabled="busy" @click="perform(refresh)">重试</button></div>
  </section></div>
 </template>
 <style scoped>

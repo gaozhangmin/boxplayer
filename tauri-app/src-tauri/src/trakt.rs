@@ -15,7 +15,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::Mutex;
-const PUBLIC_API: &str = "https://api.boxplayer.cc";
+const AUTH_ORIGIN: &str = "https://auth.trakt.tv";
+const API_ORIGIN: &str = "https://api.trakt.tv";
 const SLOT: &str = "trakt-account-v1";
 fn err(code: &'static str) -> AppError {
     AppError::new(
@@ -131,6 +132,7 @@ pub struct Trakt {
     vault: Box<dyn Vault>,
     client_id: String,
     generation: AtomicU64,
+    login_window: std::sync::Mutex<Option<&'static str>>,
     inner: Mutex<Inner>,
 }
 #[derive(Serialize)]
@@ -239,6 +241,7 @@ impl Trakt {
             vault,
             client_id,
             generation: AtomicU64::new(0),
+            login_window: Default::default(),
             inner: Mutex::new(Inner::default()),
         }
     }
@@ -301,6 +304,7 @@ impl Trakt {
     ) -> Result<(u16, Value, Headers), AppError> {
         self.configured()?;
         let mut headers = Headers::from([
+            ("accept".into(), "application/json".into()),
             ("content-type".into(), "application/json".into()),
             ("trakt-api-key".into(), self.client_id.clone()),
             ("trakt-api-version".into(), "2".into()),
@@ -308,7 +312,12 @@ impl Trakt {
         if let Some(t) = token {
             headers.insert("authorization".into(), format!("Bearer {t}"));
         }
-        let expected = format!("{PUBLIC_API}/api/trakt{path}");
+        let origin = if path.starts_with("/oauth/") {
+            AUTH_ORIGIN
+        } else {
+            API_ORIGIN
+        };
+        let expected = format!("{origin}{path}");
         let response = self
             .transport(HttpRequest {
                 request_id: uuid::Uuid::new_v4().to_string(),
@@ -374,7 +383,24 @@ impl Trakt {
             final_url: request.url,
         })
     }
-    pub fn cancel(&self) {
+    fn begin_login(&self, window: &'static str) -> u64 {
+        let mut owner = self.login_window.lock().unwrap();
+        *owner = Some(window);
+        self.generation.fetch_add(1, Ordering::SeqCst) + 1
+    }
+    fn login_generation(&self, window: &str) -> Result<u64, AppError> {
+        let owner = self.login_window.lock().unwrap();
+        if *owner != Some(window) {
+            return Err(err("TRAKT_CANCELLED"));
+        }
+        Ok(self.generation.load(Ordering::SeqCst))
+    }
+    fn cancel(&self, window: Option<&str>) {
+        let mut owner = self.login_window.lock().unwrap();
+        if window.is_some() && *owner != window {
+            return;
+        }
+        *owner = None;
         self.generation.fetch_add(1, Ordering::SeqCst);
         // In-flight exchanges hold the mutex and observe the generation before committing.
         if let Ok(mut s) = self.inner.try_lock() {
@@ -382,10 +408,13 @@ impl Trakt {
             s.web = None;
         }
     }
-    pub async fn connect_device_auth(&self) -> Result<DeviceLogin, AppError> {
+    async fn connect_device_auth(&self, window: &'static str) -> Result<DeviceLogin, AppError> {
         self.configured()?;
-        let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let generation = self.begin_login(window);
         let mut s = self.inner.lock().await;
+        if generation != self.generation.load(Ordering::SeqCst) {
+            return Err(err("TRAKT_CANCELLED"));
+        }
         self.load(&mut s)?;
         s.device = None;
         s.web = None;
@@ -434,10 +463,11 @@ impl Trakt {
         });
         Ok(public)
     }
-    pub async fn poll(&self) -> Result<Poll, AppError> {
+    async fn poll(&self, window: &str) -> Result<Poll, AppError> {
         let mut s = self.inner.lock().await;
+        let generation = self.login_generation(window)?;
         if let Some(web) = s.web.as_ref() {
-            if web.generation != self.generation.load(Ordering::SeqCst) {
+            if web.generation != generation {
                 s.web = None;
                 return Err(err("TRAKT_CANCELLED"));
             }
@@ -456,7 +486,7 @@ impl Trakt {
             return Ok(Poll::Pending { interval: 1 });
         }
         let d = s.device.as_mut().ok_or_else(|| err("TRAKT_CANCELLED"))?;
-        if d.generation != self.generation.load(Ordering::SeqCst) {
+        if d.generation != generation {
             s.device = None;
             return Err(err("TRAKT_CANCELLED"));
         }
@@ -469,7 +499,6 @@ impl Trakt {
                 interval: d.public.interval,
             });
         }
-        let generation = d.generation;
         d.next = now() + d.public.interval;
         let (code, data, headers) = self
             .send(
@@ -730,7 +759,7 @@ impl Trakt {
     }
     /// Local disconnect is authoritative. Revocation failure does not restore credentials.
     pub async fn disconnect(&self) -> Result<Status, AppError> {
-        self.cancel();
+        self.cancel(None);
         let mut s = self.inner.lock().await;
         self.load(&mut s)?;
         let token = s.stored.tokens.take();
@@ -803,12 +832,19 @@ fn main_window(window: &tauri::WebviewWindow) -> Result<(), AppError> {
     }
     Ok(())
 }
+fn account_window(label: &str) -> Result<&'static str, AppError> {
+    match label {
+        "main" => Ok("main"),
+        "settings" => Ok("settings"),
+        _ => Err(err("TRAKT_FORBIDDEN")),
+    }
+}
 #[tauri::command]
 pub async fn trakt_status(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, Trakt>,
 ) -> Result<Status, AppError> {
-    main_window(&window)?;
+    account_window(window.label())?;
     state.status().await
 }
 #[tauri::command]
@@ -816,7 +852,7 @@ pub async fn trakt_account(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, Trakt>,
 ) -> Result<Account, AppError> {
-    main_window(&window)?;
+    account_window(window.label())?;
     state.account().await
 }
 #[tauri::command]
@@ -824,24 +860,24 @@ pub async fn trakt_connect_device_auth(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, Trakt>,
 ) -> Result<DeviceLogin, AppError> {
-    main_window(&window)?;
-    state.connect_device_auth().await
+    let label = account_window(window.label())?;
+    state.connect_device_auth(label).await
 }
 #[tauri::command]
 pub async fn trakt_poll(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, Trakt>,
 ) -> Result<Poll, AppError> {
-    main_window(&window)?;
-    state.poll().await
+    let label = account_window(window.label())?;
+    state.poll(label).await
 }
 #[tauri::command]
 pub fn trakt_cancel(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, Trakt>,
 ) -> Result<(), AppError> {
-    main_window(&window)?;
-    state.cancel();
+    let label = account_window(window.label())?;
+    state.cancel(Some(label));
     Ok(())
 }
 #[tauri::command]
@@ -849,7 +885,7 @@ pub async fn trakt_disconnect(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, Trakt>,
 ) -> Result<Status, AppError> {
-    main_window(&window)?;
+    account_window(window.label())?;
     state.disconnect().await
 }
 #[tauri::command]
@@ -858,7 +894,7 @@ pub async fn trakt_settings(
     state: tauri::State<'_, Trakt>,
     settings: SyncSettings,
 ) -> Result<Status, AppError> {
-    main_window(&window)?;
+    account_window(window.label())?;
     state.settings(settings).await
 }
 #[tauri::command]
@@ -877,7 +913,7 @@ pub async fn trakt_playback_progress(
     window: tauri::WebviewWindow,
     state: tauri::State<'_, Trakt>,
 ) -> Result<Vec<PlaybackProgress>, AppError> {
-    main_window(&window)?;
+    account_window(window.label())?;
     state.playback_progress().await
 }
 #[tauri::command]
@@ -887,13 +923,14 @@ pub async fn trakt_open(
     target: String,
 ) -> Result<(), AppError> {
     use tauri_plugin_opener::OpenerExt;
-    main_window(&window)?;
+    let label = account_window(window.label())?;
     let url = match target.as_str() {
         "vip" => "https://app.trakt.tv/vip".into(),
         "verification" => {
             let s = state.inner.lock().await;
+            let generation = state.login_generation(label)?;
             if let Some(web) = s.web.as_ref() {
-                if web.generation != state.generation.load(Ordering::SeqCst)
+                if web.generation != generation
                     || web.expires_at <= now()
                     || web.completed
                     || web.error.is_some()
@@ -907,7 +944,7 @@ pub async fn trakt_open(
                     .map_err(|_| err("TRAKT_NETWORK"));
             }
             let d = s.device.as_ref().ok_or_else(|| err("TRAKT_EXPIRED"))?;
-            if d.generation != state.generation.load(Ordering::SeqCst)
+            if d.generation != generation
                 || d.public.expires_at <= now() * 1000
             {
                 return Err(err("TRAKT_EXPIRED"));
@@ -1126,20 +1163,20 @@ mod state_tests {
         let vault = MemoryVault::default();
         let c = client(d.path(), vault.clone());
         queue(&c, 200, device());
-        let login = c.connect_device_auth().await.unwrap();
+        let login = c.connect_device_auth("main").await.unwrap();
         assert!(!serde_json::to_string(&login)
             .unwrap()
             .contains("synthetic-private"));
         assert!(matches!(
-            c.poll().await.unwrap(),
+            c.poll("main").await.unwrap(),
             Poll::Pending { interval: 5 }
         ));
         ready_poll(&c).await;
         queue(&c, 400, json!({}));
-        assert!(matches!(c.poll().await.unwrap(), Poll::Pending { .. }));
+        assert!(matches!(c.poll("main").await.unwrap(), Poll::Pending { .. }));
         ready_poll(&c).await;
         queue(&c, 200, tokens());
-        assert!(matches!(c.poll().await.unwrap(), Poll::Connected { .. }));
+        assert!(matches!(c.poll("main").await.unwrap(), Poll::Connected { .. }));
         assert!(client(d.path(), vault).status().await.unwrap().connected);
     }
     #[tokio::test]
@@ -1147,20 +1184,20 @@ mod state_tests {
         let d = tempfile::tempdir().unwrap();
         let c = client(d.path(), MemoryVault::default());
         queue(&c, 200, device());
-        c.connect_device_auth().await.unwrap();
+        c.connect_device_auth("main").await.unwrap();
         ready_poll(&c).await;
         queue(&c, 429, json!({}));
         assert!(matches!(
-            c.poll().await.unwrap(),
+            c.poll("main").await.unwrap(),
             Poll::Pending { interval: 10 }
         ));
-        c.cancel();
-        assert_eq!(c.poll().await.err().unwrap().code, "TRAKT_CANCELLED");
+        c.cancel(Some("main"));
+        assert_eq!(c.poll("main").await.err().unwrap().code, "TRAKT_CANCELLED");
         queue(&c, 200, device());
-        c.connect_device_auth().await.unwrap();
+        c.connect_device_auth("main").await.unwrap();
         ready_poll(&c).await;
         queue(&c, 418, json!({}));
-        assert_eq!(c.poll().await.err().unwrap().code, "TRAKT_DENIED");
+        assert_eq!(c.poll("main").await.err().unwrap().code, "TRAKT_DENIED");
     }
     #[tokio::test]
     async fn expired_and_malformed_device_never_connect() {
@@ -1169,9 +1206,9 @@ mod state_tests {
         let mut bad = device();
         bad["verification_url"] = json!("https://attacker.invalid/");
         queue(&c, 200, bad);
-        assert!(c.connect_device_auth().await.is_err());
+        assert!(c.connect_device_auth("main").await.is_err());
         queue(&c, 200, device());
-        c.connect_device_auth().await.unwrap();
+        c.connect_device_auth("main").await.unwrap();
         c.inner
             .lock()
             .await
@@ -1180,7 +1217,7 @@ mod state_tests {
             .unwrap()
             .public
             .expires_at = 0;
-        assert_eq!(c.poll().await.err().unwrap().code, "TRAKT_EXPIRED");
+        assert_eq!(c.poll("main").await.err().unwrap().code, "TRAKT_EXPIRED");
         assert!(!c.status().await.unwrap().connected);
     }
     #[tokio::test]
@@ -1188,10 +1225,10 @@ mod state_tests {
         let d = tempfile::tempdir().unwrap();
         let c = client(d.path(), MemoryVault::default());
         queue(&c, 200, device());
-        c.connect_device_auth().await.unwrap();
+        c.connect_device_auth("main").await.unwrap();
         ready_poll(&c).await;
         queue(&c, 200, tokens());
-        c.poll().await.unwrap();
+        c.poll("main").await.unwrap();
         queue(&c, 401, json!({}));
         let mut rotated = tokens();
         rotated["refresh_token"] = json!("synthetic-rotated");
@@ -1227,10 +1264,10 @@ mod state_tests {
         let d = tempfile::tempdir().unwrap();
         let c = client(d.path(), MemoryVault::default());
         queue(&c, 200, device());
-        c.connect_device_auth().await.unwrap();
+        c.connect_device_auth("main").await.unwrap();
         ready_poll(&c).await;
         queue(&c, 200, tokens());
-        c.poll().await.unwrap();
+        c.poll("main").await.unwrap();
         queue(
             &c,
             200,
@@ -1260,17 +1297,23 @@ mod protocol_tests {
     use super::state_tests::{client, device, queue, ready_poll, tokens, MemoryVault};
     use super::*;
     #[tokio::test]
-    async fn fixed_proxy_preserves_electron_device_request_contract() {
+    async fn device_auth_and_account_calls_use_their_official_hosts() {
         let d = tempfile::tempdir().unwrap();
         let c = client(d.path(), MemoryVault::default());
         queue(&c, 200, device());
-        c.connect_device_auth().await.unwrap();
+        c.connect_device_auth("main").await.unwrap();
+        ready_poll(&c).await;
+        queue(&c, 400, json!({}));
+        assert!(matches!(c.poll("main").await.unwrap(), Poll::Pending { .. }));
+        queue(&c, 401, json!({}));
+        c.send("/users/me", None, Some("synthetic-access"))
+            .await
+            .unwrap();
         let requests = c.requests.lock().unwrap();
         let r = &requests[0];
-        assert_eq!(
-            r.url,
-            "https://api.boxplayer.cc/api/trakt/oauth/device/code"
-        );
+        assert_eq!(r.url, "https://auth.trakt.tv/oauth/device/code");
+        assert_eq!(requests[1].url, "https://auth.trakt.tv/oauth/device/token");
+        assert_eq!(requests[2].url, "https://api.trakt.tv/users/me");
         assert_eq!(r.method, "POST");
         assert_eq!(r.headers["trakt-api-key"], "synthetic-client");
         assert_eq!(r.headers["trakt-api-version"], "2");
@@ -1279,12 +1322,30 @@ mod protocol_tests {
         assert_eq!(body["client_id"], "synthetic-client");
         assert!(body.get("client_secret").is_none());
     }
+    #[tokio::test]
+    async fn replacing_login_in_settings_isolated_from_main_window_cancellation() {
+        let d = tempfile::tempdir().unwrap();
+        let c = client(d.path(), MemoryVault::default());
+        queue(&c, 200, device());
+        c.connect_device_auth("main").await.unwrap();
+        queue(&c, 200, device());
+        c.connect_device_auth("settings").await.unwrap();
+
+        c.cancel(Some("main"));
+        assert_eq!(c.poll("main").await.err().unwrap().code, "TRAKT_CANCELLED");
+        assert!(matches!(c.poll("settings").await.unwrap(), Poll::Pending { .. }));
+
+        c.cancel(Some("settings"));
+        assert_eq!(c.poll("settings").await.err().unwrap().code, "TRAKT_CANCELLED");
+        assert!(account_window("sources").is_err());
+        assert!(account_window("player").is_err());
+    }
     async fn connected(c: &Trakt) {
         queue(c, 200, device());
-        c.connect_device_auth().await.unwrap();
+        c.connect_device_auth("main").await.unwrap();
         ready_poll(c).await;
         queue(c, 200, tokens());
-        c.poll().await.unwrap();
+        c.poll("main").await.unwrap();
     }
     #[tokio::test]
     async fn only_explicit_no_content_stats_mean_zero() {
@@ -1409,7 +1470,8 @@ fn authorize_url(web: &WebSession, client_id: &str) -> String {
     use sha2::Digest;
     let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .encode(sha2::Sha256::digest(web.verifier.as_bytes()));
-    let mut url = url::Url::parse("https://auth.trakt.tv/oauth/authorize").unwrap();
+    let mut url = url::Url::parse(AUTH_ORIGIN).unwrap();
+    url.set_path("/oauth/authorize");
     url.query_pairs_mut().extend_pairs([
         ("client_id", client_id),
         ("response_type", "code"),
@@ -1452,7 +1514,7 @@ fn web_callback(target: &str, expected_state: &str) -> Result<Option<String>, Ap
 impl Trakt {
     async fn prepare_web(&self) -> Result<(String, WebLogin), AppError> {
         self.configured()?;
-        let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let generation = self.begin_login("main");
         let mut s = self.inner.lock().await;
         self.load(&mut s)?;
         if generation != self.generation.load(Ordering::SeqCst) {
@@ -1479,7 +1541,7 @@ impl Trakt {
         use tauri_plugin_opener::OpenerExt;
         let (url, login) = self.prepare_web().await?;
         if app.opener().open_url(url, None::<&str>).is_err() {
-            self.cancel();
+            self.cancel(Some("main"));
             return Err(err("TRAKT_NETWORK"));
         }
         Ok(login)
@@ -1519,7 +1581,7 @@ impl Trakt {
   if !(200..300).contains(&status){return Err(failure(status))}if profile["user"]["username"].as_str().is_none_or(|v|v.is_empty()){return Err(err("TRAKT_RESPONSE"))}
   if generation!=self.generation.load(Ordering::SeqCst){return Err(err("TRAKT_CANCELLED"))}
   let mut next=s.stored.clone();next.tokens=Some(tokens);self.save(&next)?;
-  // cancel() is lock-free; compensate if it raced a slow vault write.
+  // Cancellation does not wait for a vault write. Compensate if they raced.
   if generation!=self.generation.load(Ordering::SeqCst){self.save(&s.stored)?;return Err(err("TRAKT_CANCELLED"))}
   s.stored=next;Ok(())
  }.await;
@@ -1604,7 +1666,7 @@ mod web_tests {
             ))
             .await
             .unwrap());
-        assert!(matches!(c.poll().await.unwrap(), Poll::Connected { .. }));
+        assert!(matches!(c.poll("main").await.unwrap(), Poll::Connected { .. }));
         let requests = c.requests.lock().unwrap();
         let body: Value = serde_json::from_slice(requests[0].body.as_ref().unwrap()).unwrap();
         assert_eq!(body["redirect_uri"], WEB_REDIRECT_URI);
@@ -1618,12 +1680,12 @@ mod web_tests {
         let c = client(d.path(), MemoryVault::default());
         c.prepare_web().await.unwrap();
         let state = c.inner.lock().await.web.as_ref().unwrap().state.clone();
-        c.cancel();
+        c.cancel(Some("main"));
         assert!(!c
             .callback(&format!("{WEB_REDIRECT_URI}?state={state}&code=abc"))
             .await
             .unwrap());
-        assert_eq!(c.poll().await.err().unwrap().code, "TRAKT_CANCELLED");
+        assert_eq!(c.poll("main").await.err().unwrap().code, "TRAKT_CANCELLED");
         assert!(!c.status().await.unwrap().connected);
         c.prepare_web().await.unwrap();
         let state = c.inner.lock().await.web.as_ref().unwrap().state.clone();
@@ -1637,7 +1699,7 @@ mod web_tests {
             .code,
             "TRAKT_DENIED"
         );
-        assert_eq!(c.poll().await.err().unwrap().code, "TRAKT_DENIED");
+        assert_eq!(c.poll("main").await.err().unwrap().code, "TRAKT_DENIED");
     }
 }
 
