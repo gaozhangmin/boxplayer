@@ -23,13 +23,15 @@ withDefaults(defineProps<{ kind?: 'film' | 'music' | 'book' | 'resume' }>(), { k
   object-fit: contain !important;
   flex-shrink: 0;
   pointer-events: none;
+  color: var(--primary);
 }
 .media-poster-placeholder-icon > svg {
   display: block;
   width: 100%;
   height: 100%;
+  stroke: currentColor;
 }
-.media-category-placeholder { aspect-ratio: 1; color: #ff8000; }
+.media-category-placeholder { aspect-ratio: 1; }
 .poster-placeholder:has(> .media-poster-placeholder-icon),
 .media-card-placeholder:has(> .media-poster-placeholder-icon),
 .thumbnail-placeholder:has(> .media-poster-placeholder-icon),

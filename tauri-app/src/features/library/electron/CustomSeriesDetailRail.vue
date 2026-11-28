@@ -29,6 +29,7 @@ const emit = defineEmits<{ open: [member: SeriesMedia] }>()
 .custom-series-detail-members { display: flex; gap: 16px; overflow-x: auto; padding: 2px 2px 10px; }
 .custom-series-detail-members button { flex: 0 0 clamp(120px, 12vw, 180px); min-width: 0; border: 0; padding: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; border-radius: 10px; }
 .custom-series-detail-members img, .custom-series-detail-placeholder { display: flex; width: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: 10px; background: var(--color-fill-2, #222); align-items: center; justify-content: center; }
+.custom-series-detail-placeholder { color: var(--primary); }
 .custom-series-detail-members button:focus-visible { outline: 2px solid var(--color-primary-light-4, #32c85a); outline-offset: 3px; }
 .custom-series-detail-title { display: block; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
