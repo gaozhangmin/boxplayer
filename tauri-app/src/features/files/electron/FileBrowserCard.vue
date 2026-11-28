@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<{
   icon?: string
   fileSize?: number
   directory: boolean
+  poster?: string
   thumbnail?: string
   sizeText?: string
   seasonLabel?: string
@@ -20,9 +21,19 @@ const props = withDefaults(defineProps<{
   downloadLabel?: string
 }>(), { mode: 'grid', thumbnail: '', sizeText: '', selection: false, selected: false })
 
+const failedPoster = ref<string>()
+const poster = computed(() => props.poster && props.poster !== failedPoster.value ? props.poster : '')
+watch(() => props.poster, () => { failedPoster.value = undefined })
+
 const imageFailed = ref(false)
-watch(() => props.thumbnail, () => { imageFailed.value = false })
-const showThumbnail = computed(() => !!props.thumbnail && !imageFailed.value)
+const image = computed(() => poster.value || props.thumbnail)
+watch(image, () => { imageFailed.value = false })
+const showThumbnail = computed(() => !!image.value && !imageFailed.value)
+
+function onImageError() {
+  if (poster.value) failedPoster.value = poster.value
+  else imageFailed.value = true
+}
 
 const emit = defineEmits<{ open: [event: MouseEvent]; context: [event: MouseEvent]; download: [] }>()
 </script>
@@ -31,7 +42,7 @@ const emit = defineEmits<{ open: [event: MouseEvent]; context: [event: MouseEven
   <div class="folder-browser-entry" :class="{ 'folder-browser-entry-list': mode === 'list' }">
   <button type="button" class="folder-browser-card" :class="{ 'folder-browser-card-list': mode === 'list' }" :aria-label="name" @click="emit('open', $event)" @contextmenu.prevent="emit('context', $event)">
     <span class="folder-browser-art">
-      <img v-if="showThumbnail" :src="thumbnail" alt="" @error="imageFailed = true" />
+      <img v-if="showThumbnail" :src="image" loading="lazy" alt="" @error="onImageError" />
       <Folder v-else-if="directory" :size="mode === 'list' ? 28 : 56" aria-hidden="true" />
       <FileTypeIcon v-else :filename="filename || name" :icon="icon" :category="category" :file-size="fileSize" :size="mode === 'list' ? 28 : 56" />
       <input v-if="selection" type="checkbox" :checked="selected" tabindex="-1" :aria-label="name" />

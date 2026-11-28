@@ -50,16 +50,14 @@ const handleOpenFile = (event: Event, file: BrowserFile | undefined) => {
   if (!file) file = mediaPanFileStore.GetSelectedFirst()
   if (!file) return
 
-  const media = browserMedia.value.get(file.file_id)
-  if (props.unifiedFiles && !props.browseSelection && media && (props.favoriteBrowse || file.drive_id === 'local')) {
-    emit('openMedia', media)
+  if (file.isDir) {
+    emit('enterFolder', file)
     return
   }
 
-  // 如果是文件夹，应该进入子目录而不是打开文件
-  if (file.isDir) {
-    // 发出事件让 MediaLibrary.vue 处理文件夹导航
-    emit('enterFolder', file)
+  const media = browserMedia.value.get(file.file_id)
+  if (props.unifiedFiles && !props.browseSelection && media && (props.favoriteBrowse || file.drive_id === 'local')) {
+    emit('openMedia', media)
     return
   }
 
@@ -76,8 +74,8 @@ const handleOpenFile = (event: Event, file: BrowserFile | undefined) => {
 </script>
 <template><div class="media-pan-right" @click.capture="capturePointer">    <div v-if="props.unifiedFiles" class="folder-browser" :class="{ 'folder-browser-list': browseMode === 'list' }">
       <template v-for="item in browserItems" :key="item.file_id">
-        <LocalMediaFileCard portrait-list v-if="item.drive_id === 'local'" :season-label="browserSeasonLabels.get(item.file_id)" :name="browserMedia.get(item.file_id)?.name || item.name" :metadata="browserMetadata.get(item.file_id)" :path="item.file_id" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir && !browserMedia.has(item.file_id)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
-      <FileBrowserCard v-else :filename="item.name" :icon="item.icon" :category="item.category" :file-size="item.size" :downloadable="!item.isDir && item.category === 'video'" :download-label="t('fileContext.download')" @download="emit('fileAction', 'download', item)" :key="item.file_id" :season-label="browserSeasonLabels.get(item.file_id)" :name="browserMedia.get(item.file_id)?.name || item.name" :directory="item.isDir && !browserMedia.has(item.file_id)" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :size-text="item.isDir ? '' : browserSubtitle(item)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" @context="openFileMenu($event, item)" @open="props.browseSelection ? handleSelect(item.file_id, $event, true) : handleOpenFile($event, item)" />
+        <LocalMediaFileCard portrait-list v-if="item.drive_id === 'local'" :season-label="browserSeasonLabels.get(item.file_id)" :name="item.isDir ? item.name : browserMedia.get(item.file_id)?.name || item.name" :metadata="browserMetadata.get(item.file_id)" :path="item.file_id" :thumbnail="browserPosters.get(item.file_id) || item.thumbnail" :duration="item.media_duration" :height="item.media_height" :directory="item.isDir" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" :watched="localFileWatched(item)" @open="props.browseSelection ? handleSelect(item.file_id, {} as MouseEvent, true) : handleOpenFile({} as Event, item)" @watched="toggleLocalFileWatched(item)" @context="openFileMenu($event, item)" />
+      <FileBrowserCard v-else :filename="item.name" :icon="item.icon" :category="item.category" :file-size="item.size" :downloadable="!item.isDir && item.category === 'video'" :download-label="t('fileContext.download')" @download="emit('fileAction', 'download', item)" :key="item.file_id" :season-label="browserSeasonLabels.get(item.file_id)" :name="item.isDir ? item.name : browserMedia.get(item.file_id)?.name || item.name" :directory="item.isDir" :poster="browserPosters.get(item.file_id)" :thumbnail="item.thumbnail" :size-text="item.isDir ? '' : browserSubtitle(item)" :mode="browseMode" :selection="props.browseSelection" :selected="mediaPanFileStore.ListSelected.has(item.file_id)" @context="openFileMenu($event, item)" @open="props.browseSelection ? handleSelect(item.file_id, $event, true) : handleOpenFile($event, item)" />
       </template>
     </div>
     <div v-if="menuFile" class="file-browser-context-menu" :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" role="menu"><button v-for="action in fileMenuActions" :key="action.id" type="button" role="menuitem" :disabled="action.disabled" @click="runFileAction(action.id)"><component :is="action.icon" :size="16" /><span>{{ t(action.label) }}</span></button></div></div></template>

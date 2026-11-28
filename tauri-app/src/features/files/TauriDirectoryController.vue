@@ -15,6 +15,7 @@ import type {BrowserFile} from './electron/MediaPanRight.vue'
 import {decodeLocal,encodeLocal,message} from './adapters/sourceServices'
 import { computed, ref, watch, onUnmounted, onMounted } from 'vue'
 import { useVideoCatalog,type VideoItem } from '@/features/library/catalog'
+import { cachedArtwork } from '@/features/library/artworkCache'
 import type { BrowseRoute } from '@/features/servers/workspace'
 import { useFileBrowseMode } from './browseMode'
 import { toggleFolderFavorite } from './folderFavorites'
@@ -84,7 +85,10 @@ function metadataFor(path:string,directory=false,sourceId=props.source?.sourceId
 const browserFiles=computed<BrowserFile[]>(()=>{const sourceId=props.source?.sourceId||'';return (canBrowse.value?localEntries.value:orderedRemoteEntries.value).map(row=>{const local='relativePath'in row,id=local?row.relativePath:row.id;return {file_id:local?encodeLocal(sourceId,id):id,drive_id:local?'local':sourceId,name:row.name,isDir:row.isDirectory,category:row.playable?'video':'',size:row.size,sizeStr:size(row.size),timeStr:'modified'in row?modifiedDate(Number(row.modified)||0):'',path:local?encodeLocal(sourceId,id):id}})})
 const rawBrowserId=(id:string)=>canBrowse.value?decodeLocal(id)[1]:id
 const browserMedia=computed(()=>new Map(browserFiles.value.flatMap(file=>{const item=metadataFor(rawBrowserId(file.file_id),file.isDir);return item?[[file.file_id,item] as const]:[]})))
-const browserPosters=computed(()=>new Map([...browserMedia.value].flatMap(([id,item])=>item.poster?[[id,item.poster] as const]:[])))
+const browserPosters = computed(() => new Map([...browserMedia.value].flatMap(([id, item]) => {
+  const poster = cachedArtwork(item.poster)
+  return poster ? [[id, poster] as const] : []
+})))
 const browserSelected=computed(()=>selected.value.map(id=>canBrowse.value?encodeLocal(props.source?.sourceId||'',id):id))
 const browserFavorites=computed(()=>browserFiles.value.filter(file=>isBookmarked(rawBrowserId(file.file_id))).map(file=>file.file_id))
 function selectBrowserFiles(ids:string[]){selected.value=ids.map(rawBrowserId)}
