@@ -183,7 +183,7 @@ button:focus-visible { outline: 2px solid #ff8b25; outline-offset: 2px; }
 .artwork progress::-moz-progress-bar { background: #ff8b25; }
 .media-card strong, .media-card small { display: block; margin-top: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 16px; }
 .media-card small { margin-top: 2px; color: var(--color-text-3); font-size: 11px; }
-.mode-grid .horizontal-row { display: grid; grid-template-columns: repeat(auto-fill, 110px); gap: 24px; overflow: visible; }
+.mode-grid .horizontal-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(110px, 100%), 1fr)); gap: 24px; overflow: visible; }
 .mode-grid .media-card { width: 100%; }
 .mode-grid .artwork { height: auto; aspect-ratio: 2 / 3; }
 .mode-grid .landscape .artwork { aspect-ratio: 16 / 9; }
