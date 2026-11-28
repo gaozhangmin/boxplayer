@@ -29,6 +29,8 @@ OAuth 遇到构建时注入的 `synthetic-*` 注册占位值时按缺少注册�
 
 ## 既有产品规则
 
+阿里云盘双授权账号优先沿用网页目录。网页会话认证被拒绝时，首屏只读列目录可使用同一账号的 OpenAPI 授权，后续分页沿用 OpenAPI 游标。未绑定开放授权或已开始网页分页时保留原错误。写入、下载及播放地址仍按各自接口授权。
+
 ## Provider Integration Checklist
 
 When adding a new cloud-drive provider, implement the following in order unless the user explicitly excludes a step. Do not stop after only wiring file listing. Sync/change-listening is not required by default.

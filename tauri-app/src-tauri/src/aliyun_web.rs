@@ -67,9 +67,13 @@ async fn post(
     mut headers: Headers,
 ) -> Result<serde_json::Value, AppError> {
     headers.insert("Content-Type".into(), "application/json".into());
+    let request_id = uuid::Uuid::new_v4().to_string();
+    if headers.contains_key("x-device-id") {
+        headers.insert("x-request-id".into(), request_id.clone());
+    }
     let response = gateway
         .request(HttpRequest {
-            request_id: uuid::Uuid::new_v4().to_string(),
+            request_id,
             provider_id: "aliyun".into(),
             account_id: String::new(),
             method: "POST".into(),
