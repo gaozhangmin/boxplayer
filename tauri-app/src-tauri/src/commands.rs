@@ -12,7 +12,7 @@ use std::{
 };
 use tauri::{Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
-type RefreshSender = tokio::sync::oneshot::Sender<Result<ResolvedMedia, AppError>>;
+type RefreshSender = tokio::sync::oneshot::Sender<Option<ResolvedMedia>>;
 pub struct Backend {
     pub library: Library,
     pending_local: Mutex<Option<(String, PathBuf)>>,
@@ -76,27 +76,30 @@ impl Backend {
                     account_id: media.account_id,
                     file_id: media.file_id,
                 };
-                let result = if app
-                    .emit_to("main", "media:refresh-request", request)
-                    .is_err()
-                {
-                    Err(AppError::new(
+                if app.emit_to("main", "media:refresh-request", request).is_err() {
+                    return Err(AppError::new(
                         "REFRESH_UNAVAILABLE",
                         "Source resolver is unavailable",
                         true,
-                    ))
-                } else {
-                    match tokio::time::timeout(std::time::Duration::from_secs(12), receive).await {
-                        Ok(Ok(result)) => result,
-                        _ => Err(AppError::new(
-                            "REFRESH_TIMEOUT",
-                            "Source resolver did not respond",
-                            true,
-                        )),
-                    }
+                    ));
+                }
+                let mut media = match tokio::time::timeout(std::time::Duration::from_secs(12), receive).await {
+                    Ok(Ok(Some(media))) => media,
+                    Ok(Ok(None)) => return Err(AppError::new(
+                        "PROVIDER_PENDING",
+                        "The source provider could not refresh this media",
+                        false,
+                    )),
+                    _ => return Err(AppError::new(
+                        "REFRESH_TIMEOUT",
+                        "Source resolver did not respond",
+                        true,
+                    )),
                 };
-                pending.lock().unwrap().remove(&request_id);
-                result
+                let backend = app.state::<Backend>();
+                backend.prepared_media.hydrate(&mut media)?;
+                backend.accounts.media_headers(&mut media)?;
+                Ok(media)
             })
         }),Arc::new(move |media|crate::remote_identity::resolve_media(&identity_library,media)))?;
         Ok(Self {
@@ -783,36 +786,66 @@ pub fn media_refresh_complete(
     state: State<'_, Backend>,
     request_id: String,
     media: Option<ResolvedMedia>,
-) -> Result<(), AppError> {
-    let send = state
-        .refresh
-        .lock()
-        .unwrap()
-        .remove(&request_id)
-        .ok_or_else(|| {
-            AppError::new(
-                "REFRESH_STALE",
-                "Refresh request is no longer active",
-                false,
-            )
-        })?;
-    let resolved = media
-        .map(|mut media| {
-            state.prepared_media.hydrate(&mut media)?;
-            state.accounts.media_headers(&mut media)?;
-            Ok(media)
-        })
-        .transpose();
-    let _ = send.send(resolved.and_then(|media| {
-        media.ok_or_else(|| {
-            AppError::new(
-                "PROVIDER_PENDING",
-                "The source provider could not refresh this media",
-                false,
-            )
-        })
-    }));
-    Ok(())
+) {
+    deliver_media_refresh(&state.refresh, &request_id, media);
+}
+
+fn deliver_media_refresh(
+    pending: &Mutex<HashMap<String, RefreshSender>>,
+    request_id: &str,
+    media: Option<ResolvedMedia>,
+) {
+    let sender = pending.lock().unwrap().remove(request_id);
+    if let Some(sender) = sender {
+        // The requester owns the timeout and prepares credentials after receiving
+        // the reply. Late or duplicate completions can be acknowledged silently.
+        let _ = sender.send(media);
+    }
+}
+
+#[cfg(test)]
+mod media_refresh_tests {
+    use super::*;
+
+    #[test]
+    fn obsolete_refresh_completions_do_not_affect_the_current_request() {
+        let (cancelled, closed) = tokio::sync::oneshot::channel();
+        let (current, mut waiting) = tokio::sync::oneshot::channel();
+        let pending = Mutex::new(HashMap::from([
+            ("cancelled".into(), cancelled),
+            ("current".into(), current),
+        ]));
+        drop(closed);
+
+        let media = |file_id: &str| ResolvedMedia {
+            schema_version: 1,
+            source_id: "test".into(),
+            account_id: "test".into(),
+            file_id: file_id.into(),
+            url: "https://example.invalid/video".into(),
+            headers: Default::default(),
+            expires_at: None,
+        };
+        deliver_media_refresh(&pending, "timed-out", Some(media("old")));
+        deliver_media_refresh(&pending, "cancelled", Some(media("old")));
+        assert!(matches!(
+            waiting.try_recv(),
+            Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+        ));
+
+        deliver_media_refresh(&pending, "current", Some(media("selected")));
+        deliver_media_refresh(&pending, "current", Some(media("duplicate")));
+        assert_eq!(waiting.try_recv().unwrap().unwrap().file_id, "selected");
+        assert!(pending.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn an_active_resolution_failure_reaches_the_requester() {
+        let (send, mut waiting) = tokio::sync::oneshot::channel();
+        let pending = Mutex::new(HashMap::from([("active".into(), send)]));
+        deliver_media_refresh(&pending, "active", None);
+        assert!(waiting.try_recv().unwrap().is_none());
+    }
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
