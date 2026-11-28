@@ -20,6 +20,10 @@ import '@/features/player/framePlayback.css'
 const { t } = useI18n()
 const { snapshot, error, control } = usePlayer()
 const active = computed(() => snapshot.value && !['idle', 'error'].includes(snapshot.value.state))
+const videoReady = computed(() => {
+  const media = snapshot.value
+  return Boolean(media && active.value && media.embedded && media.state !== 'loading' && media.videoWidth > 0 && media.videoHeight > 0)
+})
 const paused = computed(() => snapshot.value?.state !== 'playing')
 const tracks = computed<BoxPlayer[]>(() => snapshot.value?.tracks.map(track => ({ ...track, track_type: track.kind, lang: track.language })) ?? [])
 const audio = computed(() => tracks.value.filter(track => track.track_type === 'audio'))
@@ -76,7 +80,7 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
 </script>
 <template>
   <AppFrame>
-    <div class="soia-container" :class="{ 'video-mode': active, 'frame-playback': active, 'frame-playback-macos': isMac && !fullscreen, 'cursor-hidden': !controlsVisible, 'system-window-controls': hasLinuxSystemControls }" @mousemove="wake" @mouseleave="wake" @click.self="menu = ''; wake()">
+    <div class="soia-container" :class="{ 'video-mode': videoReady, 'video-background': active && !videoReady, 'frame-playback': active, 'frame-playback-macos': isMac && !fullscreen, 'cursor-hidden': !controlsVisible, 'system-window-controls': hasLinuxSystemControls }" @mousemove="wake" @mouseleave="wake" @click.self="menu = ''; wake()">
       <PlayerHeader v-show="controlsVisible" :playback-actions-in-footer="!!active" :is-mac-os="isMac" :url="url || snapshot?.displayPath || snapshot?.title || ''" :media-title="snapshot?.title || ''" :is-url-modified="!!url" :is-file-loaded="!!active" :is-info-open="infoOpen" :is-playlist-open="playlistOpen" :is-loading="snapshot?.state === 'loading'" playback-title-mode="Show" :compact-mode-enabled="true" :is-fullscreen="fullscreen" :info="info" :current-time="snapshot?.position || 0" :duration="snapshot?.duration || 0" :is-playing="!paused" :video-bitrate="0" hwdec-current="" :playback-speed="snapshot?.speed || 1" :video-tracks="video" :audio-tracks="audio" :sub-tracks="subtitles" @update:url="url = $event" @open-file-picker="choose" @load-file="choose" @toggle-info="infoOpen = !infoOpen" @toggle-playlist="togglePlaylist">
         <template #playback-brand>
           <span v-if="active" class="playback-brand">BoxPlayer <img src="/app-icon.png" alt="" /></span>
@@ -106,6 +110,8 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
 </template>
 <style scoped>
 .system-window-controls :deep(.top-bar__window-controls) { display: none; }
+.soia-container.video-mode { transition: none; }
+.soia-container.video-background { background: #000; transition: none; }
 .soia-loading{position:absolute;inset:0;pointer-events:none}
 .soia-empty { margin: auto; text-align: center; color: var(--text-color); }
 .soia-empty button { padding: 10px 20px; margin-top: 20px; background: var(--primary); color: var(--primary-foreground); border-radius: 8px; }

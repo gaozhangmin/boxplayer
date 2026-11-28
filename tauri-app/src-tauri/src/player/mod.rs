@@ -410,6 +410,8 @@ fn load(
     }
     snapshot.duration = 0.0;
     snapshot.buffered_position = 0.0;
+    snapshot.video_width = 0;
+    snapshot.video_height = 0;
     snapshot.tracks.clear();
     snapshot.state = "loading".into();
     snapshot.error = None;
