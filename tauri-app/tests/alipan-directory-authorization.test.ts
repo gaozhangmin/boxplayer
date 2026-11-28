@@ -38,3 +38,28 @@ it('never starts another channel in the middle of web pagination', async () => {
   await expect(alipan.list(account, root, 'web-marker')).rejects.toEqual(rejected)
   expect(json).toHaveBeenCalledTimes(1)
 })
+
+it('resolves the original file through the paired authorization when web authentication fails', async () => {
+  const id = JSON.stringify({ driveId: 'drive', fileId: 'video' })
+  const item = { id, name: 'Catalog movie', isDirectory: false, size: 0, playable: true }
+  vi.mocked(json).mockRejectedValueOnce(rejected).mockResolvedValueOnce({ url: 'https://cdn.example.invalid/video' })
+
+  await expect(alipan.resolve(account, item)).resolves.toMatchObject({
+    sourceId: account.id,
+    accountId: account.id,
+    fileId: id,
+    url: 'https://cdn.example.invalid/video',
+    headers: { Referer: 'https://www.aliyundrive.com/' },
+  })
+  expect(vi.mocked(json).mock.calls).toEqual([
+    [account, 'POST', 'https://api.aliyundrive.com/v2/file/get_download_url', { drive_id: 'drive', file_id: 'video' }],
+    [account, 'POST', 'https://openapi.alipan.com/adrive/v1.0/openFile/getDownloadUrl', { drive_id: 'drive', file_id: 'video', expire_sec: 14400 }],
+  ])
+})
+
+it('retains a file-level permission error without switching channels', async () => {
+  const error = new Error('Access denied for this file')
+  vi.mocked(json).mockRejectedValueOnce(error)
+  await expect(alipan.resolve(account, { id: root, name: 'Movie', isDirectory: false, size: 0, playable: true })).rejects.toBe(error)
+  expect(json).toHaveBeenCalledTimes(1)
+})

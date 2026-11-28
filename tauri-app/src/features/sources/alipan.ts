@@ -1,4 +1,4 @@
-import type { Account, SourceDriver, SourceEntry } from './contracts'
+import type { Account, SourceDriver, SourceEntry, SourcePage } from './contracts'
 import { json } from './transport'
 import {aliDirectoryEntry} from '@/features/files/drive/aliDirectoryModel'
 import { asAppError } from '@/platform/native'
@@ -14,7 +14,20 @@ function location(value:string):Location {
  return result
 }
 function check<T extends {code?:unknown}>(data:T):T {if(data.code!==undefined)throw new Error('阿里云盘请求失败，请检查账号权限');return data}
-async function listOnChannel(account:Account,parent:string,cursor:string|undefined,endpoint:ReturnType<typeof channel>,signal?:AbortSignal){
+async function withPairedAuthorization<T>(web: () => Promise<T>, open: () => Promise<T>): Promise<T> {
+  try {
+    return await web()
+  } catch (webError) {
+    if (asAppError(webError).code !== 'ALIYUN_WEB') throw webError
+    try {
+      return await open()
+    } catch (openError) {
+      if (['ALIYUN_OPEN_AUTH', 'ACCOUNT_ORIGIN'].includes(asAppError(openError).code)) throw webError
+      throw openError
+    }
+  }
+}
+async function listOnChannel(account:Account,parent:string,cursor:string|undefined,endpoint:ReturnType<typeof channel>,signal?:AbortSignal): Promise<SourcePage> {
   const read=<T>(url:string,body:unknown)=>signal?json<T>(account,'POST',url,body,undefined,{},signal):json<T>(account,'POST',url,body)
   if(!parent){
    const data=check(await read<{code?:string;resource_drive_id?:string;backup_drive_id?:string;default_drive_id?:string}>(endpoint.info,{}))
@@ -37,25 +50,24 @@ export const alipan:SourceDriver={
    const page = await listOnChannel(account,parent,marker,openChannel,signal)
    return { ...page, nextCursor: page.nextCursor ? openCursor + page.nextCursor : undefined }
   }
+  // Both APIs use the same drive and file IDs, but issue different pagination markers.
   if (cursor?.startsWith(openCursor)) return listUsingOpenAuthorization(cursor.slice(openCursor.length))
-  try {
-   return await listOnChannel(account,parent,cursor,endpoint,signal)
-  } catch (webError) {
-   // Reuse the same account's second authorization. Web and OpenAPI markers
-   // are only valid in the channel that issued them.
-   if (cursor || asAppError(webError).code !== 'ALIYUN_WEB') throw webError
-   try {
-    return await listUsingOpenAuthorization()
-   } catch (openError) {
-    if (['ALIYUN_OPEN_AUTH', 'ACCOUNT_ORIGIN'].includes(asAppError(openError).code)) throw webError
-    throw openError
-   }
-  }
+  if (cursor) return listOnChannel(account,parent,cursor,endpoint,signal)
+  return withPairedAuthorization(() => listOnChannel(account,parent,undefined,endpoint,signal), listUsingOpenAuthorization)
  },
  async resolve(account,item){
   const endpoint=channel(account)
   const {driveId,fileId}=location(item.id)
-  const data=check(await json<{code?:string;url?:string;cdn_url?:string;expiration?:string}>(account,'POST',endpoint.api+endpoint.download,{drive_id:driveId,file_id:fileId,...(endpoint.web?{}:{expire_sec:14400})}))
+  const resolve = async (target: ReturnType<typeof channel>) => check(await json<{code?:string;url?:string;cdn_url?:string;expiration?:string}>(
+    account, 'POST', target.api + target.download, {
+      drive_id: driveId,
+      file_id: fileId,
+      ...(target.web ? {} : { expire_sec: 14400 }),
+    },
+  ))
+  const data = endpoint.web
+    ? await withPairedAuthorization(() => resolve(endpoint), () => resolve(openChannel))
+    : await resolve(endpoint)
   const url=new URL(data.cdn_url||data.url||'');if(!['http:','https:'].includes(url.protocol)||url.username||url.password)throw new Error('阿里云盘下载地址无效')
   return{schemaVersion:1,sourceId:account.id,accountId:account.id,fileId:item.id,url:url.href,headers:{Referer:'https://www.aliyundrive.com/'}}
  }
