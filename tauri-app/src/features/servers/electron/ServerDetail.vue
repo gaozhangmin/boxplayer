@@ -40,7 +40,10 @@ const detailIsWatched=computed(()=>displayed.value.watched),detailIsFavorite=com
 const playable=computed(()=>displayed.value.playable||props.children.some(i=>i.playable)||props.children.some(i=>['season','show','series'].includes(i.kind)))
 const detailPlayResume=computed(()=>displayed.value.progress?{percent:displayed.value.progress}:undefined)
 const detailPlayLabel=computed(()=>detailPlayResume.value?'继续播放':'播放')
-const detailEpisodeHeading=computed(()=>displayed.value.episode!=null?'第 '+displayed.value.episode+' 集':'')
+const detailEpisodeHeading = computed(() => {
+  const { episode, name } = displayed.value
+  return episode != null ? `第 ${episode} 集 · ${name}` : ''
+})
 const detailTechnicalLine=computed(()=>[displayed.value.duration?Math.round(displayed.value.duration/60)+'分钟':'',displayed.value.year,displayed.value.height?displayed.value.height+'p':''].filter(Boolean).join(' · '))
 const detailMetaBadges=computed(()=>[displayed.value.sortValues?.officialRating].filter(Boolean))
 const detailGenreLine=computed(()=>displayed.value.genres.join(' / ')),currentOverviewText=computed(()=>displayed.value.overview)
@@ -88,11 +91,11 @@ async function openLink(url:string){try{await nativeCall('open_media_link',{url}
     <template #summary>
       <ServerArtwork v-if="detailLogoUrl" :account="account" :path="detailLogoUrl" :alt="item.name" class="hero-logo">
         <template #fallback>
-          <h1 class="hero-title">{{ item.name }}</h1>
+          <h1 class="hero-title" :title="item.name">{{ item.name }}</h1>
         </template>
       </ServerArtwork>
-      <h1 v-else class="hero-title">{{ item.name }}</h1>
-      <div v-if="detailEpisodeHeading" class="hero-episode-title">{{ detailEpisodeHeading }} · {{ displayed.name }}</div>
+      <h1 v-else class="hero-title" :title="item.name">{{ item.name }}</h1>
+      <div v-if="detailEpisodeHeading" class="hero-episode-title" :title="detailEpisodeHeading">{{ detailEpisodeHeading }}</div>
       <div class="hero-meta-secondary">
         <span v-if="detailTechnicalLine">{{ detailTechnicalLine }}</span>
         <span v-for="badge in detailMetaBadges" :key="badge" class="content-certification">{{ badge }}</span>

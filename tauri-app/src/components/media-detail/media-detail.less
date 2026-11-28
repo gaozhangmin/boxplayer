@@ -1164,6 +1164,15 @@
   margin: 0;
 }
 
+.media-detail .hero-title,
+.media-detail .hero-episode-title,
+.media-detail .hero-brand-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .media-detail .hero-title {
   grid-row: 1;
   font-size: clamp(18px, 1.45vw, 28px);
@@ -1183,9 +1192,7 @@
 }
 
 .media-detail .hero-copy .hero-episode-title {
-  max-width: 100%;
   text-align: left;
-  overflow-wrap: anywhere;
 }
 
 .media-detail .hero-meta {
@@ -1256,10 +1263,7 @@
 }
 
 .media-detail .hero-brand-title {
-  min-height: 74px;
   margin-bottom: 18px;
-  display: flex;
-  align-items: flex-end;
   color: #fff;
   font-size: clamp(22px, 2vw, 34px);
   line-height: 1.08;

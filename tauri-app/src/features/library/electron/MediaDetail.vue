@@ -880,8 +880,8 @@ const getCastInitial = (name?: string): string => {
         :alt="activeMediaItem.name"
         @error="detailLogoLoadFailed = true"
       />
-      <h1 v-else class="hero-title">{{ activeMediaItem.name }}</h1>
-      <div v-if="detailHeading" class="hero-episode-title">{{ detailHeading }}</div>
+      <h1 v-else class="hero-title" :title="activeMediaItem.name">{{ activeMediaItem.name }}</h1>
+      <div v-if="detailHeading" class="hero-episode-title" :title="detailHeading">{{ detailHeading }}</div>
 
       <div class="hero-meta">
         <MediaSourceRatings :rating="activeMediaItem.rating" :is-movie="activeMediaItem.type === 'movie'" />

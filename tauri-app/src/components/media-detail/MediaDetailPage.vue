@@ -34,7 +34,7 @@ watch(() => props.itemKey, () => { if (content.value) content.value.scrollTop = 
           <div class="hero-info">
             <div class="hero-copy"><slot name="summary" /></div>
             <div class="hero-actions">
-              <div class="hero-brand-title">{{ title }}</div>
+              <div class="hero-brand-title" :title="title">{{ title }}</div>
               <div class="actions-stack">
                 <slot name="play-context" />
                 <div class="play-row" :class="{ 'has-version': hasVersion }">
