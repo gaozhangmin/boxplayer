@@ -481,6 +481,21 @@ struct ProxyLease {
     gateway: Arc<Gateway>,
     urls: Vec<String>,
 }
+async fn retry_initial_load(
+    mpv: &mut ffi::Mpv,
+    gateway: &Gateway,
+    proxy: &str,
+    position: f64,
+) -> Result<bool, AppError> {
+    if !gateway.refresh_failed_start(proxy).await? {
+        return Ok(false);
+    }
+    mpv.set("pause", "yes")?;
+    mpv.set("start", &position.to_string())?;
+    mpv.command(&["loadfile", proxy, "replace"])?;
+    Ok(true)
+}
+
 fn reload_hls_session(mpv: &mut ffi::Mpv, url: &str) -> Result<(), AppError> {
     mpv.set("pause", "yes")?;
     // HLS demuxer start offsets may skip the containing segment. Seek exactly
@@ -855,9 +870,29 @@ fn run_worker(
                                     state.state = "loading".into();
                                     state.error = None;
                                 } else {
+                                    if end.error == ffi::ERROR_LOADING_FAILED
+                                        && !loaded
+                                        && recovery_position.is_none()
+                                        && state.cloud_quality.is_none()
+                                    {
+                                        if let Some(url) = proxies.urls.first() {
+                                            match tauri::async_runtime::block_on(retry_initial_load(
+                                                &mut mpv, gateway, url, state.position,
+                                            )) {
+                                                Ok(true) => {
+                                                    log::info!("Retrying initial media load with a refreshed link");
+                                                    continue;
+                                                }
+                                                Ok(false) => {}
+                                                Err(error) => log::warn!("Initial media refresh failed: {}", error.code),
+                                            }
+                                        }
+                                    }
+                                    loaded = false;
                                     state.state = "error".into();
-                                    state.error =
-                                        Some(format!("mpv playback failed ({})", end.error));
+                                    state.error = Some(format!("mpv playback failed ({})", end.error));
+                                    log::warn!("Media playback ended with mpv error {}", end.error);
+                                    owner.publish(app, state.clone());
                                 }
                             } else if end.reason == 0 {
                                 state.state = "ended".into();

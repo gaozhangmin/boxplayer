@@ -108,6 +108,7 @@ pub(crate) async fn fixture() -> Fixture {
         )
         .route("/expired", get(|| async { StatusCode::FORBIDDEN }))
         .route("/unauthorized", get(|| async { StatusCode::UNAUTHORIZED }))
+        .route("/startup-unavailable", get(|| async { StatusCode::SERVICE_UNAVAILABLE }))
         .route(
             "/redirect",
             get(|| async { (StatusCode::FOUND, [("location", "/headers")]) }),
@@ -775,4 +776,27 @@ async fn expired_playback_variant_uses_its_own_resolver() {
     assert_eq!(variant_refreshes.load(Ordering::SeqCst), 1);
     assert_eq!(f.refreshes.load(Ordering::SeqCst), 0);
     gateway.revoke(&proxy).await;
+}
+
+
+#[tokio::test]
+async fn startup_recovery_is_bounded_and_ignores_permanent_http_errors() {
+    let f = fixture().await;
+    let gateway = gateway(&f);
+    let client = Client::new();
+    let unavailable = gateway.register(media(&f.base, "/startup-unavailable")).await.unwrap();
+    let missing = gateway.register(media(&f.base, "/missing")).await.unwrap();
+
+    assert!(!gateway.refresh_failed_start(&unavailable).await.unwrap());
+    assert_eq!(client.get(&missing).send().await.unwrap().status(), StatusCode::NOT_FOUND);
+    assert!(!gateway.refresh_failed_start(&missing).await.unwrap());
+    assert_eq!(client.get(&unavailable).send().await.unwrap().status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert!(gateway.refresh_failed_start(&unavailable).await.unwrap());
+    let result = client.get(&unavailable).header("Range", "bytes=0-7").send().await.unwrap();
+    assert_eq!(result.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(result.bytes().await.unwrap().as_ref(), &SAMPLE[..8]);
+    assert!(!gateway.refresh_failed_start(&unavailable).await.unwrap());
+    assert_eq!(f.refreshes.load(Ordering::SeqCst), 1);
+    gateway.revoke(&unavailable).await;
+    gateway.revoke(&missing).await;
 }

@@ -243,3 +243,51 @@ async fn libmpv_decodes_authenticated_nested_hls_without_exposing_segment_creden
     drop(mpv);
     gateway.revoke(&url).await;
 }
+
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "Requires prepared libmpv runtime; exercises native startup recovery"]
+async fn libmpv_retries_an_initial_503_using_a_fresh_media_link() {
+    configure_vulkan();
+    let fixture = fixture().await;
+    let gateway = gateway(&fixture);
+    let url = gateway.register(media(&fixture.base, "/startup-unavailable")).await.unwrap();
+    let mut mpv = ffi::Mpv::new(&test_mpv_runtime(), None).unwrap();
+    mpv.command(&["loadfile", &url]).unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let error = loop {
+        assert!(Instant::now() < deadline, "libmpv did not report the first failed load");
+        let event = mpv.wait(0.02);
+        if let Some(event) = unsafe { event.as_ref() } {
+            if event.id == 7 {
+                let end = unsafe { (event.data as *const ffi::EndFile).as_ref() };
+                break end.expect("END_FILE payload").error;
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    };
+    assert_eq!(error, ffi::ERROR_LOADING_FAILED);
+    assert!(retry_initial_load(&mut mpv, &gateway, &url, 1.0).await.unwrap());
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut loaded = false;
+    loop {
+        let event = mpv.wait(0.02);
+        if !event.is_null() && unsafe { (*event).id } == 8 {
+            loaded = true;
+        }
+        if loaded
+            && mpv.number("width").unwrap_or_default() > 0.0
+            && mpv.number("time-pos").is_some_and(|position| (position - 1.0).abs() < 0.25)
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "libmpv did not load video and resume at the saved position");
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(mpv.flag("pause"), Some(true));
+    assert_eq!(fixture.refreshes.load(std::sync::atomic::Ordering::SeqCst), 1);
+    drop(mpv);
+    gateway.revoke(&url).await;
+}

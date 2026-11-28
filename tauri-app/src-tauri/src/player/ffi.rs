@@ -13,6 +13,8 @@ pub struct Event {
     pub userdata: u64,
     pub data: *mut c_void,
 }
+pub const ERROR_LOADING_FAILED: i32 = -13;
+
 #[repr(C)]
 pub struct EndFile {
     pub reason: c_int,

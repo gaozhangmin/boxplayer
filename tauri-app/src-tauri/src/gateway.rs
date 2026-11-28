@@ -86,6 +86,8 @@ pub type RefreshHook = Arc<dyn Fn(ResolvedMedia) -> RefreshFuture + Send + Sync>
 pub type IdentityHook = Arc<dyn Fn(&ResolvedMedia) -> Result<ResolvedMedia, AppError> + Send + Sync>;
 struct Resource {
     recovery_pending: AtomicBool,
+    startup_retryable: AtomicBool,
+    startup_retried: AtomicBool,
     refresh_allowed: bool,
     variant_refresh: Option<RefreshHook>,
     hls: crate::hls::HlsKey,
@@ -307,6 +309,8 @@ impl Gateway {
             token.clone(),
             Arc::new(Resource {
                 recovery_pending: AtomicBool::new(false),
+                startup_retryable: AtomicBool::new(false),
+                startup_retried: AtomicBool::new(false),
                 refresh_allowed,
                 variant_refresh,
                 hls: crate::hls::HlsKey::new()?,
@@ -328,6 +332,36 @@ impl Gateway {
             }
         }
     }
+    pub(crate) async fn refresh_failed_start(&self, url: &str) -> Result<bool, AppError> {
+        let Some(base) = self.base.get() else { return Ok(false) };
+        let Some(token) = url.strip_prefix(&format!("{base}/media/")) else { return Ok(false) };
+        let Some(resource) = self.resources.read().await.get(token).cloned() else { return Ok(false) };
+        if !resource.refresh_allowed || !resource.startup_retryable.load(Ordering::SeqCst)
+            || resource.startup_retried.swap(true, Ordering::SeqCst)
+        {
+            return Ok(false);
+        }
+        tokio::select! {
+            biased;
+            _ = resource.cancel.cancelled() => Ok(false),
+            result = async {
+                let _guard = resource.refresh_lock.lock().await;
+                let original = resource.media.lock().await.clone();
+                let refresh = resource.variant_refresh.as_ref().unwrap_or(&self.refresh);
+                let resolved = self.resolve_media(original, refresh).await?;
+                let mut current = resource.media.lock().await;
+                if resource.cancel.is_cancelled() {
+                    return Ok(false);
+                }
+                if resolved.url != current.url {
+                    resource.hls.invalidate_session();
+                }
+                *current = resolved;
+                Ok(true)
+            } => result,
+        }
+    }
+
     pub async fn take_hls_recovery(&self, url: &str) -> bool {
         let Some(token) = url.rsplit('/').next() else {
             return false;
@@ -705,7 +739,19 @@ async fn proxy(
         return Response::builder().status(404).body(Body::empty()).unwrap();
     };
     let cancelled = resource.cancel.clone();
-    let result = tokio::select! {_=cancelled.cancelled()=>Err(failure("CANCELLED","Media cancelled")),result=tokio::time::timeout(Duration::from_secs(45),gateway.stream(resource,method,headers,&token,None))=>result.map_err(|_|failure("TIMEOUT","Media request timed out")).and_then(|r|r)};
+    let result = tokio::select! {_=cancelled.cancelled()=>Err(failure("CANCELLED","Media cancelled")),result=tokio::time::timeout(Duration::from_secs(45),gateway.stream(resource.clone(),method,headers,&token,None))=>result.map_err(|_|failure("TIMEOUT","Media request timed out")).and_then(|r|r)};
+    // A 2xx response can still fail during demuxer startup if its body
+    // is truncated. Keep a terminal HTTP rejection distinct from that case.
+    let retryable = match &result {
+        Ok(response) => response.status().is_success() || matches!(
+            response.status(),
+            StatusCode::REQUEST_TIMEOUT | StatusCode::INTERNAL_SERVER_ERROR
+                | StatusCode::BAD_GATEWAY | StatusCode::SERVICE_UNAVAILABLE
+                | StatusCode::GATEWAY_TIMEOUT
+        ),
+        Err(error) => matches!(error.code, "HTTP_NETWORK" | "TIMEOUT" | "HLS_BODY"),
+    };
+    resource.startup_retryable.store(retryable, Ordering::SeqCst);
     match result {
         Ok(response) => response,
         Err(error) => Response::builder()
