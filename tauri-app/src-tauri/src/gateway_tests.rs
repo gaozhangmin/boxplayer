@@ -751,3 +751,28 @@ fn pending_subtitles_follow_committed_root_alias_and_keep_account_scope(){
     let mut foreign=root.clone();foreign.account_id="foreign".into();foreign.source_id="foreign".into();assert!(gateway.take_subtitles(&foreign).is_empty());
     root.file_id="new".into();let rows=gateway.take_subtitles(&root);assert_eq!(rows.len(),1);assert_eq!(rows[0].media.file_id,"new-subtitle");assert_eq!(rows[0].title,"Custom");assert_eq!(rows[0].media.url,"boxplayer-queue:");assert!(gateway.take_subtitles(&root).is_empty());
 }
+
+#[tokio::test]
+async fn expired_playback_variant_uses_its_own_resolver() {
+    let f = fixture().await;
+    let gateway = gateway(&f);
+    let variant_refreshes = Arc::new(AtomicUsize::new(0));
+    let refreshes = variant_refreshes.clone();
+    let base = f.base.clone();
+    let refresh: RefreshHook = Arc::new(move |mut original| {
+        let target = media(&base, "/media");
+        refreshes.fetch_add(1, Ordering::SeqCst);
+        Box::pin(async move {
+            original.url = target.url;
+            original.headers = target.headers;
+            Ok(original)
+        })
+    });
+    let proxy = gateway.register_variant(media(&f.base, "/unauthorized"), refresh).await.unwrap();
+    let response = Client::new().get(&proxy).header("Range", "bytes=0-7").send().await.unwrap();
+    assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+    assert_eq!(response.bytes().await.unwrap().as_ref(), &SAMPLE[..8]);
+    assert_eq!(variant_refreshes.load(Ordering::SeqCst), 1);
+    assert_eq!(f.refreshes.load(Ordering::SeqCst), 0);
+    gateway.revoke(&proxy).await;
+}

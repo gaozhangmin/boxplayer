@@ -37,11 +37,15 @@ export const mediaServer:SourceDriver={
   return result.media
  }
 }
-const playbackContexts=new Map<string,{mediaSourceId:string;playSessionId:string;playMethod:string}>()
+type PlaybackContext = { mediaSourceId: string; playSessionId: string; playMethod: string }
+const playbackContexts=new Map<string,PlaybackContext>()
 export async function serverFavorite(account:Account,itemId:string,value:boolean){itemId=serverItemId(itemId);if(account.providerId==='plex'){await plexFavorite(account,itemId,value);return}await request(account,value?'POST':'DELETE',endpoint(account,`Users/${segment(account.userId||'')}/FavoriteItems/${segment(itemId)}`))}
-export async function serverReport(account:Account,itemId:string,state:'start'|'progress'|'stop',position:number,paused=false){
+export async function serverReport(account:Account,itemId:string,state:'start'|'progress'|'stop',position:number,paused=false,nativeContext?:PlaybackContext|null){
  if(account.providerId==='plex'){await plexReport(account,itemId,state,position,paused);return}
- const context=playbackContexts.get(`${account.id}:${itemId}`);if(!context)return
+ const key=`${account.id}:${itemId}`
+ const cached=playbackContexts.get(key)
+ const context=nativeContext??cached;if(!context)return
  await request(account,'POST',endpoint(account,`Sessions/Playing${state==='start'?'':state==='stop'?'/Stopped':'/Progress'}`),JSON.stringify({ItemId:itemId,MediaSourceId:context.mediaSourceId,PlaySessionId:context.playSessionId,PositionTicks:Math.round(position*10000000),IsPaused:paused,CanSeek:true,PlayMethod:context.playMethod}),{'Content-Type':'application/json'})
- if(state==='stop')playbackContexts.delete(`${account.id}:${itemId}`)
+ if(state==='stop' && cached && playbackContexts.get(key)===cached &&
+   cached.playSessionId===context.playSessionId && cached.playMethod===context.playMethod) playbackContexts.delete(key)
 }

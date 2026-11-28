@@ -2,12 +2,14 @@
 import ContentLoading from '@/features/files/electron/ContentLoading.vue'
 import { computed, watch, onMounted, onUnmounted, onErrorCaptured, ref } from 'vue'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { Monitor } from 'lucide-vue-next'
 import AppFrame from '@/components/AppFrame.vue'
 import PlayerHeader from '@/vendor/soia/components/PlayerHeader.vue'
 import PlayerControls from '@/vendor/soia/components/PlayerControls.vue'
 import CastDevicePopover from '@/vendor/soia/components/CastDevicePopover.vue'
 import PlaylistDrawer from '@/vendor/soia/components/PlaylistDrawer.vue'
 import { formatTime } from '@/features/player/formatTime'
+import { usePlaybackQuality } from '@/features/player/usePlaybackQuality'
 import { usePlayer } from '@/features/player/usePlayer'
 import { useI18n } from '@/lib/i18n'
 import { asAppError, isNative, openFile, playFile } from '@/platform/native'
@@ -37,6 +39,9 @@ const fullscreen = ref(false)
 const infoOpen = ref(false)
 const playlistOpen = ref(false)
 const menu = ref('')
+const { qualities, loading: qualityLoading, changing: qualityChanging, error: qualityError, selected: selectedQuality, select: selectQuality } =
+  usePlaybackQuality(computed(() => menu.value === 'quality'), snapshot)
+watch(() => snapshot.value?.sessionId, () => { if (menu.value === 'quality') menu.value = '' })
 const castOpen = ref(false)
 function togglePlaylist() {
   menu.value = ''
@@ -102,6 +107,20 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
           </button>
         </template>
         <template #before-fullscreen>
+          <div v-if="active && snapshot.videoHeight > 0" class="playback-quality">
+            <button class="icon-button icon-button--player" type="button" title="画质" aria-label="画质"
+              :aria-expanded="menu === 'quality'" @click.stop="toggleMenu('quality')">
+              <Monitor :size="21" />
+            </button>
+            <div v-if="menu === 'quality'" class="playback-quality__options" aria-label="画质选项" @click.stop>
+              <p>当前画质 · {{ snapshot.videoWidth }} × {{ snapshot.videoHeight }}</p>
+              <p v-if="qualityLoading || qualityChanging" role="status">{{ qualityChanging ? '正在切换画质' : '正在获取画质' }}</p>
+              <p v-if="qualityError" role="alert">{{ qualityError }}</p>
+              <button v-for="quality in qualities" :key="quality.id" type="button" :aria-pressed="quality.id === selectedQuality"
+                :disabled="qualityChanging || snapshot.state === 'loading'" @click="selectQuality(quality.id)">{{ quality.label }}</button>
+              <p v-if="!qualities.length && !qualityLoading && !qualityError">此来源仅提供当前画质</p>
+            </div>
+          </div>
           <CastDevicePopover v-if="active" :is-file-loaded="true" @update:open="toggleCast" />
         </template>
       </PlayerControls>
@@ -115,4 +134,33 @@ onUnmounted(() => { window.removeEventListener('keydown', key); if (hideTimer) c
 .soia-loading{position:absolute;inset:0;pointer-events:none}
 .soia-playback-error { margin: auto; text-align: center; color: #fff; }
 .soia-notice { position: absolute; top: 18%; left: 15%; right: 15%; padding: 16px; background: #161b22e8; color: white; border-radius: 10px; z-index: 2100; text-align: center; }
+.playback-quality { position: relative; }
+.playback-quality__options {
+  position: absolute;
+  z-index: 20;
+  inset-inline-end: 0;
+  bottom: calc(100% + 12px);
+  width: max-content;
+  min-width: 180px;
+  max-width: min(300px, 80vw);
+  max-height: min(320px, 55vh);
+  overflow-y: auto;
+  border: 1px solid #ffffff33;
+  border-radius: 12px;
+  padding: 6px;
+  background: #191a1cf2;
+  color: white;
+}
+.playback-quality__options p { margin: 6px 10px; font-size: 12px; }
+.playback-quality__options button {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  text-align: start;
+}
+.playback-quality__options button:hover, .playback-quality__options button[aria-pressed='true'] { background: #ffffff26; }
 </style>

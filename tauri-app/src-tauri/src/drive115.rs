@@ -111,7 +111,17 @@ async fn api(
     account_id: &str,
     body: Option<String>,
 ) -> Result<serde_json::Value, AppError> {
-    let mut headers = Headers::new();
+    api_with_headers(state, method, url, account_id, body, Headers::new()).await
+}
+
+async fn api_with_headers(
+    state: &Backend,
+    method: &str,
+    url: String,
+    account_id: &str,
+    body: Option<String>,
+    mut headers: Headers,
+) -> Result<serde_json::Value, AppError> {
     if body.is_some() {
         headers.insert(
             "Content-Type".into(),
@@ -326,6 +336,45 @@ impl Sessions {
         })
     }
 }
+async fn pick_code(state: &Backend, account_id: &str, file_id: &str) -> Result<String, AppError> {
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("file_id", file_id)
+        .finish();
+    let detail = api(state, "GET", format!("{API}/open/folder/get_info?{query}"), account_id, None).await?;
+    detail["data"]["pick_code"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| error("115 文件缺少提取码"))
+}
+
+pub(crate) async fn video_play(state: &Backend, account_id: &str, file_id: &str) -> Result<(serde_json::Value, Headers), AppError> {
+    let pick = pick_code(state, account_id, file_id).await?;
+    let query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("pick_code", &pick)
+        .finish();
+    let url = format!("{API}/open/video/play?{query}");
+    let headers = Headers::from([("User-Agent".into(), DOWN_AGENT.into())]);
+    let data = api_with_headers(state, "GET", url.clone(), account_id, None, headers.clone()).await?;
+    if data["code"].as_i64() != Some(0) {
+        return Err(error("115 画质请求失败"));
+    }
+    let mut request = HttpRequest {
+        request_id: String::new(),
+        provider_id: "115".into(),
+        account_id: account_id.into(),
+        method: "GET".into(),
+        url,
+        headers,
+        body: None,
+        timeout_ms: None,
+        proxy: None,
+    };
+    state.accounts.authorize(&mut request)?;
+    request.headers.retain(|name, _| name.eq_ignore_ascii_case("Authorization") || name.eq_ignore_ascii_case("User-Agent"));
+    Ok((data, request.headers))
+}
+
 pub async fn resolve(
     state: &Backend,
     account_id: &str,
@@ -337,23 +386,9 @@ pub async fn resolve(
         .into_iter()
         .find(|a| a.id == account_id && a.provider_id == "115")
         .ok_or_else(|| error("115 账号不存在"))?;
-    let query = url::form_urlencoded::Serializer::new(String::new())
-        .append_pair("file_id", file_id)
-        .finish();
-    let detail = api(
-        state,
-        "GET",
-        format!("{}/open/folder/get_info?{}", API, query),
-        account_id,
-        None,
-    )
-    .await?;
-    let pick = detail["data"]["pick_code"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| error("115 文件缺少提取码"))?;
+    let pick = pick_code(state, account_id, file_id).await?;
     let body = url::form_urlencoded::Serializer::new(String::new())
-        .append_pair("pick_code", pick)
+        .append_pair("pick_code", &pick)
         .finish();
     let mut request = HttpRequest {
         request_id: uuid::Uuid::new_v4().to_string(),

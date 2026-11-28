@@ -133,7 +133,7 @@ fn absolute(account: &Account, value: &str) -> Result<String, AppError> {
     }
     Ok(url.into())
 }
-#[derive(Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlaybackContext {
     media_source_id: String,
@@ -266,6 +266,22 @@ fn select<'a>(
     }
     None
 }
+#[derive(Clone, Debug)]
+pub(crate) struct Selection {
+    pub quality: String,
+    pub context: Option<PlaybackContext>,
+    profile: Value,
+    direct_only: bool,
+    media_index: Option<usize>,
+    source_id: String,
+}
+
+struct Negotiated {
+    media: ResolvedMedia,
+    subtitles: Vec<crate::player::Subtitle>,
+    selection: Selection,
+}
+
 pub async fn resolve_selected(
     accounts: &Accounts,
     gateway: &Arc<Gateway>,
@@ -278,6 +294,112 @@ pub async fn resolve_selected(
     auto_bitrate: bool,
     selected_source: Option<&str>,
 ) -> Result<Resolution, AppError> {
+    let negotiated = negotiate(accounts, gateway, account_id, item_id, profile, max_bitrate,
+        direct_only, auto_bitrate, selected_source).await?;
+    let context = negotiated.selection.context.clone();
+    let media = prepared.insert(negotiated.media.clone())?;
+    gateway.set_server_selection(&negotiated.media, negotiated.selection);
+    gateway.set_subtitles(&media, negotiated.subtitles);
+    Ok(Resolution { media, context })
+}
+
+pub(crate) async fn quality_media(
+    accounts: &Accounts,
+    gateway: &Arc<Gateway>,
+    media: &ResolvedMedia,
+    selection: &Selection,
+    quality: &str,
+) -> Result<(ResolvedMedia, Option<PlaybackContext>), AppError> {
+    let account = owner(accounts, &media.account_id)?;
+    if let Some(media_index) = selection.media_index {
+        if quality == "max" {
+            let selected = negotiate(accounts, gateway, &account.id, &media.file_id, json!({}),
+                None, true, false, Some(&selection.source_id)).await?;
+            let mut media = selected.media;
+            accounts.media_headers(&mut media)?;
+            return Ok((media, None));
+        }
+        let mut result = media.clone();
+        result.url = plex_transcode_url(&account, &media.file_id, media_index, quality)?;
+        result.headers = Headers::from([("Accept".into(), "*/*".into())]);
+        result.expires_at = None;
+        accounts.media_headers(&mut result)?;
+        return Ok((result, None));
+    }
+    let direct_only = quality == "max";
+    let max_bitrate = quality.parse::<u64>().ok();
+    let mut profile = selection.profile.clone();
+    // A session override must replace the previous quality limit in the device profile.
+    for field in ["MaxStreamingBitrate", "MaxStaticBitrate", "MusicStreamingTranscodingBitrate"] {
+        if let Some(object) = profile.as_object_mut() {
+            object.remove(field);
+        }
+    }
+    if direct_only {
+        profile["DirectPlayProfiles"] = json!([{"Type":"Video"}]);
+    } else if selection.direct_only {
+        // A manual bitrate selection explicitly allows transcoding for this item.
+        profile["TranscodingProfiles"] = json!([{
+            "Type":"Video", "Container":"mp4", "Protocol":"hls", "Context":"Streaming",
+            "VideoCodec":"h264", "AudioCodec":"aac", "MaxAudioChannels":"8", "MinSegments":"2"
+        }]);
+    }
+    let selected = negotiate(accounts, gateway, &account.id, &media.file_id, profile, max_bitrate,
+        direct_only, quality == "auto", Some(&selection.source_id)).await?;
+    let mut media = selected.media;
+    accounts.media_headers(&mut media)?;
+    Ok((media, selected.selection.context))
+}
+
+fn plex_transcode_url(account: &Account, item_id: &str, media_index: usize, quality: &str) -> Result<String, AppError> {
+    let mut path = url::Url::parse("https://plex.invalid/library/metadata/")
+        .map_err(|_| error("Plex 媒体路径无效"))?;
+    path.path_segments_mut().unwrap().pop_if_empty().push(item_id);
+    let mut stream = url::Url::parse(&endpoint(account, "video/:/transcode/universal/start.m3u8"))
+        .map_err(|_| error("Plex 转码地址无效"))?;
+    let index = media_index.to_string();
+    let session = uuid::Uuid::new_v4().simple().to_string();
+    stream.query_pairs_mut().extend_pairs([
+        ("path", path.path()),
+        ("mediaIndex", &index),
+        ("partIndex", "0"),
+        ("protocol", "hls"),
+        ("directPlay", "0"),
+        ("directStream", "0"),
+        ("session", &session),
+        ("transcodeSessionId", &session),
+        ("X-Plex-Client-Profile-Name", "Chrome"),
+    ]);
+    if quality == "auto" {
+        stream.query_pairs_mut().append_pair("autoAdjustQuality", "1");
+    } else {
+        let kbps = (quality.parse::<u64>().map_err(|_| error("Plex 码率无效"))? / 1000).to_string();
+        stream.query_pairs_mut().extend_pairs([
+            ("autoAdjustQuality", "0"),
+            ("videoBitrate", &kbps),
+            ("maxVideoBitrate", &kbps),
+        ]);
+    }
+    Ok(stream.into())
+}
+
+fn plex_media_id(row: &Value) -> Option<String> {
+    row["id"].as_str().map(str::to_owned)
+        .or_else(|| row["id"].as_u64().map(|id| id.to_string()))
+        .or_else(|| row.pointer("/Part/0/key").and_then(Value::as_str).map(str::to_owned))
+}
+
+async fn negotiate(
+    accounts: &Accounts,
+    gateway: &Arc<Gateway>,
+    account_id: &str,
+    item_id: &str,
+    profile: Value,
+    max_bitrate: Option<u64>,
+    direct_only: bool,
+    auto_bitrate: bool,
+    selected_source: Option<&str>,
+) -> Result<Negotiated, AppError> {
     if item_id.trim().is_empty() || item_id.len() > 1024 {
         return Err(error("媒体标识无效"));
     }
@@ -318,8 +440,11 @@ pub async fn resolve_selected(
                     .find(|item| item["ratingKey"].as_str() == Some(item_id))
             })
             .ok_or_else(|| error("Plex 未返回所选媒体"))?;
-        let media_rows=item["Media"].as_array().ok_or_else(||error("Plex 未返回媒体文件"))?;
-        let chosen=if let Some(id)=selected_source{media_rows.iter().find(|row|row["id"].as_str().map(str::to_owned).or_else(||row["id"].as_u64().map(|n|n.to_string())).as_deref()==Some(id)).ok_or_else(||error("所选 Plex 视频版本已失效"))?}else{media_rows.first().ok_or_else(||error("Plex 未返回媒体文件"))?};
+        let media_rows = item["Media"].as_array().ok_or_else(|| error("Plex 未返回媒体文件"))?;
+        let (media_index, chosen) = media_rows.iter().enumerate()
+            .find(|(_, row)| selected_source.is_none_or(|id| plex_media_id(row).as_deref() == Some(id)))
+            .ok_or_else(|| error("Plex 未返回所选视频版本"))?;
+        let source_id = plex_media_id(chosen).ok_or_else(|| error("Plex 媒体源缺少标识"))?;
         let part=chosen.pointer("/Part/0/key").and_then(Value::as_str).filter(|s|!s.is_empty()).ok_or_else(||error("Plex 未返回媒体文件"))?;
         let url = absolute(&account, part)?;
         if url::Url::parse(&url).unwrap().origin()
@@ -327,7 +452,7 @@ pub async fn resolve_selected(
         {
             return Err(error("Plex 媒体超出服务器范围"));
         }
-        let media = prepared.insert(ResolvedMedia {
+        let media = ResolvedMedia {
             schema_version: 1,
             source_id: account.id.clone(),
             account_id: account.id.clone(),
@@ -335,7 +460,7 @@ pub async fn resolve_selected(
             url,
             headers: Headers::new(),
             expires_at: None,
-        })?;
+        };
         let mut subtitles = external_subtitles(
             &account,
             item_id,
@@ -349,10 +474,11 @@ pub async fn resolve_selected(
         for subtitle in &mut subtitles {
             accounts.media_headers(&mut subtitle.media)?
         }
-        gateway.set_subtitles(&media, subtitles);
-        return Ok(Resolution {
+        return Ok(Negotiated {
             media,
-            context: None,
+            subtitles,
+            selection: Selection { quality: "max".into(), context: None, profile,
+                direct_only: false, media_index: Some(media_index), source_id },
         });
     }
     ServerPlaybackSettings {
@@ -368,6 +494,10 @@ pub async fn resolve_selected(
     if user.is_empty() {
         return Err(error("服务器账号缺少用户标识"));
     }
+    let quality = if auto_bitrate { "auto".into() } else {
+        max_bitrate.filter(|limit| *limit != 360000000).map_or_else(|| "max".into(), |n| n.to_string())
+    };
+    let initial_profile = profile.clone();
     let limit = if auto_bitrate {
         Some(
             bitrate(
@@ -471,7 +601,7 @@ pub async fn resolve_selected(
         play_session_id: data["PlaySessionId"].as_str().unwrap_or("").into(),
         play_method: method,
     };
-    let media = prepared.insert(ResolvedMedia {
+    let media = ResolvedMedia {
         schema_version: 1,
         source_id: account.id.clone(),
         account_id: account.id.clone(),
@@ -479,16 +609,17 @@ pub async fn resolve_selected(
         url,
         headers: Headers::new(),
         expires_at: None,
-    })?;
+    };
     let mut subtitles =
         external_subtitles(&account, item_id, source_id, &source["MediaStreams"], false)?;
     for subtitle in &mut subtitles {
         accounts.media_headers(&mut subtitle.media)?
     }
-    gateway.set_subtitles(&media, subtitles);
-    Ok(Resolution {
+    Ok(Negotiated {
         media,
-        context: Some(context),
+        subtitles,
+        selection: Selection { quality, context: Some(context), profile: initial_profile,
+            direct_only, media_index: None, source_id: source_id.into() },
     })
 }
 #[cfg(test)]
@@ -580,7 +711,7 @@ mod protocol_tests {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         let router=Router::new().route("/prefix/Items/video/PlaybackInfo",post(|headers:axum::http::HeaderMap,axum::extract::Query(query):axum::extract::Query<HashMap<String,String>>,Json(body):Json<Value>|async move{
-   assert_eq!(headers["x-emby-token"],"synthetic-token");assert_eq!(query["MaxStreamingBitrate"],"20000000");assert_eq!(query["MediaSourceId"],"source");assert_eq!(body["DeviceProfile"]["DirectPlayProfiles"][0]["VideoCodec"],"h264");
+   assert_eq!(headers["x-emby-token"],"synthetic-token");assert_eq!(query["MediaSourceId"],"source");let cap=query["MaxStreamingBitrate"].parse::<u64>().unwrap();assert!([20000000,420000].contains(&cap));assert_eq!(body["DeviceProfile"]["MaxStreamingBitrate"],cap);assert_eq!(body["DeviceProfile"]["DirectPlayProfiles"][0]["VideoCodec"],"h264");
    Json(json!({"MediaSources":[{"Id":"source","SupportsDirectPlay":false,"MediaStreams":[{"Type":"Subtitle","IsExternal":true,"Index":2,"DeliveryUrl":"/subtitles/test.srt?api_key=synthetic-token","Language":"zh"}],"TranscodingUrl":"/Videos/video/master.m3u8?api_key=synthetic-token"}],"PlaySessionId":"session"}))
   })).route("/prefix/library/metadata/video",get(|headers:axum::http::HeaderMap|async move{assert_eq!(headers["x-plex-token"],"synthetic-token");Json(json!({"MediaContainer":{"Metadata":[{"ratingKey":"video","Media":[{"Part":[{"key":"/prefix/library/parts/file?X-Plex-Token=synthetic-token","Stream":[{"streamType":3,"id":"2","key":"/subtitles/test.srt?X-Plex-Token=synthetic-token","language":"zh"}]}]}]}]}}))}))
    .route("/prefix/subtitles/test.srt",get(|headers:axum::http::HeaderMap|async move{assert!(headers.get("x-emby-token").or_else(||headers.get("x-plex-token")).is_some());"1\n00:00:00,000 --> 00:00:01,000\nSubtitle fixture\n"}))
@@ -630,6 +761,21 @@ mod protocol_tests {
             prepared.hydrate(&mut media).unwrap();
             assert!(media.url.contains("synthetic-token"));
             assert!(media.url.starts_with(&format!("{base}/prefix/")));
+            let selection = gateway.server_selection(&media).unwrap();
+            let (switched, context) = quality_media(&accounts, &gateway, &media, &selection, "420000").await.unwrap();
+            if provider == "plex" {
+                let url = url::Url::parse(&switched.url).unwrap();
+                let params = url.query_pairs().collect::<HashMap<_, _>>();
+                assert!(url.path().ends_with("/video/:/transcode/universal/start.m3u8"));
+                assert_eq!(params["path"], "/library/metadata/video");
+                assert_eq!(params["mediaIndex"], "0");
+                assert_eq!(params["videoBitrate"], "420");
+                assert_eq!(switched.headers["X-Plex-Token"], "synthetic-token");
+                assert!(context.is_none());
+            } else {
+                assert_eq!(context.as_ref().unwrap().media_source_id, "source");
+                assert_eq!(context.unwrap().play_method, "Transcode");
+            }
             let subtitles = gateway.take_subtitles(&media);
             assert_eq!(subtitles.len(), 1);
             assert_eq!(subtitles[0].media.account_id, account.id);

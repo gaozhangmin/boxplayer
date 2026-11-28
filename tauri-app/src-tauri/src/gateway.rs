@@ -87,6 +87,7 @@ pub type IdentityHook = Arc<dyn Fn(&ResolvedMedia) -> Result<ResolvedMedia, AppE
 struct Resource {
     recovery_pending: AtomicBool,
     refresh_allowed: bool,
+    variant_refresh: Option<RefreshHook>,
     hls: crate::hls::HlsKey,
     media: AsyncMutex<ResolvedMedia>,
     refresh_lock: AsyncMutex<()>,
@@ -99,6 +100,7 @@ struct RequestCancellation {
 pub struct Gateway {
     subtitles: Mutex<HashMap<String, (std::time::Instant, ResolvedMedia, Vec<crate::player::Subtitle>)>>,
     pub cookies: crate::cookie_sessions::CookieSessions,
+    server_selections: Mutex<HashMap<String, (std::time::Instant, Arc<crate::server_playback::Selection>)>>,
     requests: Mutex<HashMap<String, RequestCancellation>>,
     resources: RwLock<HashMap<String, Arc<Resource>>>,
     refresh: RefreshHook,
@@ -150,6 +152,27 @@ fn strip_credentials(headers: &mut Headers) {
     });
 }
 impl Gateway {
+    fn server_selection_key(media: &ResolvedMedia) -> String {
+        crate::storage::identity(&format!("{}\n{}", media.key(), media.url))
+    }
+
+    pub(crate) fn set_server_selection(&self, media: &ResolvedMedia, selection: crate::server_playback::Selection) {
+        let mut entries = self.server_selections.lock().unwrap();
+        entries.retain(|_, (at, _)| at.elapsed() < Duration::from_secs(120));
+        if entries.len() >= 128 {
+            if let Some(key) = entries.iter().min_by_key(|(_, (at, _))| *at).map(|(key, _)| key.clone()) {
+                entries.remove(&key);
+            }
+        }
+        entries.insert(Self::server_selection_key(media), (std::time::Instant::now(), Arc::new(selection)));
+    }
+
+    pub(crate) fn server_selection(&self, media: &ResolvedMedia) -> Option<Arc<crate::server_playback::Selection>> {
+        self.server_selections.lock().unwrap().get(&Self::server_selection_key(media))
+            .filter(|(at, _)| at.elapsed() < Duration::from_secs(120))
+            .map(|(_, selection)| selection.clone())
+    }
+
     pub fn set_subtitles(&self, media: &ResolvedMedia, subtitles: Vec<crate::player::Subtitle>) {
         let mut pending = self.subtitles.lock().unwrap();
         pending.retain(|_, (time, _, _)| time.elapsed() < Duration::from_secs(120));
@@ -174,9 +197,13 @@ impl Gateway {
         &self,
         original: ResolvedMedia,
     ) -> Result<ResolvedMedia, AppError> {
+        self.resolve_media(original, &self.refresh).await
+    }
+
+    async fn resolve_media(&self, original: ResolvedMedia, refresh: &RefreshHook) -> Result<ResolvedMedia, AppError> {
         let original=self.canonical_media(&original)?;
         let resolved =
-            tokio::time::timeout(Duration::from_secs(15), (self.refresh)(original.clone()))
+            tokio::time::timeout(Duration::from_secs(15), refresh(original.clone()))
                 .await
                 .map_err(|_| failure("REFRESH_TIMEOUT", "Queue resolver timed out"))??;
         if resolved.account_id != original.account_id
@@ -206,6 +233,7 @@ impl Gateway {
         Ok(Arc::new(Self {
             subtitles: Default::default(),
             cookies: Default::default(),
+            server_selections: Default::default(),
             requests: Mutex::new(HashMap::new()),
             resources: RwLock::new(HashMap::new()),
             refresh,
@@ -239,21 +267,25 @@ impl Gateway {
         Ok(base.clone())
     }
     pub async fn register(self: &Arc<Self>, media: ResolvedMedia) -> Result<String, AppError> {
-        self.register_mode(media, true).await
+        self.register_mode(media, true, None).await
+    }
+    pub(crate) async fn register_variant(self: &Arc<Self>, media: ResolvedMedia, refresh: RefreshHook) -> Result<String, AppError> {
+        self.register_mode(media, true, Some(refresh)).await
     }
     pub(crate) async fn register_test(
         self: &Arc<Self>,
         media: ResolvedMedia,
     ) -> Result<String, AppError> {
-        self.register_mode(media, false).await
+        self.register_mode(media, false, None).await
     }
     async fn register_mode(
         self: &Arc<Self>,
         media: ResolvedMedia,
         refresh_allowed: bool,
+        variant_refresh: Option<RefreshHook>,
     ) -> Result<String, AppError> {
         let canonical=self.canonical_media(&media)?;
-        let media=if canonical.file_id!=media.file_id||canonical.url=="boxplayer-queue:" {self.resolve_queue_item(canonical).await?}else{media};
+        let media=if canonical.file_id!=media.file_id||canonical.url=="boxplayer-queue:" {self.resolve_media(canonical, variant_refresh.as_ref().unwrap_or(&self.refresh)).await?}else{media};
         parsed_url(&media.url)?;
         if media.schema_version != 1
             || media.source_id.is_empty()
@@ -276,6 +308,7 @@ impl Gateway {
             Arc::new(Resource {
                 recovery_pending: AtomicBool::new(false),
                 refresh_allowed,
+                variant_refresh,
                 hls: crate::hls::HlsKey::new()?,
                 media: AsyncMutex::new(media),
                 refresh_lock: AsyncMutex::new(()),
@@ -571,7 +604,7 @@ impl Gateway {
             let _refresh = resource.refresh_lock.lock().await;
             let mut refreshed = resource.media.lock().await.clone();
             if refreshed.url == root_media.url && refreshed.headers == root_media.headers {
-                refreshed = self.resolve_queue_item(root_media.clone()).await?;
+                refreshed = self.resolve_media(root_media.clone(), resource.variant_refresh.as_ref().unwrap_or(&self.refresh)).await?;
                 parsed_url(&refreshed.url)?;
                 let mut current = resource.media.lock().await;
                 if refreshed.url != root_media.url {

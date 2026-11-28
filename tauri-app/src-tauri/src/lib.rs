@@ -360,6 +360,8 @@ pub fn run() {
             commands::player_direct_video_history,
             commands::player_open_catalog_queue,
             commands::player_state,
+            player::quality::player_cloud_qualities,
+            player::quality::player_set_cloud_quality,
             commands::player_show_main,
             commands::player_control,
             commands::player_close,

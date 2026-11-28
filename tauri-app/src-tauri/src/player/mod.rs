@@ -4,6 +4,7 @@ mod audit;
 mod audit_macos;
 pub(crate) mod ffi;
 mod hdr;
+pub(crate) mod quality;
 pub(crate) mod thumbnail;
 #[cfg(target_os = "macos")]
 mod native_output_macos;
@@ -106,6 +107,10 @@ pub struct Snapshot {
     pub tracks: Vec<Track>,
     pub video_width: u32,
     pub video_height: u32,
+    pub cloud_quality: Option<String>,
+    pub server_playback: Option<crate::server_playback::PlaybackContext>,
+    #[serde(skip)]
+    server_selection: Option<Arc<crate::server_playback::Selection>>,
     pub queue_index: usize,
     pub queue_length: usize,
     pub queue: Vec<QueueEntry>,
@@ -133,6 +138,9 @@ impl Default for Snapshot {
             tracks: Vec::new(),
             video_width: 0,
             video_height: 0,
+            cloud_quality: None,
+            server_playback: None,
+            server_selection: None,
             queue_index: 0,
             queue_length: 0,
             queue: vec![],
@@ -155,6 +163,14 @@ pub struct Control {
 enum Message {
     Control(Control),
     Reconcile(mpsc::Sender<Result<(), AppError>>),
+    CloudQuality {
+        session: String,
+        item: String,
+        quality: String,
+        proxy: String,
+        context: Option<crate::server_playback::PlaybackContext>,
+        reply: tokio::sync::oneshot::Sender<Result<(), AppError>>,
+    },
     Stop,
 }
 struct Worker {
@@ -254,6 +270,24 @@ impl Player {
             .send(Message::Control(control))
             .map_err(|_| AppError::new("PLAYER_CLOSED", "Player has closed", true))
     }
+    async fn switch_cloud_quality(
+        &self,
+        session: String,
+        item: String,
+        quality: String,
+        proxy: String,
+        context: Option<crate::server_playback::PlaybackContext>,
+    ) -> Result<(), AppError> {
+        let (reply, received) = tokio::sync::oneshot::channel();
+        {
+            let worker = self.worker.lock().unwrap();
+            let worker = worker.as_ref().ok_or_else(quality::stale)?;
+            worker.sender.send(Message::CloudQuality { session, item, quality, proxy, context, reply })
+                .map_err(|_| quality::stale())?;
+        }
+        received.await.map_err(|_| quality::stale())?
+    }
+
     pub fn start(
         self: &Arc<Self>,
         app: tauri::AppHandle,
@@ -369,6 +403,7 @@ fn load(
     for url in proxies.drain(..) {
         tauri::async_runtime::block_on(gateway.revoke(&url));
     }
+    snapshot.server_selection = None;
     let url = if item.media.url.starts_with("file://") {
         url::Url::parse(&item.media.url)
             .ok()
@@ -382,6 +417,7 @@ fn load(
         } else {
             item.media.clone()
         };
+        snapshot.server_selection = gateway.server_selection(&media);
         let url = tauri::async_runtime::block_on(gateway.register(media))?;
         proxies.push(url.clone());
         url
@@ -412,6 +448,8 @@ fn load(
     snapshot.buffered_position = 0.0;
     snapshot.video_width = 0;
     snapshot.video_height = 0;
+    snapshot.cloud_quality = snapshot.server_selection.as_ref().map(|selection| selection.quality.clone());
+    snapshot.server_playback = snapshot.server_selection.as_ref().and_then(|selection| selection.context.clone());
     snapshot.tracks.clear();
     snapshot.state = "loading".into();
     snapshot.error = None;
@@ -450,6 +488,15 @@ fn reload_hls_session(mpv: &mut ffi::Mpv, url: &str) -> Result<(), AppError> {
     mpv.set("start", "none")?;
     mpv.command(&["loadfile", url, "replace"])
 }
+struct PendingQuality {
+    quality: String,
+    proxy: String,
+    context: Option<crate::server_playback::PlaybackContext>,
+    deadline: Instant,
+    playlist_entry: Option<i64>,
+    reply: tokio::sync::oneshot::Sender<Result<(), AppError>>,
+}
+
 #[derive(Default, Clone)]
 struct RecoveryTracks {
     audio: Option<String>,
@@ -544,6 +591,8 @@ fn run_worker(
     let mut remote_subtitles: Vec<Subtitle> = Vec::new();
     let mut recovery_tracks: Option<RecoveryTracks> = None;
     let mut last_tracks: Option<RecoveryTracks> = None;
+    let mut pending_quality: Option<PendingQuality> = None;
+    let quality_unavailable = || AppError::new("PLAYER_QUALITY", "无法播放所选画质，已尝试恢复原播放", true);
     while !stopping {
         while let Ok(message) = receiver.try_recv() {
             match message {
@@ -555,6 +604,37 @@ fn run_worker(
                 Message::Stop => {
                     stopping = true;
                     break;
+                }
+                Message::CloudQuality { session, item, quality, proxy, context, reply } => {
+                    if session != state.session_id || item != state.item_id {
+                        let _ = reply.send(Err(quality::stale()));
+                    } else if !loaded || pending_quality.is_some() || proxies.urls.is_empty() {
+                        let _ = reply.send(Err(AppError::new("PLAYER_LOADING", "请等待当前视频加载完成", true)));
+                    } else {
+                        let position = mpv.number("time-pos").unwrap_or(state.position).max(0.0);
+                        let tracks = RecoveryTracks::capture(&mpv);
+                        match reload_hls_session(&mut mpv, &proxy) {
+                            Ok(()) => {
+                                pending_quality = Some(PendingQuality {
+                                    quality, proxy, context, reply,
+                                    deadline: Instant::now() + Duration::from_secs(35),
+                                    playlist_entry: mpv.json("playlist/0/id").and_then(|value| value.as_i64()),
+                                });
+                                recovery_position = Some(position);
+                                recovery_tracks = Some(tracks);
+                                state.position = position;
+                                state.state = "loading".into();
+                                state.error = None;
+                                state.buffered_position = position;
+                                loaded = false;
+                                owner.publish(app, state.clone());
+                            }
+                            Err(error) => {
+                                let _ = mpv.set("pause", if want_paused { "yes" } else { "no" });
+                                let _ = reply.send(Err(error));
+                            }
+                        }
+                    }
                 }
                 Message::Control(control) => {
                     if control.session_id != state.session_id {
@@ -610,6 +690,9 @@ fn run_worker(
                                 index.saturating_sub(1)
                             };
                             if next != index {
+                                if let Some(change) = pending_quality.take() {
+                                    let _ = change.reply.send(Err(quality::stale()));
+                                }
                                 hls_recoveries = 0;
                                 recovery_position = None;
                                 remote_subtitles.clear();
@@ -642,11 +725,39 @@ fn run_worker(
         if stopping {
             break;
         }
+        if pending_quality.as_ref().is_some_and(|change| Instant::now() >= change.deadline) {
+            let change = pending_quality.take().unwrap();
+            let _ = change.reply.send(Err(quality_unavailable()));
+            reload_hls_session(&mut mpv, &proxies.urls[0])?;
+        }
         let event = mpv.wait(0.04);
         if !event.is_null() {
             unsafe {
                 match (*event).id {
                     8 => {
+                        if let Some(change) = &pending_quality {
+                            if mpv.string("path").as_deref() != Some(&change.proxy) {
+                                continue;
+                            }
+                        }
+                        if pending_quality.is_some() {
+                            let position = recovery_position.unwrap_or(0.0);
+                            if position > 0.0 && mpv.command(&["seek", &position.to_string(), "absolute+exact"]).is_err() {
+                                let change = pending_quality.take().unwrap();
+                                let _ = change.reply.send(Err(quality_unavailable()));
+                                reload_hls_session(&mut mpv, &proxies.urls[0])?;
+                                continue;
+                            }
+                            recovery_position = None;
+                        }
+                        let completed_quality = pending_quality.take();
+                        if let Some(change) = &completed_quality {
+                            for previous in proxies.urls.drain(..) {
+                                tauri::async_runtime::block_on(gateway.revoke(&previous));
+                            }
+                            proxies.urls.push(change.proxy.clone());
+                            hls_recoveries = 0;
+                        }
                         loaded = true;
                         if let Some(position) = recovery_position.take() {
                             mpv.command(&["seek", &position.to_string(), "absolute+exact"])?;
@@ -697,12 +808,26 @@ fn run_worker(
                             selection.apply_embedded(&mut mpv)?;
                         }
                         mpv.set("pause", if want_paused { "yes" } else { "no" })?;
-                        state.state = "playing".into();
+                        state.state = if want_paused { "paused" } else { "playing" }.into();
+                        if let Some(change) = completed_quality {
+                            state.cloud_quality = Some(change.quality);
+                            state.server_playback = change.context;
+                            owner.publish(app, state.clone());
+                            let _ = change.reply.send(Ok(()));
+                        }
                         log::info!("Player file loaded into native view");
                     }
                     7 => {
                         if !(*event).data.is_null() {
                             let end = &*((*event).data as *const ffi::EndFile);
+                            if let Some(change) = &pending_quality {
+                                if end.error < 0 && change.playlist_entry.is_none_or(|id| id == end.playlist_entry_id) {
+                                    let change = pending_quality.take().unwrap();
+                                    let _ = change.reply.send(Err(quality_unavailable()));
+                                    reload_hls_session(&mut mpv, &proxies.urls[0])?;
+                                }
+                                continue;
+                            }
                             if end.error < 0 {
                                 let recovery = proxies
                                     .urls

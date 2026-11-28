@@ -39,6 +39,8 @@ export interface PlayerSnapshot {
   schemaVersion: 1; sessionId: string; itemId: string; sourceId: string; title: string; displayPath?: string
   state: 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error'
   position: number; duration: number; bufferedPosition?: number; volume: number; speed: number; tracks: PlayerTrack[]
+  cloudQuality?: string | null
+  serverPlayback?: { mediaSourceId: string; playSessionId: string; playMethod: string } | null
   videoWidth: number; videoHeight: number; queueIndex: number; queueLength: number; queue?: {itemId: string; title: string}[]
   error: string | null; runtime: string; engineVersion?: string; embedded: boolean; sequence: number
 }

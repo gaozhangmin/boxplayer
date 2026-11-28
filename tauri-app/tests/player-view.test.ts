@@ -6,7 +6,7 @@ import type { PlayerSnapshot } from '@/platform/contracts'
 import * as native from '@/platform/native'
 let listener: (event: { payload: PlayerSnapshot }) => void
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(async (_name, callback) => { if (_name === 'player:state') listener = callback; return vi.fn() }) }))
-vi.mock('@/platform/native', async original => ({ ...await original<typeof import('@/platform/native')>(), isNative: () => true, playerState: vi.fn(), playerControl: vi.fn() }))
+vi.mock('@/platform/native', async original => ({ ...await original<typeof import('@/platform/native')>(), isNative: () => true, playerState: vi.fn(), playerControl: vi.fn(), nativeCall: vi.fn() }))
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ isFullscreen: async () => false, isMaximized: async () => false, onResized: async () => vi.fn() }) }))
 vi.mock('vue-sonner', () => ({ Toaster: { template: '<div />' } }))
 const initial: PlayerSnapshot = { schemaVersion: 1, sessionId: 'session-a', itemId: 'video-a', sourceId: 'source-a', title: 'video.mp4', displayPath: '/Users/tester/Videos/video.mp4', state: 'paused', position: 2, duration: 10, volume: 70, speed: 1, tracks: [], videoWidth: 640, videoHeight: 360, queueIndex: 0, queueLength: 1, error: null, runtime: '/runtime', embedded: true, sequence: 1 }
@@ -32,5 +32,22 @@ it('sends play controls with the current session and rejects an older event', as
   expect(wrapper.find('.side-actions').exists()).toBe(false)
   expect(wrapper.find('.player-diagnostics').exists()).toBe(false)
   expect(wrapper.find('select[aria-label="倍速"]').exists()).toBe(false)
+  wrapper.unmount()
+})
+
+it('opens the playback quality menu from the player controls', async () => {
+  vi.mocked(native.nativeCall).mockResolvedValueOnce([{ id: 'original', label: '原画' }, { id: 'LD', label: '360p' }])
+  const wrapper = mount(Player, { global: { plugins: [createPinia()] } })
+  await flushPromises()
+  await wrapper.get('button[aria-label="画质"]').trigger('click')
+  await flushPromises()
+  const menu = wrapper.get('[aria-label="画质选项"]')
+  const [original, low] = menu.findAll('button')
+  expect(original.attributes('aria-pressed')).toBe('true')
+  await low.trigger('click')
+  expect(native.nativeCall).toHaveBeenCalledWith('player_set_cloud_quality', { sessionId: 'session-a', itemId: 'video-a', qualityId: 'LD' })
+  listener({ payload: { ...initial, sequence: 2, cloudQuality: 'LD' } })
+  await flushPromises()
+  expect(low.attributes('aria-pressed')).toBe('true')
   wrapper.unmount()
 })

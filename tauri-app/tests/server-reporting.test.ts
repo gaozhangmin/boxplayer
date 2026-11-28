@@ -27,3 +27,18 @@ it('does not send stop/start for buffering or HLS recovery within the same sessi
  report(snapshot);report({...snapshot,sequence:2,state:'loading'});report({...snapshot,sequence:3,position:8.1});report({...snapshot,sequence:4,state:'idle',position:9})
  await flushPromises();expect(vi.mocked(serverReport).mock.calls.map(c=>[c[2],c[3]])).toEqual([['start',8],['stop',9]])
 })
+
+it('reports progress to the newly negotiated server session after a successful switch', async () => {
+ vi.mocked(serverReport).mockClear()
+ const report = createServerReporter(() => [{id:'a',providerId:'jellyfin',name:'test',baseUrl:'https://example.test',authOrigins:['https://example.test']}], () => {})
+ const original = {mediaSourceId:'version',playSessionId:'direct',playMethod:'DirectPlay'}
+ const switched = {...original,playSessionId:'lower-bitrate',playMethod:'Transcode'}
+ const snapshot = {sourceId:'a',sessionId:'player',itemId:'one',state:'paused',position:8,sequence:1,serverPlayback:original} as PlayerSnapshot
+ report(snapshot)
+ report({...snapshot,sequence:2,state:'loading',position:12})
+ report({...snapshot,sequence:3,position:12,serverPlayback:switched})
+ await flushPromises()
+ expect(vi.mocked(serverReport).mock.calls.map(call => [call[2],call[3],call[4],call[5]?.playSessionId])).toEqual([
+  ['start',8,true,'direct'], ['stop',12,true,'direct'], ['start',12,true,'lower-bitrate']
+ ])
+})
